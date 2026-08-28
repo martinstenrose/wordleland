@@ -1,0 +1,221 @@
+// Package bridge connects a Signal group to the result store.
+//
+// It subscribes to signal-cli-rest-api, keeps only Wordle results posted in
+// the configured group, and files each one. It runs inside the application
+// rather than beside it: since the two were merged there is no network hop,
+// no token, and no second process to keep alive.
+//
+// It stays its own package because what it does — read a chat, decide what
+// is a result — has nothing to do with serving a board, and because the
+// moment a second bridge exists this is the shape to copy.
+package bridge
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"math/rand"
+	"time"
+
+	"github.com/martinstenrose/wordleland/internal/ingest"
+	"github.com/martinstenrose/wordleland/internal/wordle"
+)
+
+// SourceSignal names this bridge in player_identities and in the audit
+// trail. One constant so the stored value and the logged one cannot drift.
+const SourceSignal = "signal"
+
+// Deliverer files one parsed result. The filer does not know how: it
+// posted over HTTP when it was its own service, and calls ingest directly
+// now. Kept as a function so a test can watch what it was handed without
+// standing up a database.
+type Deliverer func(context.Context, ingest.Submission) (ingest.Status, error)
+
+// Back-dating window, in puzzles either side of today's.
+//
+// The group posts archive results — an "Archive February 20, 2026" line
+// followed by a share text the parser matches exactly. Back-dated results
+// were deliberately excluded from the imported history, and forwarding them
+// would let them back in by another door: an existing row is protected by
+// the precedence rule, but an archive result for a puzzle the player has no
+// row for inserts cleanly, which is the common case, since people play
+// archive puzzles precisely because they missed them.
+//
+// The check lives here rather than in ingest because ingest is
+// source-agnostic and the CLI legitimately writes old puzzles.
+const (
+	// maxPuzzlesBehind allows a result posted late in the evening, or from
+	// a timezone still on yesterday.
+	maxPuzzlesBehind = 2
+	// maxPuzzlesAhead allows a timezone that has already rolled over.
+	maxPuzzlesAhead = 1
+)
+
+// Retry policy for a failed write. signal-cli has already acknowledged the
+// message to Signal by the time it reaches us, so nothing will redeliver
+// it: a result dropped here is lost.
+const (
+	maxAttempts    = 6
+	baseRetryDelay = time.Second
+	maxRetryDelay  = 30 * time.Second
+)
+
+// filer turns messages into ingest calls.
+type filer struct {
+	groupID string
+	deliver Deliverer
+	logger  *slog.Logger
+	// health is told whether results are landing, so the diagnostics cover
+	// delivery and not only the Signal side.
+	health *health
+
+	// now is swapped in tests so the back-dating window can be exercised
+	// without waiting for the calendar.
+	now func() time.Time
+	// sleep is swapped in tests so retry backoff costs no real time.
+	sleep func(context.Context, time.Duration)
+}
+
+func newFiler(groupID string, deliver Deliverer, logger *slog.Logger, h *health) *filer {
+	if h == nil {
+		h = newHealth(time.Now)
+	}
+	return &filer{
+		groupID: groupID, deliver: deliver, logger: logger, health: h,
+		now:   time.Now,
+		sleep: sleepContext,
+	}
+}
+
+// handle processes one message. It returns nothing: every outcome is either
+// normal or already logged, and there is no caller who could do better.
+func (f *filer) handle(ctx context.Context, m Message) {
+	// The group id that arrives on a message is the bare base64 form, which
+	// /v1/groups reports as internal_id. The same endpoint also reports a
+	// "group.<base64>" id, and configuring that one matches nothing while
+	// looking exactly like a bot that is simply not receiving. The
+	// config layer rejects that form at boot for the same reason.
+	if m.GroupID != f.groupID {
+		return
+	}
+
+	result, ok := wordle.Parse(m.Body)
+	if !ok {
+		// Most traffic in the group is ordinary conversation.
+		return
+	}
+
+	if !f.withinWindow(result.PuzzleNo) {
+		// Logged at info rather than dropped silently, so archive posts are
+		// visible as a thing that happened rather than a mystery. No
+		// identifying field: the puzzle number is enough to recognise it.
+		f.logger.Info("ignoring a back-dated result",
+			"puzzle", result.PuzzleNo, "current", f.currentPuzzle())
+		return
+	}
+
+	f.file(ctx, result, m)
+}
+
+// withinWindow reports whether a puzzle is close enough to today's to be a
+// live result rather than an archive one.
+func (f *filer) withinWindow(puzzleNo int) bool {
+	current := f.currentPuzzle()
+	return puzzleNo >= current-maxPuzzlesBehind && puzzleNo <= current+maxPuzzlesAhead
+}
+
+func (f *filer) currentPuzzle() int {
+	return wordle.PuzzleForDate(f.now())
+}
+
+// post delivers a result, retrying only what retrying can fix.
+func (f *filer) file(ctx context.Context, result wordle.Result, m Message) {
+	sub := ingest.Submission{
+		Source:      SourceSignal,
+		ExternalID:  m.SenderUUID,
+		DisplayHint: m.SenderName,
+		PuzzleNo:    result.PuzzleNo,
+		Solved:      result.Solved,
+		HardMode:    result.HardMode,
+		Via:         SourceSignal,
+	}
+	if result.Solved {
+		guesses := result.Guesses
+		sub.Guesses = &guesses
+	}
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		status, err := f.deliver(ctx, sub)
+		if ctx.Err() != nil {
+			return
+		}
+
+		var invalid *ingest.ValidationError
+		switch {
+		case errors.As(err, &invalid):
+			// The parser produced something ingest will never accept.
+			// Retrying cannot fix it, and dropping it silently would hide a
+			// bug in the one component whose job is reading these messages.
+			f.health.deliveryDropped()
+			f.logger.Error("a parsed result was rejected as invalid; this is a parser bug",
+				"puzzle", result.PuzzleNo, "error", err)
+			return
+
+		case err != nil:
+			// In process this is the database being busy or broken rather
+			// than a network fault, but the answer is the same: wait and
+			// try again, because the alternative is losing the score.
+			f.health.deliveryFailed()
+			f.logger.Warn("filing a result failed, will retry",
+				"puzzle", result.PuzzleNo, "attempt", attempt, "error", err)
+
+		case status == ingest.StatusPending:
+			// The sender has no claimed identity yet, so the result is held
+			// and replayed when they are claimed. Normal, not an error.
+			//
+			// Deliberately without the sender's uuid or name: both identify
+			// a person, and `wordleland identity pending` already lists
+			// exactly who is waiting, from the database.
+			f.health.deliverySucceeded()
+			f.logger.Info("result held for an unclaimed sender; "+
+				"run 'wordleland identity pending' to see who and claim them",
+				"puzzle", result.PuzzleNo)
+			return
+
+		default:
+			f.health.deliverySucceeded()
+			f.logger.Debug("filed a result", "puzzle", result.PuzzleNo, "status", status)
+			return
+		}
+
+		if attempt < maxAttempts {
+			f.sleep(ctx, retryDelay(attempt))
+		}
+	}
+
+	// Nothing will redeliver this: signal-cli acknowledged it to Signal
+	// before it reached us.
+	f.health.deliveryDropped()
+	f.logger.Error("giving up on a result after repeated failures; it is lost, "+
+		"and can be entered by hand with 'wordleland results set'",
+		"puzzle", result.PuzzleNo, "attempts", maxAttempts)
+}
+
+func retryDelay(attempt int) time.Duration {
+	delay := baseRetryDelay << (attempt - 1)
+	if delay > maxRetryDelay {
+		delay = maxRetryDelay
+	}
+	jitter := time.Duration(rand.Int63n(int64(delay / 2)))
+	return delay/2 + jitter
+}
+
+// sleepContext waits, or returns early if the context is cancelled.
+func sleepContext(ctx context.Context, d time.Duration) {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+	case <-ctx.Done():
+	}
+}
