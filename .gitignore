@@ -1,0 +1,18 @@
+# Local databases, including the journal, WAL and shared-memory files
+# SQLite creates beside them.
+*.sqlite*
+
+# Build output
+/out/
+
+# signal-cli-rest-api linked-device state
+/signal-cli-config/
+
+# Backfill exports. These hold real names and scores.
+*.csv
+
+# The negation is load-bearing: .env.* matches .env.example too, and git add
+# reports nothing when a file is excluded.
+.env
+.env.*
+!.env.example
