@@ -1,0 +1,52 @@
+{{define "title"}}{{.T.T "invite.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+<section class="signin">
+  <div class="signin-main">
+    <div class="auth-top">
+      <a class="brand brand-lg" href="/">{{template "mark" .}}</a>
+      <span class="signin-switchers">{{template "theme-picker" .}}{{template "language-picker" .}}</span>
+    </div>
+
+    {{if .Invalid}}
+      <h1>{{.T.T "invite.invalid.heading"}}</h1>
+      <p class="signin-sub">{{.T.T "invite.invalid.body"}}</p>
+      <div class="actions"><a class="btn-primary" href="/">{{.T.T "nav.signIn"}}</a></div>
+    {{else}}
+      <h1>{{.T.T "invite.heading" .PlayerName}}</h1>
+      <p class="signin-sub">{{.T.T "invite.sub" .Email}}</p>
+
+      {{if .Error}}<p class="note error" role="alert">{{.T.T .Error}}</p>{{end}}
+
+      <form method="post" action="/invite" class="form signin-form">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <input type="hidden" name="token" value="{{.Token}}">
+
+        <label for="password">{{.T.T "invite.choose"}}</label>
+        <input type="password" id="password" name="password" required autocomplete="new-password"
+               autofocus placeholder="{{.T.T "reset.minimum"}}">
+
+        <label for="password_confirm">{{.T.T "reset.repeat"}}</label>
+        <input type="password" id="password_confirm" name="password_confirm" required autocomplete="new-password">
+
+        <div class="actions"><button type="submit">{{.T.T "invite.submit"}}</button></div>
+      </form>
+    {{end}}
+
+    <div class="signin-foot">
+    </div>
+  </div>
+
+  {{if not .Invalid}}
+    <aside class="signin-aside">
+      <p class="kicker">{{.T.T "invite.aside.title"}}</p>
+      <p class="signin-figure">{{.Games}}</p>
+      <p class="muted small">{{.T.TN "invite.gamesAlready" .Games}}</p>
+      <hr>
+      <dl class="signin-stats">
+        <div><dt>{{.T.T "board.column.average"}}</dt><dd class="num">{{.Average}}</dd></div>
+      </dl>
+      <p class="muted small">{{.T.T "invite.aside.note"}}</p>
+    </aside>
+  {{end}}
+</section>
+{{end}}

@@ -1,0 +1,102 @@
+{{define "title"}}{{.T.T "board.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{template "topbar" .}}
+
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h1>{{.T.T "board.title"}}</h1>
+      <p class="kicker">{{.T.T "board.rankedBy"}}</p>
+    </div>
+
+    <nav class="controls">
+      <span class="seg">
+        <a class="seg-opt{{if not .Query.HardModeOnly}} on{{end}}"
+           href="{{.BoardPath}}{{.Query.ModeAllHref}}">{{.T.T "board.mode.all"}}</a>
+        <a class="seg-opt{{if .Query.HardModeOnly}} on{{end}}"
+           href="{{.BoardPath}}{{.Query.ModeHardHref}}">{{.T.T "board.mode.hard"}}</a>
+      </span>
+      <a class="toggle{{if .Query.CountXAsSeven}} on{{end}}"
+         href="{{.BoardPath}}{{.Query.CountXHref}}">{{.T.T "board.toggle.countX"}}</a>
+      <a class="toggle{{if .Query.CountMissed}} on{{end}}"
+         href="{{.BoardPath}}{{.Query.CountMissedHref}}">{{.T.T "board.toggle.countMissed"}}</a>
+    </nav>
+  </div>
+
+  {{if and .Query.HardModeOnly .Board.ExcludedByFilter}}
+    <p class="note">{{.T.TN "board.mode.excluded" .Board.ExcludedByFilter}}</p>
+  {{end}}
+
+  {{if not .Rows}}
+    <div class="empty">
+      <p>{{.T.T "board.empty"}}</p>
+      <p class="muted">{{.T.T "board.emptyHint"}}</p>
+    </div>
+  {{else}}
+  {{/* The board has more columns than a phone is wide. Scrolled
+       rather than squeezed, exactly as the month tables are. */}}
+  <div class="table-scroll">
+  <table class="board">
+    <thead>
+      <tr>
+        {{range .Headers}}
+          <th class="{{if or (eq .Column "player") (eq .Column "rank")}}left{{else}}right{{end}}{{if .Active}} sorted{{end}}"
+              aria-sort="{{.Aria}}">
+            <a href="{{.Href}}">{{.Label}}<span class="sort-mark" aria-hidden="true">{{if .Active}}{{if .Desc}}▾{{else}}▴{{end}}{{end}}</span></a>
+          </th>
+          {{/* The sparkline is not sortable and sits between streak and games,
+               so it is emitted here rather than being a column in the list. */}}
+          {{if eq .Column "streak"}}<th class="right spark-col">{{$.T.T "board.column.last30"}}</th>{{end}}
+        {{end}}
+      </tr>
+    </thead>
+    <tbody>
+      {{$t := .T}}{{$group := .GroupPath}}{{$seen := false}}
+      {{range .Rows}}
+        {{if and (not .Ranked) (not $seen)}}
+          {{$seen = true}}
+          <tr class="divider"><td colspan="7">{{$t.T "board.notRanked"}}</td></tr>
+        {{end}}
+        <tr{{if not .Ranked}} class="unranked"{{end}}>
+          <td class="num">{{if .Ranked}}{{.Rank}}{{else}}—{{end}}</td>
+          <td><a class="player" href="{{.Href}}">{{.Name}}</a>
+            {{if .ReasonKey}}<span class="chip">{{$t.T .ReasonKey}}</span>{{end}}
+          </td>
+          <td class="right num strong">{{.AverageText}}</td>
+          <td class="right num">
+            {{.FormText}}
+            {{if .DeltaText}}<span class="delta {{.DeltaDirection}}">{{.DeltaText}}</span>{{end}}
+          </td>
+          <td class="right num">{{.StreakText}}</td>
+          <td class="right spark-col">
+            {{if .Ranked}}
+              {{if .HasSpark}}
+              <svg width="140" height="30" viewBox="0 0 140 30" aria-hidden="true">
+                {{if $group}}<path class="group" d="{{$group}}"/>{{end}}
+                <path class="player" d="{{.SparkPath}}"/>
+              </svg>
+              {{end}}
+            {{else}}
+              <span class="muted small">{{.LastSeenText}}</span>
+            {{end}}
+          </td>
+          <td class="right num">{{.Games}}</td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+  </div>
+  {{end}}
+
+  <footer class="card-foot">
+    <span>{{.T.T "board.footer.lines"}}</span>
+    {{if .Query.CountXAsSeven}}
+      <span>{{.T.T "board.footer.averages"}}</span>
+    {{else}}
+      <span>{{.T.T "board.footer.averagesPlain"}}</span>
+    {{end}}
+    {{if .Query.CountMissed}}<span>{{.T.T "board.footer.missed"}}</span>{{end}}
+    <span>{{.T.T "board.footer.ranked" 10}}</span>
+  </footer>
+</section>
+{{end}}

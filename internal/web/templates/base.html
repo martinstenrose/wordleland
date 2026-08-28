@@ -1,0 +1,203 @@
+{{define "base"}}<!doctype html>
+<html lang="{{.Lang}}" data-theme="{{.Theme}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{block "title" .}}Wordleland{{end}}</title>
+<link rel="icon" type="image/svg+xml" href="/static/icon.svg">
+<link rel="icon" type="image/png" sizes="180x180" href="/static/icon-180.png">
+<link rel="apple-touch-icon" href="/static/icon-180.png">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<main>
+{{block "content" .}}{{end}}
+</main>
+</body>
+</html>{{end}}
+
+{{define "mark"}}<span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>{{end}}
+
+{{/* The switchers are links, and the account menu is a <details>. Nothing
+     here needs JavaScript, which is the point: a control that only works
+     once a script has run is a control that sometimes does not work. */}}
+{{define "theme-icon"}}
+  {{if eq . "light"}}
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+        <circle cx="12" cy="12" r="4.2"/>
+        <path d="M12 2.6v2.2M12 19.2v2.2M4.4 4.4l1.6 1.6M18 18l1.6 1.6M2.6 12h2.2M19.2 12h2.2M4.4 19.6L6 18M18 6l1.6-1.6"/>
+      </g>
+    </svg>
+  {{else if eq . "dark"}}
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20 14.2A8.4 8.4 0 019.8 4a8.4 8.4 0 1010.2 10.2z"
+            fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    </svg>
+  {{else}}
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+        <rect x="2.8" y="4.2" width="18.4" height="12.4" rx="2"/>
+        <path d="M8.6 20.2h6.8M12 16.6v3.6"/>
+      </g>
+    </svg>
+  {{end}}
+{{end}}
+
+{{/* Flags are drawn rather than fetched: an emoji flag does not render on
+     every platform, and an image would be a request to somewhere. */}}
+{{define "flag"}}
+  {{if eq . "sv"}}
+    <svg width="16" height="11" viewBox="0 0 16 10" aria-hidden="true">
+      <rect width="16" height="10" fill="#005293"/>
+      <rect x="5" width="2" height="10" fill="#fecb00"/>
+      <rect y="4" width="16" height="2" fill="#fecb00"/>
+    </svg>
+  {{else}}
+    <svg width="16" height="11" viewBox="0 0 16 10" aria-hidden="true">
+      <rect width="16" height="10" fill="#012169"/>
+      <path d="M0 0l16 10M16 0L0 10" stroke="#fff" stroke-width="2"/>
+      <path d="M8 0v10M0 5h16" stroke="#fff" stroke-width="3.4"/>
+      <path d="M8 0v10M0 5h16" stroke="#c8102e" stroke-width="2"/>
+    </svg>
+  {{end}}
+{{end}}
+
+{{define "chevron"}}<svg class="chevron" width="9" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>{{end}}
+
+{{/* Both pickers are <details>, so they open with no script at all. */}}
+{{define "theme-picker"}}
+<details class="menu">
+  <summary class="menu-btn" aria-label="{{.ThemeLabel}}" title="{{.ThemeLabel}}">
+    {{template "theme-icon" .Theme}}{{template "chevron" .}}
+  </summary>
+  <div class="menu-panel">
+    <p class="kicker">{{.T.T "theme.label"}}</p>
+    {{range .Themes}}
+      <a class="menu-row{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>
+        {{template "theme-icon" .Code}}
+        <span>{{.Label}}</span>
+        <span class="menu-check" aria-hidden="true">{{if .On}}✓{{end}}</span>
+      </a>
+    {{end}}
+  </div>
+</details>
+{{end}}
+
+{{define "language-picker"}}
+<details class="menu">
+  <summary class="menu-btn" aria-label="{{.LangLabel}}" title="{{.LangLabel}}">
+    {{template "flag" .Lang}}{{template "chevron" .}}
+  </summary>
+  <div class="menu-panel">
+    <p class="kicker">{{.T.T "lang.label"}}</p>
+    {{range .Languages}}
+      <a class="menu-row{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>
+        {{template "flag" .Code}}
+        <span>{{.Label}}</span>
+        <span class="menu-check" aria-hidden="true">{{if .On}}✓{{end}}</span>
+      </a>
+    {{end}}
+  </div>
+</details>
+{{end}}
+
+{{define "topbar"}}
+<header class="topbar">
+  <nav class="topbar-nav" aria-label="{{.T.T "nav.views"}}">
+    {{/* Not a link: Today is a view in the row beside it, and two controls
+         going to the same place is one of them being redundant. */}}
+    <span class="brand">{{template "mark" .}}
+      <span class="brand-id">
+        <span>{{.T.T "app.name"}}</span>
+        {{if .Subtitle}}<span class="brand-sub">{{.Subtitle}}</span>{{end}}
+      </span>
+    </span>
+    {{if .Nav}}
+      <span class="topbar-divider" aria-hidden="true"></span>
+      {{range .Nav}}<a class="view{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}
+    {{end}}
+  </nav>
+
+  <div class="topbar-controls">
+    {{/* Both in the bar. Theme is per-device; language belongs to the
+         account and is written there when a signed-in reader picks one, so
+         it follows them to another device and decides what language their
+         mail arrives in. */}}
+    {{template "theme-picker" .}}
+    {{template "language-picker" .}}
+
+    {{if .ReadOnly}}
+      {{/* No account menu here to hold it, and the share link is how the
+           group reads the board before anyone has an account (§10), so the
+           language control stays in the bar rather than disappearing. */}}
+      <a class="btn-primary" href="/">
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+          <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 3h4.4A1.6 1.6 0 0120 4.6v14.8A1.6 1.6 0 0118.4 21H14"/>
+            <path d="M10 7.5L14.5 12 10 16.5M14.5 12H3.5"/>
+          </g>
+        </svg>
+        {{.T.T "nav.signIn"}}
+      </a>
+    {{else if .SignedIn}}
+      <details class="account">
+        <summary aria-label="{{.T.T "account.menu"}}">
+          <span class="avatar" aria-hidden="true">{{.Initials}}</span>
+        </summary>
+        <div class="account-menu">
+          <div class="account-who">
+            <span class="avatar" aria-hidden="true">{{.Initials}}</span>
+            <span class="account-id">
+              <span class="account-name">{{.T.T "account.title"}}</span>
+              <span class="account-email">{{.User.Email}}</span>
+            </span>
+          </div>
+          <hr>
+          <a href="/settings">{{.T.T "nav.settings"}}</a>
+          {{if .IsAdmin}}<a href="/admin/players">{{.T.T "nav.admin"}}</a>{{end}}
+          <hr>
+          <form method="post" action="/logout">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <button class="link danger" type="submit">{{.T.T "nav.signOut"}}</button>
+          </form>
+        </div>
+      </details>
+    {{end}}
+  </div>
+</header>
+
+{{if .Tabs}}
+  {{/* The same pills the top bar carries, scrolling under the header on a
+       narrow screen. A bottom tab bar was a second navigation to keep in
+       step with the first. */}}
+  <nav class="views-mobile" aria-label="{{.T.T "nav.views"}}">
+    {{range .Tabs}}<a class="view{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}
+  </nav>
+{{end}}
+{{end}}
+
+{{/* A trait and its reason. title= is a desktop-only affordance — there is
+     no hover on a phone — so the label is a <summary> that opens the
+     explanation on tap. Still no script. */}}
+{{define "trait"}}<details class="trait-pop"><summary class="trait" title="{{.Why}}">{{.Trait}}</summary><span class="trait-why">{{.Why}}</span></details>{{end}}
+
+{{define "admin-warning"}}
+{{if .AdminWarning}}
+  {{/* Shown across the admin area, not only where it is computed: the
+       container used to go unhealthy and tell you, and a page you have to
+       open is not a replacement for that. */}}
+  <p class="note warn" role="status">
+    {{.AdminWarning}} <a href="/admin/diagnostics">{{.T.T "diag.title"}} →</a>
+  </p>
+{{end}}
+{{end}}
+
+{{define "admin-tabs"}}
+<nav class="picker admin-tabs" aria-label="{{.T.T "nav.admin"}}">
+  <a class="pick{{if eq .AdminTab "players"}} on{{end}}" href="/admin/players">{{.T.T "admin.players.title"}}</a>
+  <a class="pick{{if eq .AdminTab "pending"}} on{{end}}" href="/admin/pending">{{.T.T "pending.title"}}</a>
+  <a class="pick{{if eq .AdminTab "activity"}} on{{end}}" href="/admin/activity">{{.T.T "activity.title"}}</a>
+  <a class="pick{{if eq .AdminTab "diagnostics"}} on{{end}}" href="/admin/diagnostics">{{.T.T "diag.title"}}</a>
+</nav>
+{{end}}

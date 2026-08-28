@@ -1,0 +1,32 @@
+{{define "title"}}{{.T.T "recoveryCodes.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+<section class="auth-card auth-card-wide">
+  <div class="auth-top">
+    <a class="brand brand-lg" href="/">{{template "mark" .}}</a>
+    <span class="signin-switchers">{{template "theme-picker" .}}{{template "language-picker" .}}</span>
+  </div>
+
+  <h1>{{.T.T "recoveryCodes.heading"}}</h1>
+  <p class="signin-sub">{{.T.T "recoveryCodes.sub"}}</p>
+
+  {{/* Shown once and never again: only hashes are stored, so there is no
+       route that can rebuild this list. The warning is the page, not a
+       footnote on it. */}}
+  <p class="note" role="status">{{.T.T "recoveryCodes.once"}}</p>
+
+  <ol class="recovery-codes">
+    {{range .Codes}}<li><code>{{.}}</code></li>{{end}}
+  </ol>
+
+  <p class="hint">{{.T.T "recoveryCodes.help"}}</p>
+
+  <div class="actions">
+    {{if .Enrolling}}
+      <a class="btn-primary block" href="/today">{{.T.T "recoveryCodes.continue"}}</a>
+    {{else}}
+      <a class="btn-primary block" href="/settings">{{.T.T "recoveryCodes.done"}}</a>
+    {{end}}
+  </div>
+
+</section>
+{{end}}

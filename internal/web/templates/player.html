@@ -1,0 +1,136 @@
+{{define "title"}}{{.Player.Name}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{template "topbar" .}}
+
+<section class="card">
+  {{if .Picker}}
+    <nav class="picker" aria-label="{{.T.T "nav.view.players"}}">
+      {{range .Picker}}<a class="pick{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>{{.Name}}</a>{{end}}
+    </nav>
+  {{end}}
+
+  <div class="player-head">
+    <div class="player-head-main">
+      <h1>{{.Player.Name}}
+        {{if .Trait}}{{template "trait" .}}{{end}}
+        {{if not .Player.Active}}<span class="chip">{{.T.T "player.retired"}}</span>{{end}}
+        {{if .ReasonKey}}<span class="chip">{{.T.T .ReasonKey}}</span>{{end}}
+      </h1>
+      <p class="muted">
+        {{if .Player.Ranked}}{{.T.T "player.rank" .Player.Rank}}{{else}}{{.T.T "player.notRanked"}}{{end}}
+        {{if .LastPlayedText}} · {{.T.T "player.lastPlayed"}} {{.LastPlayedText}}{{end}}
+      </p>
+    </div>
+    {{if .Player.Games}}
+      <dl class="player-stats">
+        {{range .Stats}}
+          <div><dt>{{.Label}}</dt><dd class="num">{{.Value}}</dd></div>
+        {{end}}
+      </dl>
+    {{end}}
+  </div>
+
+  {{if not .Player.Games}}
+    <p class="empty">{{.T.T "player.noGames"}}</p>
+  {{else}}
+
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-head">
+        <span>{{.T.T "player.formChart"}}</span>
+        <span class="legend-lines">
+          <span class="muted small">— {{.Player.Name}}</span>
+          <span class="muted small">
+            <svg width="18" height="6" viewBox="0 0 18 6" aria-hidden="true">
+              <line x1="0" y1="3" x2="18" y2="3" stroke="currentColor" stroke-width="1.9" stroke-dasharray="7 4" stroke-linecap="round"/>
+            </svg>
+            {{.T.T "player.group"}}
+          </span>
+        </span>
+      </div>
+      {{if .ChartNoteKey}}
+        <p class="hint">{{.T.T .ChartNoteKey}}</p>
+      {{else if .HasChart}}
+        <div class="chart-wrap">
+          <svg class="chart" viewBox="0 0 560 140" preserveAspectRatio="none" role="img"
+               aria-label="{{.T.T "player.formChart"}}">
+            {{range .Gridlines}}<line class="grid" x1="0" x2="560" y1="{{.Y}}" y2="{{.Y}}"/>{{end}}
+            {{if .GroupPath}}<path class="group" d="{{.GroupPath}}"/>{{end}}
+            <path class="player" d="{{.FormPath}}"/>
+          </svg>
+          <ol class="scale" aria-hidden="true">
+            {{range .Gridlines}}<li>{{.Score}}</li>{{end}}
+          </ol>
+        </div>
+      {{end}}
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span>{{.T.T "player.distribution"}}</span>
+        <span class="muted small">{{.T.TN "player.games" .Player.Games}}</span>
+      </div>
+      <ul class="dist">
+        {{range .Distribution}}
+          <li>
+            <span class="dist-label num">{{.Label}}</span>
+            <span class="dist-track"><span class="dist-fill" style="width:{{.Percent}}%"></span></span>
+            <span class="dist-count num">{{.Count}}</span>
+            <span class="dist-share num muted small">{{.Share}}</span>
+          </li>
+        {{end}}
+      </ul>
+    </div>
+
+    {{if .Calendar}}
+      <div class="panel">
+        <div class="panel-head">
+          <span>{{.T.T "player.calendar"}}</span>
+          <span class="muted small">{{.T.T "player.longestStreak"}} {{.Player.LongestStreak}}</span>
+        </div>
+        <div class="calendar-wrap">
+          <ol class="calendar" aria-hidden="true">
+            {{range .Calendar}}
+              <li class="cal{{if not .Filled}} pad{{else if .Played}} t{{.Tone}}{{else}} miss{{end}}"
+                  {{if .Title}}title="{{.Title}}"{{end}}></li>
+            {{end}}
+          </ol>
+        </div>
+        <p class="hint">{{.T.T "player.calendarLegend"}}</p>
+      </div>
+    {{end}}
+
+    {{if .MonthRanks}}
+      <div class="panel">
+        <div class="panel-head"><span>{{.T.T "player.rankByMonth"}}</span></div>
+        <svg class="rank-chart" viewBox="0 0 300 120" width="100%" height="120" role="img"
+             aria-label="{{.T.T "player.rankByMonth"}}">
+          <path class="player" d="{{.RankPath}}"/>
+          {{range .MonthRanks}}
+            <g>
+              <circle cx="{{.X}}" cy="{{.Y}}" r="3.4"/>
+              <text x="{{.X}}" y="{{.LabelY}}" text-anchor="middle" font-size="11">{{.Rank}}</text>
+              <text x="{{.X}}" y="114" text-anchor="middle" font-size="10" class="axis">{{.Label}}</text>
+            </g>
+          {{end}}
+        </svg>
+      </div>
+    {{end}}
+
+    <div class="panel wide">
+      <div class="panel-head"><span>{{.T.T "player.recent"}}</span></div>
+      <ol class="strip">
+        {{range .Recent}}
+          <li class="cell{{if .Played}} t{{.Tone}}{{else}} gap{{end}}{{if .HardMode}} hard{{end}}"
+              title="{{.Date}} · {{$.T.T "player.puzzle" .PuzzleNo}}">
+            <span>{{if .Played}}{{.Label}}{{else}}·{{end}}</span>
+          </li>
+        {{end}}
+      </ol>
+      <p class="hint">{{.T.T "player.stripLegend"}}</p>
+    </div>
+  </div>
+
+  {{end}}
+</section>
+{{end}}

@@ -1,0 +1,33 @@
+{{define "title"}}{{.T.T "recovery.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+<section class="auth-card">
+  <div class="auth-top">
+    <a class="brand brand-lg" href="/">{{template "mark" .}}</a>
+    <span class="signin-switchers">{{template "theme-picker" .}}{{template "language-picker" .}}</span>
+  </div>
+
+  <h1>{{.T.T "recovery.heading"}}</h1>
+  <p class="signin-sub">
+    {{if .Email}}{{.T.T "recovery.sub" .Email}}{{else}}{{.T.T "recovery.subPlain"}}{{end}}
+  </p>
+
+  {{if .Error}}<p class="note error" role="alert">{{.Error}}</p>{{end}}
+
+  <form method="post" action="/recovery" class="form">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <label for="code" class="visually-hidden">{{.T.T "recovery.label"}}</label>
+    {{/* No pattern or maxlength: the code is grouped for reading, and the
+         server accepts it typed with or without the dashes. Refusing it
+         here would reject exactly what the page above told them to write. */}}
+    <input class="code-input code-wide" type="text" id="code" name="code"
+           autocomplete="off" autocapitalize="characters" spellcheck="false"
+           required autofocus aria-describedby="recovery-help">
+    <p class="hint" id="recovery-help">{{.T.T "recovery.help"}}</p>
+    <div class="actions"><button class="block" type="submit">{{.T.T "recovery.submit"}}</button></div>
+  </form>
+
+  <div class="signin-foot">
+    <a class="link" href="/totp">{{.T.T "recovery.useApp"}}</a>
+  </div>
+</section>
+{{end}}

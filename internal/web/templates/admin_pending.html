@@ -1,0 +1,74 @@
+{{define "title"}}{{.T.T "pending.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{template "topbar" .}}
+
+<section class="card">
+  {{template "admin-tabs" .}}
+  {{template "admin-warning" .}}
+
+  <div class="card-head">
+    <h1>{{.T.T "pending.title"}}</h1>
+    <p class="kicker">{{.T.T "pending.counts" .Open .Count}}</p>
+  </div>
+
+  {{if eq .Notice "assigned"}}<p class="note">{{.T.T "pending.assigned"}}</p>{{end}}
+  {{if eq .Notice "discarded"}}<p class="note">{{.T.T "pending.discarded"}}</p>{{end}}
+  {{if .Error}}<p class="note error" role="alert">{{.T.T .Error}}</p>{{end}}
+
+  {{if .Rows}}
+    <ul class="pending">
+      {{$page := .}}
+      {{range .Rows}}
+        <li class="pending-row">
+          <div class="pending-head">
+            <span class="chip dashed">{{.Source}}</span>
+            <span class="num">{{.Identity}}</span>
+            <span class="muted small">{{.Seen}}</span>
+          </div>
+
+          <p class="pending-snippet">{{.Snippet}}</p>
+          {{if .Suggestion}}
+            <p class="hint">{{$page.T.T "pending.seenBefore" .Suggestion}}</p>
+          {{end}}
+
+          <div class="pending-actions">
+            <form method="post" action="/admin/pending/assign" class="inline-field">
+              <input type="hidden" name="csrf_token" value="{{$page.CSRFToken}}">
+              <input type="hidden" name="source" value="{{.Source}}">
+              <input type="hidden" name="external_id" value="{{.ExternalID}}">
+              <label class="visually-hidden" for="assign-{{.ExternalID}}">{{$page.T.T "pending.assignTo"}}</label>
+              <select id="assign-{{.ExternalID}}" name="player" required>
+                <option value="">{{$page.T.T "pending.choosePlayer"}}</option>
+                {{$suggested := .SuggestionSlug}}
+                {{range $page.Players}}
+                  <option value="{{.Slug}}"{{if eq .Slug $suggested}} selected{{end}}>{{.Name}}</option>
+                {{end}}
+              </select>
+              <button type="submit" class="secondary">{{$page.T.T "pending.assign"}}</button>
+            </form>
+
+            {{if .Suggestion}}
+              <form method="post" action="/admin/pending/assign">
+                <input type="hidden" name="csrf_token" value="{{$page.CSRFToken}}">
+                <input type="hidden" name="source" value="{{.Source}}">
+                <input type="hidden" name="external_id" value="{{.ExternalID}}">
+                <input type="hidden" name="player" value="{{.SuggestionSlug}}">
+                <button type="submit" class="link">{{$page.T.T "pending.confirm" .Suggestion}}</button>
+              </form>
+            {{end}}
+
+            <form method="post" action="/admin/pending/discard">
+              <input type="hidden" name="csrf_token" value="{{$page.CSRFToken}}">
+              <input type="hidden" name="source" value="{{.Source}}">
+              <input type="hidden" name="external_id" value="{{.ExternalID}}">
+              <button type="submit" class="link danger">{{$page.T.T "pending.discard"}}</button>
+            </form>
+          </div>
+        </li>
+      {{end}}
+    </ul>
+  {{else}}
+    <p class="empty">{{.T.T "pending.empty"}}</p>
+  {{end}}
+</section>
+{{end}}

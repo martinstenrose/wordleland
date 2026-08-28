@@ -1,0 +1,32 @@
+{{define "title"}}{{.T.T "diag.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{template "topbar" .}}
+
+<section class="card">
+  {{template "admin-tabs" .}}
+
+  <div class="card-head">
+    <h1>{{.T.T "diag.title"}}</h1>
+    <p class="kicker">{{.T.T "activity.adminOnly"}}</p>
+  </div>
+
+  {{if not .Configured}}
+    {{/* Not a fault: a deployment can serve the board and have results
+         entered by hand or imported. Said plainly so it does not read as
+         something broken. */}}
+    <p class="note">{{.T.T "diag.noBridge"}}</p>
+  {{end}}
+
+  <dl class="detail-fields">
+    {{range .Rows}}
+      <div>
+        <dt>{{.Label}}</dt>
+        <dd>
+          <span class="diag-value{{if .Tone}} {{.Tone}}{{end}}">{{.Value}}</span>
+          {{if .Hint}}<span class="diag-hint">{{.Hint}}</span>{{end}}
+        </dd>
+      </div>
+    {{end}}
+  </dl>
+</section>
+{{end}}

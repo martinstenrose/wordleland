@@ -1,0 +1,144 @@
+{{define "title"}}{{.T.T "months.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{template "topbar" .}}
+
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h1>{{.T.T "months.title"}}</h1>
+      <p class="kicker">{{.T.T "months.rule" .MinGames}}{{if .Query.CountXAsSeven}} · {{.T.T "months.rule.missed"}}{{end}}</p>
+    </div>
+    {{if .Range}}<p class="kicker">{{.Range}}</p>{{end}}
+  </div>
+
+  {{if .Empty}}
+    <p class="empty">{{.T.T "board.empty"}}</p>
+  {{else}}
+
+  <ol class="month-chips">
+    {{range .Chips}}
+      <li>
+        <a class="month-chip{{if .On}} on{{end}}" href="{{.Href}}">
+          <span class="month-chip-head">{{.Short}} · {{.Note}}</span>
+          <span class="month-chip-win">
+            <span class="month-winner">{{.Winners}}</span>
+            <span class="num">{{.Average}}</span>
+          </span>
+        </a>
+      </li>
+    {{end}}
+  </ol>
+
+  <div class="month-head">
+    <div class="month-head-main">
+      <p class="kicker accent">{{.Label}} · {{.WinnerLabel}}</p>
+      <p class="month-winner-name">{{if .WinnerNames}}{{.WinnerNames}}{{else}}{{.T.T "months.noWinner"}}{{end}}</p>
+      {{if .WinnerLine}}<p class="muted">{{.WinnerLine}}</p>{{end}}
+      <p class="muted small">{{.PartialNote}} · {{.T.T "months.groupAverage"}} {{.GroupAverage}}</p>
+    </div>
+    {{if .WinnerStats}}
+      <dl class="month-stats">
+        {{range .WinnerStats}}
+          <div><dt>{{.Label}}</dt><dd class="num">{{.Value}}</dd></div>
+        {{end}}
+      </dl>
+    {{end}}
+  </div>
+
+  <div class="table-scroll">
+  <table class="board months-table">
+    <thead>
+      <tr>
+        <th class="right">{{.T.T "board.column.rank"}}</th>
+        <th>{{.T.T "board.column.player"}}</th>
+        {{/* Carries the same class as its cells: the mobile rule hides
+             this column, and a header without the class would stay while
+             the rows below it went, shifting everything by one. */}}
+        <th class="bar-cell"></th>
+        <th class="right">{{.T.T "board.column.average"}}</th>
+        <th class="right">{{.T.T "board.column.games"}}</th>
+        <th class="right">{{.T.T "months.threeOrBetter"}}</th>
+        <th class="right">{{.T.T "months.fails"}}</th>
+        <th class="right">{{.T.T "months.bestRun"}}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Rows}}
+        <tr>
+          <td class="right num muted">{{.Rank}}</td>
+          <td>
+            <span class="admin-name">
+              <a class="player" href="{{.Href}}">{{.Name}}</a>
+              {{if .Trait}}{{template "trait" .}}{{end}}
+              {{if .Medal}}<span class="medal">{{.Medal}}</span>{{end}}
+            </span>
+          </td>
+          <td class="bar-cell"><span class="bar"><span class="bar-fill{{if .Winner}} win{{end}}" style="width:{{.BarPercent}}%"></span></span></td>
+          <td class="right num strong">{{.Average}}</td>
+          <td class="right num muted">{{.Games}}</td>
+          <td class="right num muted">{{.ThreeOrBetter}}</td>
+          <td class="right num muted">{{.Fails}}</td>
+          <td class="right num muted">{{.BestRun}}</td>
+        </tr>
+      {{end}}
+    </tbody>
+  </table>
+  </div>
+
+  {{if .Season}}
+    <div class="season">
+      <div class="season-head">
+        <span>{{.T.T "months.season"}}</span>
+        <span class="muted small">{{.T.TN "months.seasonSpan" .SeasonDays}}</span>
+      </div>
+      <div class="table-scroll">
+      <table class="board season-table">
+        <thead>
+          <tr>
+            <th>{{.T.T "board.column.player"}}</th>
+            <th class="right">{{.T.T "months.wins"}}</th>
+            <th class="right">{{.T.T "months.topThree"}}</th>
+            <th class="right">{{.T.T "months.bestMonth"}}</th>
+            {{range .SeasonMonths}}<th class="right mark-col">{{.}}</th>{{end}}
+          </tr>
+        </thead>
+        <tbody>
+          {{range .Season}}
+            <tr>
+              <td>
+                <span class="admin-name">
+                  <a class="player" href="{{.Href}}">{{.Name}}</a>
+                  {{if .Trait}}{{template "trait" .}}{{end}}
+                </span>
+              </td>
+              <td class="right num strong">{{.Wins}}</td>
+              <td class="right num muted">{{.Podiums}}</td>
+              <td class="right num muted">{{.Best}}</td>
+              {{range .Marks}}
+                <td class="right mark-col">
+                  <span class="mark-cell{{if .Won}} won{{end}}{{if .Podium}} podium{{end}}{{if .Running}} running{{end}}" title="{{.Title}}">{{.Label}}</span>
+                </td>
+              {{end}}
+            </tr>
+          {{end}}
+        </tbody>
+      </table>
+      </div>
+      <p class="card-foot"><span>{{.T.T "months.seasonNote"}}</span></p>
+    </div>
+  {{end}}
+
+  {{if .Thin}}
+    <div class="month-thin">
+      <p class="kicker">{{.T.T "months.playedNotRanked"}}</p>
+      <ul class="chips">
+        {{range .Thin}}
+          <li class="chip dashed">{{.Name}} · {{$.T.TN "months.gamesChip" .Games}}</li>
+        {{end}}
+      </ul>
+    </div>
+  {{end}}
+
+  {{end}}
+</section>
+{{end}}

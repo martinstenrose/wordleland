@@ -1,0 +1,115 @@
+{{define "email"}}<!DOCTYPE html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>{{.Subject}}</title>
+<!--[if mso]>
+<style>body,table,td,a{font-family:Arial,Helvetica,sans-serif !important}</style>
+<![endif]-->
+<style>
+  @media only screen and (max-width:620px){
+    .sp{width:100% !important;max-width:100% !important}
+    .pad{padding-left:22px !important;padding-right:22px !important}
+    .h1{font-size:26px !important;line-height:32px !important}
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:#e7e9f2;">
+<span style="display:none !important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all;">{{.Preview}}</span>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#e7e9f2;">
+  <tr>
+    <td align="center" style="padding:32px 12px 40px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" class="sp" style="width:600px;max-width:600px;background-color:#191b2b;border-radius:10px;">
+
+        <tr>
+          <td class="pad" style="padding:26px 34px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td width="34" style="width:34px;">{{template "mark" .}}</td>
+                <td width="12" style="width:12px;font-size:0;line-height:0;">&nbsp;</td>
+                <td style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:20px;mso-line-height-rule:exactly;color:#e9e9ed;font-weight:bold;letter-spacing:-0.2px;">{{.AppName}}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="pad" style="padding:26px 34px 0;">
+            <div class="h1" style="font-family:Arial,Helvetica,sans-serif;font-size:30px;line-height:36px;mso-line-height-rule:exactly;color:#f2f2f6;font-weight:bold;letter-spacing:-0.6px;">{{.Heading}}</div>
+            <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:24px;mso-line-height-rule:exactly;color:#a9abbd;padding-top:14px;">{{.Intro}}</div>
+          </td>
+        </tr>
+
+        {{if .Panel}}
+        <tr>
+          <td class="pad" style="padding:24px 34px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;background-color:#22243a;border-radius:8px;">
+              <tr>
+                <td style="padding:16px 18px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;mso-line-height-rule:exactly;color:#a9abbd;">
+                  <span style="color:#8f92a6;">{{.Panel.Label}}</span><br>
+                  <span style="font-size:19px;line-height:26px;color:#f2f2f6;font-weight:bold;">{{.Panel.Title}}</span><br>
+                  <span style="color:#8f92a6;">{{.Panel.Detail}}</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        {{end}}
+
+        <tr>
+          <td class="pad" style="padding:24px 34px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td bgcolor="#9184d9" style="border-radius:8px;">
+                  <a href="{{.ActionURL}}" style="display:block;padding:14px 26px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:18px;mso-line-height-rule:exactly;color:#161826;font-weight:bold;text-decoration:none;">{{.ActionLabel}}</a>
+                </td>
+              </tr>
+            </table>
+            <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;mso-line-height-rule:exactly;color:#8f92a6;padding-top:12px;">{{.ActionNote}}</div>
+          </td>
+        </tr>
+
+        {{if .Aside}}
+        <tr>
+          <td class="pad" style="padding:24px 34px 0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;background-color:#22243a;border-radius:8px;">
+              <tr>
+                <td style="padding:16px 18px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:21px;mso-line-height-rule:exactly;color:#a9abbd;">
+                  <span style="color:#f2f2f6;font-weight:bold;">{{.Aside.Title}}</span><br>
+                  {{.Aside.Body}}
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        {{end}}
+
+        {{if .Meta}}
+        <tr>
+          <td class="pad" style="padding:22px 34px 0;">
+            <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:19px;mso-line-height-rule:exactly;color:#8f92a6;">{{.Meta}}</div>
+          </td>
+        </tr>
+        {{end}}
+
+        <tr>
+          <td class="pad" style="padding:20px 34px 28px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;">
+              <tr><td height="1" style="height:1px;background-color:#2b2d45;font-size:0;line-height:0;">&nbsp;</td></tr>
+            </table>
+            <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:18px;mso-line-height-rule:exactly;color:#7a7d90;padding-top:16px;">
+              {{.Footer}}
+            </div>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>{{end}}

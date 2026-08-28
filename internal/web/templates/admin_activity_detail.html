@@ -1,0 +1,53 @@
+{{define "title"}}{{.T.T "activity.detail.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{template "topbar" .}}
+
+<section class="card">
+  {{template "admin-tabs" .}}
+  {{template "admin-warning" .}}
+
+  <div class="card-head">
+    <h1>{{.Row.Text}}</h1>
+    <p class="kicker">{{.Row.When}}</p>
+  </div>
+
+  <div class="detail-head">
+    <span class="chip kind-{{.Row.Kind}}">{{.Row.Tag}}</span>
+    <span class="muted small">{{.T.T "activity.column.actor"}}: {{.Row.Actor}}</span>
+  </div>
+
+  {{if .Fields}}
+    <dl class="detail-fields">
+      {{range .Fields}}
+        <div>
+          <dt>{{.Label}}</dt>
+          <dd>
+            {{if .Changed}}
+              {{/* The arrow only where there is a before. A standing value
+                   drawn as a transition would invent one. */}}
+              <span class="detail-from">{{.From}}</span>
+              <span class="detail-arrow" aria-hidden="true">→</span>
+            {{end}}
+            <span class="detail-to">{{.To}}</span>
+          </dd>
+        </div>
+      {{end}}
+    </dl>
+  {{else}}
+    <p class="empty">{{.T.T "activity.detail.nothing"}}</p>
+  {{end}}
+
+  {{if .Raw}}
+    {{/* Collapsed: the lines above are a best effort at making one shape
+         readable, and this is what is actually stored. */}}
+    <details class="detail-raw">
+      <summary>{{.T.T "activity.detail.raw"}}</summary>
+      <pre>{{.Raw}}</pre>
+    </details>
+  {{end}}
+
+  <div class="actions detail-actions">
+    <a class="link" href="{{.BackHref}}">{{.T.T "activity.detail.back"}}</a>
+  </div>
+</section>
+{{end}}

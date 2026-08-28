@@ -1,0 +1,48 @@
+{{define "title"}}{{.T.T "activity.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{template "topbar" .}}
+
+<section class="card">
+  {{template "admin-tabs" .}}
+  {{template "admin-warning" .}}
+
+  <div class="card-head">
+    <h1>{{.T.T "activity.title"}}</h1>
+    <p class="kicker">{{.T.T "activity.adminOnly"}}</p>
+  </div>
+
+  <div class="activity-filters">
+    <nav class="spans" aria-label="{{.T.T "activity.filterLabel"}}">
+      {{range .Filters}}<a class="span{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
+    </nav>
+    <span class="muted small">{{.Summary}}</span>
+  </div>
+
+  {{if .Rows}}
+    <ul class="activity">
+      {{/* A header, because the actor column holds an email on one row and
+           "matched automatically" on the next — without a label the two
+           read as the same kind of thing. */}}
+      <li class="activity-head">
+        <span>{{.T.T "activity.column.kind"}}</span>
+        <span>{{.T.T "activity.column.event"}}</span>
+        <span>{{.T.T "activity.column.actor"}}</span>
+        <span class="right">{{.T.T "activity.column.when"}}</span>
+      </li>
+      {{range .Rows}}
+        <li>
+          <span class="chip kind-{{.Kind}}">{{.Tag}}</span>
+          {{/* The whole sentence is the link, so the target is easy to hit
+               on a phone rather than a word-sized tap. */}}
+          <a class="activity-text" href="{{.Href}}">{{.Text}}</a>
+          <span class="muted small activity-actor" title="{{.Actor}}">{{.Actor}}</span>
+          <span class="muted small num right">{{.When}}</span>
+        </li>
+      {{end}}
+    </ul>
+    <p class="activity-foot muted small">{{.T.T "activity.showing" .Shown .Count}}</p>
+  {{else}}
+    <p class="empty">{{.T.T "activity.empty"}}</p>
+  {{end}}
+</section>
+{{end}}

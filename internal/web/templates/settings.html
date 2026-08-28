@@ -1,0 +1,103 @@
+{{define "title"}}{{.T.T "settings.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{template "topbar" .}}
+
+<section class="card narrow settings">
+  <div class="settings-head">
+    <span class="avatar big" aria-hidden="true">{{.Initials}}</span>
+    <span class="account-id">
+      <span class="settings-name">{{if .Player}}{{.Player.Name}}{{else}}{{.Email}}{{end}}</span>
+      <span class="muted small">{{.Email}} · {{.Role}}</span>
+    </span>
+  </div>
+
+  {{if .Notice}}
+    <p class="note">
+      {{if eq .Notice "name"}}{{.T.T "settings.saved.name"}}
+      {{else if eq .Notice "email"}}{{.T.T "settings.saved.email"}}
+      {{else}}{{.T.T "admin.saved"}}{{end}}
+    </p>
+  {{end}}
+  {{if .Error}}<p class="note error" role="alert">{{.T.T .Error}}</p>{{end}}
+
+  <div class="settings-section">
+    <h2 class="section">{{.T.T "settings.profile"}}</h2>
+    {{if .Player}}
+      <form method="post" action="/settings/name" class="form">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <label for="name">{{.T.T "settings.displayName"}}</label>
+        <input type="text" id="name" name="name" value="{{.Form.Name}}" required>
+        <p class="hint">{{.T.T "settings.displayNameHint"}}</p>
+        <div class="actions"><button type="submit">{{.T.T "settings.saveName"}}</button></div>
+      </form>
+    {{else}}
+      <p class="hint">{{.T.T "settings.noPlayer"}}</p>
+    {{end}}
+  </div>
+
+  <div class="settings-section">
+    <h2 class="section">{{.T.T "signin.email"}}</h2>
+    {{if .PendingEmail}}
+      <p class="note">{{.T.T "settings.pendingEmail" .PendingEmail}}</p>
+    {{end}}
+    <form method="post" action="/settings/email" class="form">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <label for="email">{{.T.T "signin.email"}}</label>
+      <input type="email" id="email" name="email" value="{{.Form.Email}}" required autocomplete="email">
+      <p class="hint">{{.T.T "settings.emailHint"}}</p>
+      <div class="actions"><button type="submit">{{.T.T "settings.changeEmail"}}</button></div>
+    </form>
+  </div>
+
+  <div class="settings-section">
+    <h2 class="section">{{.T.T "settings.password"}}</h2>
+    <form method="post" action="/settings/password" class="form">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <label for="current">{{.T.T "settings.currentPassword"}}</label>
+      <input type="password" id="current" name="current" required autocomplete="current-password">
+
+      <label for="password">{{.T.T "reset.new"}}</label>
+      <input type="password" id="password" name="password" required autocomplete="new-password"
+             placeholder="{{.T.T "reset.minimum"}}">
+      <p class="hint">{{.T.T "settings.passwordHint"}}</p>
+      <div class="actions"><button type="submit">{{.T.T "settings.updatePassword"}}</button></div>
+    </form>
+  </div>
+
+  <div class="settings-section">
+    <h2 class="section">{{.T.T "settings.twoFactor"}}</h2>
+    <p class="settings-state">
+      {{if .HasTOTP}}<span class="badge on">{{.T.T "settings.totp.on"}}</span>
+      {{else}}<span class="badge">{{.T.T "settings.totp.off"}}</span>{{end}}
+      {{if .TOTPRequired}}<span class="muted small">{{.T.T "settings.totp.required"}}</span>{{end}}
+    </p>
+    <p class="hint">{{if .HasTOTP}}{{.T.T "settings.totp.onHint"}}{{else}}{{.T.T "settings.totp.offHint"}}{{end}}</p>
+    <div class="actions">
+      <a class="btn-primary" href="/enroll-totp">
+        {{if .HasTOTP}}{{.T.T "settings.totp.replace"}}{{else}}{{.T.T "settings.totp.setUp"}}{{end}}
+      </a>
+    </div>
+  </div>
+
+  {{if .HasTOTP}}
+    <div class="settings-section">
+      <h2 class="section">{{.T.T "settings.recovery.title"}}</h2>
+      <p class="settings-state">
+        {{if .RecoveryLeft}}
+          <span class="badge{{if gt .RecoveryLeft 2}} on{{end}}">{{.T.TN "settings.recovery.remaining" .RecoveryLeft}}</span>
+        {{else}}
+          <span class="badge">{{.T.T "settings.recovery.none"}}</span>
+        {{end}}
+      </p>
+      {{/* The warning is on the count, not on the act of generating: a set
+           that has nearly run out is the failure people do not see coming. */}}
+      {{if lt .RecoveryLeft 3}}<p class="hint warn">{{.T.T "settings.recovery.low"}}</p>{{end}}
+      <p class="hint">{{.T.T "settings.recovery.help"}}</p>
+      <form method="post" action="/settings/recovery-codes">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <div class="actions"><button type="submit">{{.T.T "settings.recovery.generate"}}</button></div>
+      </form>
+    </div>
+  {{end}}
+</section>
+{{end}}
