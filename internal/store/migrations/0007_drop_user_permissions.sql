@@ -1,0 +1,17 @@
+-- user_permissions was created for a browser self-report form and for gating
+-- the board behind login. Neither happened, and both questions have since
+-- been answered another way.
+--
+-- The board is not gated: it is readable behind sign-in and through the share
+-- link, so the 'view' capability has nothing left to decide.
+--
+-- Self-report is granted by the linked login instead. players.user_id already
+-- says which account belongs to which player, an admin already manages it on
+-- the players screen, and the screen already tells them what it means:
+-- "Linking is what lets someone report their own result." A linked login may
+-- add and edit that player's results, and nobody else's. Two mechanisms for
+-- one rule is how the next person ends up guessing which is real.
+--
+-- Nothing reads the table, so no data is lost. If per-capability control is
+-- ever wanted, it comes back as its own migration with a reader attached.
+DROP TABLE user_permissions;
