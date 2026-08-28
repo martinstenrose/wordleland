@@ -82,33 +82,10 @@ machine is the half that should not be public.
 
 ## Contributing
 
-All changes go through a branch and a pull request.
-
-Branch naming follows Conventional Commits prefixes:
-
-- `feat/` — new feature
-- `fix/` — bug fix
-- `docs/` — documentation only
-- `chore/` — maintenance (deps, config, tooling)
-- `refactor/` — code restructuring without behaviour change
-
-Commit messages:
-
-- Subject line: `<type>(<scope>): <short imperative summary>`, no period.
-  `<type>` matches the branch prefixes above. `<scope>` is the affected
-  package or area (e.g. `web`, `bridge`, `ingest`, `cli`, `store`, `wordle`,
-  `stats`, `auth`, `config`); omit it for repo-wide changes with no single
-  owning area.
-- Body with bullet points for non-trivial commits, describing only what
-  changed in the repo.
-- The body explains the reasons, not the sequence of work. Nobody reading it
-  later needs to know what was tried first and abandoned, and a change that
-  was made and then reverted does not belong in the history at all.
-
-**Every commit builds on its own.** Not just the tip: `go build ./...` has to
-pass at each one, or bisecting is guesswork. A rename spread across packages
-is where this breaks — the commit that moves a package must not leave an
-earlier one referring to it.
+Branch naming, commit message conventions, and "every commit builds on its
+own" are in README.md's Contributing section — that file is for whoever
+runs and works with the project from outside it, which a contributor is
+before anything else.
 
 ## Before a change is done
 

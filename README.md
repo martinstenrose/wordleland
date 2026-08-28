@@ -452,3 +452,33 @@ go run ./cmd/wordleland serve --db ./db.sqlite
 `compose.override.yml` adds build contexts and is picked up automatically,
 so `docker compose build` works from a checkout and overrides the published
 images with locally built ones.
+
+## Contributing
+
+All changes go through a branch and a pull request.
+
+Branch naming follows Conventional Commits prefixes:
+
+- `feat/` — new feature
+- `fix/` — bug fix
+- `docs/` — documentation only
+- `chore/` — maintenance (deps, config, tooling)
+- `refactor/` — code restructuring without behaviour change
+
+Commit messages:
+
+- Subject line: `<type>(<scope>): <short imperative summary>`, no period.
+  `<type>` matches the branch prefixes above. `<scope>` is the affected
+  package or area (e.g. `web`, `bridge`, `ingest`, `cli`, `store`, `wordle`,
+  `stats`, `auth`, `config`); omit it for repo-wide changes with no single
+  owning area.
+- Body with bullet points for non-trivial commits, describing only what
+  changed in the repo.
+- The body explains the reasons, not the sequence of work. Nobody reading it
+  later needs to know what was tried first and abandoned, and a change that
+  was made and then reverted does not belong in the history at all.
+
+**Every commit builds on its own.** Not just the tip: `go build ./...` has to
+pass at each one, or bisecting is guesswork. A rename spread across packages
+is where this breaks — the commit that moves a package must not leave an
+earlier one referring to it.
