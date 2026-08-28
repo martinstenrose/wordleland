@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l ./cmd ./internal)
+          if [ -n "$unformatted" ]; then
+            echo "not gofmt'd:"; echo "$unformatted"; exit 1
+          fi
+
+      - run: go vet ./...
+      - run: go build ./...
+
+      # The race detector, because the bridge shares its health state
+      # with the HTTP handlers that report it. A data race there is exactly
+      # the kind of thing that never reproduces on one machine.
+      - run: go test -race ./...
+
+      # staticcheck catches what go vet does not. Deliberate exceptions
+      # carry a //lint:ignore naming the reason, so a hit here is a real
+      # one.
+      - name: staticcheck
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          "$(go env GOPATH)/bin/staticcheck" ./...
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Built but never pushed: publishing is what tags are for. This only
+      # answers whether the Dockerfile still works, which is not something
+      # go test can tell us.
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          cache-from: type=gha,scope=ci
+          cache-to: type=gha,scope=ci,mode=max
