@@ -1,0 +1,21 @@
+{{define "title"}}{{.T.T "verified.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+<section class="signin">
+  <div class="signin-main">
+    <div class="auth-top">
+      <a class="brand brand-lg" href="/">{{template "mark" .}}</a>
+      <span class="signin-switchers">{{template "theme-picker" .}}{{template "language-picker" .}}</span>
+    </div>
+    {{if .Invalid}}
+      <h1>{{.T.T "verified.invalid.heading"}}</h1>
+      <p class="signin-sub">{{.T.T "verified.invalid.body"}}</p>
+    {{else}}
+      <h1>{{.T.T "verified.heading"}}</h1>
+      <p class="signin-sub">{{.T.T "verified.body" .Email}}</p>
+    {{end}}
+    <div class="actions"><a class="btn-primary" href="/">{{.T.T "nav.signIn"}}</a></div>
+    <div class="signin-foot">
+    </div>
+  </div>
+</section>
+{{end}}

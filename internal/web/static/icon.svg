@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 34" width="34" height="34" role="img" aria-label="Wordleland">
+  <!-- The app mark: a 3x3 grid solving on the diagonal, three guesses in at
+       the top left down to one at the bottom right. Colours are the flat
+       equivalents of the board's own score ramp — a favicon is drawn at
+       16px against an unknown background, so nothing here is translucent. -->
+  <rect width="34" height="34" rx="8" fill="#22243a"/>
+  <g>
+    <rect x="4"  y="4"  width="8" height="8" rx="2" fill="#6d61ab"/>
+    <rect x="13" y="4"  width="8" height="8" rx="2" fill="#2b2d45"/>
+    <rect x="22" y="4"  width="8" height="8" rx="2" fill="#2b2d45"/>
+
+    <rect x="4"  y="13" width="8" height="8" rx="2" fill="#2b2d45"/>
+    <rect x="13" y="13" width="8" height="8" rx="2" fill="#9184d9"/>
+    <rect x="22" y="13" width="8" height="8" rx="2" fill="#2b2d45"/>
+
+    <rect x="4"  y="22" width="8" height="8" rx="2" fill="#2b2d45"/>
+    <rect x="13" y="22" width="8" height="8" rx="2" fill="#2b2d45"/>
+    <rect x="22" y="22" width="8" height="8" rx="2" fill="#b5abfc"/>
+  </g>
+</svg>

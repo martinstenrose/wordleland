@@ -1,0 +1,49 @@
+{{define "title"}}{{.T.T "signin.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+<section class="signin">
+  <div class="signin-main">
+    <div class="auth-top">
+      <a class="brand brand-lg" href="/">{{template "mark" .}}</a>
+      <span class="signin-switchers">{{template "theme-picker" .}}{{template "language-picker" .}}</span>
+    </div>
+
+    <h1>{{.T.T "signin.heading"}}</h1>
+    <p class="signin-sub">{{.T.T "signin.sub"}}</p>
+
+    {{if .Error}}<p class="note error" role="alert">{{.Error}}</p>{{end}}
+
+    <form method="post" action="/login" class="form signin-form">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+
+      <label for="email">{{.T.T "signin.email"}}</label>
+      <input type="email" id="email" name="email" value="{{.Email}}" required
+             autocomplete="username" autofocus placeholder="{{.T.T "signin.emailPlaceholder"}}">
+
+      <label for="password">{{.T.T "signin.password"}}</label>
+      <input type="password" id="password" name="password" required autocomplete="current-password">
+
+      <div class="actions">
+        <button type="submit">{{.T.T "signin.submit"}}</button>
+      </div>
+    </form>
+
+    <div class="signin-foot">
+      <a class="link" href="/forgot-password">{{.T.T "signin.help"}}</a>
+      <span class="muted small">{{.T.T "signin.note"}}</span>
+    </div>
+  </div>
+
+  <aside class="signin-aside">
+    <p class="kicker">{{.T.T "signin.asideTitle"}}</p>
+    <p class="signin-figure">{{.Stats.Games}}</p>
+    <p class="muted small">{{.T.TN "signin.gamesOver" .Stats.Days}}</p>
+    <hr>
+    <dl class="signin-stats">
+      {{range .Stats.Rows}}
+        <div><dt>{{$.T.T .Key}}</dt><dd class="num">{{.Value}}</dd></div>
+      {{end}}
+    </dl>
+    <p class="muted small">{{.T.T "signin.asideNote"}}</p>
+  </aside>
+</section>
+{{end}}

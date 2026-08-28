@@ -1,0 +1,142 @@
+{{define "title"}}{{.T.T "today.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{template "topbar" .}}
+
+<section class="card today">
+  <div class="today-head">
+    <p class="kicker">
+      <span class="accent">{{.T.T "player.puzzle" .PuzzleNo}}</span>
+      <span class="muted">{{.DateLong}}</span>
+    </p>
+
+    <div class="today-hero">
+      <div class="today-line">
+        <h1>{{.T.T .HeadlineKey .HeadlineArgs}}</h1>
+        <p class="today-sub">{{.T.TN "today.filed" .FiledCount}} {{.T.T "today.ofExpected" .Expected}}</p>
+      </div>
+
+      {{if .Hero}}
+        <ol class="hero-row" aria-hidden="true">
+          {{range .Hero}}<li class="cell{{if .Played}} t{{.Tone}}{{else}} gap{{end}}"></li>{{end}}
+        </ol>
+      {{end}}
+
+      {{if .Missing}}
+        <div class="today-out">
+          <p class="kicker">{{.T.T "today.stillOut"}}</p>
+          <ul class="chips">{{range .Missing}}<li class="chip dashed">{{.}}</li>{{end}}</ul>
+        </div>
+      {{end}}
+    </div>
+
+    {{if .Filed}}
+      <ul class="today-filed">
+        {{range .Filed}}
+          <li><a href="{{.Href}}">{{.Name}}</a>
+            <span class="cell t{{.Tone}}{{if .HardMode}} hard{{end}}">{{.Label}}</span>
+          </li>
+        {{end}}
+      </ul>
+    {{end}}
+  </div>
+
+  {{if .Callouts}}
+    <div class="callouts">
+      {{$t := .T}}
+      {{range .Callouts}}
+        <div class="callout">
+          <p class="kicker accent">{{$t.T (printf "callout.kicker.%s" .Kind)}}</p>
+          <p class="callout-text">{{$t.T .Key .Args}}</p>
+          {{if .Meta}}<p class="callout-meta">{{.Meta}}</p>{{end}}
+        </div>
+      {{end}}
+    </div>
+  {{end}}
+
+  {{if .Leaders}}
+    <div class="today-form">
+      <p class="kicker">{{.T.T "today.formTable"}}</p>
+      <p class="hint">{{.T.T "today.formNote"}}</p>
+      <div class="podium">
+        {{range .Leaders}}
+          <div class="podium-card">
+            <div class="podium-head">
+              <a class="player" href="{{.Href}}">{{.Name}}</a>
+              <span class="muted small" title="{{$.T.T "today.boardRank"}}">#{{.Rank}}</span>
+            </div>
+            <p class="podium-figure">{{.FormText}}
+              {{if .DeltaText}}<span class="delta {{.DeltaDirection}}">{{.DeltaText}}</span>{{end}}
+            </p>
+            {{if .HasSpark}}
+              <svg class="podium-spark" viewBox="0 0 140 30" preserveAspectRatio="none" aria-hidden="true">
+                <path class="player" d="{{.SparkPath}}"/>
+              </svg>
+            {{end}}
+            <p class="muted small">
+              {{if .Trait}}{{template "trait" .}} · {{end}}{{$.T.TN "today.formGames" .FormGames}}
+            </p>
+          </div>
+        {{end}}
+      </div>
+
+      {{if .Rest}}
+        <ul class="form-rows">
+          {{/* A header, so the columns are not a guessing game. */}}
+          <li class="form-head">
+            {{/* The rank column carries no label: the figures are self-
+                 evident and a heading over them only adds noise. */}}
+            <span></span>
+            <span>{{.T.T "board.column.player"}}</span>
+            <span class="right">{{.T.T "board.column.form"}}</span>
+            <span class="right">{{.T.T "board.column.streak"}}</span>
+            <span class="right spark-col">{{.T.T "board.column.last30"}}</span>
+          </li>
+          {{range .Rest}}
+            <li>
+              <span class="num muted" title="{{$.T.T "today.boardRank"}}">{{.Rank}}</span>
+              <span class="row-name">
+                <a class="player" href="{{.Href}}">{{.Name}}</a>
+                {{if .Trait}}{{template "trait" .}}{{end}}
+              </span>
+              <span class="num">{{.FormText}}
+                {{if .DeltaText}}<span class="delta {{.DeltaDirection}}">{{.DeltaText}}</span>{{end}}
+              </span>
+              <span class="num muted">{{.StreakText}}</span>
+              <span class="spark-col">
+                {{if .HasSpark}}
+                  <svg viewBox="0 0 140 30" preserveAspectRatio="none" aria-hidden="true">
+                    <path class="player" d="{{.SparkPath}}"/>
+                  </svg>
+                {{end}}
+              </span>
+            </li>
+          {{end}}
+        </ul>
+      {{end}}
+
+      {{if .BenchedCount}}
+        <p class="bench-toggle">
+          <a class="toggle{{if .ShowBenched}} on{{end}}" href="{{.BenchedHref}}">{{.T.TN "today.benched" .BenchedCount}}</a>
+        </p>
+      {{end}}
+
+      {{if .Benched}}
+        <div class="bench">
+          {{$t := .T}}
+          {{range .Benched}}
+            <div class="bench-card">
+              <div class="bench-head">
+                <a class="player" href="{{.Href}}">{{.Name}}</a>
+                {{if .ReasonKey}}<span class="chip">{{$t.T .ReasonKey}}</span>{{end}}
+              </div>
+              <p class="muted small">{{$t.TN "today.benchedGames" .Games}}{{if .LastSeenText}} · {{.LastSeenText}}{{end}}</p>
+            </div>
+          {{end}}
+        </div>
+      {{end}}
+    </div>
+  {{else}}
+    <p class="empty">{{.T.T "board.empty"}}</p>
+  {{end}}
+</section>
+{{end}}

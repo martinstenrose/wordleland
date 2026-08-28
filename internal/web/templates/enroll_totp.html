@@ -1,0 +1,36 @@
+{{define "title"}}{{.T.T "enrol.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+<section class="auth-card wide">
+  <div class="auth-top">
+    <a class="brand brand-lg" href="/">{{template "mark" .}}</a>
+    <span class="signin-switchers">{{template "theme-picker" .}}{{template "language-picker" .}}</span>
+  </div>
+
+  <h1>{{.T.T "enrol.heading"}}</h1>
+  <p class="signin-sub">
+    {{if .Mandatory}}{{.T.T "enrol.mandatory"}}{{else}}{{.T.T "enrol.sub"}}{{end}}
+  </p>
+
+  {{if .Error}}<p class="note error" role="alert">{{.Error}}</p>{{end}}
+
+  <div class="enrol-code">
+    <img src="{{.QRCode}}" alt="{{.T.T "enrol.qrAlt"}}" width="180" height="180">
+    <div>
+      <p class="kicker">{{.T.T "enrol.byHand"}}</p>
+      <p class="secret"><code>{{.Secret}}</code></p>
+    </div>
+  </div>
+
+  <form method="post" action="/enroll-totp" class="form">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <label for="code">{{.T.T "enrol.confirm"}}</label>
+    <input class="code-input" type="text" id="code" name="code" inputmode="numeric"
+           autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" required autofocus>
+    <div class="actions"><button class="block" type="submit">{{.T.T "enrol.submit"}}</button></div>
+  </form>
+
+  <div class="signin-foot">
+    <a class="link" href="/">{{.T.T "forgot.back"}}</a>
+  </div>
+</section>
+{{end}}

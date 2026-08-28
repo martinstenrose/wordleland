@@ -1,0 +1,140 @@
+{{define "title"}}{{.T.T "admin.players.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{template "topbar" .}}
+
+<section class="card">
+  {{template "admin-tabs" .}}
+  {{template "admin-warning" .}}
+
+  <div class="card-head">
+    <h1>{{.T.T "admin.players.title"}}</h1>
+    <p class="kicker">{{.T.T "admin.counts" .Count .Linked .Unlinked}}</p>
+  </div>
+
+  {{if eq .Notice "saved"}}<p class="note">{{.T.T "admin.saved"}}</p>{{end}}
+  {{if eq .Notice "invited"}}<p class="note">{{.T.T "admin.inviteSent"}}</p>{{end}}
+  {{if .Error}}<p class="note error" role="alert">{{.T.T .Error}}</p>{{end}}
+
+  <div class="admin-split">
+    <div class="admin-list">
+      <div class="admin-row admin-head">
+        <span>{{.T.T "admin.column.name"}}</span>
+        <span class="right">{{.T.T "board.column.games"}}</span>
+        <span class="right">{{.T.T "board.column.average"}}</span>
+        <span>{{.T.T "admin.column.login"}}</span>
+        <span class="right">{{.T.T "admin.column.roster"}}</span>
+      </div>
+      {{range .Rows}}
+        <a class="admin-row{{if .Selected}} on{{end}}" href="{{.Href}}">
+          <span class="admin-name">
+            <span class="player">{{.Name}}</span>
+            {{if .Trait}}{{template "trait" .}}{{end}}
+          </span>
+          <span class="right num">{{.Games}}</span>
+          <span class="right num">{{.Average}}</span>
+          <span class="muted small">{{if .LinkedEmail}}{{.LinkedEmail}}{{else}}—{{end}}</span>
+          <span class="right muted small">{{.Status}}</span>
+        </a>
+      {{end}}
+    </div>
+
+    {{with .Selected}}
+      <div class="admin-panel">
+        <p class="kicker">{{$.T.T "admin.editPlayer"}}</p>
+
+        <form method="post" action="/admin/players/{{.Slug}}" class="form">
+          <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+
+          <label for="adm-name">{{$.T.T "admin.field.name"}}</label>
+          <input type="text" id="adm-name" name="name" value="{{.Form.Name}}" required>
+          <p class="hint">{{$.T.T "admin.field.nameHint"}}</p>
+
+          <label for="adm-slug">{{$.T.T "admin.field.slug"}}</label>
+          <span class="slug-field">
+            <span class="slug-base">{{.SlugBase}}</span>
+            <input type="text" id="adm-slug" name="slug" value="{{.Form.Slug}}" required pattern="[a-z0-9-]+">
+          </span>
+          <p class="hint">{{$.T.T "admin.field.slugHint"}}</p>
+
+          <label class="switch">
+            <input type="checkbox" name="active" value="1"{{if .Form.Active}} checked{{end}}>
+            <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>
+            <span class="switch-label">
+              <span>{{$.T.T "admin.field.active"}}</span>
+              <span class="hint">{{$.T.T "admin.field.activeHint"}}</span>
+            </span>
+          </label>
+
+          <dl class="admin-figures">
+            <div><dt>{{$.T.T "board.column.games"}}</dt><dd class="num">{{.Games}}</dd></div>
+            <div><dt>{{$.T.T "board.column.average"}}</dt><dd class="num">{{.Average}}</dd></div>
+            <div><dt>{{$.T.T "admin.lastScore"}}</dt><dd class="num">{{.LastSeen}}</dd></div>
+          </dl>
+
+          <hr>
+
+          <p class="kicker">{{$.T.T "admin.field.login"}}</p>
+          {{if .Linked}}
+            <div class="admin-linked">
+              <span class="avatar" aria-hidden="true">{{.Initials}}</span>
+              <span class="account-id">
+                <span class="account-name">{{.Linked.Email}}</span>
+                <span class="account-email">{{.Role}}{{if .LinkedSince}} · {{$.T.T "admin.since"}} {{.LinkedSince}}{{end}}</span>
+              </span>
+            </div>
+          {{else if .Pending}}
+            <p class="note">{{$.T.T "admin.invitePending" .Pending.Email .PendingUntil}}</p>
+          {{else}}
+            <p class="muted small">{{$.T.T "admin.field.noLogin"}}</p>
+          {{end}}
+
+          {{/* Picking an existing login is hidden until there is a screen
+               for managing users: without one there is no way to see who
+               these accounts are, or to create one to pick. Inviting by
+               email below covers the case that actually comes up. The
+               field is omitted rather than disabled, and the handler
+               treats its absence as "leave the link alone" rather than as
+               an empty selection. */}}
+
+          <div class="actions">
+            <button type="submit">{{$.T.T "admin.save"}}</button>
+            <a class="link" href="/admin/players">{{$.T.T "admin.cancel"}}</a>
+          </div>
+        </form>
+
+        {{if and (not .Linked) .CanInvite}}
+          {{/* Its own form: inviting is a different act from saving the
+               player, and posting them together would send mail whenever
+               somebody renamed a row. */}}
+          <form method="post" action="/admin/players/{{.Slug}}/invite" class="form invite-form">
+            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+            <label for="adm-invite">{{if .Pending}}{{$.T.T "admin.inviteAgain"}}{{else}}{{$.T.T "admin.inviteBy"}}{{end}}</label>
+            <span class="inline-field">
+              <input type="email" id="adm-invite" name="invite_email"
+                     value="{{if .Pending}}{{.Pending.Email}}{{end}}"
+                     placeholder="{{$.T.T "signin.emailPlaceholder"}}" required>
+              <button type="submit" class="secondary">{{$.T.T "admin.invite"}}</button>
+            </span>
+
+            {{/* The language the invitation is written in, and the one the
+                 account starts in. Defaulted rather than taken from the
+                 admin: an admin reading in Swedish does not make the
+                 person they are inviting a Swedish speaker. */}}
+            <label for="adm-invite-lang">{{$.T.T "admin.inviteLanguage"}}</label>
+            <select id="adm-invite-lang" name="locale">
+              {{range $.Languages}}
+                <option value="{{.Code}}"{{if eq .Code $.InviteLocale}} selected{{end}}>{{.Label}}</option>
+              {{end}}
+            </select>
+            <p class="hint">{{$.T.T "admin.inviteHint"}}</p>
+          </form>
+        {{end}}
+      </div>
+    {{else}}
+      <div class="admin-panel empty-panel">
+        <p class="muted small">{{.T.T "admin.pickPlayer"}}</p>
+      </div>
+    {{end}}
+  </div>
+</section>
+{{end}}

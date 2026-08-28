@@ -1,0 +1,31 @@
+{{define "title"}}{{.T.T "totp.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+<section class="auth-card">
+  <div class="auth-top">
+    <a class="brand brand-lg" href="/">{{template "mark" .}}</a>
+    <span class="signin-switchers">{{template "theme-picker" .}}{{template "language-picker" .}}</span>
+  </div>
+
+  <h1>{{.T.T "totp.heading"}}</h1>
+  <p class="signin-sub">
+    {{if .Email}}{{.T.T "totp.sub" .Email}}{{else}}{{.T.T "totp.subPlain"}}{{end}}
+  </p>
+
+  {{if .Error}}<p class="note error" role="alert">{{.Error}}</p>{{end}}
+
+  <form method="post" action="/totp" class="form">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <label for="code" class="visually-hidden">{{.T.T "totp.label"}}</label>
+    <input class="code-input" type="text" id="code" name="code" inputmode="numeric"
+           autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" required autofocus
+           aria-describedby="code-help">
+    <p class="hint" id="code-help">{{.T.T "totp.help"}}</p>
+    <div class="actions"><button class="block" type="submit">{{.T.T "totp.submit"}}</button></div>
+  </form>
+
+  <div class="signin-foot">
+    <a class="link" href="/recovery">{{.T.T "totp.useRecovery"}}</a>
+    <a class="link" href="/">{{.T.T "forgot.back"}}</a>
+  </div>
+</section>
+{{end}}

@@ -1,0 +1,82 @@
+{{define "title"}}{{.T.T "grid.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{template "topbar" .}}
+
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h1>{{.T.T "grid.title"}}</h1>
+    </div>
+    <div class="grid-controls">
+      <span class="legend" aria-label="{{.T.T "grid.legend"}}">
+        <span class="muted small">1</span>
+        {{range .Legend}}<span class="cell t{{.Tone}} tiny">{{.Label}}</span>{{end}}
+        <span class="muted small">X</span>
+      </span>
+      {{if or .Hidden .Inactive}}
+        <a class="toggle{{if .Inactive}} on{{end}}" href="{{.InactiveHref}}">{{.T.T "grid.inactive" .Hidden}}</a>
+      {{end}}
+    </div>
+  </div>
+
+  {{if .Spans}}
+    <nav class="spans" aria-label="{{.T.T "grid.span.label"}}">
+      {{range .Spans}}<a class="span{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
+    </nav>
+  {{end}}
+
+  {{if .Empty}}
+    <p class="empty">{{.T.T "board.empty"}}</p>
+  {{else}}
+  <div class="grid-wrap">
+    <aside class="grid-rail">
+      <p class="kicker">{{.FormLabel}}</p>
+      <ul>
+        {{range .Rail}}
+          <li>
+            <span class="grid-rank muted small num">{{.Rank}}</span>
+            <a class="player" href="{{.Href}}">{{.Name}}</a>
+            <span class="num muted">{{.Form}}</span>
+          </li>
+        {{end}}
+      </ul>
+      <p class="grid-note">{{.T.T "grid.note"}}</p>
+    </aside>
+
+    <div class="grid-scroll">
+      <table class="grid">
+        <colgroup>
+          <col class="date-col">
+          {{range .Columns}}<col class="player-col">{{end}}
+        </colgroup>
+        <thead>
+          <tr>
+            <th class="grid-date">{{.T.T "grid.date"}}</th>
+            {{range .Columns}}<th title="{{.Name}}"><a href="{{.Href}}">{{.Short}}</a></th>{{end}}
+          </tr>
+        </thead>
+        <tbody>
+          {{range .Rows}}
+            <tr>
+              <th class="grid-date" scope="row">
+                <span>{{.Date}}</span>
+                <span class="muted">{{.PuzzleNo}}</span>
+              </th>
+              {{range .Cells}}
+                <td>
+                  {{if .Played}}
+                    <span class="cell t{{.Tone}}{{if .HardMode}} hard{{end}} tiny" title="{{.Title}}">{{.Label}}</span>
+                  {{else}}
+                    <span class="cell gap tiny"></span>
+                  {{end}}
+                </td>
+              {{end}}
+            </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {{end}}
+</section>
+{{end}}
