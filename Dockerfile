@@ -4,7 +4,7 @@
 # Must match or exceed the go directive in go.mod, which the golang.org/x
 # dependencies keep current. A mismatch fails at "go mod download" with a
 # clear message, but only when the image is actually built — so build it.
-FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS build
+FROM --platform=$BUILDPLATFORM golang:1.27-bookworm AS build
 
 WORKDIR /src
 COPY go.mod go.sum ./
