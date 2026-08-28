@@ -53,10 +53,10 @@ carry it forever, and the guess distribution would file failures in the
 "solved in six" bucket unless every read remembered not to. NULL makes that
 mistake impossible instead of something to remember.
 
-**Results for old puzzles are ignored when they arrive from the chat.** The
-group posts archive results — an "Archive February 20, 2026" line above an
-ordinary share text the parser matches exactly — and those must not reach
-the board.
+**Archive results are ignored when they arrive from the chat.** Wordle puts
+an "Archive February 20, 2026" line above an otherwise ordinary share text;
+the bridge rejects that explicit marker regardless of how recent the puzzle
+is. It also rejects unlabeled results outside the live puzzle window.
 
 Not because they are untrue, but because streaks are computed by walking the
 puzzle sequence, so filling a gap **joins two runs into one**. That is the
@@ -64,11 +64,11 @@ common case rather than the rare one: people play archive puzzles precisely
 on the days they missed. An existing row is protected by the precedence
 rule, but a puzzle the player has no row for inserts cleanly.
 
-The window is two puzzles behind and one ahead, not today alone — a result
-posted late in the evening, or from a timezone that has already rolled over,
-is still today's as far as the poster is concerned. Anything outside it is
-dropped with a log line naming the puzzle, so it is visible rather than a
-mystery.
+The fallback window is two puzzles behind and one ahead, not today alone — a
+result posted late in the evening, or from a timezone that has already rolled
+over, is still today's as far as the poster is concerned. Anything explicitly
+labeled Archive or outside that window is dropped with a log line naming the
+puzzle, so it is visible rather than a mystery.
 
 The check lives in the bridge, not in ingest: the CLI and backfill write old
 puzzles legitimately, and ingest stays source-agnostic.
@@ -368,6 +368,72 @@ a result last arrived, because the failure that costs a season of scores is
 a bridge connected to the wrong group: green on every connection indicator,
 delivering nothing. A warning follows an admin around the area rather than
 waiting on a page nobody opens.
+
+## Announcing the month
+
+The bridge's first step from receive-only to bidirectional: posting the
+month's winner back into the group when a month closes. Deliberately small
+— one message, once a month, no significance threshold and no memory of
+previous standings — because that is exactly what makes it safe to build
+before the larger idea it is a step toward, announcing rank changes as they
+happen.
+
+**The scheduled trigger is noon on the first day of the new month.** This
+gives late closing-day posts the morning without making the announcement
+depend on every active player filing a result: somebody missing that puzzle
+must not block the group indefinitely. The schedule uses the deployment's
+local timezone, the same basis as puzzle dates.
+
+**A later live result is the catch-up trigger.** If the app was offline at
+noon or the scheduled send failed, the next accepted result checks whether
+the previous month still needs announcing. Before noon that check is a no-op.
+Ordinary conversation is not a trigger: if sending succeeded but recording
+failed, receiving the bot's own announcement must not immediately send
+another copy. Explicit Archive shares and older back-dated results are also
+excluded, so replaying an old puzzle cannot make the bot speak.
+
+**A month with nobody past the minimum games gets silence, not the board's
+"nobody reached the minimum" line.** The board is read on request; this is
+pushed unprompted. Announcing a quiet month reads as the bot scolding the
+group for it. The same silence covers a month with no results in it at
+all, which is also not recorded as announced — if results appear later
+through a correction, the next live message is free to announce them
+rather than having already given up.
+
+**The send happens before the record of it, not after.** Recording first
+and then failing to send would silently and permanently drop that month's
+announcement — the far more likely failure, since a monthly HTTP call to a
+self-hosted container has more chances to be down than this code has
+chances to crash in the few milliseconds between a successful send and the
+write that follows it. The accepted risk is the reverse: a crash in that
+narrow window can produce a duplicate post on restart. Duplicate beats
+silent loss for a message whose only job is telling people something nice.
+
+**The announcement is written in one fixed language for the whole group**,
+`SIGNAL_LOCALE` (default English), unlike every other piece of text in the
+app, which is written for one signed-in reader with their own stored
+locale. A group chat is not any one member's message, so there is no
+per-recipient choice to make here the way there is for a page render or an
+email.
+
+**The catalogue of translated strings moved out of `internal/web` into
+`internal/i18n`** so this feature could reuse the exact sentences the board
+already renders (`months.line.*`) without a second copy that could drift
+from the first. `internal/bridge` cannot import `internal/web` — `web`
+already imports `bridge`, to hold the running supervisor for the
+diagnostics page — so the shared catalogue had to move to a package
+neither depends on. What did not move: the small switch that picks a tie,
+a margin or an "alone" sentence for a given month. It exists once in
+`internal/web/months.go` and once in `internal/announce`, deliberately,
+because the two format for a browser and for a chat message respectively,
+and a shared type for ten lines of branching would cost more to agree on
+than reading both sides once when either changes.
+
+**Turning it off is a separate switch from configuring the bridge at all**,
+`SIGNAL_ANNOUNCE_MONTHS`, defaulting on. The bridge's own on/off state
+already answers "does this deployment talk to Signal"; this answers "does
+the bot ever speak in the group," for someone who wants results flowing in
+without the bridge ever posting back.
 
 ## CI and security scanning
 

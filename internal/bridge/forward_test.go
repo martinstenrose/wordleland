@@ -66,7 +66,7 @@ func testFiler(t *testing.T, replies ...reply) (*filer, *capture) {
 	}
 
 	logger := slog.New(slog.NewTextHandler(cap.logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	f := newFiler(testGroupID, deliver, logger, nil)
+	f := newFiler(testGroupID, deliver, nil, logger, nil)
 
 	// A fixed "today" so the back-dating window is deterministic.
 	today, err := wordle.DateForPuzzle(1891)
@@ -223,6 +223,33 @@ func TestRejectsBackDatedResults(t *testing.T) {
 	}
 }
 
+// Puzzle distance alone cannot identify an Archive result for yesterday.
+// Wordle's explicit Archive heading must win even while that puzzle remains
+// inside the normal late-post window, and the rejected result must not act as
+// the fallback trigger for a missed monthly announcement.
+func TestRejectsARecentArchiveResult(t *testing.T) {
+	f, cap := testFiler(t)
+
+	var announceCalls atomic.Int32
+	f.announce = func(context.Context, time.Time) error {
+		announceCalls.Add(1)
+		return nil
+	}
+
+	body := "Archive August 31, 2026\nWordle 1 890 3/6"
+	f.handle(context.Background(), msg(body))
+
+	if got := len(cap.sent()); got != 0 {
+		t.Errorf("sent %d results for a recent Archive share, want 0", got)
+	}
+	if announceCalls.Load() != 0 {
+		t.Error("a recent Archive share triggered the monthly announcement")
+	}
+	if !strings.Contains(cap.log(), "ignoring an archive result") {
+		t.Errorf("the rejected Archive share was not logged:\n%s", cap.log())
+	}
+}
+
 func sprintPuzzle(n int) string {
 	return "Wordle " + itoaTest(n) + " 3/6"
 }
@@ -358,7 +385,7 @@ func TestSlowDeliveryDoesNotBlockTheReader(t *testing.T) {
 	defer close(release)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	f := newFiler(testGroupID, deliver, logger, nil)
+	f := newFiler(testGroupID, deliver, nil, logger, nil)
 	today, _ := wordle.DateForPuzzle(1891)
 	f.now = func() time.Time { return today }
 	f.sleep = func(context.Context, time.Duration) {}
@@ -451,7 +478,7 @@ func TestFailingDeliveryTurnsTheStatusRed(t *testing.T) {
 	deliver := func(context.Context, ingest.Submission) (ingest.Status, error) {
 		return "", errors.New("database is locked")
 	}
-	f := newFiler(testGroupID, deliver, logger, h)
+	f := newFiler(testGroupID, deliver, nil, logger, h)
 	today, err := wordle.DateForPuzzle(1891)
 	if err != nil {
 		t.Fatalf("DateForPuzzle: %v", err)
@@ -486,7 +513,7 @@ func TestRejectedResultIsReportedAsLossNotFailure(t *testing.T) {
 	deliver := func(context.Context, ingest.Submission) (ingest.Status, error) {
 		return "", &ingest.ValidationError{}
 	}
-	f := newFiler(testGroupID, deliver, logger, h)
+	f := newFiler(testGroupID, deliver, nil, logger, h)
 	today, _ := wordle.DateForPuzzle(1891)
 	f.now = func() time.Time { return today }
 	f.sleep = func(context.Context, time.Duration) {}
@@ -519,7 +546,7 @@ func TestStatusRecoversAfterDeliveryResumes(t *testing.T) {
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	f := newFiler(testGroupID, deliver, logger, h)
+	f := newFiler(testGroupID, deliver, nil, logger, h)
 	today, _ := wordle.DateForPuzzle(1891)
 	f.now = func() time.Time { return today }
 	f.sleep = func(context.Context, time.Duration) { c.advance(30 * time.Second) }
@@ -534,5 +561,117 @@ func TestStatusRecoversAfterDeliveryResumes(t *testing.T) {
 
 	if ok, reason := h.status(); !ok {
 		t.Errorf("still unhealthy after delivery resumed: %s", reason)
+	}
+}
+
+// Every live result is a chance to notice a month has closed: see
+// Announcer's comment on why "after every live result" is simpler than
+// trying to recognise which one is the month's first.
+func TestAnnouncerIsCalledAfterALiveResult(t *testing.T) {
+	f, _ := testFiler(t)
+
+	var calls atomic.Int32
+	var gotNow time.Time
+	f.announce = func(_ context.Context, now time.Time) error {
+		calls.Add(1)
+		gotNow = now
+		return nil
+	}
+
+	f.handle(context.Background(), msg("Wordle 1 891 3/6"))
+
+	if calls.Load() != 1 {
+		t.Fatalf("announce called %d times, want 1", calls.Load())
+	}
+	if !gotNow.Equal(f.now()) {
+		t.Errorf("announce saw now = %v, want %v", gotNow, f.now())
+	}
+}
+
+// A back-dated result is not evidence that time has moved into a new
+// month — someone can post an old puzzle at any point in the current one —
+// so it must not trigger the check.
+func TestAnnouncerIsNotCalledForABackDatedResult(t *testing.T) {
+	f, _ := testFiler(t)
+
+	var calls atomic.Int32
+	f.announce = func(context.Context, time.Time) error {
+		calls.Add(1)
+		return nil
+	}
+
+	f.handle(context.Background(), msg(sprintPuzzle(1707))) // an archive puzzle
+
+	if calls.Load() != 0 {
+		t.Errorf("announce was called for a back-dated result")
+	}
+}
+
+// Ordinary conversation must not reach the announcer. In particular, the
+// bot can receive its own sent announcement as a sync message; if recording
+// failed after sending, treating that message as a trigger could immediately
+// send another copy and repeat.
+func TestAnnouncerIsNotCalledForOrdinaryConversation(t *testing.T) {
+	f, _ := testFiler(t)
+
+	var calls atomic.Int32
+	f.announce = func(context.Context, time.Time) error {
+		calls.Add(1)
+		return nil
+	}
+
+	f.handle(context.Background(), msg("anyone else find that brutal"))
+
+	if calls.Load() != 0 {
+		t.Errorf("announce was called for a non-result message")
+	}
+}
+
+// A nil Announcer is what "announcing is off" looks like — unconfigured, or
+// SIGNAL_ANNOUNCE_MONTHS=false — and handling a live result must not panic
+// on it.
+func TestNilAnnouncerIsNeverCalled(t *testing.T) {
+	f, _ := testFiler(t)
+	f.announce = nil
+
+	f.handle(context.Background(), msg("Wordle 1 891 3/6"))
+}
+
+// The result the message actually carried must still be filed even when
+// the announcer fails: a once-a-month side effect must never cost a score.
+// The failure is logged, not swallowed silently, so an operator can see
+// Signal is unreachable without it ever showing up as a lost result.
+func TestAnnouncerFailureDoesNotAffectTheResult(t *testing.T) {
+	f, cap := testFiler(t)
+
+	f.announce = func(context.Context, time.Time) error {
+		return errors.New("signal is unreachable")
+	}
+
+	f.handle(context.Background(), msg("Wordle 1 891 3/6"))
+
+	if len(cap.sent()) != 1 {
+		t.Fatalf("sent %d results despite the announcer failing, want 1", len(cap.sent()))
+	}
+	if !strings.Contains(cap.log(), "could not announce") {
+		t.Errorf("the announce failure was not logged:\n%s", cap.log())
+	}
+}
+
+// maybeAnnounce bounds its own call, so a hung signal-cli-rest-api cannot
+// stall the worker that also files results.
+func TestAnnouncerContextCarriesADeadline(t *testing.T) {
+	f, _ := testFiler(t)
+
+	var hadDeadline bool
+	f.announce = func(ctx context.Context, _ time.Time) error {
+		_, hadDeadline = ctx.Deadline()
+		return nil
+	}
+
+	f.handle(context.Background(), msg("Wordle 1 891 3/6"))
+
+	if !hadDeadline {
+		t.Error("the announcer's context had no deadline")
 	}
 }

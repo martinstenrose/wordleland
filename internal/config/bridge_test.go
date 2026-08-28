@@ -23,6 +23,7 @@ func setEnv(t *testing.T, env map[string]string) {
 	t.Helper()
 	for _, k := range []string{
 		"SIGNAL_API_URL", "SIGNAL_ACCOUNT", "SIGNAL_GROUP_ID",
+		"SIGNAL_ANNOUNCE_MONTHS", "SIGNAL_LOCALE",
 	} {
 		t.Setenv(k, env[k])
 	}
@@ -174,6 +175,55 @@ func TestBridgeIsOptional(t *testing.T) {
 	}
 	if cfg != nil {
 		t.Errorf("config = %+v, want nil when nothing is set", cfg)
+	}
+}
+
+// Announcing is on the moment the bridge is configured at all: that is the
+// behaviour asked for, and the env var is the exception, not the rule.
+func TestLoadBridgeAnnounceMonthsDefaultsOn(t *testing.T) {
+	setEnv(t, bridgeEnv())
+
+	cfg, err := LoadBridge()
+	if err != nil {
+		t.Fatalf("LoadBridge() failed: %v", err)
+	}
+	if !cfg.AnnounceMonths {
+		t.Error("AnnounceMonths = false, want true by default")
+	}
+	if cfg.AnnounceLocale != "en" {
+		t.Errorf("AnnounceLocale = %q, want the default %q", cfg.AnnounceLocale, "en")
+	}
+}
+
+func TestLoadBridgeAnnounceMonthsCanBeDisabled(t *testing.T) {
+	env := bridgeEnv()
+	env["SIGNAL_ANNOUNCE_MONTHS"] = "false"
+	env["SIGNAL_LOCALE"] = "sv"
+	setEnv(t, env)
+
+	cfg, err := LoadBridge()
+	if err != nil {
+		t.Fatalf("LoadBridge() failed: %v", err)
+	}
+	if cfg.AnnounceMonths {
+		t.Error("AnnounceMonths = true, want false with SIGNAL_ANNOUNCE_MONTHS=false")
+	}
+	if cfg.AnnounceLocale != "sv" {
+		t.Errorf("AnnounceLocale = %q, want %q", cfg.AnnounceLocale, "sv")
+	}
+}
+
+func TestLoadBridgeRejectsABadAnnounceMonthsValue(t *testing.T) {
+	env := bridgeEnv()
+	env["SIGNAL_ANNOUNCE_MONTHS"] = "sometimes"
+	setEnv(t, env)
+
+	_, err := LoadBridge()
+	if err == nil {
+		t.Fatal("LoadBridge() accepted a non-boolean SIGNAL_ANNOUNCE_MONTHS")
+	}
+	if !strings.Contains(err.Error(), "SIGNAL_ANNOUNCE_MONTHS") {
+		t.Errorf("error = %v, want it to name SIGNAL_ANNOUNCE_MONTHS", err)
 	}
 }
 

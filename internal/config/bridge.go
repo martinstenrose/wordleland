@@ -5,7 +5,10 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
+
+	"github.com/martinstenrose/wordleland/internal/i18n"
 )
 
 // Bridge is the Signal bridge's resolved configuration.
@@ -33,6 +36,26 @@ type Bridge struct {
 	// like the bot receiving nothing, so the value is checked at boot
 	// rather than left to fail silently at runtime.
 	SignalGroupID string
+
+	// AnnounceMonths posts the month's winner back into the group when a
+	// month closes. Default on: once SIGNAL_ACCOUNT and SIGNAL_GROUP_ID are
+	// set at all, this is the behaviour that was asked for. The escape
+	// hatch is for someone who wants the bridge to receive without the bot
+	// ever speaking in the group.
+	AnnounceMonths bool
+
+	// AnnounceLocale is the language the announcement is written in.
+	//
+	// A signed-in reader has their own locale, stored on their account; the
+	// group chat has no such thing; it is not any one member's message. So
+	// this is one fixed choice for the whole deployment rather than a
+	// per-recipient one, unlike everywhere else the app picks a language.
+	//
+	// Not validated against the loaded catalogues here: an unrecognised
+	// value falls back to English where the translator is built, the same
+	// graceful handling a stored user locale gets, rather than failing boot
+	// over a typo in a cosmetic setting.
+	AnnounceLocale string
 }
 
 // groupIDPrefix is the form that is easy to copy by mistake.
@@ -52,9 +75,11 @@ const DefaultSignalAPIURL = "http://signal-cli-rest-api:8080"
 // usually has more than one variable wrong.
 func LoadBridge() (*Bridge, error) {
 	cfg := &Bridge{
-		SignalAPIURL:  envOr("SIGNAL_API_URL", DefaultSignalAPIURL),
-		SignalAccount: strings.TrimSpace(os.Getenv("SIGNAL_ACCOUNT")),
-		SignalGroupID: strings.TrimSpace(os.Getenv("SIGNAL_GROUP_ID")),
+		SignalAPIURL:   envOr("SIGNAL_API_URL", DefaultSignalAPIURL),
+		SignalAccount:  strings.TrimSpace(os.Getenv("SIGNAL_ACCOUNT")),
+		SignalGroupID:  strings.TrimSpace(os.Getenv("SIGNAL_GROUP_ID")),
+		AnnounceMonths: true,
+		AnnounceLocale: envOr("SIGNAL_LOCALE", i18n.Default),
 	}
 
 	// Nothing configured: the bridge is off, which is a valid deployment.
@@ -86,6 +111,15 @@ func LoadBridge() (*Bridge, error) {
 	// Still validated: it has a default, but an override can be wrong.
 	if err := checkHTTPURL(cfg.SignalAPIURL); err != nil {
 		problems = append(problems, "SIGNAL_API_URL: "+err.Error())
+	}
+
+	if raw := strings.TrimSpace(os.Getenv("SIGNAL_ANNOUNCE_MONTHS")); raw != "" {
+		v, err := strconv.ParseBool(raw)
+		if err != nil {
+			problems = append(problems, fmt.Sprintf("SIGNAL_ANNOUNCE_MONTHS: %q is not a boolean", raw))
+		} else {
+			cfg.AnnounceMonths = v
+		}
 	}
 
 	switch {

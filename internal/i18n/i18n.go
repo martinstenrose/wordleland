@@ -28,7 +28,7 @@ const Default = "en"
 // Catalogue is one locale's strings.
 type Catalogue map[string]string
 
-// Catalogues holds every locale, loaded once at startup so a malformed file
+// Catalogues holds every locale, loaded at startup so a malformed file
 // is a boot failure rather than a blank page, or a silent English fallback,
 // later.
 type Catalogues map[string]Catalogue

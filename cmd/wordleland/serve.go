@@ -13,10 +13,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/martinstenrose/wordleland/internal/announce"
 	"github.com/martinstenrose/wordleland/internal/auth"
 	"github.com/martinstenrose/wordleland/internal/bridge"
 	"github.com/martinstenrose/wordleland/internal/config"
 	"github.com/martinstenrose/wordleland/internal/health"
+	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/ingest"
 	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/web"
@@ -96,6 +98,7 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 	}
 
 	var supervisor *bridge.Supervisor
+	var announcer bridge.Announcer
 	if bridgeCfg != nil {
 		// Delivery is a direct call now. The bridge writes as the
 		// application itself rather than as a token holder, because since
@@ -103,7 +106,23 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 		deliver := func(ctx context.Context, sub ingest.Submission) (ingest.Status, error) {
 			return ingest.Apply(ctx, db, store.SystemActor(), sub, true)
 		}
-		b, err := bridge.New(*bridgeCfg, deliver, logger)
+
+		// Nil when announcing is off: the bridge treats a nil Announcer as
+		// "never call this", so turning the feature off costs nothing at
+		// every message instead of a check here plus a check there.
+		if bridgeCfg.AnnounceMonths {
+			cats, err := i18n.Load()
+			if err != nil {
+				return err
+			}
+			send, err := bridge.NewSender(bridgeCfg.SignalAPIURL, bridgeCfg.SignalAccount, bridgeCfg.SignalGroupID)
+			if err != nil {
+				return err
+			}
+			announcer = announce.New(db, cats, bridgeCfg.AnnounceLocale, send)
+		}
+
+		b, err := bridge.New(*bridgeCfg, deliver, announcer, logger)
 		if err != nil {
 			return err
 		}
@@ -133,6 +152,15 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 			supervisor.Run(ctx)
 		}()
 		logger.Info("signal bridge started")
+
+		if announcer != nil {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				announce.RunMonthly(ctx, announcer, logger)
+			}()
+			logger.Info("monthly announcement scheduler started", "at", "12:00 on day 1")
+		}
 	} else {
 		// Said plainly, because an app that silently is not bridging looks
 		// exactly like one whose group has gone quiet.

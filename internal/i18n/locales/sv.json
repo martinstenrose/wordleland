@@ -334,7 +334,7 @@
   "grid.span.label": "Intervall",
   "grid.span.recent": "Senaste %d dagarna",
   "grid.span.all": "Alla %d dagar",
-  "months.line.tie": "Oavgjort på %s. Båda tar månaden.",
+  "months.line.tie": "Oavgjort på %s. De tar månaden.",
   "months.line.margin": "%s tog %s med %s gissning, över %d pussel.",
   "months.line.alone": "%s tog månaden över %d pussel.",
   "months.line.nobody": "Det finns inga resultat att ranka den här månaden.",
