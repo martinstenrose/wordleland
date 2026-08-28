@@ -68,6 +68,8 @@ and an extra URL that commonly attract spam-filter rules.
 |---|---|
 | `SIGNAL_ACCOUNT` | The number the bot receives on: its own if registered, the operator's if linked. E.164, leading `+`, exactly as `/v1/accounts` reports it. **Quote it in YAML** — unquoted, `+46…` is parsed as an integer and loses the `+`, which produces a bridge that connects and receives nothing. |
 | `SIGNAL_GROUP_ID` | See below — this one is easy to get wrong. |
+| `SIGNAL_ANNOUNCE_MONTHS` | Optional, default `true`. Post the month's winner back into the group when a month closes. Set to `false` for a bridge that receives without the bot ever speaking. |
+| `SIGNAL_LOCALE` | Optional, default `en`. The language the announcement above is written in — one fixed choice for the whole group, not a per-member preference. |
 
 `SIGNAL_API_URL` is not configured. It defaults to
 `http://signal-cli-rest-api:8080` — a service name from `compose.yml` joined
@@ -84,6 +86,21 @@ not the `group.<base64>` value the same endpoint reports as `id`. Only the
 first matches what arrives on a message. The bridge refuses the prefixed
 form at boot, because configuring it would otherwise produce a bot that
 connects, reports itself healthy, and matches nothing for ever.
+
+**The bridge posts back, once a month.** At 12:00 local time on the first day
+of a month, it sends one message naming who won the previous month (a tie
+names everyone tied) and by how much, in the same words the board itself
+uses. Participation on the closing day is irrelevant: noon is a simple grace
+period, not a wait for every player. If the app was offline at noon or the
+send failed, the next live Wordle result retries the announcement. Results
+before noon do not trigger it, and a stored record makes every check a no-op
+once the month has been announced, so a restart or replay does not repost it.
+Explicitly labeled Archive shares and older back-dated results are ignored
+and cannot trigger the fallback. Nothing is sent for a month nobody reached
+the minimum games in: the board already says so for anyone who looks, and an
+unprompted "nobody qualified" message reads as the bot scolding a quiet month.
+This is the only place the app states a real display name outside the board
+itself, worth knowing before turning it on for a group that would mind.
 
 ### Set `TRUSTED_PROXIES`
 

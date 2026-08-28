@@ -334,7 +334,7 @@
   "grid.span.label": "Range",
   "grid.span.recent": "Last %d days",
   "grid.span.all": "All %d days",
-  "months.line.tie": "A tie at %s. Both take the month.",
+  "months.line.tie": "A tie at %s. They take the month.",
   "months.line.margin": "%s took %s by %s of a guess, over %d puzzles.",
   "months.line.alone": "%s took the month over %d puzzles.",
   "months.line.nobody": "There are no scores to rank this month.",

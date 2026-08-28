@@ -15,6 +15,7 @@ import (
 	"errors"
 	"log/slog"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/martinstenrose/wordleland/internal/ingest"
@@ -31,15 +32,33 @@ const SourceSignal = "signal"
 // standing up a database.
 type Deliverer func(context.Context, ingest.Submission) (ingest.Status, error)
 
+// Announcer checks whether a month's scheduled noon post was missed and
+// posts its winner if so. It is called after every live result, but is a
+// no-op before noon on the first and after a successful send. The stored
+// announcement record makes repeated checks restart-safe.
+//
+// A nil Announcer means announcing is off — unconfigured, or disabled by
+// SIGNAL_ANNOUNCE_MONTHS — and is never called.
+//
+// An error is a genuine failure — the store, or the send, went wrong — not
+// "nothing to announce yet", which the Announcer reports by returning nil.
+// The filer logs it and moves on: see maybeAnnounce.
+type Announcer func(ctx context.Context, now time.Time) error
+
+// announceTimeout bounds the Announcer's own work — a database read and one
+// HTTP call to signal-cli-rest-api — so a slow month check cannot stall the
+// worker that also files results. Independent of sendTimeout: this also
+// covers the store reads around the send.
+const announceTimeout = 20 * time.Second
+
 // Back-dating window, in puzzles either side of today's.
 //
-// The group posts archive results — an "Archive February 20, 2026" line
-// followed by a share text the parser matches exactly. Back-dated results
-// were deliberately excluded from the imported history, and forwarding them
+// Explicitly labeled Archive shares are rejected before this window. The
+// puzzle-number check is the fallback for other back-dated results. Those
+// were deliberately excluded from imported history, and forwarding them
 // would let them back in by another door: an existing row is protected by
-// the precedence rule, but an archive result for a puzzle the player has no
-// row for inserts cleanly, which is the common case, since people play
-// archive puzzles precisely because they missed them.
+// the precedence rule, but an old result for a puzzle the player has no row
+// for inserts cleanly.
 //
 // The check lives here rather than in ingest because ingest is
 // source-agnostic and the CLI legitimately writes old puzzles.
@@ -69,6 +88,10 @@ type filer struct {
 	// delivery and not only the Signal side.
 	health *health
 
+	// announce checks for a month to post about, after every live result.
+	// Nil when announcing is off.
+	announce Announcer
+
 	// now is swapped in tests so the back-dating window can be exercised
 	// without waiting for the calendar.
 	now func() time.Time
@@ -76,12 +99,12 @@ type filer struct {
 	sleep func(context.Context, time.Duration)
 }
 
-func newFiler(groupID string, deliver Deliverer, logger *slog.Logger, h *health) *filer {
+func newFiler(groupID string, deliver Deliverer, announce Announcer, logger *slog.Logger, h *health) *filer {
 	if h == nil {
 		h = newHealth(time.Now)
 	}
 	return &filer{
-		groupID: groupID, deliver: deliver, logger: logger, health: h,
+		groupID: groupID, deliver: deliver, announce: announce, logger: logger, health: h,
 		now:   time.Now,
 		sleep: sleepContext,
 	}
@@ -104,21 +127,64 @@ func (f *filer) handle(ctx context.Context, m Message) {
 		// Most traffic in the group is ordinary conversation.
 		return
 	}
+	if isArchiveShare(m.Body) {
+		// A recently archived puzzle may still fall inside the small timezone
+		// and late-post window below. Wordle labels Archive shares explicitly,
+		// so reject that stronger signal regardless of the puzzle number.
+		f.logger.Info("ignoring an archive result", "puzzle", result.PuzzleNo)
+		return
+	}
 
 	if !f.withinWindow(result.PuzzleNo) {
-		// Logged at info rather than dropped silently, so archive posts are
+		// Logged at info rather than dropped silently, so old posts are
 		// visible as a thing that happened rather than a mystery. No
 		// identifying field: the puzzle number is enough to recognise it.
+		//
+		// Not passed to maybeAnnounce either: a back-dated result is not
+		// evidence that time has moved into a new month, only that someone
+		// posted an old puzzle, which can happen at any point in the
+		// current one.
 		f.logger.Info("ignoring a back-dated result",
 			"puzzle", result.PuzzleNo, "current", f.currentPuzzle())
 		return
 	}
 
 	f.file(ctx, result, m)
+
+	// After, not before: filing the actual result takes priority over a
+	// once-a-month side effect, and a slow or failing announcement must
+	// never delay or cost a score.
+	f.maybeAnnounce(ctx)
+}
+
+func isArchiveShare(body string) bool {
+	for _, line := range strings.Split(body, "\n") {
+		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(line)), "archive ") {
+			return true
+		}
+	}
+	return false
+}
+
+// maybeAnnounce runs the Announcer, if one is configured, and only ever
+// logs what it reports. A failure here — the store, or the send to Signal
+// — is real, but it is not a result: retrying happens on its own, because
+// nothing here marks the month done until a post actually lands, so the
+// next live message tries again.
+func (f *filer) maybeAnnounce(ctx context.Context) {
+	if f.announce == nil {
+		return
+	}
+	actx, cancel := context.WithTimeout(ctx, announceTimeout)
+	defer cancel()
+	if err := f.announce(actx, f.now()); err != nil {
+		f.logger.Warn("could not announce the month's winner; will retry on the next live message",
+			"error", err)
+	}
 }
 
 // withinWindow reports whether a puzzle is close enough to today's to be a
-// live result rather than an archive one.
+// live result rather than another kind of back-dated one.
 func (f *filer) withinWindow(puzzleNo int) bool {
 	current := f.currentPuzzle()
 	return puzzleNo >= current-maxPuzzlesBehind && puzzleNo <= current+maxPuzzlesAhead
