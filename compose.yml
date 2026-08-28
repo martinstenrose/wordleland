@@ -1,0 +1,42 @@
+# Pinned so the volume names do not depend on the directory this is checked
+# out into. Without it the project name is the directory name, and moving or
+# renaming that folder silently points the stack at a different, empty
+# volume — which reads as a fresh install rather than an error.
+name: wordleland
+
+services:
+  app:
+    image: ghcr.io/martinstenrose/wordleland:latest
+    restart: unless-stopped
+    depends_on:
+      signal-cli-rest-api:
+        condition: service_started
+    environment:
+      TZ: ${TZ:-Europe/Stockholm}
+      APP_URL: ${APP_URL}
+      TOTP_KEY: ${TOTP_KEY}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      PENDING_RETENTION: ${PENDING_RETENTION:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      SIGNAL_ACCOUNT: ${SIGNAL_ACCOUNT:-}
+      SIGNAL_GROUP_ID: ${SIGNAL_GROUP_ID:-}
+    volumes:
+      - data:/data
+
+  signal-cli-rest-api:
+    image: bbernhard/signal-cli-rest-api:0.100
+    restart: unless-stopped
+    environment:
+      MODE: json-rpc
+    volumes:
+      - signal-cli-config:/home/.local/share/signal-cli
+
+volumes:
+  data:
+  signal-cli-config:

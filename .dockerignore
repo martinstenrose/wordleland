@@ -1,0 +1,21 @@
+# The build context is everything not listed here, so anything secret or
+# large that reaches it is both a leak risk and a cache-buster: a change to
+# any of these would otherwise invalidate the build.
+.git
+.github
+
+# Secrets and local state.
+.env
+.env.*
+!.env.example
+*.sqlite*
+*.db
+signal-cli-config/
+
+# Backfill exports: real names and scores.
+*.csv
+
+# Build output and editor droppings.
+out/
+*.md
+!README.md
