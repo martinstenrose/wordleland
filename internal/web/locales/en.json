@@ -522,5 +522,6 @@
   "grid.form.recent": "Average · last %d days",
   "grid.form.all": "Average · all %d days",
   "activity.todayAt": "today at %s",
-  "activity.yesterdayAt": "yesterday at %s"
+  "activity.yesterdayAt": "yesterday at %s",
+  "footer.github": "GitHub"
 }

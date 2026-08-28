@@ -201,6 +201,14 @@ body {
 
 main { max-width: 1160px; margin: 0 auto; }
 
+.site-footer { display: flex; justify-content: center; padding: 28px 0 6px; }
+.footer-gh {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px;
+  color: var(--tx-45);
+}
+.footer-gh:hover, .footer-gh:focus-visible { color: var(--tx-75); }
+
 /* One horizontal bar across the width, as the design has it: the mark and
    the views on the left, the controls on the right. It was two separate
    pills before. */

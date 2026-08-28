@@ -178,6 +178,35 @@ func TestAccountMenuNeedsNoScript(t *testing.T) {
 	}
 }
 
+// The link lives once in "base", so this is really a test that every page
+// renders through it — signed out, signed in, admin, and the read-only
+// share view alike — rather than a test of the link itself.
+func TestEveryPageHasTheGitHubFooterLink(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	session := signIn(t, srv, admin.ID)
+
+	const want = `href="https://github.com/martinstenrose/wordleland"`
+
+	for _, p := range []struct {
+		path   string
+		cookie *http.Cookie
+	}{
+		{path: "/"},
+		{path: "/share/" + slug + "/"},
+		{path: "/leaderboard", cookie: session},
+		{path: "/admin/players", cookie: session},
+		{path: "/no/such/page"},
+	} {
+		body := fetchAs(t, srv, p.path, p.cookie).Body.String()
+		if !strings.Contains(body, want) {
+			t.Errorf("%s: no GitHub footer link", p.path)
+		}
+	}
+}
+
 func TestInitialsFor(t *testing.T) {
 	for _, tt := range []struct{ email, want string }{
 		{"martin@example.tld", "M"},

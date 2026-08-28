@@ -522,5 +522,6 @@
   "grid.form.recent": "Snitt · senaste %d dagarna",
   "grid.form.all": "Snitt · alla %d dagar",
   "activity.todayAt": "idag %s",
-  "activity.yesterdayAt": "igår %s"
+  "activity.yesterdayAt": "igår %s",
+  "footer.github": "GitHub"
 }
