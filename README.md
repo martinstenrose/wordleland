@@ -1,0 +1,454 @@
+# Wordleland
+
+[![ci](https://github.com/martinstenrose/wordleland/actions/workflows/ci.yml/badge.svg)](https://github.com/martinstenrose/wordleland/actions/workflows/ci.yml)
+[![security](https://github.com/martinstenrose/wordleland/actions/workflows/security.yml/badge.svg)](https://github.com/martinstenrose/wordleland/actions/workflows/security.yml)
+[![release](https://github.com/martinstenrose/wordleland/actions/workflows/release.yml/badge.svg)](https://github.com/martinstenrose/wordleland/actions/workflows/release.yml)
+
+Self-hosted Wordle tracker for a group of friends. Results arrive
+automatically from a Signal group; manual entry and admin correction are
+also supported.
+
+`docs/decisions.md` explains why things are the way they are and wins wherever this file and it
+disagree. This file covers running the thing.
+
+## What runs
+
+Two containers:
+
+| Service | What it does |
+|---|---|
+| `app` | Everything of ours. Owns the database, serves the board, exposes `/api/ingest`, and runs the Signal bridge when one is configured. The admin CLI is the same binary. |
+| `signal-cli-rest-api` | Off-the-shelf. Holds the Signal connection as a linked device. |
+
+Only `app` is reachable from outside, through Caddy. The Signal container is
+deliberately not published: it holds the linked device's credentials, and
+nothing but `app` needs to reach it.
+
+**The Signal bridge is optional.** Leave `SIGNAL_ACCOUNT` and
+`SIGNAL_GROUP_ID` unset and the app serves the board without it, which is
+how a fresh install imports its history before Signal is linked. Set them
+together — one without the other is refused, because it would start, watch
+nothing, and look exactly like a deployment that works.
+
+## Configuration
+
+Copy `.env.example` to `.env` and fill it in. `.env` is gitignored.
+
+`TZ` applies to both services and is set once in `.env`, defaulting to
+`Europe/Stockholm` when unset. It is read by the Go runtime rather than by
+the app, and it decides which day a puzzle number belongs to — so getting it
+wrong shifts every date by a few hours rather than failing outright.
+
+### App
+
+| Variable | Required | Meaning |
+|---|---|---|
+| `APP_URL` | when SMTP is set | Public origin, no path. Emailed links are built from this and never from the request `Host` header — otherwise someone could request a reset for your account with a forged header and have the link point at their own server. |
+| `TOTP_KEY` | yes | 32 bytes, base64: `head -c 32 /dev/urandom \| base64`. Encrypts every TOTP secret at rest. Validated at boot. |
+| `TRUSTED_PROXIES` | in practice | CIDRs of the reverse proxy. See the warning below. |
+| `SMTP_*` | no | Absent means password reset by email is unavailable and the rest of the app runs normally. |
+| `PENDING_RETENTION` | no | How long unclaimed results are held. Empty means indefinitely. |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | no | Creates the first administrator on a fresh database. Both together; at least 12 characters. Ignored once any user exists, so they can be removed after the first boot. |
+
+The database path and listen port are not configurable: always
+`/data/db.sqlite` and `:8080`. A volume decides where the file really
+lives, and the port is invisible behind the proxy. The binary accepts
+`--db <path>` for running outside a container.
+
+### Signal bridge
+
+| Variable | Meaning |
+|---|---|
+| `SIGNAL_ACCOUNT` | The number the bot receives on: its own if registered, the operator's if linked. |
+| `SIGNAL_GROUP_ID` | See below — this one is easy to get wrong. |
+
+`SIGNAL_API_URL` is not configured. It defaults to
+`http://signal-cli-rest-api:8080` — a service name from `compose.yml` joined
+to the port that image always exposes, so it cannot change without editing
+that file anyway. Set it as an environment variable to override it, which is
+what running outside compose needs.
+
+There is no ingest token to provision. `/api/ingest` and its tokens remain
+for curl and any future bridge, but the Signal bridge runs inside the app
+and does not need a credential to talk to itself.
+
+**`SIGNAL_GROUP_ID` is the bare base64 `internal_id`** from `GET /v1/groups`,
+not the `group.<base64>` value the same endpoint reports as `id`. Only the
+first matches what arrives on a message. The bridge refuses the prefixed
+form at boot, because configuring it would otherwise produce a bot that
+connects, reports itself healthy, and matches nothing for ever.
+
+### Set `TRUSTED_PROXIES`
+
+Behind a reverse proxy every request arrives from the proxy's address. With
+this empty, the login rate limiter treats the whole internet as one client:
+ten failed logins from anyone locks out login for everyone for fifteen
+minutes, and the per-address protection is gone. `172.16.0.0/12` covers the
+default Docker bridge range.
+
+`X-Forwarded-For` is believed only from an address in this list, and the
+rightmost entry that is not itself trusted is taken — a client can prepend
+anything it likes to that header, but cannot forge what a trusted proxy
+appends.
+
+Several ranges are comma-separated, and IPv4 and IPv6 mix freely — a proxy
+on a dual-stack network needs both listed, or requests arriving over the one
+you left out are treated as coming straight from the internet:
+
+```
+TRUSTED_PROXIES=172.18.0.0/16,fd00:1234:5678:9abc::/64
+```
+
+`docker network inspect <network> --format '{{range .IPAM.Config}}{{.Subnet}} {{end}}'`
+prints the ranges to use.
+
+**Do not set a catch-all.** There is no wildcard syntax, and the equivalent
+CIDR is worse than leaving this empty rather than easier: trusting every
+address means no entry in the header is ever untrusted, so the walk finds
+nothing to stop at and falls back to the address the connection came from —
+the proxy. Every client in the world then shares one rate-limit key, which
+is exactly the failure this variable exists to prevent. Name the range the
+proxy is actually on.
+
+### Rotate `TOTP_KEY` before anyone enrols
+
+That key encrypts every TOTP secret at rest, so rotating it makes all of
+them unrecoverable and everyone must be reset with `user reset-2fa` and
+enrol again. Before the first enrolment it costs nothing; afterwards it
+costs a round of re-enrolment for the whole group. It belongs in your
+backups.
+
+## Behind a reverse proxy
+
+The app publishes no ports: it listens on `:8080` inside its own
+container and expects something in front of it to terminate TLS. How that
+is wired is deployment-specific and deliberately not in this repo.
+
+With `caddy-docker-proxy`, that means adding labels and a shared network to
+the `app` service locally:
+
+```yaml
+    networks:
+      - default
+      - caddy
+    labels:
+      caddy: wordle.example.tld
+      caddy.reverse_proxy: "{{ upstreams 8080 }}"
+```
+
+```yaml
+networks:
+  caddy:
+    external: true
+```
+
+**Keep `default` in that list.** Declaring `networks:` on a service
+*replaces* the default rather than adding to it, so an `app` listed only
+under `caddy` is no longer on the network `signal-cli-rest-api` is on. Both
+containers start, both look healthy, and nothing is ever received:
+
+```
+dial tcp: lookup signal-cli-rest-api on 127.0.0.11:53: server misbehaving
+```
+
+That message is the Docker resolver saying the name is not on any network
+this container is attached to, rather than anything being wrong with DNS.
+
+The network is called `default` inside the compose file. `wordleland_default`
+is the name Docker gives it externally, and using that here fails with
+`refers to undefined network`.
+
+Whatever proxy is used, set `TRUSTED_PROXIES` to match it.
+
+## Images
+
+Published to GHCR by `.github/workflows/release.yml`:
+
+```
+ghcr.io/martinstenrose/wordleland
+```
+
+It is built for `linux/amd64` and `linux/arm64`. The Go build
+cross-compiles from the runner's architecture, so the second platform costs
+a compile rather than an emulated build.
+
+The workflow runs on two triggers:
+
+- **A version tag** — pushing `v1.2.3` publishes `v1.2.3`, `v1.2` and moves
+  `latest`. The `v` is kept, so an image tag reads the same as the git tag it
+  came from.
+- **The Run workflow button** on the repository's Actions tab, against any
+  branch. Those builds are tagged by branch name and full commit SHA, and
+  deliberately never move `latest`: deploying `latest` should never pick up
+  whatever was last pushed by hand.
+
+`go vet` and `go test` run first, and a failure stops the publish.
+
+Compose follows `latest`. Pin a version at deploy time by editing the image
+tag.
+
+```sh
+docker compose pull && docker compose up -d
+```
+
+If the host has the repository checked out, `compose.override.yml` is picked
+up there too and adds build contexts to both services. `docker compose -f
+compose.yml up -d` ignores the override and uses only what was pulled.
+
+Publishing needs no secret: the workflow authenticates with the built-in
+`GITHUB_TOKEN`. The packages are private by default — make them public, or
+`docker login ghcr.io` on the host with a token that has `read:packages`,
+before pulling.
+
+## First run
+
+```sh
+cp .env.example .env      # then fill it in
+docker compose pull       # or `docker compose build` to build locally
+docker compose up -d
+```
+
+With `ADMIN_EMAIL` and `ADMIN_PASSWORD` set, the first administrator is
+created on startup and the log says so. Sign in; two-factor enrolment is
+mandatory for admins and happens immediately.
+
+Those two variables act only when no user exists at all, so leaving them in
+`.env` is harmless: they cannot change a password that has since been
+changed, and cannot bring back an account that was deliberately removed.
+
+## Connecting Signal
+
+Two ways to give the bot a Signal identity. **Registering its own number is
+the better one** and is what this section leads with: the bot owns the
+account, nothing is tied to a personal phone, and there is no QR code in the
+loop at all.
+
+Everything below talks to signal-cli-rest-api, which publishes no ports
+normally. Reach it over the Docker network:
+
+```sh
+sig() { docker run --rm --network wordleland_default curlimages/curl -s "$@"; }
+```
+
+### Registering a new number
+
+The number needs to receive an SMS or a voice call once. Anything works — a
+spare SIM, a data-only eSIM, a VoIP number that accepts SMS.
+
+```sh
+sig -X POST -H 'Content-Type: application/json' \
+  http://signal-cli-rest-api:8080/v1/register/+46700000000
+```
+
+Signal usually demands a captcha:
+
+```json
+{"error":"Captcha required for verification (null)\n"}
+```
+
+If so, open <https://signalcaptchas.org/registration/generate.html>, solve
+it, and take the token out of the developer console — the line reading
+`Prevented navigation to "signalcaptcha://{token}" due to an unknown
+protocol`. Copy only the token, without the `signalcaptcha://` prefix, then:
+
+```sh
+sig -X POST -H 'Content-Type: application/json' \
+  --data '{"captcha":"signal-hcaptcha-short.xxxx.registration.yyyy"}' \
+  http://signal-cli-rest-api:8080/v1/register/+46700000000
+```
+
+Add `"use_voice": true` to the body for a phone call instead of an SMS.
+
+Verify with the code that arrives:
+
+```sh
+sig -X POST -H 'Content-Type: application/json' \
+  http://signal-cli-rest-api:8080/v1/register/+46700000000/verify/123456
+```
+
+If the number has a registration PIN, send it as `{"pin":"..."}` in that
+body.
+
+Confirm it took — this lists the number once registration has worked, and is
+an empty array before:
+
+```sh
+sig http://signal-cli-rest-api:8080/v1/accounts
+```
+
+Then add the bot to the Wordle group from your own phone, and find the group
+id:
+
+```sh
+sig 'http://signal-cli-rest-api:8080/v1/groups/+46700000000'
+```
+
+Take **`internal_id`**, not `id`, into `SIGNAL_GROUP_ID`, and the number into
+`SIGNAL_ACCOUNT`.
+
+### Linking as a device on an existing account
+
+The alternative: the bot rides along on a personal Signal account as a linked
+device. It works, but it ties the bot to a personal number, and the link step
+needs a QR code scanned within about a minute.
+
+```sh
+sig 'http://signal-cli-rest-api:8080/v1/qrcodelink/raw?device_name=wordleland' \
+  | qrencode -t ANSIUTF8i -m 2
+```
+
+Then scan it from Signal → Settings → Linked devices → Link new device.
+
+**Use the inverted output — `ANSIUTF8i`, not `ANSIUTF8`.** On a dark
+terminal the non-inverted form renders light modules on a dark ground, which
+phone cameras generally refuse to read. `UTF8i` is the same thing without
+colour codes if the terminal mangles those.
+
+Note that the PNG endpoint cannot feed this: `qrencode` *generates* codes
+from text and does not read images, so piping `/v1/qrcodelink` into it does
+nothing useful. `/v1/qrcodelink/raw` returns the `sgnl://linkdevice?...` URI
+as text, which is what `qrencode` wants. It needs signal-cli-rest-api 0.100
+or newer; 0.94 returns 404.
+
+If Signal calls the code invalid, the app read the QR and rejected its
+**contents** — the URI had expired, or was truncated. Each request
+invalidates the previous one, so re-run the pipeline and scan promptly rather
+than adjusting how it is displayed.
+
+## Editing players
+
+A signed-in admin has `/admin/players`: the roster with each player's slug,
+linked login, game count and membership, and an edit form behind each name
+covering the display name, the slug, the linked login and whether they are
+still in the group.
+
+It writes through the same code the CLI does, so every change lands in the
+audit log against the admin who made it. There is no delete — retirement is
+clearing "still in the group", which keeps the history (§4). Everything else
+in the CLI below is still CLI-only.
+
+Changing a slug changes that player's URL, and the share link is a
+capability URL people may have bookmarked. Renaming is cheap; re-slugging is
+not free.
+
+## The admin CLI
+
+It is the same binary as the server and is invoked by absolute path,
+because that image is distroless: no shell, so no `PATH` to resolve a bare
+name against.
+
+```sh
+docker compose exec app /wordleland <noun> <verb> [flags]
+```
+
+`docker compose exec app bash` will not work, and neither will `ls` —
+there is nothing in the image but the binary.
+
+Every command that writes needs an acting admin, either `--as <address>`
+before the noun or
+`ADMIN_EMAIL` in the environment. The first user is the exception: nothing
+exists yet that could authorise it.
+
+```sh
+# An ingest token, for a curl client or another bridge. Shown once.
+# The Signal bridge does not need one: it runs inside the app.
+docker compose exec app /wordleland token create --label scripts
+
+# The read-only share link.
+docker compose exec app /wordleland slug show
+docker compose exec app /wordleland slug rotate
+
+# Players.
+docker compose exec app /wordleland player add --name "Martin"
+docker compose exec app /wordleland player list
+docker compose exec app /wordleland player update --player martin --active=false
+
+# Senders whose results are waiting, and claiming them.
+docker compose exec app /wordleland identity pending
+docker compose exec app /wordleland identity claim \
+  --player martin --source signal --external-id <uuid> --dry-run
+
+# Corrections. A hand-entered value wins over anything the Signal bridge sends.
+docker compose exec app /wordleland results set --player martin --puzzle 1893 --guesses 4 --hard-mode
+docker compose exec app /wordleland results unset --player martin --puzzle 1893
+```
+
+## Onboarding a player
+
+The bridge does not know the roster, and identities are keyed on the
+Signal account UUID rather than the display name, which anyone can change.
+So a new player is claimed rather than guessed:
+
+1. They post a result. It is held, and nothing reaches the board yet.
+2. `identity pending` lists the sender with a display hint and how many
+   results are waiting.
+3. `identity claim` maps them to a player and replays everything held.
+
+Until claimed, their results wait rather than being lost. Claiming with
+`--dry-run` first shows what would be replayed.
+
+## Importing history
+
+```sh
+docker compose cp results.csv app:/tmp/results.csv
+docker compose exec app /wordleland --as you@example.tld backfill \
+  --file /tmp/results.csv --dry-run
+```
+
+The results file is `Date,Wordle` followed by one column per player. Cells
+are `1`–`6`, `X`, either with a trailing `*` for hard mode, or empty for did
+not play.
+
+With no `--mapping`, each column header is read as a player slug and every
+player is imported as active. A header that is not a slug is reported by
+name, so the choice is to rename it or pass a mapping.
+
+The mapping file is for the cases that need it: headers that are display
+names rather than slugs, or a roster where somebody should be imported as
+having left. It is `column_header,player_slug,active`, and supplying one
+makes the two files agree in both directions — an unmapped column and a
+mapping row matching no column both abort the run.
+
+```sh
+docker compose cp mapping.csv app:/tmp/mapping.csv
+docker compose exec app /wordleland --as you@example.tld backfill \
+  --file /tmp/results.csv --mapping /tmp/mapping.csv --dry-run
+```
+
+Backfill is an import rather than a sync: with a mapping it applies the
+`active` column on every run, so re-running it after the roster has moved
+on will resurrect anyone since retired.
+
+## Monitoring
+
+`GET /healthz` on `:8080` is a **liveness** probe and only that. It answers
+one question: would restarting help?
+
+It fails when the database is unreachable, or when a configured Signal
+bridge has stopped — the supervisor gives up after repeated panics, which is
+a bug a restart genuinely clears.
+
+It stays green when the bridge is merely disconnected and retrying. Bouncing
+the app cannot reach signal-cli, and would only interrupt the backoff that is
+already fixing it. Since the services merged, failing this probe takes the
+board down too, so it is reserved for faults a restart addresses.
+
+Everything else — when a result last arrived, how current the board is, what
+is held for unclaimed senders, whether the bridge is connected — is on
+**Admin → Diagnostics**, and a warning line follows you around the admin area
+when something there needs attention. That page leads with freshness rather
+than connection state on purpose: a bridge pointed at the wrong group is
+connected, answering, and delivering nothing, and a connection indicator is
+green throughout.
+
+## Development
+
+```sh
+go build ./...
+go test ./...
+go run ./cmd/wordleland serve --db ./db.sqlite
+```
+
+`compose.override.yml` adds build contexts and is picked up automatically,
+so `docker compose build` works from a checkout and overrides the published
+images with locally built ones.
