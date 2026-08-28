@@ -1,65 +1,34 @@
 package web
 
 import (
-	"embed"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
 	"strings"
 
+	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/store"
 )
 
-// localeFS holds one JSON file per locale.
+// defaultLocale is what an unrecognised or missing preference falls back to.
 //
 // English ships now; Swedish is a translation of these keys rather than a
 // rewrite of every template, which is the whole reason the catalogue exists
 // before there is a second language to put in it.
-//
-//go:embed locales
-var localeFS embed.FS
-
-// defaultLocale is what an unrecognised or missing preference falls back to.
-const defaultLocale = "en"
+const defaultLocale = i18n.Default
 
 // localeCookie remembers a choice made with ?lang=.
 const localeCookie = "wordleland_lang"
 
-// catalogue is one locale's strings.
-type catalogue map[string]string
-
-// catalogues holds every locale, loaded once at startup so a malformed file
-// is a boot failure rather than a blank page later.
-type catalogues map[string]catalogue
+// catalogue and catalogues are aliases onto internal/i18n's types, which is
+// what also loads them: the Signal bridge announces a month's winner in the
+// same words the board renders, and a second copy of the JSON is a second
+// thing that could drift from it. See internal/i18n.
+type catalogue = i18n.Catalogue
+type catalogues = i18n.Catalogues
 
 func loadCatalogues() (catalogues, error) {
-	entries, err := localeFS.ReadDir("locales")
-	if err != nil {
-		return nil, fmt.Errorf("read locales: %w", err)
-	}
-
-	out := make(catalogues, len(entries))
-	for _, e := range entries {
-		name := strings.TrimSuffix(e.Name(), ".json")
-		if name == e.Name() {
-			continue
-		}
-		data, err := localeFS.ReadFile("locales/" + e.Name())
-		if err != nil {
-			return nil, fmt.Errorf("read %s: %w", e.Name(), err)
-		}
-		var c catalogue
-		if err := json.Unmarshal(data, &c); err != nil {
-			return nil, fmt.Errorf("parse %s: %w", e.Name(), err)
-		}
-		out[name] = c
-	}
-
-	if _, ok := out[defaultLocale]; !ok {
-		return nil, fmt.Errorf("no %s.json in locales", defaultLocale)
-	}
-	return out, nil
+	return i18n.Load()
 }
 
 // translator resolves keys for one request's locale.
