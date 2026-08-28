@@ -44,12 +44,16 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}
+          # No v on the image tags: {{version}} strips it, so the git tag
+          # v1.2.3 publishes 1.2.3. The v is a git convention and registries
+          # do not use it — image:1.2.3 is what a reader expects.
+          #
           # latest follows released versions only. A dispatch build from a
           # branch must never claim it, or deploying "latest" would ship
           # whatever was last pushed by hand.
           tags: |
-            type=semver,pattern=v{{version}}
-            type=semver,pattern=v{{major}}.{{minor}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
             type=ref,event=branch
             type=sha,format=long
           flavor: |
