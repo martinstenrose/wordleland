@@ -222,6 +222,25 @@ func TestTogglesAreReflectedInTheBoard(t *testing.T) {
 	}
 }
 
+// The two toggles turn independently, but "count missed" has no effect
+// without "count failed" — the page has to say so, or a reader who selects
+// both, then turns failures off, sees no reason their average did not move.
+func TestCountMissedIsMarkedMootWithoutCountFailed(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	def := fetch(t, srv, "/share/"+slug+"/board?missed=1").Body.String()
+	if strings.Contains(def, "toggle on moot") {
+		t.Error("count missed is marked moot while count failed is on")
+	}
+
+	off := fetch(t, srv, "/share/"+slug+"/board?x7=0&missed=1").Body.String()
+	if !strings.Contains(off, "toggle on moot") {
+		t.Error("count missed is not marked moot once count failed is turned off")
+	}
+}
+
 // A missing key must be visible rather than blank, or a translation gap
 // looks like a data problem and gets debugged as one.
 func TestMissingTranslationKeyRendersTheKey(t *testing.T) {
@@ -366,7 +385,7 @@ func TestControlsWorkOnBothBoards(t *testing.T) {
 			}
 			body := rec.Body.String()
 
-			for _, control := range []string{"Hard mode", "Count missed days as 7", "All"} {
+			for _, control := range []string{"Hard mode", "Count missed as 7", "All"} {
 				href := hrefFor(t, body, control)
 				if !strings.HasPrefix(href, board.path) {
 					t.Errorf("%q links to %q, which is not under the board at %q",
