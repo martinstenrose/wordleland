@@ -92,12 +92,55 @@ func TestHealthStatus(t *testing.T) {
 			wantOK: false, wantReason: "nothing received",
 		},
 		{
-			// A filer deployed an hour ago has no baseline. Failing on
+			// A bridge deployed an hour ago has no baseline. Failing on
 			// that would make every deploy look broken until the next post.
 			name: "connected, nothing received yet",
 			setup: func(h *health, c *clock) {
 				h.connected()
-				c.advance(maxSilence + time.Hour)
+				c.advance(maxSilenceBeforeFirst - time.Hour)
+			},
+			wantOK: true,
+		},
+		{
+			// This case used to pass with wantOK true, which is how a
+			// wrongly configured bridge sat green for eight hours: the
+			// silence check was skipped entirely until the first message,
+			// so one that never received anything was never questioned.
+			//
+			// No baseline is a reason to wait longer before answering, not
+			// a reason never to answer.
+			name: "connected far too long with nothing ever arriving",
+			setup: func(h *health, c *clock) {
+				h.connected()
+				c.advance(maxSilenceBeforeFirst + time.Hour)
+			},
+			wantOK: false, wantReason: "nothing has ever arrived",
+		},
+		{
+			// The two limits are different on purpose: an established
+			// bridge is allowed a much longer quiet spell than one that has
+			// never proved its subscription works at all.
+			name: "an established bridge outlasts the first-contact limit",
+			setup: func(h *health, c *clock) {
+				h.connected()
+				h.received()
+				c.advance(maxSilenceBeforeFirst + time.Hour)
+			},
+			wantOK: true,
+		},
+		{
+			// A reconnect does not put an established bridge back to
+			// proving itself. lastMessage survives it, so the 36-hour
+			// limit keeps applying rather than the six-hour one — which
+			// matters because a reconnect during an ordinary quiet spell
+			// would otherwise have six hours to look broken in.
+			name: "a reconnect does not re-arm the first-contact limit",
+			setup: func(h *health, c *clock) {
+				h.connected()
+				h.received()
+				h.disconnected()
+				h.connected()
+				c.advance(maxSilenceBeforeFirst + time.Hour)
 			},
 			wantOK: true,
 		},

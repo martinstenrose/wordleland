@@ -22,7 +22,25 @@ const (
 	// maxSilence catches the harder failure: a socket that is open and
 	// answering pings but delivers nothing. The group posts daily, so a
 	// silence this long is wrong even though everything looks connected.
+	// Long enough to sit out a quiet weekend.
 	maxSilence = 36 * time.Hour
+
+	// maxSilenceBeforeFirst is the same question asked of a bridge that has
+	// never received anything at all, and it is shorter because the two are
+	// not equally suspicious.
+	//
+	// A long quiet spell on a bridge that has been delivering is evidence
+	// about the group. Silence on one that has delivered nothing since it
+	// connected is evidence about nothing: there is no proof the
+	// subscription works at all, and the ping handler keeps the read
+	// deadline alive whether it does or not.
+	//
+	// Short for that reason. Frames are not only results — typing
+	// indicators and receipts arrive too — so an active group produces
+	// something within minutes. Six hours sits out a night with nobody
+	// awake and still catches a bridge that came up wrong before the
+	// morning's scores are lost.
+	maxSilenceBeforeFirst = 6 * time.Hour
 
 	// maxDeliveryFailure is how long filing a result may keep
 	// failing before the bridge calls itself unhealthy.
@@ -170,13 +188,32 @@ func (h *health) status() (ok bool, reason string) {
 		}
 	}
 
-	// Silence is only meaningful once something has arrived: a bridge
-	// started an hour ago has no baseline, and failing on that would make
-	// every deploy look broken until the next message.
-	if !h.lastMessage.IsZero() {
-		if quiet := now.Sub(h.lastMessage); quiet > maxSilence {
-			return false, fmt.Sprintf("connected but nothing received for %s", quiet.Round(time.Minute))
+	// Silence is measured from the last evidence the subscription works: a
+	// message if one has ever arrived, and otherwise the moment we
+	// connected.
+	//
+	// It used to be skipped entirely until the first message, reasoning
+	// that a fresh deploy has no baseline. That was half right — a deploy
+	// should not look broken immediately — and the consequence was that a
+	// bridge which connects and never receives anything reported healthy
+	// for ever. Not hypothetical: it ran eight hours against a wrongly
+	// configured account, green throughout, and was found because somebody
+	// noticed a missing score.
+	//
+	// Having no baseline is not a reason to stop asking. It is a reason to
+	// wait longer before answering, which is what the two limits do.
+	quiet, limit := now.Sub(h.lastMessage), maxSilence
+	if h.lastMessage.IsZero() {
+		quiet, limit = now.Sub(h.since), maxSilenceBeforeFirst
+	}
+	if quiet > limit {
+		if h.lastMessage.IsZero() {
+			return false, fmt.Sprintf(
+				"connected for %s and nothing has ever arrived; check the configuration",
+				quiet.Round(time.Minute))
 		}
+		return false, fmt.Sprintf("connected but nothing received for %s",
+			quiet.Round(time.Minute))
 	}
 	return true, "connected"
 }

@@ -130,6 +130,27 @@ outwards — the leading characters deliberately survive, because a missing
 `+` is exactly what the row exists to reveal and a conventional mask would
 have hidden it.
 
+**Silence is measured from the last evidence the subscription works.** A
+message if one has ever arrived; otherwise the moment we connected. The
+check used to be skipped entirely until the first message, reasoning that a
+fresh deploy has no baseline and failing on it would make every deploy look
+broken. Half right — and it is why the eight hours above went unremarked:
+a bridge that connects and never receives anything was never questioned at
+all, so the one check that could have named the silence was the one being
+skipped.
+
+Two limits, because the two silences are not equally suspicious. A long
+quiet spell on a bridge that has been delivering is evidence about the
+group; silence on one that has delivered nothing since connecting is
+evidence about nothing, and the ping handler keeps the read deadline alive
+whether the subscription works or not. So 36 hours once something has
+arrived, and 6 before — short because the clock counts frames rather than
+results, and receipts, typing indicators and reactions all count. An active
+group produces one within minutes.
+
+This is a warning, not a liveness failure: it feeds the diagnostics page and
+not the probe, for the same reason a disconnected bridge does not fail it.
+
 **Hard mode filters, it never weights.** A 4/6 counts as 4 in either mode.
 A handicap would mean inventing a conversion factor with nothing to justify
 it; filtering gives the comparison without that problem — same arithmetic,
