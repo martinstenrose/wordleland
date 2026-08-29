@@ -211,7 +211,7 @@ func TestTogglesAreReflectedInTheBoard(t *testing.T) {
 		t.Error("the default board does not state the X-as-7 default")
 	}
 
-	off := fetch(t, srv, "/share/"+slug+"/board?x7=0").Body.String()
+	off := fetch(t, srv, "/share/"+slug+"/board?failed=0").Body.String()
 	if !strings.Contains(off, "Failures are excluded") {
 		t.Error("turning the toggle off is not reflected in the footer")
 	}
@@ -235,7 +235,7 @@ func TestCountMissedIsMarkedMootWithoutCountFailed(t *testing.T) {
 		t.Error("count missed is marked moot while count failed is on")
 	}
 
-	off := fetch(t, srv, "/share/"+slug+"/board?x7=0&missed=1").Body.String()
+	off := fetch(t, srv, "/share/"+slug+"/board?failed=0&missed=1").Body.String()
 	if !strings.Contains(off, "toggle on moot") {
 		t.Error("count missed is not marked moot once count failed is turned off")
 	}
