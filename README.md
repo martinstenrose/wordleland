@@ -172,16 +172,24 @@ It is built for `linux/amd64` and `linux/arm64`. The Go build
 cross-compiles from the runner's architecture, so the second platform costs
 a compile rather than an emulated build.
 
-The workflow runs on two triggers:
+Tags published, by trigger:
 
-- **A version tag** — pushing `v1.2.3` publishes `1.2.3`, `1.2` and moves
-  `latest`. The `v` is a git tag convention and is dropped from the image
-  tag, which is what every registry does and what `docker pull` reads
-  naturally.
+- **A version tag** (`v1.2.3`) — publishes `1.2.3`, the major.minor `1.2`,
+  the full commit SHA, and moves `latest`. The `v` is a git tag convention
+  and is dropped from the image tag, which is what every registry does and
+  what `docker pull` reads naturally.
+- **A push to `main`** — publishes `testing` and the full commit SHA, so
+  there's always an image for the tip of the branch without cutting a
+  release. Only the latest push in a burst is actually built: pushing to
+  main cancels any build already running for main, so several merges
+  landing within a minute produce one build of the final state, not one
+  each.
 - **The Run workflow button** on the repository's Actions tab, against any
-  branch. Those builds are tagged by branch name and full commit SHA, and
-  deliberately never move `latest`: deploying `latest` should never pick up
-  whatever was last pushed by hand.
+  branch — publishes that branch's name and the full commit SHA. Running it
+  against `main` publishes `testing`, same as a normal push.
+
+Only a version tag ever moves `latest`: deploying `latest` should never pick
+up whatever was last merged or pushed by hand.
 
 `go vet` and `go test` run first, and a failure stops the publish.
 

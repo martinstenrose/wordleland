@@ -1,12 +1,28 @@
 name: release
 
-# Tags publish a release; the dispatch button publishes whatever branch is
-# chosen, tagged by branch and commit rather than as a version.
+# Tags publish a release. Pushes to main publish a rolling `testing` tag so
+# there's always an image for the tip of the branch without cutting a
+# release. The dispatch button publishes whatever branch is chosen, tagged
+# by branch and commit rather than as a version — except main, which still
+# gets `testing` so a manual rebuild of main doesn't leave a stray `main`
+# tag alongside it.
 on:
   push:
     tags:
       - "v*"
+    branches:
+      - main
   workflow_dispatch:
+
+# main builds supersede each other: if five merges land within a minute,
+# only the last one's build needs to finish, and cancelling the rest saves
+# runner time and avoids an older build finishing after a newer one and
+# leaving `testing` pointing at stale code. A release tag never cancels —
+# ref_type is "tag", not "branch" — because a release build must run to
+# completion once started.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type == 'branch' }}
 
 env:
   REGISTRY: ghcr.io
@@ -48,13 +64,20 @@ jobs:
           # v1.2.3 publishes 1.2.3. The v is a git convention and registries
           # do not use it — image:1.2.3 is what a reader expects.
           #
-          # latest follows released versions only. A dispatch build from a
-          # branch must never claim it, or deploying "latest" would ship
-          # whatever was last pushed by hand.
+          # latest follows released versions only. A push to main or a
+          # dispatch build must never claim it, or deploying "latest" would
+          # ship whatever was last merged or pushed by hand rather than a
+          # release.
+          #
+          # main is special-cased to the fixed `testing` tag (Vaultwarden's
+          # convention) rather than the branch-name rule, so it doesn't also
+          # publish a `main` tag alongside it. Every other branch still gets
+          # tagged by its own name via dispatch.
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=ref,event=branch
+            type=ref,event=branch,enable=${{ github.ref != 'refs/heads/main' }}
+            type=raw,value=testing,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,format=long
           flavor: |
             latest=${{ startsWith(github.ref, 'refs/tags/v') }}
