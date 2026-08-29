@@ -126,6 +126,13 @@ func (q boardQuery) CountMissedHref() string {
 	return q.with(func(n *boardQuery) { n.CountMissed = !n.CountMissed })
 }
 
+// CountMissedMoot reports whether "count missed as 7" currently has no
+// effect on the averages: without a failure worth 7, a missed day has no
+// number to take either. The two toggles still turn independently — this
+// only marks the state on the page so a reader is not left wondering why
+// selecting it changed nothing.
+func (q boardQuery) CountMissedMoot() bool { return !q.CountXAsSeven }
+
 // parseBoardQuery reads the controls, defaulting: count X as 7 on,
 // count missed days off, no filter.
 func parseBoardQuery(r *http.Request) boardQuery {

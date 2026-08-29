@@ -188,7 +188,7 @@ func TestSortAndFiltersCoexist(t *testing.T) {
 	}
 
 	// And a control link carries the sort onward.
-	href := hrefFor(t, body, "Count missed days as 7")
+	href := hrefFor(t, body, "Count missed as 7")
 	href = strings.ReplaceAll(href, "&amp;", "&")
 	for _, want := range []string{"sort=games", "mode=hard", "missed=1"} {
 		if !strings.Contains(href, want) {

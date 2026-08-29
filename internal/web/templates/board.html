@@ -18,8 +18,8 @@
       </span>
       <a class="toggle{{if .Query.CountXAsSeven}} on{{end}}"
          href="{{.BoardPath}}{{.Query.CountXHref}}">{{.T.T "board.toggle.countX"}}</a>
-      <a class="toggle{{if .Query.CountMissed}} on{{end}}"
-         href="{{.BoardPath}}{{.Query.CountMissedHref}}">{{.T.T "board.toggle.countMissed"}}</a>
+      <a class="toggle{{if .Query.CountMissed}} on{{end}}{{if .Query.CountMissedMoot}} moot{{end}}"
+         href="{{.BoardPath}}{{.Query.CountMissedHref}}"{{if .Query.CountMissedMoot}} title="{{.T.T "board.toggle.countMissed.moot"}}"{{end}}>{{.T.T "board.toggle.countMissed"}}</a>
     </nav>
   </div>
 
