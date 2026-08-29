@@ -9,8 +9,12 @@ import (
 // at a time so each failure is isolated.
 func bridgeEnv() map[string]string {
 	return map[string]string{
-		"SIGNAL_API_URL":  "http://signal-cli-rest-api:8080",
-		"SIGNAL_ACCOUNT":  "+00000000000",
+		"SIGNAL_API_URL": "http://signal-cli-rest-api:8080",
+		// A shape a real account has: E.164, no leading zero after the sign.
+		// The previous placeholder could not have been a real number, which
+		// is fine as a fixture and useless as one once the format is
+		// checked.
+		"SIGNAL_ACCOUNT":  "+46700000000",
 		"SIGNAL_GROUP_ID": "c2FtcGxlLWdyb3VwLWlk",
 	}
 }
@@ -189,5 +193,56 @@ func TestBridgeRefusesHalfAConfiguration(t *testing.T) {
 				t.Errorf("error = %v, want it to say which other variable is needed", err)
 			}
 		})
+	}
+}
+
+// The failure this exists to prevent reached production: an account without
+// its leading + connects to signal-cli-rest-api, stays connected, and
+// matches no registered account for ever, silently.
+func TestBridgeRejectsANonE164Account(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		account string
+		wantErr bool
+	}{
+		{"E.164", "+46700000000", false},
+		{"no leading plus", "46700000000", true},
+		{"spaces", "+46 70 000 00 00", true},
+		{"hyphens", "+46-700-000-00", true},
+		{"empty after the plus", "+", true},
+		{"leading zero after the plus", "+0700000000", true},
+		{"not a number", "wordlebot", true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			env := bridgeEnv()
+			env["SIGNAL_ACCOUNT"] = tt.account
+			setEnv(t, env)
+
+			_, err := LoadBridge()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("LoadBridge() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil && !strings.Contains(err.Error(), "SIGNAL_ACCOUNT") {
+				t.Errorf("error does not name the variable: %v", err)
+			}
+		})
+	}
+}
+
+// The message has to say what to do, because the value looks correct in
+// every place an operator would check it.
+func TestBridgeAccountErrorMentionsTheYAMLTrap(t *testing.T) {
+	env := bridgeEnv()
+	env["SIGNAL_ACCOUNT"] = "46700000000"
+	setEnv(t, env)
+
+	_, err := LoadBridge()
+	if err == nil {
+		t.Fatal("an account without a leading + was accepted")
+	}
+	for _, want := range []string{"E.164", "quote it", "integer"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error does not mention %q: %v", want, err)
+		}
 	}
 }

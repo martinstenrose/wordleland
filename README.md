@@ -59,7 +59,7 @@ lives, and the port is invisible behind the proxy. The binary accepts
 
 | Variable | Meaning |
 |---|---|
-| `SIGNAL_ACCOUNT` | The number the bot receives on: its own if registered, the operator's if linked. |
+| `SIGNAL_ACCOUNT` | The number the bot receives on: its own if registered, the operator's if linked. E.164, leading `+`, exactly as `/v1/accounts` reports it. **Quote it in YAML** — unquoted, `+46…` is parsed as an integer and loses the `+`, which produces a bridge that connects and receives nothing. |
 | `SIGNAL_GROUP_ID` | See below — this one is easy to get wrong. |
 
 `SIGNAL_API_URL` is not configured. It defaults to

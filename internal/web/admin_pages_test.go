@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/martinstenrose/wordleland/internal/bridge"
 	"github.com/martinstenrose/wordleland/internal/store"
@@ -487,5 +488,83 @@ func TestActivityLeavesOtherSystemRowsGeneric(t *testing.T) {
 	body := fetchAs(t, srv, "/admin/activity", session).Body.String()
 	if strings.Contains(body, "Signal bridge") {
 		t.Error("a system row with no source was attributed to the bridge")
+	}
+}
+
+// The mask keeps the front of the number on purpose. A missing leading +
+// is precisely the misconfiguration this row exists to expose, and a mask
+// that began at the first character would hide the bug it is here to show.
+func TestMaskAccountKeepsTheLeadingCharacters(t *testing.T) {
+	for _, tt := range []struct{ in, want string }{
+		{"+46700000000", "+467…000"},
+		{"46700000000", "4670…000"},
+		{"+4670", "+4670"},
+	} {
+		if got := maskAccount(tt.in); got != tt.want {
+			t.Errorf("maskAccount(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+
+	// The whole point, stated as a property: the two differ visibly.
+	if maskAccount("+46700000000") == maskAccount("46700000000") {
+		t.Error("a number with and without its leading + mask identically")
+	}
+}
+
+// A configuration signal-cli says cannot work is shown as broken, with the
+// reason, rather than leaving an admin to read "connected" and believe it.
+func TestDiagnosticsShowsAFailedVerification(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	srv.SetBridge(fakeBridge{
+		alive: true,
+		status: bridge.Status{
+			Connected: true,
+			Since:     time.Now().Add(-time.Hour),
+			Account:   "46700000000",
+			Verification: bridge.Verification{
+				Done:    true,
+				Problem: "SIGNAL_ACCOUNT is not registered with signal-cli",
+			},
+		},
+	})
+
+	body := fetchAs(t, srv, "/admin/diagnostics", session).Body.String()
+	if !strings.Contains(body, "cannot work") {
+		t.Error("a failed verification is not shown as a failure")
+	}
+	if !strings.Contains(body, "SIGNAL_ACCOUNT is not registered") {
+		t.Error("the reason is not shown, so an admin cannot act on it")
+	}
+	// And the number is masked in a way that still reveals the missing +.
+	if !strings.Contains(body, "4670…000") {
+		t.Errorf("the watched account is not shown")
+	}
+}
+
+// A verified configuration says so, so "connected" means something.
+func TestDiagnosticsShowsAConfirmedConfiguration(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	srv.SetBridge(fakeBridge{
+		alive: true,
+		status: bridge.Status{
+			Connected:    true,
+			Since:        time.Now().Add(-time.Hour),
+			Account:      "+46700000000",
+			Verification: bridge.Verification{Done: true, AccountOK: true, GroupOK: true},
+		},
+	})
+
+	body := fetchAs(t, srv, "/admin/diagnostics", session).Body.String()
+	if !strings.Contains(body, "confirmed by signal-cli") {
+		t.Error("a verified configuration does not say so")
+	}
+	if strings.Contains(body, "cannot work") {
+		t.Error("a verified configuration was reported as broken")
 	}
 }

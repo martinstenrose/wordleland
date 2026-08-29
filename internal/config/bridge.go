@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -62,8 +63,24 @@ func LoadBridge() (*Bridge, error) {
 	}
 
 	var problems []string
-	if cfg.SignalAccount == "" {
+	switch {
+	case cfg.SignalAccount == "":
 		problems = append(problems, "SIGNAL_ACCOUNT: required when SIGNAL_GROUP_ID is set")
+	case !e164.MatchString(cfg.SignalAccount):
+		// The same failure the group id is checked for, and it reached
+		// production: signal-cli-rest-api routes /v1/receive/{anything},
+		// so a number without its leading + connects, stays connected, and
+		// matches no registered account for ever. Nothing logs a word.
+		//
+		// A leading + is also what YAML eats: unquoted, +46... parses as an
+		// integer and the sign is gone before the value is ever templated
+		// into an environment file. The value that arrives here looks like
+		// a phone number and is not one.
+		problems = append(problems, fmt.Sprintf(
+			"SIGNAL_ACCOUNT: %q is not an E.164 number; it must start with + and "+
+				"match what /v1/accounts reports. In YAML, quote it: an unquoted "+
+				"+46... is parsed as an integer and loses the +",
+			cfg.SignalAccount))
 	}
 
 	// Still validated: it has a default, but an override can be wrong.
@@ -88,6 +105,11 @@ func LoadBridge() (*Bridge, error) {
 	}
 	return cfg, nil
 }
+
+// e164 is deliberately loose about length and strict about shape: the point
+// is to catch a value that cannot possibly match /v1/accounts, not to police
+// numbering plans.
+var e164 = regexp.MustCompile(`^\+[1-9][0-9]{6,14}$`)
 
 func checkHTTPURL(raw string) error {
 	u, err := url.Parse(raw)
