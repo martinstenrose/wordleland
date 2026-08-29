@@ -44,7 +44,10 @@ rate limiting, the two-step login — are commented where they happen.
   counted, how identities resolve, or anything in auth.
 - `README.md` is for whoever runs this, the owner included: what it does,
   how to run it, what every variable means, and what goes wrong. Written for
-  a stranger, because the owner is one too a year later.
+  a stranger, because the owner is one too a year later. Read it before
+  touching configuration, the deploy, or a CLI verb — those are what it
+  documents, and a change there that leaves it stale is the same mistake as
+  leaving `docs/decisions.md` stale.
 - This file is for whoever works on the code, human or agent: how the
   project is built, why it is built that way, and the standing constraints.
 - Neither is a place for who the owner is or what else they run. A rule that
