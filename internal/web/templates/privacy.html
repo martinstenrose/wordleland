@@ -1,0 +1,26 @@
+{{define "title"}}{{.T.T "privacy.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{template "topbar" .}}
+
+<section class="card narrow">
+  <div class="card-head">
+    <h1>{{.T.T "privacy.title"}}</h1>
+    <p class="kicker">{{.T.T "privacy.intro"}}</p>
+  </div>
+
+  <h2 class="section">{{.T.T "privacy.stored.heading"}}</h2>
+  <p>{{.T.T "privacy.stored.body"}}</p>
+
+  <h2 class="section">{{.T.T "privacy.why.heading"}}</h2>
+  <p>{{.T.T "privacy.why.body"}}</p>
+
+  <h2 class="section">{{.T.T "privacy.who.heading"}}</h2>
+  <p>{{.T.T "privacy.who.body"}}</p>
+
+  <h2 class="section">{{.T.T "privacy.cookies.heading"}}</h2>
+  <p>{{.T.T "privacy.cookies.body"}}</p>
+
+  <h2 class="section">{{.T.T "privacy.removal.heading"}}</h2>
+  <p>{{.T.T "privacy.removal.body"}}</p>
+</section>
+{{end}}

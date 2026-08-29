@@ -523,5 +523,18 @@
   "grid.form.all": "Average · all %d days",
   "activity.todayAt": "today at %s",
   "activity.yesterdayAt": "yesterday at %s",
-  "footer.github": "GitHub"
+  "footer.github": "GitHub",
+  "footer.privacy": "Privacy",
+  "privacy.title": "Privacy",
+  "privacy.intro": "Wordleland is self-hosted for one private group. This says what it keeps about the people who use it, and why.",
+  "privacy.stored.heading": "What is stored",
+  "privacy.stored.body": "Your email address, for signing in and password resets. A Signal account identifier and your last-seen display name, if your results arrive from the group's Signal chat. Your Wordle results. If an admin corrects an entry, a record of what it said before.",
+  "privacy.why.heading": "Why",
+  "privacy.why.body": "To run the shared login, to match a Signal message to the right person, and to keep a trail of any correction an admin makes.",
+  "privacy.who.heading": "Who can see it",
+  "privacy.who.body": "Your own account details are visible only to you. Admins can see the group's roster and results to run the board. A read-only share link, if one exists for this installation, shows scores only — no email addresses or Signal identifiers.",
+  "privacy.cookies.heading": "Cookies",
+  "privacy.cookies.body": "Signing in, and remembering a theme or language choice, uses a few cookies. None of them are used for tracking, advertising, or shared with anyone outside this installation.",
+  "privacy.removal.heading": "Leaving the group",
+  "privacy.removal.body": "Leaving disables an account rather than deleting it, so past corrections keep their trail. Ask whoever runs this installation if you want your data handled differently."
 }
