@@ -174,9 +174,10 @@ a compile rather than an emulated build.
 
 The workflow runs on two triggers:
 
-- **A version tag** — pushing `v1.2.3` publishes `v1.2.3`, `v1.2` and moves
-  `latest`. The `v` is kept, so an image tag reads the same as the git tag it
-  came from.
+- **A version tag** — pushing `v1.2.3` publishes `1.2.3`, `1.2` and moves
+  `latest`. The `v` is a git tag convention and is dropped from the image
+  tag, which is what every registry does and what `docker pull` reads
+  naturally.
 - **The Run workflow button** on the repository's Actions tab, against any
   branch. Those builds are tagged by branch name and full commit SHA, and
   deliberately never move `latest`: deploying `latest` should never pick up
