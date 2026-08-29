@@ -50,6 +50,13 @@ type health struct {
 	// lastMessage is when a frame last arrived, zero until the first one.
 	lastMessage time.Time
 
+	// verification is what signal-cli confirmed about the configuration,
+	// and account/group are what was configured. Held here because this is
+	// already the thing the handlers read under a lock.
+	verification Verification
+	account      string
+	group        string
+
 	// deliveryFailingSince is when filing results started
 	// failing, zero while it is working.
 	deliveryFailingSince time.Time
@@ -109,6 +116,20 @@ func (h *health) disconnected() {
 	defer h.mu.Unlock()
 	h.connectedNow = false
 	h.since = h.now()
+}
+
+// describe records what the bridge was configured to watch.
+func (h *health) describe(account, group string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.account, h.group = account, group
+}
+
+// verified records the outcome of asking signal-cli about the config.
+func (h *health) verified(v Verification) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.verification = v
 }
 
 // received records a frame of any kind, including ones the bridge
@@ -182,6 +203,16 @@ type Status struct {
 	// zero means data was lost.
 	Dropped int
 
+	// Verification is what signal-cli confirmed about the configuration.
+	// A connected bridge with a failed verification is the shape of every
+	// silent misconfiguration: it works perfectly and matches nothing.
+	Verification Verification
+
+	// Account and Group are the configuration as the bridge received it,
+	// for a reader who needs to compare against signal-cli by eye.
+	Account string
+	Group   string
+
 	// OK and Reason summarise the above for a reader. OK false is a warning
 	// worth showing, not a reason to restart anything: see Alive.
 	OK     bool
@@ -199,6 +230,9 @@ func (h *health) snapshot() Status {
 		LastMessage:          h.lastMessage,
 		DeliveryFailingSince: h.deliveryFailingSince,
 		Dropped:              h.dropped,
+		Verification:         h.verification,
+		Account:              h.account,
+		Group:                h.group,
 		OK:                   ok,
 		Reason:               reason,
 	}

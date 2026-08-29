@@ -97,6 +97,19 @@ func (s *Server) freshnessRows(t translator, f store.Freshness, now time.Time) [
 	return rows
 }
 
+// maskAccount hides the middle of a phone number and keeps both ends.
+//
+// The front deliberately survives: a missing leading + is exactly the
+// misconfiguration this row exists to expose, and a mask that started at
+// the first character would have hidden the bug it is here to show.
+func maskAccount(account string) string {
+	runes := []rune(account)
+	if len(runes) <= 8 {
+		return account
+	}
+	return string(runes[:4]) + "…" + string(runes[len(runes)-3:])
+}
+
 func (s *Server) bridgeRows(t translator, b Bridge, now time.Time) []diagnosticRow {
 	alive, why := b.Alive()
 	st := b.Status()
@@ -120,6 +133,39 @@ func (s *Server) bridgeRows(t translator, b Bridge, now time.Time) []diagnosticR
 	}
 
 	rows := []diagnosticRow{running, connection}
+
+	// What the bridge is watching, and whether signal-cli agrees it can
+	// work. Both of these were invisible when a well-formed but wrong
+	// account produced a connection that received nothing for eight hours.
+	if st.Account != "" {
+		rows = append(rows, diagnosticRow{
+			Label: t.T("diag.account"),
+			Value: maskAccount(st.Account),
+		})
+	}
+
+	switch {
+	case st.Verification.OK():
+		rows = append(rows, diagnosticRow{
+			Label: t.T("diag.verified"),
+			Value: t.T("diag.verified.ok"),
+		})
+	case st.Verification.Done:
+		rows = append(rows, diagnosticRow{
+			Label: t.T("diag.verified"),
+			Value: t.T("diag.verified.bad"),
+			Tone:  "bad",
+			Hint:  st.Verification.Problem,
+		})
+	default:
+		// Not yet checked is ordinary at startup, and stops being ordinary
+		// if it persists — so it is shown rather than hidden.
+		rows = append(rows, diagnosticRow{
+			Label: t.T("diag.verified"),
+			Value: t.T("diag.verified.pending"),
+			Tone:  "warn",
+		})
+	}
 
 	seen := diagnosticRow{Label: t.T("diag.lastMessage"), Value: t.T("diag.never")}
 	if !st.LastMessage.IsZero() {

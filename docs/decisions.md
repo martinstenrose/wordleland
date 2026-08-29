@@ -98,6 +98,32 @@ burns it. The purpose is bound into the lookup rather than checked after,
 so a token of the wrong kind reads as "no such token" and the response is
 the one an unknown token already gets.
 
+**A connected bridge is not a working bridge, so the configuration is
+verified against signal-cli rather than assumed.** Both ways of getting it
+wrong are silent in the same way: signal-cli-rest-api routes
+`/v1/receive/{anything}`, so an account that matches no registration
+connects, stays connected, reports healthy and receives nothing at all —
+and a group id that matches no group receives frames it discards. Neither
+logs a word, by anyone.
+
+This is not hypothetical. An account reached production without its leading
+`+`, and the bridge sat connected and silent for eight hours with a green
+diagnostics page. The cause was a layer further out still: unquoted in YAML,
+`+46...` parses as an *integer*, and the sign is gone before the value is
+ever templated into an environment file. It looks correct everywhere an
+operator would check it.
+
+So there are three defences, and they catch different things. The shape is
+checked at boot, where a malformed value refuses to start. The *meaning* is
+checked at runtime against `/v1/accounts` and `/v1/groups`, because only
+signal-cli can say whether a well-formed value is the right one; that check
+retries, because signal-cli routinely starts after the app, and it is
+reported rather than fatal, since a misconfiguration is not fixed by
+restarting. And the account is shown on Diagnostics masked from the middle
+outwards — the leading characters deliberately survive, because a missing
+`+` is exactly what the row exists to reveal and a conventional mask would
+have hidden it.
+
 **Hard mode filters, it never weights.** A 4/6 counts as 4 in either mode.
 A handicap would mean inventing a conversion factor with nothing to justify
 it; filtering gives the comparison without that problem — same arithmetic,
