@@ -212,7 +212,7 @@
   "months.leading": "leading",
   "months.season": "Season so far",
   "months.wins": "Wins",
-  "months.seasonNote": "A win is the lowest average that month, at 10 games or more. ★ marks a win, other numbers are that month's finishing place, · means not ranked, and an outline is a month still being played.",
+  "months.seasonNote": "A win is the lowest average that month, at 10 games or more, with a failed or missed day counted as 7. ★ marks a win, other numbers are that month's finishing place, · means not ranked, and an outline is a month still being played.",
   "nav.backToBoard": "← The board",
   "grid.note": "Blank means no game that day. Newest at the top. Colour runs from a one-guess solve to a failure.",
   "email.reset.subject": "Reset your Wordleland password",
