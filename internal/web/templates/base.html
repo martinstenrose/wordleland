@@ -75,9 +75,11 @@
 
 {{define "chevron"}}<svg class="chevron" width="9" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>{{end}}
 
-{{/* Both pickers are <details>, so they open with no script at all. */}}
+{{/* Both pickers are <details>, so they open with no script at all. They
+     share name="topbar-menu" so the browser enforces one open at a time —
+     opening the language picker closes the theme picker and back. */}}
 {{define "theme-picker"}}
-<details class="menu">
+<details class="menu" name="topbar-menu">
   <summary class="menu-btn" aria-label="{{.ThemeLabel}}" title="{{.ThemeLabel}}">
     {{template "theme-icon" .Theme}}{{template "chevron" .}}
   </summary>
@@ -95,7 +97,7 @@
 {{end}}
 
 {{define "language-picker"}}
-<details class="menu">
+<details class="menu" name="topbar-menu">
   <summary class="menu-btn" aria-label="{{.LangLabel}}" title="{{.LangLabel}}">
     {{template "flag" .Lang}}{{template "chevron" .}}
   </summary>
@@ -189,8 +191,10 @@
 
 {{/* A trait and its reason. title= is a desktop-only affordance — there is
      no hover on a phone — so the label is a <summary> that opens the
-     explanation on tap. Still no script. */}}
-{{define "trait"}}<details class="trait-pop"><summary class="trait" title="{{.Why}}">{{.Trait}}</summary><span class="trait-why">{{.Why}}</span></details>{{end}}
+     explanation on tap. Still no script: every instance shares
+     name="trait-pop", so opening one closes whichever other trait popup on
+     the page was open. */}}
+{{define "trait"}}<details class="trait-pop" name="trait-pop"><summary class="trait" title="{{.Why}}">{{.Trait}}</summary><span class="trait-why">{{.Why}}</span></details>{{end}}
 
 {{define "admin-warning"}}
 {{if .AdminWarning}}

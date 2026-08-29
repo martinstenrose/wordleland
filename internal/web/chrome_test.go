@@ -65,6 +65,21 @@ func TestEveryPageCarriesThemeAndLocale(t *testing.T) {
 	}
 }
 
+// The theme and language pickers are both <details> in the top bar. Without
+// a shared name they open independently, so opening one leaves the other
+// open too — the browser only enforces "one at a time" for <details> that
+// share a name attribute.
+func TestTopbarPickersAreMutuallyExclusive(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
+	if got := strings.Count(body, `<details class="menu" name="topbar-menu">`); got != 2 {
+		t.Errorf("expected both the theme and language pickers to share name=\"topbar-menu\", found %d", got)
+	}
+}
+
 func TestThemeChoiceIsRememberedAndApplied(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
