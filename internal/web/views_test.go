@@ -987,7 +987,7 @@ func TestMonthsKickerStatesTheScoringRule(t *testing.T) {
 		t.Errorf("the kicker does not say %q", want)
 	}
 
-	plain := fetchAs(t, srv, "/share/"+slug+"/months?x7=0", nil).Body.String()
+	plain := fetchAs(t, srv, "/share/"+slug+"/months?failed=0", nil).Body.String()
 	if strings.Contains(plain, clause) {
 		t.Errorf("the kicker still says %q with X not counted as 7", clause)
 	}

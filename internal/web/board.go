@@ -96,7 +96,7 @@ func (q boardQuery) with(mutate func(*boardQuery)) string {
 		}
 	}
 	set("mode", "hard", next.HardModeOnly)
-	set("x7", "0", !next.CountXAsSeven)
+	set("failed", "0", !next.CountXAsSeven)
 	set("missed", "1", next.CountMissed)
 
 	encoded := values.Encode()
@@ -133,15 +133,15 @@ func (q boardQuery) CountMissedHref() string {
 // selecting it changed nothing.
 func (q boardQuery) CountMissedMoot() bool { return !q.CountXAsSeven }
 
-// parseBoardQuery reads the controls, defaulting: count X as 7 on,
-// count missed days off, no filter.
+// parseBoardQuery reads the controls, defaulting: count failed as 7 on,
+// count missed off, no filter.
 func parseBoardQuery(r *http.Request) boardQuery {
 	q := boardQuery{CountXAsSeven: true, raw: r.URL.Query()}
 
 	if r.URL.Query().Get("mode") == "hard" {
 		q.HardModeOnly = true
 	}
-	if raw := r.URL.Query().Get("x7"); raw != "" {
+	if raw := r.URL.Query().Get("failed"); raw != "" {
 		if v, err := strconv.ParseBool(raw); err == nil {
 			q.CountXAsSeven = v
 		}
