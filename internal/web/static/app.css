@@ -964,7 +964,20 @@ svg .player { fill: none; stroke: var(--acc); stroke-width: 1.75; stroke-linejoi
 .month-head p { margin: 0 0 8px; }
 .month-head p:last-child { margin-bottom: 0; }
 
-.month-stats { display: flex; gap: 26px; margin: 0; flex: none; }
+/* flex:none keeps the figures from being squeezed by the winner's name, but
+   on a narrow viewport the row itself can be wider than the card. Rather
+   than let .card's overflow:hidden clip the trailing figures, the row
+   scrolls on its own axis so all of them stay reachable. */
+.month-stats {
+  display: flex;
+  gap: 26px;
+  margin: 0;
+  flex: none;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.month-stats > div { flex: none; }
 .month-stats dt {
   font-size: .62rem;
   letter-spacing: .08em;
