@@ -78,6 +78,10 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /reset-password", s.handleResetPasswordSubmit)
 	mux.HandleFunc("GET /verify-email", s.handleVerifyEmail)
 
+	// Linked from the footer on every page, so it sits outside
+	// authentication like the rest of the pages a stranger can reach.
+	mux.HandleFunc("GET /privacy", s.handlePrivacy)
+
 	// Outside the login surface entirely: protected by its own bearer token,
 	// for scripts and curl. The bridge no longer comes through here — it
 	// calls ingest directly — but the endpoint stays for everything else.

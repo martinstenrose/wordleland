@@ -523,5 +523,18 @@
   "grid.form.all": "Snitt · alla %d dagar",
   "activity.todayAt": "idag %s",
   "activity.yesterdayAt": "igår %s",
-  "footer.github": "GitHub"
+  "footer.github": "GitHub",
+  "footer.privacy": "Integritet",
+  "privacy.title": "Integritet",
+  "privacy.intro": "Wordleland är självhostad för en privat grupp. Det här beskriver vad som sparas om de som använder den, och varför.",
+  "privacy.stored.heading": "Vad som sparas",
+  "privacy.stored.body": "Din e-postadress, för inloggning och lösenordsåterställning. En Signal-kontoidentifierare och ditt senast sedda visningsnamn, om dina resultat kommer från gruppens Signal-chatt. Dina Wordle-resultat. Om en administratör rättar en rad, en uppgift om vad den sa innan.",
+  "privacy.why.heading": "Varför",
+  "privacy.why.body": "För att sköta den delade inloggningen, matcha ett Signal-meddelande mot rätt person, och hålla ett spår av rättelser en administratör gör.",
+  "privacy.who.heading": "Vem kan se det",
+  "privacy.who.body": "Dina egna kontouppgifter syns bara för dig. Administratörer kan se gruppens spelare och resultat för att sköta tavlan. En delningslänk med enbart läsbehörighet, om en sådan finns för den här installationen, visar bara resultat — inga e-postadresser eller Signal-identifierare.",
+  "privacy.cookies.heading": "Kakor",
+  "privacy.cookies.body": "Inloggning, och att komma ihåg ett tema- eller språkval, använder några kakor. Ingen av dem används för spårning, reklam, eller delas med någon utanför den här installationen.",
+  "privacy.removal.heading": "Att lämna gruppen",
+  "privacy.removal.body": "Att lämna gruppen inaktiverar ett konto i stället för att radera det, så tidigare rättelser behåller sitt spår. Fråga den som driver den här installationen om du vill att dina uppgifter hanteras annorlunda."
 }
