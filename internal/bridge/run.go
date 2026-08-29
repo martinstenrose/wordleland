@@ -16,12 +16,24 @@ const (
 	// drainTimeout bounds how long shutdown waits for queued results.
 	drainTimeout = 10 * time.Second
 
-	// Verification retries because signal-cli routinely takes a few seconds
-	// longer to start than the app does; the app connecting first is the
-	// ordinary case, not a fault.
+	// Verification retries quickly at first because signal-cli routinely
+	// takes a few seconds longer to start than the app does; the app
+	// connecting first is the ordinary case, not a fault.
+	//
+	// The budget is deliberately short — about two minutes — because
+	// exhausting it is not the end of the attempt. It falls through to the
+	// hourly re-check, so a slow dependency costs a delayed answer rather
+	// than no answer.
 	minVerifyDelay    = 2 * time.Second
 	maxVerifyDelay    = 30 * time.Second
 	maxVerifyAttempts = 8
+
+	// reverifyInterval re-asks the same question later, because the answer
+	// can change without anything here changing: the bot can be removed
+	// from the group, or the group migrated, and the bridge then behaves
+	// exactly as a misconfigured one does — connected, healthy, silent.
+	// Two local HTTP calls an hour costs nothing.
+	reverifyInterval = time.Hour
 )
 
 // Bridge is a running Signal bridge.
@@ -103,28 +115,24 @@ func (b *Bridge) verify(ctx context.Context) {
 	for attempt := 1; ; attempt++ {
 		result, err := b.verifier.check(ctx)
 		if err == nil {
-			b.health.verified(result)
-			switch {
-			case result.OK():
-				b.logger.Info("signal configuration verified",
-					"account_registered", true, "group_matched", true)
-			default:
-				// Error, not Warn: the bridge will look perfectly healthy
-				// and file nothing, and this line is the only warning
-				// anybody gets.
-				b.logger.Error("the signal configuration cannot work; "+
-					"the bridge will connect and receive nothing",
-					"problem", result.Problem)
-			}
+			b.report(result, Verification{})
+			b.reverify(ctx)
 			return
 		}
 		if ctx.Err() != nil {
 			return
 		}
 		if attempt >= maxVerifyAttempts {
-			b.logger.Warn("could not verify the signal configuration; "+
-				"signal-cli did not answer, so a misconfiguration would go unnoticed",
+			// Hand off rather than give up. These fast retries exist for
+			// the ordinary case of signal-cli starting a few seconds after
+			// us; exhausting them means something slower is wrong, and
+			// abandoning the check there would leave the configuration
+			// unverified for the life of the process. The hourly ticker
+			// costs nothing and will get an answer eventually.
+			b.logger.Warn("could not verify the signal configuration yet; "+
+				"signal-cli did not answer, and will be asked again hourly",
 				"attempts", attempt, "error", err)
+			b.reverify(ctx)
 			return
 		}
 		b.logger.Debug("signal not ready to verify against yet, retrying",
@@ -132,6 +140,61 @@ func (b *Bridge) verify(ctx context.Context) {
 		sleepContext(ctx, delay)
 		if delay < maxVerifyDelay {
 			delay *= 2
+		}
+	}
+}
+
+// report records a verification and says something only when the verdict
+// changes.
+//
+// Only on change, deliberately. An hourly line saying the configuration is
+// still fine is noise that teaches a reader to skip these, and an hourly
+// line saying it is still broken buries the one that said it first.
+func (b *Bridge) report(result Verification, previous Verification) {
+	b.health.verified(result)
+
+	if previous.Done && previous.OK() == result.OK() {
+		return
+	}
+	if result.OK() {
+		if previous.Done {
+			b.logger.Info("the signal configuration works again",
+				"was", previous.Problem)
+			return
+		}
+		b.logger.Info("signal configuration verified",
+			"account_registered", true, "group_matched", true)
+		return
+	}
+	// Error, not Warn: the bridge will look perfectly healthy and file
+	// nothing, and this line is the only warning anybody gets.
+	b.logger.Error("the signal configuration cannot work; "+
+		"the bridge will connect and receive nothing",
+		"problem", result.Problem)
+}
+
+// reverify keeps asking, because the answer can change on its own.
+//
+// Nothing here has to be edited for a working bridge to stop working: being
+// removed from the group produces the same connected, healthy silence a
+// wrong group id does, and the startup check has long since passed.
+func (b *Bridge) reverify(ctx context.Context) {
+	ticker := time.NewTicker(reverifyInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			result, err := b.verifier.check(ctx)
+			if err != nil {
+				// Unreachable is not wrong. The websocket's own reconnect
+				// loop is the thing that reports signal-cli being down.
+				b.logger.Debug("could not re-verify the signal configuration", "error", err)
+				continue
+			}
+			b.report(result, b.health.snapshot().Verification)
 		}
 	}
 }

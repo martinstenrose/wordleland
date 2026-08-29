@@ -119,7 +119,13 @@ checked at runtime against `/v1/accounts` and `/v1/groups`, because only
 signal-cli can say whether a well-formed value is the right one; that check
 retries, because signal-cli routinely starts after the app, and it is
 reported rather than fatal, since a misconfiguration is not fixed by
-restarting. And the account is shown on Diagnostics masked from the middle
+restarting. It also repeats hourly, because nothing here has to be edited
+for a working bridge to stop working — being removed from the group
+produces the same connected, healthy silence a wrong group id does, long
+after the startup check has passed. It speaks only when the verdict
+changes: an hourly line saying everything is still fine teaches a reader to
+skip these, and an hourly line saying it is still broken buries the one
+that said it first. And the account is shown on Diagnostics masked from the middle
 outwards — the leading characters deliberately survive, because a missing
 `+` is exactly what the row exists to reveal and a conventional mask would
 have hidden it.
