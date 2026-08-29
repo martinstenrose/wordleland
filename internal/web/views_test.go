@@ -780,7 +780,7 @@ func TestTraitExplanationIsReachableWithoutHover(t *testing.T) {
 		if !strings.Contains(body, "trait-pop") {
 			continue // no trait earned on this page
 		}
-		if !strings.Contains(body, `<details class="trait-pop"><summary`) {
+		if !strings.Contains(body, `<details class="trait-pop" name="trait-pop"><summary`) {
 			t.Errorf("%s: the trait does not open on tap", path)
 		}
 		if !strings.Contains(body, `class="trait-why"`) {
