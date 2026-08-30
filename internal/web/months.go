@@ -357,6 +357,17 @@ func monthLabel(t translator, m stats.Month) string {
 	return t.T("month."+strconv.Itoa(int(m.Month))) + " " + strconv.Itoa(m.Year)
 }
 
+// longDate names a full date in the reader's language, the way today's
+// headline does: "Monday 2 January 2006" in English, "måndag 2 januari
+// 2006" in Swedish. Neither a weekday's name nor a month's is locale-aware
+// on its own — time.Weekday.String() and time.Month.String() are always
+// English — so both come from the catalogue instead.
+func longDate(t translator, date time.Time) string {
+	weekday := t.T("weekday." + strconv.Itoa(int(date.Weekday())))
+	month := t.T("month." + strconv.Itoa(int(date.Month())))
+	return weekday + " " + strconv.Itoa(date.Day()) + " " + month + " " + strconv.Itoa(date.Year())
+}
+
 // joinNames renders a tie as every name, because a tie is the result.
 func joinNames(ps []stats.MonthPlayer) string {
 	names := make([]string, 0, len(ps))
