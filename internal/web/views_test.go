@@ -209,6 +209,9 @@ func TestMonthSelectionChangesTheTable(t *testing.T) {
 	if other.Body.String() == body {
 		t.Error("selecting a different month rendered an identical page")
 	}
+	if regexp.MustCompile(`day \d+ of \d+`).MatchString(other.Body.String()) {
+		t.Error("a completed month shows the current month's calendar progress")
+	}
 }
 
 // The filters carry across the views, so a reader is not comparing numbers
@@ -760,6 +763,12 @@ func TestRunningMonthReadsAsUnfinished(t *testing.T) {
 	}
 	if strings.Contains(head, "took") {
 		t.Errorf("a running month is described as finished:\n%s", head)
+	}
+	now := time.Now()
+	daysInMonth := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, now.Location()).Day()
+	wantProgress := fmt.Sprintf("day %d of %d", now.Day(), daysInMonth)
+	if !strings.Contains(head, wantProgress) {
+		t.Errorf("the current month does not show %q:\n%s", wantProgress, head)
 	}
 	if !strings.Contains(head, "is ahead") && !strings.Contains(head, "Level at") {
 		t.Errorf("a running month is not described in the present tense:\n%s", head)

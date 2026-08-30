@@ -57,6 +57,7 @@ type monthsPage struct {
 
 	Label        string
 	Running      bool
+	Progress     string
 	WinnerLabel  string
 	WinnerStats  []monthStat
 	WinnerNames  string
@@ -180,6 +181,10 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 	m := months[selected]
 	page.Label = monthLabel(ch.T, m)
 	page.Running = !m.Complete(now)
+	if m.Year == now.Year() && m.Month == now.Month() {
+		daysInMonth := time.Date(m.Year, m.Month+1, 0, 0, 0, 0, 0, now.Location()).Day()
+		page.Progress = ch.T.T("months.progress", now.Day(), daysInMonth)
+	}
 	page.Range = ch.T.T("months.range", m.First, m.Last)
 	page.PartialNote = ch.T.TN("months.fullMonth", m.Days)
 	if page.Running {

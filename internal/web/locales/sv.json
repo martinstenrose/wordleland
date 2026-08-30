@@ -220,6 +220,7 @@
   "trait.closer.why": "Klarar den, men oftast på de sista gissningarna.",
   "trait.label": "Egenskap",
   "months.leading": "leder",
+  "months.progress": "dag %d av %d",
   "months.season": "Säsongen hittills",
   "months.wins": "Vinster",
   "months.seasonNote": "En vinst är lägst snitt den månaden, vid minst 10 pussel. ★ markerar en vinst, andra siffror är placeringen den månaden, · betyder ej rankad och en ram är en månad som pågår.",
