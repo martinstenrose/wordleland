@@ -144,7 +144,7 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 	// second piece of information rather than a restatement of the order.
 	var rows []boardRow
 	for _, p := range board.Ranked {
-		rows = append(rows, s.newBoardRow(p, prefix, ch.T, traits))
+		rows = append(rows, s.newBoardRow(p, prefix, ch.T, traits, results, board.CurrentPuzzle))
 	}
 	sortRows(rows, boardSort{Column: sortForm})
 
@@ -161,7 +161,7 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 	if page.ShowBenched {
 		page.BenchedHref = urlWith(r, "benched", "0")
 		for _, p := range board.Unranked {
-			page.Benched = append(page.Benched, s.newBoardRow(p, prefix, ch.T, traits))
+			page.Benched = append(page.Benched, s.newBoardRow(p, prefix, ch.T, traits, results, board.CurrentPuzzle))
 		}
 	} else {
 		page.BenchedHref = urlWith(r, "benched", "1")
