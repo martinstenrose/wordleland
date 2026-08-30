@@ -97,19 +97,6 @@ func (s *Server) freshnessRows(t translator, f store.Freshness, now time.Time) [
 	return rows
 }
 
-// maskAccount hides the middle of a phone number and keeps both ends.
-//
-// The front deliberately survives: a missing leading + is exactly the
-// misconfiguration this row exists to expose, and a mask that started at
-// the first character would have hidden the bug it is here to show.
-func maskAccount(account string) string {
-	runes := []rune(account)
-	if len(runes) <= 8 {
-		return account
-	}
-	return string(runes[:4]) + "…" + string(runes[len(runes)-3:])
-}
-
 func (s *Server) bridgeRows(t translator, b Bridge, now time.Time) []diagnosticRow {
 	alive, why := b.Alive()
 	st := b.Status()
@@ -137,11 +124,31 @@ func (s *Server) bridgeRows(t translator, b Bridge, now time.Time) []diagnosticR
 	// What the bridge is watching, and whether signal-cli agrees it can
 	// work. Both of these were invisible when a well-formed but wrong
 	// account produced a connection that received nothing for eight hours.
+	// Both shown in full and unmasked. This page is behind requireAdmin and
+	// the reader is the person who configured these, so hiding a value from
+	// them only makes it harder to compare against the environment file it
+	// came from — which is the entire job of these two rows. The account was
+	// masked once; a missing leading + is exactly what that hid.
+	//
+	// The group id is an identifier, not a credential. Signal derives it
+	// from the group master key, and it is the master key — the thing inside
+	// an invite link — that grants access. Knowing the id joins nobody to
+	// anything.
 	if st.Account != "" {
 		rows = append(rows, diagnosticRow{
 			Label: t.T("diag.account"),
-			Value: maskAccount(st.Account),
+			Value: st.Account,
 		})
+	}
+	if st.Group != "" {
+		group := diagnosticRow{Label: t.T("diag.group"), Value: st.Group}
+		// The name is the proof. An id that matches says two strings are
+		// equal; a name says signal-cli can see the group and this is what
+		// it is called, which is the question an admin actually has.
+		if st.Verification.GroupName != "" {
+			group.Hint = t.T("diag.groupHint", st.Verification.GroupName)
+		}
+		rows = append(rows, group)
 	}
 
 	switch {

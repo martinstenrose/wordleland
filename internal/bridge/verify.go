@@ -33,6 +33,12 @@ type Verification struct {
 	AccountOK bool
 	GroupOK   bool
 
+	// GroupName is the name signal-cli reports for the matched group, set
+	// only when GroupOK. It is the half of the check a reader can actually
+	// recognise: an id that matches proves the strings are equal, a name
+	// proves the account can see the group somebody meant.
+	GroupName string
+
 	// Problem is empty when everything matched, and otherwise says what is
 	// wrong in terms of the variable to change.
 	Problem string
@@ -98,7 +104,7 @@ func (v *verifier) check(ctx context.Context) (Verification, error) {
 	}
 	for _, g := range groups {
 		if g.InternalID == v.groupID {
-			result.GroupOK = true
+			result.GroupOK, result.GroupName = true, g.Name
 			break
 		}
 	}

@@ -519,6 +519,8 @@
   "diag.connection": "Connection",
   "diag.connected": "connected",
   "diag.account": "Watching account",
+  "diag.group": "Watching group",
+  "diag.groupHint": "signal-cli confirms this is “%s”.",
   "diag.verified": "Configuration",
   "diag.verified.ok": "confirmed by signal-cli",
   "diag.verified.bad": "cannot work",
