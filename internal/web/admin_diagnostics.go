@@ -6,6 +6,7 @@ import (
 
 	"github.com/martinstenrose/wordleland/internal/bridge"
 	"github.com/martinstenrose/wordleland/internal/store"
+	"github.com/martinstenrose/wordleland/internal/version"
 )
 
 // staleAfter is how long the board may go without a result before the
@@ -60,9 +61,28 @@ func (s *Server) handleAdminDiagnostics(w http.ResponseWriter, r *http.Request) 
 	if s.bridge != nil {
 		page.Rows = append(page.Rows, s.bridgeRows(t, s.bridge, now)...)
 	}
+	// Last, not first. The page orders by urgency — freshness ahead of
+	// connection state, because a stale board is the failure that costs
+	// scores — and which build is running is reference rather than a
+	// signal. It is here at all because it was the one question the page
+	// could not answer: an image was deployed, this page was read, and the
+	// container turned out to predate the change being looked for.
+	page.Rows = append(page.Rows, s.versionRow(t))
+
 	page.Warning = s.diagnosticsWarning(t, fresh, now)
 
 	s.render(w, r, http.StatusOK, "admin_diagnostics.html", page)
+}
+
+func (s *Server) versionRow(t translator) diagnosticRow {
+	row := diagnosticRow{Label: t.T("diag.version"), Value: version.String()}
+	if !version.Set() {
+		// A local build cannot name its commit, and saying so is honest
+		// rather than alarming: it distinguishes "built here" from a
+		// published image whose stamp went missing.
+		row.Hint = t.T("diag.versionUnstamped")
+	}
+	return row
 }
 
 func (s *Server) freshnessRows(t translator, f store.Freshness, now time.Time) []diagnosticRow {

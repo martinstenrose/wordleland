@@ -21,6 +21,7 @@ import (
 
 	"github.com/martinstenrose/wordleland/internal/config"
 	"github.com/martinstenrose/wordleland/internal/store"
+	"github.com/martinstenrose/wordleland/internal/version"
 )
 
 // env is everything a subcommand needs.
@@ -56,6 +57,10 @@ Usage:
 Global flags come before the noun; a verb's own flags come after it:
 
   wordleland --as you@example.tld player update --player martin --active=false
+
+Commands:
+  serve     run the server, and the Signal bridge when configured
+  version   print the running build
 
 Nouns:
   user      create, reset-password, reset-2fa, disable, enable
@@ -106,6 +111,16 @@ func run(args []string, out io.Writer) error {
 	// already applied.
 	if rest[0] == "serve" {
 		return runServe(ctx, rest[1:], *dbPath, out)
+	}
+
+	// Dispatched up here with serve, and for the same shape of reason: it
+	// needs no database, and the moment somebody asks which build is
+	// running is often the moment the database is the thing that is wrong.
+	// A version verb that could not answer without a healthy schema would
+	// be unavailable exactly when it is wanted.
+	if rest[0] == "version" {
+		fmt.Fprintln(out, version.String())
+		return nil
 	}
 
 	// OpenMigrated, not Open: serve owns migrations, so a database it has

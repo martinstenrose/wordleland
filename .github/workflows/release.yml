@@ -91,6 +91,14 @@ jobs:
           # The Go build cross-compiles from the runner's own architecture,
           # so arm64 costs a compile rather than a QEMU-emulated build.
           platforms: linux/amd64,linux/arm64
+          # What the image says it is when asked from inside. metadata-action
+          # already computed the version for the tag it publishes under —
+          # "1.2.3" for a release, "testing" for main — so the binary and the
+          # image tag cannot disagree. The commit is what identifies a
+          # rolling tag, which names a moving target on its own.
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            COMMIT=${{ github.sha }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

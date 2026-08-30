@@ -358,6 +358,13 @@ before the noun or
 `ADMIN_EMAIL` in the environment. The first user is the exception: nothing
 exists yet that could authorise it.
 
+`version` needs no database and no acting admin, so it answers even when the
+schema is the thing that is broken:
+
+```sh
+docker compose exec app /wordleland version
+```
+
 ```sh
 # An ingest token, for a curl client or another bridge. Shown once.
 # The Signal bridge does not need one: it runs inside the app.
@@ -443,12 +450,19 @@ already fixing it. Since the services merged, failing this probe takes the
 board down too, so it is reserved for faults a restart addresses.
 
 Everything else — when a result last arrived, how current the board is, what
-is held for unclaimed senders, whether the bridge is connected — is on
-**Admin → Diagnostics**, and a warning line follows you around the admin area
+is held for unclaimed senders, whether the bridge is connected, and which
+build is running — is on **Admin → Diagnostics**, and a warning line follows you around the admin area
 when something there needs attention. That page leads with freshness rather
 than connection state on purpose: a bridge pointed at the wrong group is
 connected, answering, and delivering nothing, and a connection indicator is
 green throughout.
+
+The version there is stamped into the binary at image build time, so it
+describes the container you are actually looking at rather than the tag you
+believe you deployed. A published image reports its release or the rolling
+`testing` tag, with the commit beside it; a locally built one reports `dev`,
+since the build context excludes `.git` and has nothing to read a commit
+from. `wordleland version` prints the same string without opening a browser.
 
 ## Development
 

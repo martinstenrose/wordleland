@@ -17,9 +17,23 @@ COPY . .
 ARG TARGETOS
 ARG TARGETARCH
 
+# What this build is, for the diagnostics page to report. Go stamps VCS
+# information into a binary by itself, but not here: .dockerignore excludes
+# .git, so the build context has no repository to read. Passing the values
+# in is the alternative to shipping the git history into every build.
+#
+# Defaults match the ones in internal/version, so an image built by hand
+# without these says "dev" rather than an empty string.
+ARG VERSION=dev
+ARG COMMIT=
+
 # CGO off because modernc.org/sqlite is pure Go, which is the whole reason
 # it was chosen: a static binary needs no C toolchain in the final image.
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w" -o /out/wordleland ./cmd/wordleland
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath \
+      -ldflags="-s -w \
+        -X github.com/martinstenrose/wordleland/internal/version.Version=${VERSION} \
+        -X github.com/martinstenrose/wordleland/internal/version.Commit=${COMMIT}" \
+      -o /out/wordleland ./cmd/wordleland
 
 # An empty /data owned by the runtime user.
 #
