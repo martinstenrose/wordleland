@@ -639,9 +639,9 @@ func TestDiagnosticsShowsAccountAndGroupInFull(t *testing.T) {
 	// one an admin reads.
 	body := html.UnescapeString(fetchAs(t, srv, "/admin/diagnostics", session).Body.String())
 	for _, want := range []string{
-		"+46700000000",         // the account, unmasked
-		"c2FtcGxlLWdyb3VwLWlk", // the group id, whole
-		"Wordle",               // and what signal-cli says it is called
+		"<code>+46700000000</code>",         // the account, unmasked and not linkified
+		"<code>c2FtcGxlLWdyb3VwLWlk</code>", // the group id, whole
+		"Wordle",                            // and what signal-cli says it is called
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("diagnostics does not show %q", want)
@@ -692,5 +692,8 @@ func TestDiagnosticsReportsTheRunningVersion(t *testing.T) {
 	}
 	if !strings.Contains(body, version.String()) {
 		t.Errorf("the page does not show %q", version.String())
+	}
+	if !strings.Contains(body, "<code>"+version.String()+"</code>") {
+		t.Error("the running version is not formatted as code")
 	}
 }

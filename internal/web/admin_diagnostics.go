@@ -22,6 +22,7 @@ const staleAfter = 36 * time.Hour
 type diagnosticRow struct {
 	Label string
 	Value string
+	Code  bool
 	// Tone is "", "warn" or "bad", for styling only.
 	Tone string
 	Hint string
@@ -75,7 +76,7 @@ func (s *Server) handleAdminDiagnostics(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) versionRow(t translator) diagnosticRow {
-	row := diagnosticRow{Label: t.T("diag.version"), Value: version.String()}
+	row := diagnosticRow{Label: t.T("diag.version"), Value: version.String(), Code: true}
 	if !version.Set() {
 		// A local build cannot name its commit, and saying so is honest
 		// rather than alarming: it distinguishes "built here" from a
@@ -158,10 +159,11 @@ func (s *Server) bridgeRows(t translator, b Bridge, now time.Time) []diagnosticR
 		rows = append(rows, diagnosticRow{
 			Label: t.T("diag.account"),
 			Value: st.Account,
+			Code:  true,
 		})
 	}
 	if st.Group != "" {
-		group := diagnosticRow{Label: t.T("diag.group"), Value: st.Group}
+		group := diagnosticRow{Label: t.T("diag.group"), Value: st.Group, Code: true}
 		// The name is the proof. An id that matches says two strings are
 		// equal; a name says signal-cli can see the group and this is what
 		// it is called, which is the question an admin actually has.
