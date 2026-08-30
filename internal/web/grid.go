@@ -151,7 +151,8 @@ func (s *Server) handleGrid(w http.ResponseWriter, r *http.Request, prefix, boar
 	}
 
 	for _, row := range grid.Rows {
-		view := gridRowView{PuzzleNo: row.PuzzleNo, Date: row.Date.Format("2 Jan")}
+		date := strconv.Itoa(row.Date.Day()) + " " + shortMonthName(ch.T, row.Date.Month())
+		view := gridRowView{PuzzleNo: row.PuzzleNo, Date: date}
 		for i, c := range row.Cells {
 			cell := gridCellView{Played: c.Played}
 			if c.Played {

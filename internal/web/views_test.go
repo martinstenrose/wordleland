@@ -355,6 +355,37 @@ func TestGridCellsCarryTheAsteriskAndOpenAPopup(t *testing.T) {
 	}
 }
 
+// Go's time.Format renders a month abbreviation in English regardless of
+// locale — "Aug", never "aug" — so the grid's date column has to build its
+// own from the catalogue instead, the way the months view already does.
+func TestGridDateUsesTheLocalisedMonthAbbreviation(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	swedish := map[time.Month]string{
+		time.January: "jan", time.February: "feb", time.March: "mar",
+		time.April: "apr", time.May: "maj", time.June: "jun",
+		time.July: "jul", time.August: "aug", time.September: "sep",
+		time.October: "okt", time.November: "nov", time.December: "dec",
+	}
+	month := time.Now().Month()
+	english := month.String()[:3]
+
+	en := fetch(t, srv, "/share/"+slug+"/grid").Body.String()
+	if !strings.Contains(en, " "+english) {
+		t.Fatalf("fixture assumption changed: the grid does not show %q", english)
+	}
+
+	sv := fetchAs(t, srv, "/share/"+slug+"/grid?lang=sv", nil).Body.String()
+	if !strings.Contains(sv, swedish[month]) {
+		t.Errorf("the Swedish grid does not show the localised abbreviation %q", swedish[month])
+	}
+	if strings.Contains(sv, english) {
+		t.Errorf("the Swedish grid still shows the English abbreviation %q", english)
+	}
+}
+
 // Zero-game players are hidden by default and shown on request.
 func TestGridInactiveToggle(t *testing.T) {
 	srv := testServer(t)
