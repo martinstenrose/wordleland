@@ -115,14 +115,37 @@ func TestSecurityHeaders(t *testing.T) {
 	srv.Handler().ServeHTTP(rec, req)
 
 	want := map[string]string{
-		"Referrer-Policy":        "no-referrer",
-		"X-Content-Type-Options": "nosniff",
-		"X-Frame-Options":        "DENY",
+		"Content-Security-Policy": contentSecurityPolicy,
+		"Referrer-Policy":         "no-referrer",
+		"X-Content-Type-Options":  "nosniff",
+		"X-Frame-Options":         "DENY",
 	}
 	for header, value := range want {
 		if got := rec.Header().Get(header); got != value {
 			t.Errorf("%s = %q, want %q", header, got, value)
 		}
+	}
+}
+
+func TestContentSecurityPolicyAllowsOnlyUsedSources(t *testing.T) {
+	for _, directive := range []string{
+		"default-src 'self'",
+		"script-src 'self'",
+		"style-src 'self' 'unsafe-inline'",
+		"img-src 'self' data:",
+		"connect-src 'none'",
+		"object-src 'none'",
+		"base-uri 'none'",
+		"frame-ancestors 'none'",
+		"form-action 'self'",
+	} {
+		if !strings.Contains(contentSecurityPolicy, directive) {
+			t.Errorf("policy %q does not contain %q", contentSecurityPolicy, directive)
+		}
+	}
+	if strings.Contains(contentSecurityPolicy, "script-src 'self' 'unsafe-inline'") ||
+		strings.Contains(contentSecurityPolicy, "script-src *") {
+		t.Errorf("policy permits untrusted scripts: %q", contentSecurityPolicy)
 	}
 }
 
