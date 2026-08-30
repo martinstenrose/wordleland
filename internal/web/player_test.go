@@ -83,7 +83,7 @@ func TestThinPlayerGetsScoresRatherThanCharts(t *testing.T) {
 	if strings.Contains(page, "3.00") {
 		t.Error("a player below the ranking threshold is showing a computed average")
 	}
-	if !strings.Contains(page, "Too few games to chart") {
+	if !strings.Contains(page, "Too few puzzles to chart") {
 		t.Error("the page does not explain why the charts are missing")
 	}
 	if strings.Contains(page, `class="chart"`) {
@@ -201,14 +201,14 @@ func TestLapsedPlayerIsNotCalledThin(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	page := fetch(t, srv, "/share/"+slug+"/p/lapsed").Body.String()
-	if strings.Contains(page, "Too few games") {
-		t.Error("a player with a long history is described as having too few games")
+	if strings.Contains(page, "Too few puzzles") {
+		t.Error("a player with a long history is described as having too few puzzles")
 	}
-	if !strings.Contains(page, "No games in the last 30 days") {
+	if !strings.Contains(page, "No puzzles in the last 30 days") {
 		t.Error("the page does not say why the chart is missing")
 	}
 	// And the reason chip still matches the board's.
-	if !strings.Contains(page, "no recent games") {
+	if !strings.Contains(page, "no recent puzzles") {
 		t.Error("the page does not carry the board's reason")
 	}
 }

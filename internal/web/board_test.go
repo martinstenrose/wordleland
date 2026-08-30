@@ -167,7 +167,7 @@ func TestUnrankedPlayersAreSeparatedWithAReason(t *testing.T) {
 	if !strings.Contains(body, "Not ranked") {
 		t.Error("no not-ranked divider")
 	}
-	for _, reason := range []string{"low data", "no recent games"} {
+	for _, reason := range []string{"low data", "no recent puzzles"} {
 		if !strings.Contains(body, reason) {
 			t.Errorf("reason %q is missing from the board", reason)
 		}

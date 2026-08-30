@@ -376,7 +376,7 @@ func TestAdminListShowsRosterState(t *testing.T) {
 	_, session := adminSession(t, srv)
 
 	body := fetchAs(t, srv, "/admin/players", session).Body.String()
-	for _, want := range []string{"harda", "normala", "lapsed", "Games"} {
+	for _, want := range []string{"harda", "normala", "lapsed", "Puzzles"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the roster list is missing %q", want)
 		}
