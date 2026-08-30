@@ -33,7 +33,7 @@
   "board.toggle.off": "off",
   "board.footer.lines": "Solid line: player · dashed: group average",
   "board.footer.averages": "Averages count X as 7",
-  "board.footer.ranked": "Ranked at %d or more puzzles",
+  "board.footer.ranked": "Ranked at %d or more puzzles, with at least one in the last %d days",
   "board.footer.averagesPlain": "Failures are excluded from averages",
   "board.footer.missed": "Missed days count as 7, from a player's first result to their last",
   "share.readOnly": "Read-only",
