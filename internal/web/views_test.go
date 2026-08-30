@@ -266,6 +266,48 @@ func TestGridRendersDaysByPlayers(t *testing.T) {
 	}
 }
 
+// A grid cell carries the same two signals the player page's recent strip
+// does: hard mode as a trailing * on the label, and the detail — here, which
+// player and which day, since both the column heading and the row's own
+// date can scroll out of view — behind a tap rather than a hover, which
+// never worked on a phone. The note explains the asterisk in the same words
+// the strip's own legend does.
+func TestGridCellsCarryTheAsteriskAndOpenAPopup(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	body := fetch(t, srv, "/share/"+slug+"/grid").Body.String()
+
+	if strings.Contains(body, " hard tiny") {
+		t.Error("a grid cell still carries the border class the asterisk replaced")
+	}
+	if strings.Contains(body, `tiny" title="`) {
+		t.Error("a grid cell still carries the hover the popup replaced")
+	}
+	if !strings.Contains(body, ">3*<") {
+		t.Error("a hard-mode result does not carry the asterisk in its box")
+	}
+	// The same words the recent strip's own legend uses, not a second
+	// phrasing for the same fact.
+	if !strings.Contains(body, "An asterisk marks hard mode") {
+		t.Error("the grid note does not explain the asterisk")
+	}
+	if got := strings.Count(body, `<details class="cell-pop" name="popup">`); got == 0 {
+		t.Error("no grid cell opens a popup")
+	}
+
+	current := currentPuzzle()
+	date, err := wordle.DateForPuzzle(current)
+	if err != nil {
+		t.Fatalf("DateForPuzzle(%d): %v", current, err)
+	}
+	want := fmt.Sprintf(">Harda · #%d (%s)<", current, date.Format("2006-01-02"))
+	if !strings.Contains(body, want) {
+		t.Errorf("the popup does not show %q", want)
+	}
+}
+
 // Zero-game players are hidden by default and shown on request.
 func TestGridInactiveToggle(t *testing.T) {
 	srv := testServer(t)

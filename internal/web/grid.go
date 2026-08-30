@@ -19,11 +19,16 @@ type gridColumn struct {
 
 // gridCellView is one cell, pre-formatted.
 type gridCellView struct {
-	Label    string
-	Tone     int
-	Played   bool
-	HardMode bool
-	Title    string
+	// Label carries a trailing * for hard mode, the same convention the
+	// player page's recent strip uses.
+	Label  string
+	Tone   int
+	Played bool
+	// Title names the player and the date, for the popup: the column
+	// heading it would otherwise repeat can be scrolled out of view on a
+	// wide grid, and the row's own date column is not always in view
+	// either once a reader has scrolled sideways.
+	Title string
 }
 
 type gridRowView struct {
@@ -148,13 +153,16 @@ func (s *Server) handleGrid(w http.ResponseWriter, r *http.Request, prefix, boar
 	for _, row := range grid.Rows {
 		view := gridRowView{PuzzleNo: row.PuzzleNo, Date: row.Date.Format("2 Jan")}
 		for i, c := range row.Cells {
-			cell := gridCellView{Played: c.Played, HardMode: c.HardMode}
+			cell := gridCellView{Played: c.Played}
 			if c.Played {
 				cell.Label, cell.Tone = "X", int(worstScore)
 				if c.Solved {
 					cell.Label, cell.Tone = strconv.Itoa(c.Guesses), c.Guesses
 				}
-				cell.Title = grid.Players[i].Name + " · " + row.Date.Format(time.DateOnly)
+				if c.HardMode {
+					cell.Label += "*"
+				}
+				cell.Title = grid.Players[i].Name + " · " + puzzleDate(row.PuzzleNo, row.Date.Format(time.DateOnly))
 			}
 			view.Cells = append(view.Cells, cell)
 		}

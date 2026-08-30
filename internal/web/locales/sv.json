@@ -217,7 +217,7 @@
   "months.wins": "Vinster",
   "months.seasonNote": "En vinst är lägst snitt den månaden, vid minst 10 pussel. ★ markerar en vinst, andra siffror är placeringen den månaden, · betyder ej rankad och en ram är en månad som pågår.",
   "nav.backToBoard": "← Tavlan",
-  "grid.note": "Tomt betyder inget pussel den dagen. Nyast överst. Färgen går från lösning på första gissningen till en miss.",
+  "grid.note": "Tomt betyder inget pussel den dagen. Nyast överst. Färgen går från lösning på första gissningen till en miss. En asterisk markerar hard mode.",
   "email.reset.subject": "Återställ ditt lösenord i Wordleland",
   "email.reset.preview": "Välj ett nytt lösenord. Länken fungerar en gång och går ut om en timme.",
   "email.reset.heading": "Återställ ditt lösenord",

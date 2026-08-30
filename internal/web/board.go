@@ -309,6 +309,13 @@ func formatScore(v *float64) string {
 	return strconv.FormatFloat(*v, 'f', 2, 64)
 }
 
+// puzzleDate names a puzzle and when it fell, the way every popup that
+// names one does: "#1869 (2026-08-01)". One function rather than the
+// string built again at each call site, so they cannot drift apart.
+func puzzleDate(puzzleNo int, date string) string {
+	return fmt.Sprintf("#%d (%s)", puzzleNo, date)
+}
+
 // deltaDeadZone is the band within which a delta is not worth colouring. It
 // is a display nicety and unrelated to the significance floor that gates
 // callouts.

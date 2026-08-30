@@ -555,11 +555,14 @@ svg .player { fill: none; stroke: var(--acc); stroke-width: 1.75; stroke-linejoi
 .cell.t6 { background: transparent; color: var(--tx-60); border-color: var(--tx-16); }
 .cell.t7 { background: var(--tx-02); color: var(--tx-35); border-color: var(--tx-09); }
 
-/* A played cell opens its own result on tap. The <details> and its summary
-   stretch to fill the cell, so the whole coloured square is the target
-   rather than just the digit — the summary draws exactly what the cell
-   used to draw on its own. */
-.cell-pop { align-self: stretch; justify-self: stretch; }
+/* A played cell opens its own result on tap. The <details> fills the cell
+   by absolute position rather than a stretch/align rule, since .cell's own
+   display varies by context (grid in the strip, flex in the results grid)
+   and a stretch rule tracks that; position: absolute does not care. The
+   summary then fills the <details>, so the whole coloured square is the
+   target rather than just the digit — it draws exactly what the cell used
+   to draw on its own. */
+.cell-pop { position: absolute; inset: 0; }
 .cell-pop > summary {
   width: 100%;
   height: 100%;
@@ -570,8 +573,12 @@ svg .player { fill: none; stroke: var(--acc); stroke-width: 1.75; stroke-linejoi
 }
 .cell-pop > summary::-webkit-details-marker { display: none; }
 .cell-popup {
+  /* No max-width: the point of opening this is to read the detail, so
+     nothing here truncates. Sized to its content and never wrapped —
+     a broken line would land mid-date ("2026-08" / "-24"), since nothing
+     in "#1892 (2026-08-24)" is a good break point — and kept on screen by
+     app.js rather than by capping how wide it can get. */
   width: max-content;
-  max-width: 11rem;
   margin: 0;
   padding: 6px 9px;
   font-size: .72rem;
