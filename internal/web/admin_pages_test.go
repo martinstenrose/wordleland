@@ -641,7 +641,7 @@ func TestDiagnosticsShowsAccountAndGroupInFull(t *testing.T) {
 	for _, want := range []string{
 		"<code>+46700000000</code>",         // the account, unmasked and not linkified
 		"<code>c2FtcGxlLWdyb3VwLWlk</code>", // the group id, whole
-		"Wordle",               // and what signal-cli says it is called
+		"Wordle",                            // and what signal-cli says it is called
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("diagnostics does not show %q", want)
