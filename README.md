@@ -491,3 +491,10 @@ Commit messages:
 pass at each one, or bisecting is guesswork. A rename spread across packages
 is where this breaks — the commit that moves a package must not leave an
 earlier one referring to it.
+
+**The history `main` gets is the story of the change, not the story of
+reaching it.** A pull request usually goes through review rounds — a fix
+corrected, an approach reworked, a test adjusted after the first one missed
+something. None of that belongs in `main` once the PR merges: amend or
+squash before merging, so what lands is the commits above — one coherent
+change each, building on the last — not a transcript of how review went.
