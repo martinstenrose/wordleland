@@ -2,11 +2,13 @@ package web
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/martinstenrose/wordleland/internal/store"
+	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
 func TestPlayerPageShowsTheSameFiguresAsTheBoard(t *testing.T) {
@@ -90,6 +92,38 @@ func TestThinPlayerGetsScoresRatherThanCharts(t *testing.T) {
 	// The individual results are still there.
 	if !strings.Contains(page, `class="strip"`) {
 		t.Error("the raw results are missing")
+	}
+}
+
+// Each played day in the strip opens its own popup naming the puzzle and
+// its date — the two things the box itself cannot show. The guess count and
+// hard mode are already the box's label, so the popup does not repeat them.
+func TestRecentStripCellsOpenAPopupWithThePuzzleDetail(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	page := fetch(t, srv, "/share/"+slug+"/p/harda").Body.String()
+
+	// harda plays every one of the 26 puzzles in the fixture's window, all
+	// hard mode, all in 3 guesses — so every cell in the strip opens.
+	if got := strings.Count(page, `<details class="cell-pop" name="popup">`); got != 26 {
+		t.Errorf("expected 26 popups, one per played day, got %d", got)
+	}
+	// The asterisk marks hard mode on the box itself, so the popup needs no
+	// row for it.
+	if !strings.Contains(page, ">3*<") {
+		t.Error("a hard-mode result does not carry the asterisk in its box")
+	}
+
+	current := currentPuzzle()
+	date, err := wordle.DateForPuzzle(current)
+	if err != nil {
+		t.Fatalf("DateForPuzzle(%d): %v", current, err)
+	}
+	want := fmt.Sprintf(">#%d (%s)<", current, date.Format("2006-01-02"))
+	if !strings.Contains(page, want) {
+		t.Errorf("the popup does not show %q", want)
 	}
 }
 
