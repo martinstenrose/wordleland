@@ -22,7 +22,7 @@
       <div>
         <dt>{{.Label}}</dt>
         <dd>
-          <span class="diag-value{{if .Tone}} {{.Tone}}{{end}}">{{.Value}}</span>
+          <span class="diag-value{{if .Tone}} {{.Tone}}{{end}}">{{if .Code}}<code>{{.Value}}</code>{{else}}{{.Value}}{{end}}</span>
           {{if .Hint}}<span class="diag-hint">{{.Hint}}</span>{{end}}
         </dd>
       </div>
