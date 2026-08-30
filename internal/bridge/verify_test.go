@@ -147,6 +147,20 @@ func TestVerifyDistinguishesUnreachableFromWrong(t *testing.T) {
 	}
 }
 
+func TestVerifyRejectsOversizedResponses(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(make([]byte, maxVerifyResponseSize+1))
+	}))
+	defer srv.Close()
+
+	err := newVerifier(srv.URL, "+46700000000", "c2FtcGxlLWdyb3VwLWlk").get(
+		context.Background(), srv.URL+"/v1/accounts", &[]string{})
+	if err == nil || !strings.Contains(err.Error(), "response exceeds") {
+		t.Errorf("error = %v, want the response size limit", err)
+	}
+}
+
 // countingLogger records how many times each level was written.
 type countingLogger struct {
 	mu     sync.Mutex

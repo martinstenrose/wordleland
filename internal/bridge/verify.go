@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -12,7 +13,13 @@ import (
 
 // verifyTimeout bounds one attempt. signal-cli answers these from local
 // state, so a slow answer means it is still starting rather than thinking.
-const verifyTimeout = 5 * time.Second
+const (
+	verifyTimeout = 5 * time.Second
+	// The account and group lists come from an internal service, but they are
+	// still remote input. One MiB is far beyond a plausible Signal roster and
+	// keeps a broken or compromised peer from growing memory without bound.
+	maxVerifyResponseSize = 1 << 20
+)
 
 // Verification is what the bridge could confirm about its own configuration
 // by asking signal-cli.
@@ -147,7 +154,14 @@ func (v *verifier) get(ctx context.Context, endpoint string, into any) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("%s: status %d", endpoint, resp.StatusCode)
 	}
-	if err := json.NewDecoder(resp.Body).Decode(into); err != nil {
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxVerifyResponseSize+1))
+	if err != nil {
+		return fmt.Errorf("%s: %w", endpoint, err)
+	}
+	if len(body) > maxVerifyResponseSize {
+		return fmt.Errorf("%s: response exceeds %d bytes", endpoint, maxVerifyResponseSize)
+	}
+	if err := json.Unmarshal(body, into); err != nil {
 		return fmt.Errorf("%s: %w", endpoint, err)
 	}
 	return nil
