@@ -290,6 +290,40 @@ func TestMonthMissedDaysFollowCountXAsSeven(t *testing.T) {
 	}
 }
 
+// Today is still in progress: a player who hasn't posted yet may still play
+// it correctly, so it must not be scored as a miss just because somebody
+// else already has.
+func TestMonthDoesNotCountTodayAsMissedYet(t *testing.T) {
+	players := []store.Player{player(1, "everyday"), player(2, "latecomer")}
+
+	// Everyday has already played today's puzzle (2020). Latecomer has
+	// played every earlier day this month but not yet today.
+	results := run(1, 2001, 2020, 4, false)
+	results = append(results, run(2, 2001, 2019, 2, false)...)
+
+	now, err := wordle.DateForPuzzle(2020)
+	if err != nil {
+		t.Fatalf("DateForPuzzle: %v", err)
+	}
+
+	date, _ := wordle.DateForPuzzle(2001)
+	m := monthOf(t, ComputeMonths(players, results, DefaultOptions(now)),
+		date.Year(), date.Month())
+
+	if len(m.Ranked) != 2 {
+		t.Fatalf("Ranked = %v, want both", slugs(m.Ranked))
+	}
+	var latecomer MonthPlayer
+	for _, p := range m.Ranked {
+		if p.Slug == "latecomer" {
+			latecomer = p
+		}
+	}
+	if got := *latecomer.Average; got != 2 {
+		t.Errorf("latecomer averages %.2f, want 2.00 — today isn't missed until it's over", got)
+	}
+}
+
 // The denominator is the days the group played, not the calendar: a day
 // nobody posted is not a day anybody missed.
 func TestMonthIgnoresDaysNobodyPlayed(t *testing.T) {

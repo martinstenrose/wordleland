@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/martinstenrose/wordleland/internal/store"
+	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
 // MonthPlayer is one player's month.
@@ -107,6 +108,13 @@ func buildMonth(year int, month time.Month, rows []store.BoardResult,
 
 	m := Month{Year: year, Month: month}
 
+	// Today's puzzle is still in progress: a player who hasn't posted yet
+	// may still play it correctly, so it cannot be scored as missed until
+	// the day is over. concludedPuzzles excludes it from the denominator
+	// below; a player who has already played it gets their real score
+	// regardless, through the ordinary value(r, opts) path.
+	current := wordle.PuzzleForDate(opts.Now)
+
 	perPlayer := make(map[int64][]store.BoardResult)
 	puzzles := make(map[int]bool)
 	var group scoreAccumulator
@@ -127,6 +135,13 @@ func buildMonth(year int, month time.Month, rows []store.BoardResult,
 	if group.count > 0 {
 		avg := group.mean()
 		m.GroupAverage = &avg
+	}
+
+	concludedPuzzles := 0
+	for puzzle := range puzzles {
+		if puzzle < current {
+			concludedPuzzles++
+		}
 	}
 
 	for id, history := range perPlayer {
@@ -161,8 +176,18 @@ func buildMonth(year int, month time.Month, rows []store.BoardResult,
 		// a day nobody posted is not a day anybody missed. It follows
 		// CountXAsSeven, because with a failure scored as nothing there is
 		// no number an absence could take either.
+		//
+		// It is also bounded to concludedPuzzles, not puzzles: today isn't
+		// missed until it's over, even if somebody else has already played
+		// it.
 		if opts.CountXAsSeven {
-			for missed := len(puzzles) - len(history); missed > 0; missed-- {
+			playedConcluded := 0
+			for _, r := range history {
+				if r.PuzzleNo < current {
+					playedConcluded++
+				}
+			}
+			for missed := concludedPuzzles - playedConcluded; missed > 0; missed-- {
 				acc.add(failedAsSeven)
 			}
 		}
