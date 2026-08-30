@@ -358,11 +358,12 @@ before the noun or
 `ADMIN_EMAIL` in the environment. The first user is the exception: nothing
 exists yet that could authorise it.
 
-`version` needs no database and no acting admin, so it answers even when the
-schema is the thing that is broken:
+Two commands need no database and no acting admin, so they answer even when
+the schema has not been created or is the thing that is broken:
 
 ```sh
 docker compose exec app /wordleland version
+docker compose exec app /wordleland help
 ```
 
 ```sh
