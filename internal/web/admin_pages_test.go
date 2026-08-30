@@ -535,16 +535,25 @@ func TestDiagnosticsShowsAConfirmedConfiguration(t *testing.T) {
 	srv.SetBridge(fakeBridge{
 		alive: true,
 		status: bridge.Status{
-			Connected:    true,
-			Since:        time.Now().Add(-time.Hour),
-			Account:      "+46700000000",
-			Verification: bridge.Verification{Done: true, AccountOK: true, GroupOK: true},
+			Connected: true,
+			Since:     time.Now().Add(-time.Hour),
+			Account:   "+46700000000",
+			Verification: bridge.Verification{
+				Done: true, AccountOK: true, GroupOK: true,
+				At: time.Now().Add(-10 * time.Minute),
+			},
 		},
 	})
 
 	body := fetchAs(t, srv, "/admin/diagnostics", session).Body.String()
-	if !strings.Contains(body, "confirmed by signal-cli") {
-		t.Error("a verified configuration does not say so")
+	// Naming the authority is not the same as naming the claim. The row
+	// says what was established, so a reader can judge it rather than
+	// take its word.
+	if !strings.Contains(body, "the account is registered, and a member of this group") {
+		t.Error("a verified configuration does not say what was verified")
+	}
+	if !strings.Contains(body, "Last checked") {
+		t.Error("a verdict is shown without saying how old it is")
 	}
 	if strings.Contains(body, "cannot work") {
 		t.Error("a verified configuration was reported as broken")
