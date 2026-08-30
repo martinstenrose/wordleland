@@ -568,3 +568,53 @@ func TestDiagnosticsShowsAConfirmedConfiguration(t *testing.T) {
 		t.Error("a verified configuration was reported as broken")
 	}
 }
+
+// "Last message seen: never" was the decisive evidence during an eight-hour
+// outage and it read as ambiguous: never since boot, or never at all? The
+// two states answer different questions, so they carry different hints.
+func TestDiagnosticsExplainsLastMessageSeen(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		last    time.Time
+		want    string
+		notWant string
+	}{
+		{
+			name:    "nothing has arrived yet",
+			want:    "since the app started",
+			notWant: "not only results",
+		},
+		{
+			// The count is of frames, not results. Without saying so, a
+			// reader takes a recent timestamp as proof that scores are
+			// being filed, which is the belief that hid the outage.
+			name:    "something has arrived",
+			last:    time.Now().Add(-2 * time.Minute),
+			want:    "not only results",
+			notWant: "since the app started",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := testServer(t)
+			seedBoard(t, srv)
+			_, session := adminSession(t, srv)
+
+			srv.SetBridge(fakeBridge{
+				alive: true,
+				status: bridge.Status{
+					Connected:   true,
+					Since:       time.Now().Add(-time.Hour),
+					LastMessage: tt.last,
+				},
+			})
+
+			body := fetchAs(t, srv, "/admin/diagnostics", session).Body.String()
+			if !strings.Contains(body, tt.want) {
+				t.Errorf("the hint does not explain the row: want %q", tt.want)
+			}
+			if strings.Contains(body, tt.notWant) {
+				t.Errorf("the hint for the other state was shown: %q", tt.notWant)
+			}
+		})
+	}
+}

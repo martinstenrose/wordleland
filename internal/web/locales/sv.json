@@ -525,6 +525,8 @@
   "diag.verified.pending": "inte bekräftad än",
   "diag.reconnecting": "återansluter",
   "diag.lastMessage": "Senaste meddelande",
+  "diag.lastMessageHint": "Allt som kommer från Signal räknas, inte bara resultat — ett kvitto eller en reaktion uppdaterar det här också.",
+  "diag.lastMessageNeverHint": "Ingenting sedan appen startade. I en aktiv grupp kommer det oftast något inom några minuter.",
   "diag.dropped": "Förlorade resultat",
   "diag.droppedCount.one": "1 resultat",
   "diag.droppedCount.other": "%d resultat",

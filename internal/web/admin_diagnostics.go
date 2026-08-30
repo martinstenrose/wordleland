@@ -167,9 +167,23 @@ func (s *Server) bridgeRows(t translator, b Bridge, now time.Time) []diagnosticR
 		})
 	}
 
-	seen := diagnosticRow{Label: t.T("diag.lastMessage"), Value: t.T("diag.never")}
+	// The label invites two wrong readings, and the second one cost eight
+	// hours: that this counts results, and that "never" means never at all.
+	// It counts any frame the subscription delivers — a receipt, a typing
+	// indicator, a reaction — which is what makes it evidence the
+	// subscription works rather than evidence the group is playing. And it
+	// is held in memory, so it starts empty on every restart.
+	//
+	// Hence two hints rather than one: a reader looking at "never" is
+	// asking a different question from one looking at a duration.
+	seen := diagnosticRow{
+		Label: t.T("diag.lastMessage"),
+		Value: t.T("diag.never"),
+		Hint:  t.T("diag.lastMessageNeverHint"),
+	}
 	if !st.LastMessage.IsZero() {
 		seen.Value = sinceText(t, st.LastMessage, now)
+		seen.Hint = t.T("diag.lastMessageHint")
 	}
 	rows = append(rows, seen)
 
