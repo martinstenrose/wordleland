@@ -458,13 +458,11 @@ func TestCLIVersionNeedsNoDatabase(t *testing.T) {
 func TestCLIUsageListsVersion(t *testing.T) {
 	var out bytes.Buffer
 	// "help", not "--help": the flag package intercepts the latter and
-	// returns ErrHelp before the dispatch ever sees it.
-	c := newCLI(t)
-	out2, err := c.run("", "help")
-	if err != nil {
-		t.Fatalf("help failed: %v", err)
+	// returns ErrHelp before the dispatch ever sees it. No -db, and that is
+	// the assertion: usage must work on an install that has never run.
+	if err := run([]string{"-db", filepath.Join(t.TempDir(), "never.db"), "help"}, &out); err != nil {
+		t.Fatalf("help on a fresh install failed: %v", err)
 	}
-	out.WriteString(out2)
 	if !strings.Contains(out.String(), "version") {
 		t.Error("usage does not mention the version command")
 	}

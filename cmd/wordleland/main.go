@@ -123,6 +123,16 @@ func run(args []string, out io.Writer) error {
 		return nil
 	}
 
+	// help belongs up here for the same reason, and did not have it: the
+	// switch below handles it, but only after OpenMigrated, so `wordleland
+	// help` on a fresh install failed with "database is not initialized"
+	// — a message about the wrong thing entirely, in answer to the one
+	// command a new reader is most likely to try first.
+	if rest[0] == "help" || rest[0] == "-h" || rest[0] == "--help" {
+		global.Usage()
+		return nil
+	}
+
 	// OpenMigrated, not Open: serve owns migrations, so a database it has
 	// never touched is an operator mistake worth naming rather than a schema
 	// to create from a second process.
