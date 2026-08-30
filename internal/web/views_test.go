@@ -525,7 +525,7 @@ func TestMonthWinnerPaneShowsTheStats(t *testing.T) {
 	stats := body[strings.Index(body, "month-stats"):]
 	stats = stats[:strings.Index(stats, "</dl>")]
 
-	for _, want := range []string{"Average", "Games", "3 or better", "Longest streak"} {
+	for _, want := range []string{"Average", "Puzzles", "3 or better", "Longest streak"} {
 		if !strings.Contains(stats, want) {
 			t.Errorf("the winner pane is missing %q", want)
 		}
@@ -983,7 +983,7 @@ func TestMonthsKickerStatesTheScoringRule(t *testing.T) {
 	if !strings.Contains(body, clause) {
 		t.Errorf("the kicker does not say %q, though the average counts them", clause)
 	}
-	if want := "10 games minimum"; !strings.Contains(body, want) {
+	if want := "10 puzzles minimum"; !strings.Contains(body, want) {
 		t.Errorf("the kicker does not say %q", want)
 	}
 
