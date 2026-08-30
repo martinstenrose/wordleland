@@ -85,6 +85,53 @@ func TestTodayShowsTheCurrentPuzzleAndWhoIsOut(t *testing.T) {
 	}
 }
 
+// Go's time.Format renders a weekday and a month in English regardless of
+// locale — "Monday", "January" — so the headline date builds its own from
+// the catalogue instead, the same way the grid's date column does.
+func TestTodayHeadlineDateIsFullyLocalised(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	current := currentPuzzle()
+	date, err := wordle.DateForPuzzle(current)
+	if err != nil {
+		t.Fatalf("DateForPuzzle(%d): %v", current, err)
+	}
+
+	englishWeekdays := map[time.Weekday]string{
+		time.Sunday: "Sunday", time.Monday: "Monday", time.Tuesday: "Tuesday",
+		time.Wednesday: "Wednesday", time.Thursday: "Thursday",
+		time.Friday: "Friday", time.Saturday: "Saturday",
+	}
+	swedishWeekdays := map[time.Weekday]string{
+		time.Sunday: "söndag", time.Monday: "måndag", time.Tuesday: "tisdag",
+		time.Wednesday: "onsdag", time.Thursday: "torsdag",
+		time.Friday: "fredag", time.Saturday: "lördag",
+	}
+	swedishMonths := map[time.Month]string{
+		time.January: "januari", time.February: "februari", time.March: "mars",
+		time.April: "april", time.May: "maj", time.June: "juni", time.July: "juli",
+		time.August: "augusti", time.September: "september", time.October: "oktober",
+		time.November: "november", time.December: "december",
+	}
+
+	en := fetch(t, srv, "/share/"+slug+"/today").Body.String()
+	wantEn := fmt.Sprintf("%s %d %s %d", englishWeekdays[date.Weekday()], date.Day(), date.Month().String(), date.Year())
+	if !strings.Contains(en, wantEn) {
+		t.Errorf("the English headline date does not show %q", wantEn)
+	}
+
+	sv := fetchAs(t, srv, "/share/"+slug+"/today?lang=sv", nil).Body.String()
+	wantSv := fmt.Sprintf("%s %d %s %d", swedishWeekdays[date.Weekday()], date.Day(), swedishMonths[date.Month()], date.Year())
+	if !strings.Contains(sv, wantSv) {
+		t.Errorf("the Swedish headline date does not show %q", wantSv)
+	}
+	if strings.Contains(sv, englishWeekdays[date.Weekday()]) {
+		t.Errorf("the Swedish page still shows the English weekday %q", englishWeekdays[date.Weekday()])
+	}
+}
+
 // When nothing clears its threshold the card is omitted, not padded.
 func TestCalloutsAreOmittedWhenNothingIsRemarkable(t *testing.T) {
 	srv := testServer(t)

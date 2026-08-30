@@ -95,7 +95,7 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 		Expected:   today.Expected(),
 	}
 	if date, err := wordle.DateForPuzzle(today.PuzzleNo); err == nil {
-		page.DateLong = date.Format("Monday 2 January 2006")
+		page.DateLong = longDate(ch.T, date)
 	}
 
 	for _, e := range today.Filed {
