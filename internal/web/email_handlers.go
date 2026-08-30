@@ -172,7 +172,30 @@ func (s *Server) handleResetPasswordSubmit(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	hash, err := auth.HashPassword(password)
+	// Reject a guessed, expired or spent token before paying for Argon2. The
+	// token is checked again when it is consumed, so a concurrent request
+	// cannot turn this early check into a second use.
+	if err := store.ValidatePasswordResetToken(r.Context(), s.db, token); err != nil {
+		if errors.Is(err, store.ErrResetTokenInvalid) {
+			s.renderReset(w, r, http.StatusBadRequest, resetPage{Invalid: true})
+			return
+		}
+		s.logger.Error("validate reset token", "error", err)
+		s.renderError(w, r, http.StatusInternalServerError)
+		return
+	}
+	if !s.limiter.Allow("reset-submit:token:"+store.HashToken(token),
+		"reset-submit:ip:"+auth.ClientIP(r, s.cfg.TrustedProxies)) {
+		s.renderReset(w, r, http.StatusTooManyRequests, resetPage{Invalid: true})
+		return
+	}
+
+	var hash string
+	err := s.limiter.WithHashSlot(r.Context(), func() error {
+		var err error
+		hash, err = s.hashPassword(password)
+		return err
+	})
 	if err != nil {
 		s.logger.Error("hash password", "error", err)
 		s.renderError(w, r, http.StatusInternalServerError)
