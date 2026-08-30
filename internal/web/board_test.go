@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"html"
 	"net/http"
 	"net/http/httptest"
@@ -198,6 +199,38 @@ func TestLastFiveShowsGapsForUnplayedDays(t *testing.T) {
 	lapsed := rowFor(t, body, "lapsed")
 	if got := strings.Count(lapsed, `class="cell gap tiny"`); got != 5 {
 		t.Errorf("lapsed's last five has %d gaps, want 5:\n%s", got, lapsed)
+	}
+}
+
+// A last-five cell carries its detail — which puzzle, and when — behind a
+// tap rather than a hover, which never worked on a phone. Same treatment as
+// the grid and the player page's own recent strip.
+func TestLastFiveCellsOpenAPopupInsteadOfHovering(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+	body := fetch(t, srv, "/share/"+slug+"/board").Body.String()
+
+	harda := rowFor(t, body, "harda")
+	if strings.Contains(harda, `tiny" title="`) {
+		t.Error("a last-five cell still carries the hover the popup replaced")
+	}
+	if got := strings.Count(harda, `<details class="cell-pop" name="popup">`); got != 5 {
+		t.Errorf("harda's last five has %d popups, want 5:\n%s", got, harda)
+	}
+
+	current := wordle.PuzzleForDate(time.Now())
+	date, err := wordle.DateForPuzzle(current)
+	if err != nil {
+		t.Fatalf("DateForPuzzle(%d): %v", current, err)
+	}
+	if !strings.Contains(harda, ">3*<") {
+		t.Errorf("harda's last five does not show the hard-mode asterisk:\n%s", harda)
+	}
+	want := fmt.Sprintf(">#%d (%s)<", current, date.Format(time.DateOnly))
+	if !strings.Contains(harda, want) {
+		t.Errorf("the popup does not show %q:\n%s", want, harda)
 	}
 }
 

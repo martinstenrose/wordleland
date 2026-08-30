@@ -88,7 +88,19 @@
               {{range .LastFive}}
                 <li>
                   {{if .Played}}
-                    <span class="cell t{{.Tone}} tiny" title="{{.Date}} · {{$t.T "player.puzzle" .PuzzleNo}}">{{.Label}}</span>
+                    {{/* Same treatment as the grid and the player page's own
+                         recent strip: the label already carries the guess
+                         count and hard mode's trailing *, so the popup adds
+                         only what the box cannot show — which puzzle, and
+                         when — behind a tap rather than a hover that never
+                         worked on a phone. Joins the shared name="popup"
+                         group (see base.html). */}}
+                    <span class="cell t{{.Tone}} tiny">
+                      <details class="cell-pop" name="popup">
+                        <summary>{{.Label}}</summary>
+                        <p class="cell-popup popup-panel">{{.PuzzleDate}}</p>
+                      </details>
+                    </span>
                   {{else}}
                     <span class="cell gap tiny">-</span>
                   {{end}}
