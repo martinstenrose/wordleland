@@ -16,12 +16,19 @@ func TestSinceTextIncludesUTCOffset(t *testing.T) {
 	}}
 	now := time.Now()
 
-	offsetPattern := regexp.MustCompile(`[+-]\d{2}:\d{2}$`)
+	timestampPattern := regexp.MustCompile(`\d{2}:\d{2}:\d{2} [+-]\d{2}:\d{2}$`)
 
-	if got := sinceText(tr, now.Add(-time.Minute), now); !offsetPattern.MatchString(got) {
-		t.Errorf("today's rendering has no UTC offset: %q", got)
+	if got := sinceText(tr, now.Add(-time.Minute), now); !timestampPattern.MatchString(got) {
+		t.Errorf("today's rendering does not include seconds and a UTC offset: %q", got)
 	}
-	if got := sinceText(tr, now.Add(-25*time.Hour), now); !offsetPattern.MatchString(got) {
-		t.Errorf("yesterday's rendering has no UTC offset: %q", got)
+	if got := sinceText(tr, now.Add(-25*time.Hour), now); !timestampPattern.MatchString(got) {
+		t.Errorf("yesterday's rendering does not include seconds and a UTC offset: %q", got)
+	}
+}
+
+func TestAbsoluteTimeIncludesSeconds(t *testing.T) {
+	at := time.Date(2026, time.August, 30, 12, 34, 56, 0, time.Local)
+	if got, want := absoluteTime(at), "2026-08-30 12:34:56 "+at.Format("-0700"); got != want {
+		t.Errorf("absoluteTime() = %q, want %q", got, want)
 	}
 }
