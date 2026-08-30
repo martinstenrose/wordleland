@@ -525,6 +525,8 @@
   "diag.verified.pending": "not confirmed yet",
   "diag.reconnecting": "reconnecting",
   "diag.lastMessage": "Last message seen",
+  "diag.lastMessageHint": "Any frame from Signal counts, not only results — a receipt or a reaction updates this too.",
+  "diag.lastMessageNeverHint": "Nothing since the app started. An active group usually produces something within minutes.",
   "diag.dropped": "Results lost",
   "diag.droppedCount.one": "1 result",
   "diag.droppedCount.other": "%d results",
