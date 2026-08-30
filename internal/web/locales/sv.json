@@ -519,6 +519,8 @@
   "diag.connection": "Anslutning",
   "diag.connected": "ansluten",
   "diag.account": "Bevakar konto",
+  "diag.group": "Bevakar grupp",
+  "diag.groupHint": "signal-cli bekräftar att det här är ”%s”.",
   "diag.verified": "Konfiguration",
   "diag.verified.ok": "bekräftad av signal-cli",
   "diag.verified.bad": "kan inte fungera",

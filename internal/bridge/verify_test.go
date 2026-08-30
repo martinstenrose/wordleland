@@ -86,6 +86,39 @@ func TestVerifyNamesAMisconfiguration(t *testing.T) {
 	}
 }
 
+// The matched group's name is carried out of the check, because it is the
+// half of the verdict a reader can recognise: an id that matches proves two
+// strings are equal, a name proves the account can see the group somebody
+// meant. Diagnostics shows it, and can only show what the check returns.
+func TestVerifyReportsTheMatchedGroupName(t *testing.T) {
+	srv := signalStub(t, []string{"+46700000000"}, oneGroup)
+
+	got, err := newVerifier(srv.URL, "+46700000000", "c2FtcGxlLWdyb3VwLWlk").check(context.Background())
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if !got.OK() {
+		t.Fatalf("a working configuration did not verify: %s", got.Problem)
+	}
+	if got.GroupName != "Wordle" {
+		t.Errorf("GroupName = %q, want the matched group's name", got.GroupName)
+	}
+}
+
+// And it is not claimed when nothing matched: the name is evidence, so
+// inventing one would assert exactly what the check failed to establish.
+func TestVerifyNamesNoGroupWhenNoneMatched(t *testing.T) {
+	srv := signalStub(t, []string{"+46700000000"}, oneGroup)
+
+	got, err := newVerifier(srv.URL, "+46700000000", "bm90LXRoZS1ncm91cA").check(context.Background())
+	if err != nil {
+		t.Fatalf("check: %v", err)
+	}
+	if got.GroupName != "" {
+		t.Errorf("GroupName = %q, want empty when no group matched", got.GroupName)
+	}
+}
+
 // The account is a phone number. Naming the variable is enough to act on;
 // printing the value puts it in the log and on an admin page.
 func TestVerifyDoesNotEchoTheNumber(t *testing.T) {

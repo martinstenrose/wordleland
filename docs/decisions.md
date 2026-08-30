@@ -125,10 +125,27 @@ produces the same connected, healthy silence a wrong group id does, long
 after the startup check has passed. It speaks only when the verdict
 changes: an hourly line saying everything is still fine teaches a reader to
 skip these, and an hourly line saying it is still broken buries the one
-that said it first. And the account is shown on Diagnostics masked from the middle
-outwards — the leading characters deliberately survive, because a missing
-`+` is exactly what the row exists to reveal and a conventional mask would
-have hidden it.
+that said it first.
+
+**Diagnostics shows the watched account and group in full.** The account was
+masked at first, on the reflex that a phone number should be hidden. The
+reflex was wrong here: the page is behind `requireAdmin`, the reader is the
+person who set the value, and the row exists so it can be compared against
+the environment file it came from — which is exactly how a missing leading
+`+` gets spotted. A mask makes the one job harder and protects nobody who
+could reach the page anyway.
+
+The group id is shown for the same reason, and is safe for a further one:
+it is an identifier, not a credential. Signal derives it from the group
+master key, and the master key — the thing inside an invite link — is what
+grants access. The id names the group and admits nobody to it.
+
+Alongside it, when verification has confirmed the group, the name signal-cli
+reports for it. That is the part a human can check. A matching id proves two
+strings are equal; a name proves the account can actually see the group
+somebody meant, which is the question being asked. It is shown only when
+confirmed — claiming a name from configuration alone would assert precisely
+what the row exists to establish.
 
 **Silence is measured from the last evidence the subscription works.** A
 message if one has ever arrived; otherwise the moment we connected. The

@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"html"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -491,26 +492,6 @@ func TestActivityLeavesOtherSystemRowsGeneric(t *testing.T) {
 	}
 }
 
-// The mask keeps the front of the number on purpose. A missing leading +
-// is precisely the misconfiguration this row exists to expose, and a mask
-// that began at the first character would hide the bug it is here to show.
-func TestMaskAccountKeepsTheLeadingCharacters(t *testing.T) {
-	for _, tt := range []struct{ in, want string }{
-		{"+46700000000", "+467…000"},
-		{"46700000000", "4670…000"},
-		{"+4670", "+4670"},
-	} {
-		if got := maskAccount(tt.in); got != tt.want {
-			t.Errorf("maskAccount(%q) = %q, want %q", tt.in, got, tt.want)
-		}
-	}
-
-	// The whole point, stated as a property: the two differ visibly.
-	if maskAccount("+46700000000") == maskAccount("46700000000") {
-		t.Error("a number with and without its leading + mask identically")
-	}
-}
-
 // A configuration signal-cli says cannot work is shown as broken, with the
 // reason, rather than leaving an admin to read "connected" and believe it.
 func TestDiagnosticsShowsAFailedVerification(t *testing.T) {
@@ -538,8 +519,9 @@ func TestDiagnosticsShowsAFailedVerification(t *testing.T) {
 	if !strings.Contains(body, "SIGNAL_ACCOUNT is not registered") {
 		t.Error("the reason is not shown, so an admin cannot act on it")
 	}
-	// And the number is masked in a way that still reveals the missing +.
-	if !strings.Contains(body, "4670…000") {
+	// Shown whole, so it can be compared against the environment file that
+	// produced it — which is how the missing + would have been spotted.
+	if !strings.Contains(body, "46700000000") {
 		t.Errorf("the watched account is not shown")
 	}
 }
@@ -616,5 +598,72 @@ func TestDiagnosticsExplainsLastMessageSeen(t *testing.T) {
 				t.Errorf("the hint for the other state was shown: %q", tt.notWant)
 			}
 		})
+	}
+}
+
+// Both configured values are shown in full. The page is behind requireAdmin
+// and the reader is whoever set them, so a partial value only makes the
+// comparison against the environment file harder — and that comparison is
+// the whole purpose of these rows.
+func TestDiagnosticsShowsAccountAndGroupInFull(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	srv.SetBridge(fakeBridge{
+		alive: true,
+		status: bridge.Status{
+			Connected: true,
+			Since:     time.Now().Add(-time.Hour),
+			Account:   "+46700000000",
+			Group:     "c2FtcGxlLWdyb3VwLWlk",
+			Verification: bridge.Verification{
+				Done: true, AccountOK: true, GroupOK: true,
+				GroupName: "Wordle",
+			},
+		},
+	})
+
+	// Unescaped first: html/template writes a leading + as &#43;, so a raw
+	// body assertion would quietly be checking a different string than the
+	// one an admin reads.
+	body := html.UnescapeString(fetchAs(t, srv, "/admin/diagnostics", session).Body.String())
+	for _, want := range []string{
+		"+46700000000",         // the account, unmasked
+		"c2FtcGxlLWdyb3VwLWlk", // the group id, whole
+		"Wordle",               // and what signal-cli says it is called
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("diagnostics does not show %q", want)
+		}
+	}
+	if strings.Contains(body, "…") {
+		t.Error("a value was still elided")
+	}
+}
+
+// The name is what proves the account can see the group, so it appears only
+// when signal-cli actually confirmed it. Claiming a name from configuration
+// alone would assert exactly the thing the row exists to establish.
+func TestDiagnosticsNamesTheGroupOnlyWhenVerified(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	srv.SetBridge(fakeBridge{
+		alive: true,
+		status: bridge.Status{
+			Connected: true,
+			Since:     time.Now().Add(-time.Hour),
+			Group:     "c2FtcGxlLWdyb3VwLWlk",
+		},
+	})
+
+	body := fetchAs(t, srv, "/admin/diagnostics", session).Body.String()
+	if !strings.Contains(body, "c2FtcGxlLWdyb3VwLWlk") {
+		t.Error("the configured group is not shown before verification")
+	}
+	if strings.Contains(body, "confirms this is") {
+		t.Error("an unverified group was described as confirmed")
 	}
 }
