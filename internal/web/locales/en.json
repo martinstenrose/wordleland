@@ -220,6 +220,7 @@
   "trait.closer.why": "Gets there, but usually on the last guess or two.",
   "trait.label": "Trait",
   "months.leading": "leading",
+  "months.progress": "day %d of %d",
   "months.season": "Season so far",
   "months.wins": "Wins",
   "months.seasonNote": "A win is the lowest average that month, at 10 puzzles or more, with a failed or missed day counted as 7. ★ marks a win, other numbers are that month's finishing place, · means not ranked, and an outline is a month still being played.",

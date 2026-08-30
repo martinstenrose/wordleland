@@ -31,7 +31,7 @@
 
   <div class="month-head">
     <div class="month-head-main">
-      <p class="kicker accent">{{.Label}} · {{.WinnerLabel}}</p>
+      <p class="kicker accent">{{.Label}} · {{.WinnerLabel}}{{if .Progress}} · {{.Progress}}{{end}}</p>
       <p class="month-winner-name">{{if .WinnerNames}}{{.WinnerNames}}{{else}}{{.T.T "months.noWinner"}}{{end}}</p>
       {{if .WinnerLine}}<p class="muted">{{.WinnerLine}}</p>{{end}}
       <p class="muted small">{{.PartialNote}} · {{.T.T "months.groupAverage"}} {{.GroupAverage}}</p>
