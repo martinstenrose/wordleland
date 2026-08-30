@@ -28,6 +28,9 @@ const (
 type scoreCell struct {
 	PuzzleNo int
 	Date     string
+	// PuzzleDate is PuzzleNo and Date pre-formatted for the popup — see
+	// puzzleDate. Empty on a day not played; the popup does not open then.
+	PuzzleDate string
 	// Label is the guess count, "X" for a failure, or empty for a day the
 	// player did not play — which is the absence of a result, not a zero.
 	// A trailing * marks hard mode: the popup already repeats nothing else
@@ -358,6 +361,7 @@ func recentCells(p stats.Player, results []store.BoardResult, currentPuzzle int)
 		cell.Played = true
 		cell.Solved = res.Solved
 		cell.HardMode = res.HardMode
+		cell.PuzzleDate = puzzleDate(puzzle, cell.Date)
 		if res.Solved {
 			cell.Label = strconv.Itoa(res.Guesses)
 			cell.Tone = res.Guesses

@@ -65,7 +65,16 @@
               {{range .Cells}}
                 <td>
                   {{if .Played}}
-                    <span class="cell t{{.Tone}}{{if .HardMode}} hard{{end}} tiny" title="{{.Title}}">{{.Label}}</span>
+                    {{/* The column heading and the row's own date can both
+                         be scrolled out of view on a wide grid, so the
+                         popup names both — joining the shared name="popup"
+                         group (see base.html). */}}
+                    <span class="cell t{{.Tone}} tiny">
+                      <details class="cell-pop" name="popup">
+                        <summary>{{.Label}}</summary>
+                        <p class="cell-popup popup-panel">{{.Title}}</p>
+                      </details>
+                    </span>
                   {{else}}
                     <span class="cell gap tiny"></span>
                   {{end}}

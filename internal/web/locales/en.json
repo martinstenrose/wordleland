@@ -217,7 +217,7 @@
   "months.wins": "Wins",
   "months.seasonNote": "A win is the lowest average that month, at 10 puzzles or more, with a failed or missed day counted as 7. ★ marks a win, other numbers are that month's finishing place, · means not ranked, and an outline is a month still being played.",
   "nav.backToBoard": "← The board",
-  "grid.note": "Blank means no puzzle that day. Newest at the top. Colour runs from a one-guess solve to a failure.",
+  "grid.note": "Blank means no puzzle that day. Newest at the top. Colour runs from a one-guess solve to a failure. An asterisk marks hard mode.",
   "email.reset.subject": "Reset your Wordleland password",
   "email.reset.preview": "Set a new password. The link works once and expires in an hour.",
   "email.reset.heading": "Reset your password",
