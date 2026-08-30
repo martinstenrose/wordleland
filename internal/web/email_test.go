@@ -337,6 +337,31 @@ func TestResetRejectsShortPassword(t *testing.T) {
 	}
 }
 
+// An unknown token is attacker-controlled input. It must be rejected before
+// Argon2, or concurrent guesses turn the public endpoint into a memory and CPU
+// exhaustion lever.
+func TestResetRejectsUnknownTokenBeforeHashing(t *testing.T) {
+	srv := testServer(t)
+	hashes := 0
+	srv.hashPassword = func(string) (string, error) {
+		hashes++
+		return "hash", nil
+	}
+
+	csrf, jar := getCSRF(t, srv, "/reset-password?token=not-a-token", nil)
+	rec := postForm(t, srv, "/reset-password", url.Values{
+		"csrf_token": {csrf}, "token": {"not-a-token"},
+		"password": {"a whole new password"}, "password_confirm": {"a whole new password"},
+	}, jar)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+	if hashes != 0 {
+		t.Errorf("password hashes = %d, want 0", hashes)
+	}
+}
+
 // A link issued before an account was retired is not a way back in.
 func TestResetRefusesDisabledAccount(t *testing.T) {
 	srv, sent := mailServer(t)

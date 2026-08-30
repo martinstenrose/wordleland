@@ -75,6 +75,31 @@ func TestConsumeResetToken(t *testing.T) {
 	}
 }
 
+func TestValidateResetTokenDoesNotSpendIt(t *testing.T) {
+	db, user, _ := resetFixture(t)
+	ctx := context.Background()
+
+	token, err := CreatePasswordResetToken(ctx, db, user.ID)
+	if err != nil {
+		t.Fatalf("CreatePasswordResetToken() failed: %v", err)
+	}
+	if err := ValidatePasswordResetToken(ctx, db, token); err != nil {
+		t.Fatalf("ValidatePasswordResetToken() failed: %v", err)
+	}
+	if _, err := ConsumePasswordResetToken(ctx, db, token, "new-hash"); err != nil {
+		t.Fatalf("token was spent by validation: %v", err)
+	}
+}
+
+func TestValidateResetTokenRejectsUnknown(t *testing.T) {
+	db, _, _ := resetFixture(t)
+
+	err := ValidatePasswordResetToken(context.Background(), db, "not-a-token")
+	if !errors.Is(err, ErrResetTokenInvalid) {
+		t.Errorf("error = %v, want ErrResetTokenInvalid", err)
+	}
+}
+
 // Single use: a link left in an inbox must not keep working.
 func TestConsumeResetTokenIsSingleUse(t *testing.T) {
 	db, user, _ := resetFixture(t)

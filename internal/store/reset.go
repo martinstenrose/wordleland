@@ -62,6 +62,48 @@ func CreatePasswordResetToken(ctx context.Context, q Querier, userID int64) (str
 	return createLinkToken(ctx, q, userID, purposeReset)
 }
 
+// ValidatePasswordResetToken reports whether a reset token can currently be
+// used without spending it. The reset handler calls this before doing the
+// expensive password hash; ConsumePasswordResetToken checks it again inside
+// the transaction, so validation here does not weaken single-use semantics.
+func ValidatePasswordResetToken(ctx context.Context, q Querier, token string) error {
+	_, err := passwordResetTokenUser(ctx, q, token)
+	return err
+}
+
+func passwordResetTokenUser(ctx context.Context, q Querier, token string) (User, error) {
+	var (
+		userID    int64
+		expiresAt time.Time
+		usedAt    *time.Time
+	)
+	err := q.QueryRowContext(ctx,
+		`SELECT user_id, expires_at, used_at FROM password_reset_tokens
+		 WHERE token_hash = ? AND purpose = ?`,
+		HashToken(token), purposeReset,
+	).Scan(&userID, &expiresAt, &usedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return User{}, ErrResetTokenInvalid
+	}
+	if err != nil {
+		return User{}, fmt.Errorf("read reset token: %w", err)
+	}
+	if usedAt != nil || time.Now().After(expiresAt) {
+		return User{}, ErrResetTokenInvalid
+	}
+
+	// A disabled account must not be reachable through a link issued before
+	// it was retired.
+	user, err := UserByID(ctx, q, userID)
+	if err != nil {
+		return User{}, err
+	}
+	if user.Disabled() {
+		return User{}, ErrResetTokenInvalid
+	}
+	return user, nil
+}
+
 // createLinkToken mints one emailed link of the given purpose. Both flows go
 // through here so a new one cannot be added without naming what it is for.
 func createLinkToken(ctx context.Context, q Querier, userID int64, purpose string) (string, error) {
@@ -89,35 +131,12 @@ func createLinkToken(ctx context.Context, q Querier, userID int64, purpose strin
 func ConsumePasswordResetToken(ctx context.Context, db *sql.DB, token, passwordHash string) (User, error) {
 	var user User
 	err := InTx(ctx, db, func(tx *sql.Tx) error {
-		var (
-			userID    int64
-			expiresAt time.Time
-			usedAt    *time.Time
-		)
-		err := tx.QueryRowContext(ctx,
-			`SELECT user_id, expires_at, used_at FROM password_reset_tokens
-			 WHERE token_hash = ? AND purpose = ?`,
-			HashToken(token), purposeReset,
-		).Scan(&userID, &expiresAt, &usedAt)
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrResetTokenInvalid
-		}
-		if err != nil {
-			return fmt.Errorf("read reset token: %w", err)
-		}
-		if usedAt != nil || time.Now().After(expiresAt) {
-			return ErrResetTokenInvalid
-		}
-
-		// A disabled account must not be reachable through a link issued
-		// before it was retired.
-		user, err = UserByID(ctx, tx, userID)
+		var err error
+		user, err = passwordResetTokenUser(ctx, tx, token)
 		if err != nil {
 			return err
 		}
-		if user.Disabled() {
-			return ErrResetTokenInvalid
-		}
+		userID := user.ID
 
 		if _, err := tx.ExecContext(ctx,
 			`UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP

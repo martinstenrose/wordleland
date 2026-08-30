@@ -26,10 +26,11 @@ type Server struct {
 	// localeCodes is every loaded locale, English first and the rest
 	// alphabetical, so the language switcher has a stable order that does
 	// not depend on map iteration.
-	localeCodes []string
-	limiter     *auth.Limiter
-	cipher      *auth.Cipher
-	mailer      *auth.Mailer
+	localeCodes  []string
+	limiter      *auth.Limiter
+	cipher       *auth.Cipher
+	mailer       *auth.Mailer
+	hashPassword func(string) (string, error)
 
 	// bridge is the Signal bridge, nil when none is configured. The
 	// server reads its state for the liveness probe and the diagnostics
@@ -71,14 +72,15 @@ func New(cfg *config.Config, db *sql.DB, logger *slog.Logger) (*Server, error) {
 	}
 
 	return &Server{
-		cfg:         cfg,
-		catalogues:  locales,
-		localeCodes: localeOrder(locales),
-		db:          db,
-		logger:      logger,
-		templates:   tmpl,
-		limiter:     auth.NewLimiter(0, 0),
-		cipher:      cipher,
+		cfg:          cfg,
+		catalogues:   locales,
+		localeCodes:  localeOrder(locales),
+		db:           db,
+		logger:       logger,
+		templates:    tmpl,
+		limiter:      auth.NewLimiter(0, 0),
+		cipher:       cipher,
+		hashPassword: auth.HashPassword,
 		mailer: auth.NewMailer(cfg.SMTP.Host, cfg.SMTP.Port, cfg.SMTP.User,
 			cfg.SMTP.Pass, cfg.SMTP.From),
 		secureCookies: secureCookies(cfg.AppURL),

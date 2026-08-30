@@ -187,7 +187,16 @@ func (s *Server) handleSettingsPassword(w http.ResponseWriter, r *http.Request) 
 	// The current password is required even though the session is already
 	// authenticated: a borrowed screen should not be enough to take the
 	// account.
-	if err := auth.VerifyPassword(user.PasswordHash, current); err != nil {
+	var verifyErr error
+	if err := s.limiter.WithHashSlot(r.Context(), func() error {
+		verifyErr = auth.VerifyPassword(user.PasswordHash, current)
+		return nil
+	}); err != nil {
+		s.logger.Error("verify password", "error", err)
+		s.renderSettings(w, r, user, "", "settings.error.failed", settingsForm{})
+		return
+	}
+	if verifyErr != nil {
 		s.renderSettings(w, r, user, "", "settings.error.wrongPassword", settingsForm{})
 		return
 	}
@@ -196,7 +205,12 @@ func (s *Server) handleSettingsPassword(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	hash, err := auth.HashPassword(next)
+	var hash string
+	err := s.limiter.WithHashSlot(r.Context(), func() error {
+		var err error
+		hash, err = s.hashPassword(next)
+		return err
+	})
 	if err != nil {
 		s.logger.Error("hash password", "error", err)
 		s.renderSettings(w, r, user, "", "settings.error.failed", settingsForm{})
