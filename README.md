@@ -196,6 +196,27 @@ up whatever was last merged or pushed by hand.
 Compose follows `latest`. Pin a version at deploy time by editing the image
 tag.
 
+**Image tags are not immutable.** This Compose file deliberately uses tags
+for both services so ordinary deployments can receive updates, but a registry
+owner can move or replace any tag — including a version tag. A compromised
+publisher or registry could therefore make a later `docker compose pull`
+download different content under a familiar name. The repository's update
+scanning cannot protect a deployment from that supply-chain risk.
+
+The `wordleland` image is built and published by this repository.
+`signal-cli-rest-api` is different: it is an off-the-shelf third-party image,
+not source this project builds or controls. Its provenance, release process
+and tag integrity belong to that upstream publisher, so an operator must
+assess and pin it separately when the deployment requires that guarantee.
+
+An operator who requires reproducible, immutable deployments should override
+each image with a registry digest, in the form
+`image:tag@sha256:<digest>`. That binds the deployment to the exact published
+manifest rather than trusting the tag. Digest pins do not update themselves:
+the operator must review and replace them to receive security fixes, for both
+Wordleland and `signal-cli-rest-api`. This is a deployment policy rather than
+an application default, so the provided Compose file remains tag-based.
+
 ```sh
 docker compose pull && docker compose up -d
 ```
@@ -389,6 +410,13 @@ docker compose exec app /wordleland identity claim \
 docker compose exec app /wordleland results set --player martin --puzzle 1893 --guesses 4 --hard-mode
 docker compose exec app /wordleland results unset --player martin --puzzle 1893
 ```
+
+The share link is a read-only capability: anyone who knows its URL can view
+the board without signing in, but cannot change anything. Its path is visible
+to the application and reverse proxy and may be retained in either service's
+access logs or in a log aggregator. Treat access to those logs as
+administrative access, and rotate the share slug if it is disclosed outside
+that trusted boundary.
 
 ## Onboarding a player
 
