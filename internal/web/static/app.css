@@ -533,6 +533,7 @@ svg .player { fill: none; stroke: var(--acc); stroke-width: 1.75; stroke-linejoi
   gap: 4px;
 }
 .cell {
+  position: relative;
   width: 28px;
   height: 28px;
   border-radius: 6px;
@@ -553,6 +554,30 @@ svg .player { fill: none; stroke: var(--acc); stroke-width: 1.75; stroke-linejoi
 .cell.t5 { background: var(--s5); color: var(--tx-80); border-color: var(--s5b); }
 .cell.t6 { background: transparent; color: var(--tx-60); border-color: var(--tx-16); }
 .cell.t7 { background: var(--tx-02); color: var(--tx-35); border-color: var(--tx-09); }
+
+/* A played cell opens its own result on tap. The <details> and its summary
+   stretch to fill the cell, so the whole coloured square is the target
+   rather than just the digit — the summary draws exactly what the cell
+   used to draw on its own. */
+.cell-pop { align-self: stretch; justify-self: stretch; }
+.cell-pop > summary {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  list-style: none;
+  cursor: pointer;
+}
+.cell-pop > summary::-webkit-details-marker { display: none; }
+.cell-popup {
+  width: max-content;
+  max-width: 11rem;
+  margin: 0;
+  padding: 6px 9px;
+  font-size: .72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 
 @media (max-width: 640px) {
   .chart-wrap { gap: 6px; }
@@ -887,21 +912,31 @@ svg .player { fill: none; stroke: var(--acc); stroke-width: 1.75; stroke-linejoi
 .trait-pop { position: relative; display: inline-block; }
 .trait-pop > summary { list-style: none; cursor: help; }
 .trait-pop > summary::-webkit-details-marker { display: none; }
-.trait-why {
+
+/* .popup-panel is the shared shell for a popup that can land anywhere on
+   the page — a trait explanation, a result cell's detail — as opposed to a
+   topbar menu, which has one fixed spot and anchors itself by hand. Centred
+   under whatever opened it by default; app.js nudges it back on screen when
+   that default would run off an edge. With app.js absent this is still
+   where it opens, just without the nudge. */
+.popup-panel {
   position: absolute;
-  left: 0;
+  left: 50%;
+  transform: translateX(-50%);
   top: calc(100% + 6px);
   z-index: 40;
-  width: max-content;
-  max-width: 15rem;
-  padding: 8px 10px;
   border-radius: 8px;
   background: var(--card);
   border: 1px solid var(--tx-12);
   box-shadow: var(--shadow);
+  color: var(--tx-75);
+}
+.trait-why {
+  width: max-content;
+  max-width: 15rem;
+  padding: 8px 10px;
   font-size: .72rem;
   line-height: 1.45;
-  color: var(--tx-75);
   text-transform: none;
   letter-spacing: 0;
   white-space: normal;
