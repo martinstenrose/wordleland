@@ -214,9 +214,9 @@ func sinceText(t translator, when time.Time, now time.Time) string {
 		// whether results are still arriving, a whole day is the wrong
 		// resolution: "today" is true at one minute past midnight and at
 		// eleven at night, and only one of those is reassuring.
-		return t.T("activity.todayAt", when.Local().Format("15:04 -07:00"))
+		return t.T("activity.todayAt", when.Local().Format("15:04:05 -07:00"))
 	case days == 1:
-		return t.T("activity.yesterdayAt", when.Local().Format("15:04 -07:00"))
+		return t.T("activity.yesterdayAt", when.Local().Format("15:04:05 -07:00"))
 	default:
 		return t.TN("activity.daysAgo", days)
 	}
