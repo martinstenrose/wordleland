@@ -95,6 +95,21 @@ own" are in README.md's Contributing section — that file is for whoever
 runs and works with the project from outside it, which a contributor is
 before anything else.
 
+Every commit written with an agent includes a final `Co-Authored-By` trailer
+naming the model that did the work, using its provider's noreply address.
+Follow the style already established in the history:
+
+```
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Co-Authored-By: Codex GPT-5.6 Sol <noreply@openai.com>
+```
+
+Use the identity and full model version of the agent that actually wrote the
+commit, including the minor version when it has one. Do not omit the trailer,
+replace it with prose in the pull request, or copy an example's identity when
+a different model did the work.
+
 ## Before a change is done
 
 **A fix gets a test that fails without it.** Then check that it does: remove
