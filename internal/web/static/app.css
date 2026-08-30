@@ -1354,7 +1354,7 @@ svg .player { fill: none; stroke: var(--acc); stroke-width: 1.75; stroke-linejoi
    up by construction instead of by both happening to size the same. */
 .activity li {
   display: grid;
-  grid-template-columns: 60px minmax(0, 1fr) minmax(0, 13rem) 6rem;
+  grid-template-columns: 60px minmax(0, 1fr) minmax(0, 13rem) max-content;
   align-items: baseline;
   gap: 14px;
   padding: 11px 22px;
@@ -1475,7 +1475,7 @@ a.activity-text:hover { color: var(--acc-lt); text-decoration: underline; }
 @media (max-width: 720px) {
   /* Narrow: the sentence takes a line of its own under the tag, actor
      and time, rather than three columns fighting over 320px. */
-  .activity li { grid-template-columns: 60px minmax(0, 1fr) 5rem; gap: 6px 10px; }
+  .activity li { grid-template-columns: 60px minmax(0, 1fr) max-content; gap: 6px 10px; }
   .activity-text { grid-column: 1 / -1; grid-row: 2; }
   .activity-head span:nth-child(2) { visibility: hidden; }
   .pending-head .muted { margin-left: 0; }
