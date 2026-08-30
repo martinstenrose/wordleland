@@ -33,7 +33,7 @@
   "board.toggle.off": "av",
   "board.footer.lines": "Heldragen linje: spelaren · streckad: gruppens snitt",
   "board.footer.averages": "Snitt räknar X som 7",
-  "board.footer.ranked": "Rankas vid %d pussel eller fler",
+  "board.footer.ranked": "Rankas vid %d pussel eller fler, med minst ett de senaste %d dagarna",
   "board.footer.averagesPlain": "Misslyckade spel räknas inte in i snittet",
   "board.footer.missed": "Missade dagar räknas som 7, från spelarens första resultat till det senaste",
   "share.readOnly": "Skrivskyddad",

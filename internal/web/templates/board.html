@@ -96,7 +96,7 @@
       <span>{{.T.T "board.footer.averagesPlain"}}</span>
     {{end}}
     {{if .Query.CountMissed}}<span>{{.T.T "board.footer.missed"}}</span>{{end}}
-    <span>{{.T.T "board.footer.ranked" 10}}</span>
+    <span>{{.T.T "board.footer.ranked" .MinGames .FormWindow}}</span>
   </footer>
 </section>
 {{end}}

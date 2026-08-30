@@ -38,6 +38,12 @@ type boardPage struct {
 	// Sort is the display ordering, and Headers carries the column links.
 	Sort    boardSort
 	Headers []sortHeader
+
+	// MinGames and FormWindow explain the ranking rule in the footer, so
+	// the thresholds shown to the reader can never drift from the ones
+	// stats actually applies.
+	MinGames   int
+	FormWindow int
 }
 
 // boardRow is one player, with everything the template needs pre-formatted
@@ -191,12 +197,14 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boa
 	}
 
 	page := boardPage{
-		chrome:    s.newChrome(w, r, prefix, viewBoard, readOnly),
-		Board:     board,
-		Prefix:    prefix,
-		BoardPath: boardPath,
-		Query:     query,
-		GroupPath: template.HTML(sparkPath(board.GroupSeries, sparkWidth, sparkHeight)),
+		chrome:     s.newChrome(w, r, prefix, viewBoard, readOnly),
+		Board:      board,
+		Prefix:     prefix,
+		BoardPath:  boardPath,
+		Query:      query,
+		GroupPath:  template.HTML(sparkPath(board.GroupSeries, sparkWidth, sparkHeight)),
+		MinGames:   stats.MinGames,
+		FormWindow: stats.FormWindow,
 	}
 	// Ranked and unranked are ordered as separate groups, so the divider
 	// between them holds under every sort.

@@ -222,6 +222,24 @@ func TestTogglesAreReflectedInTheBoard(t *testing.T) {
 	}
 }
 
+// A player drops off the ranked table for either of two reasons — too few
+// games ever, or none recently — but the footer only used to explain the
+// first. A reader watching a lapsed friend disappear from the board had no
+// way to learn why from the page itself.
+func TestFooterExplainsBothRankingThresholds(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	body := fetch(t, srv, "/share/"+slug+"/board").Body.String()
+	if !strings.Contains(body, "10 or more puzzles") {
+		t.Error("the footer does not state the minimum-games threshold")
+	}
+	if !strings.Contains(body, "last 30 days") {
+		t.Error("the footer does not state the recent-activity threshold")
+	}
+}
+
 // The two toggles turn independently, but "count missed" has no effect
 // without "count failed" — the page has to say so, or a reader who selects
 // both, then turns failures off, sees no reason their average did not move.
