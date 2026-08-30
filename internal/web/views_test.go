@@ -777,7 +777,7 @@ func TestMonthViewMatchesTheDesign(t *testing.T) {
 
 	body := fetchAs(t, srv, "/share/"+slug+"/months", nil).Body.String()
 
-	if !regexp.MustCompile(`Wordle \d+–\d+`).MatchString(body) {
+	if !regexp.MustCompile(`#\d+–#\d+`).MatchString(body) {
 		t.Error("the header does not name the puzzle range")
 	}
 	if !strings.Contains(body, "month · ") {

@@ -192,7 +192,7 @@ func TestPendingSuggestsOnlyOnAnExactMatch(t *testing.T) {
 
 // A result event names its puzzle. The number arrives from JSON, where it
 // may be a float64 or a string, and the copy's verb is %d — a mismatch
-// renders as "Wordle %!d(string=1895)" rather than failing.
+// renders as "#%!d(string=1895)" rather than failing.
 func TestActivityLogFormatsEveryLine(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
@@ -220,7 +220,7 @@ func TestActivityLogFormatsEveryLine(t *testing.T) {
 	}
 
 	results := fetchAs(t, srv, "/admin/activity?kind=results", session).Body.String()
-	if !strings.Contains(results, "Wordle 1895") {
+	if !strings.Contains(results, "#1895") {
 		t.Error("the log does not name the puzzle a result belongs to")
 	}
 	// A result's subject is the player it belongs to. It used to print the
