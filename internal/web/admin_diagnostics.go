@@ -151,12 +151,24 @@ func (s *Server) bridgeRows(t translator, b Bridge, now time.Time) []diagnosticR
 		rows = append(rows, group)
 	}
 
+	// "Confirmed by signal-cli" was true and said almost nothing: it named
+	// the authority without naming the claim, so a reader had to take the
+	// word of a row that could not be checked. Both facts are cheap to
+	// state, and they are the two ways this can be wrong.
+	//
+	// The time it was last checked matters as much. An hourly re-check is
+	// only reassuring if a reader can see it happening, and a verdict from
+	// nine hours ago describes a configuration nobody has asked about since.
 	switch {
 	case st.Verification.OK():
-		rows = append(rows, diagnosticRow{
+		confirmed := diagnosticRow{
 			Label: t.T("diag.verified"),
 			Value: t.T("diag.verified.ok"),
-		})
+		}
+		if !st.Verification.At.IsZero() {
+			confirmed.Hint = t.T("diag.verifiedAt", sinceText(t, st.Verification.At, now))
+		}
+		rows = append(rows, confirmed)
 	case st.Verification.Done:
 		rows = append(rows, diagnosticRow{
 			Label: t.T("diag.verified"),

@@ -147,6 +147,15 @@ somebody meant, which is the question being asked. It is shown only when
 confirmed — claiming a name from configuration alone would assert precisely
 what the row exists to establish.
 
+The verdict row states the two claims rather than the authority behind them.
+"Confirmed by signal-cli" was true and said almost nothing: it named who
+vouched without naming what for, leaving a reader to trust a row they could
+not check. It now says the account is registered and a member of this group,
+which are the two facts checked and the two ways this can be wrong. It also
+says when it last checked, because an hourly re-check reassures nobody who
+cannot see it happening, and a verdict from nine hours ago describes a
+configuration nothing has asked about since.
+
 **Silence is measured from the last evidence the subscription works.** A
 message if one has ever arrived; otherwise the moment we connected. The
 check used to be skipped entirely until the first message, reasoning that a
