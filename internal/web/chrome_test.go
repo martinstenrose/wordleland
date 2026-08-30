@@ -193,7 +193,9 @@ func TestAccountMenuOnlyForSignedInUsers(t *testing.T) {
 }
 
 // The menu opens with no JavaScript at all, which is the reason it is a
-// <details> rather than a button.
+// <details> rather than a button. Its markup carries no inline handler
+// either — app.js reaches popups only, through a delegated listener, never
+// through anything written on an element itself.
 func TestAccountMenuNeedsNoScript(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
@@ -203,8 +205,38 @@ func TestAccountMenuNeedsNoScript(t *testing.T) {
 	if !strings.Contains(body, "<details class=\"account\" name=\"topbar-menu\">") {
 		t.Error("the account menu is not a details element")
 	}
-	if strings.Contains(body, "<script") || strings.Contains(body, "onclick") {
-		t.Error("the page carries script")
+	if strings.Contains(body, "onclick") {
+		t.Error("the account menu carries an inline event handler")
+	}
+}
+
+// app.js is the one script in the project, and it only repositions a popup
+// that has already opened on its own — see its header comment. This checks
+// it is wired up, present once per page, and scoped to name="popup" rather
+// than the topbar menus, which anchor themselves in CSS instead.
+func TestPopupPositioningScriptIsWiredUpAndScoped(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
+	if got := strings.Count(body, `<script src="/static/app.js" defer></script>`); got != 1 {
+		t.Errorf("expected one popup-positioning script tag, found %d", got)
+	}
+	if strings.Contains(body, "onclick") {
+		t.Error("the page carries an inline event handler")
+	}
+
+	rec := fetchAs(t, srv, "/static/app.js", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /static/app.js = %d", rec.Code)
+	}
+	script := rec.Body.String()
+	if !strings.Contains(script, `getAttribute("name") === "popup"`) {
+		t.Error("the script does not scope itself to name=\"popup\"")
+	}
+	if strings.Contains(script, `getAttribute("name") === "topbar-menu"`) {
+		t.Error("the script also reaches into the topbar menus, which anchor themselves in CSS instead")
 	}
 }
 

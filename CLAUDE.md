@@ -11,6 +11,11 @@ Standard library first. A dependency needs a reason — the point of this stack
 is a small footprint and a small attack surface. No npm, no SPA framework, no
 client-side rendering by default. Charts are server-generated SVG.
 
+`internal/web/static/app.js` is the one exception, and a narrow one: vanilla,
+no build step, no dependency, purely a progressive enhancement (see its
+header comment). Whether and how to use JavaScript more broadly is an open
+question, not yet decided — do not treat this file as having settled it.
+
 **Layout:** one Go module, one binary.
 
 - `cmd/wordleland` — `serve` runs the server and, when Signal is configured,

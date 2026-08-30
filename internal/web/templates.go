@@ -17,9 +17,9 @@ import (
 //go:embed templates static
 var templateFS embed.FS
 
-// serveStatic serves the embedded stylesheet.
+// serveStatic serves the embedded stylesheet and script.
 //
-// One file, embedded, with a long cache lifetime keyed by build: there is no
+// Both are embedded, with a long cache lifetime keyed by build: there is no
 // asset pipeline and wants none.
 func (s *Server) serveStatic() http.Handler {
 	sub, err := fs.Sub(templateFS, "static")
