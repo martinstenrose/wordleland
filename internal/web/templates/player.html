@@ -121,9 +121,23 @@
       <div class="panel-head"><span>{{.T.T "player.recent"}}</span></div>
       <ol class="strip">
         {{range .Recent}}
-          <li class="cell{{if .Played}} t{{.Tone}}{{else}} gap{{end}}{{if .HardMode}} hard{{end}}"
-              title="{{.Date}} · {{$.T.T "player.puzzle" .PuzzleNo}}">
-            <span>{{if .Played}}{{.Label}}{{else}}·{{end}}</span>
+          <li class="cell{{if .Played}} t{{.Tone}}{{else}} gap{{end}}"
+              {{if not .Played}}title="{{.Date}} · {{$.T.T "player.puzzle" .PuzzleNo}}"{{end}}>
+            {{if .Played}}
+              {{/* The cell itself is the click target: a popup joining the
+                   shared name="popup" group (see base.html). The guess
+                   count and hard mode are already the box's own label, so
+                   the popup adds only what the box cannot show: which
+                   puzzle, and when. No title= here — a hover tooltip
+                   saying the same thing as a tap-away popup is one of them
+                   spare, and it is the popup that also works on a phone. */}}
+              <details class="cell-pop" name="popup">
+                <summary>{{.Label}}</summary>
+                <p class="cell-popup popup-panel">#{{.PuzzleNo}} ({{.Date}})</p>
+              </details>
+            {{else}}
+              <span>·</span>
+            {{end}}
           </li>
         {{end}}
       </ol>

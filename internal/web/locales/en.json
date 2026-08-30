@@ -57,7 +57,7 @@
   "player.puzzle": "Wordle %d",
   "player.failed": "X",
   "player.thin": "Too few games to chart. The individual results are below.",
-  "player.stripLegend": "A dot is a day not played · a bordered cell is hard mode",
+  "player.stripLegend": "A dot is a day not played · an asterisk marks hard mode",
   "player.noRecent": "No games in the last 30 days, so there is nothing to chart. The history is below.",
   "nav.admin": "Admin area",
   "admin.players.title": "Players",

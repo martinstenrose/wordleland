@@ -57,7 +57,7 @@
   "player.puzzle": "Wordle %d",
   "player.failed": "X",
   "player.thin": "För få spel för att rita diagram. De enskilda resultaten finns nedan.",
-  "player.stripLegend": "En punkt är en dag utan spel · en ruta med ram är hard mode",
+  "player.stripLegend": "En punkt är en dag utan spel · en asterisk markerar hard mode",
   "player.noRecent": "Inga spel de senaste 30 dagarna, så det finns inget att rita. Historiken finns nedan.",
   "nav.admin": "Administration",
   "admin.players.title": "Spelare",

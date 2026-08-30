@@ -30,6 +30,8 @@ type scoreCell struct {
 	Date     string
 	// Label is the guess count, "X" for a failure, or empty for a day the
 	// player did not play — which is the absence of a result, not a zero.
+	// A trailing * marks hard mode: the popup already repeats nothing else
+	// the box shows, so hard mode has no row of its own there either.
 	Label    string
 	Played   bool
 	Solved   bool
@@ -363,6 +365,10 @@ func recentCells(p stats.Player, results []store.BoardResult, currentPuzzle int)
 			cell.Label = "X"
 			cell.Tone = int(worstScore)
 		}
+		if res.HardMode {
+			cell.Label += "*"
+		}
+
 		cells = append(cells, cell)
 	}
 	return cells
