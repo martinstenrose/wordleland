@@ -9,6 +9,21 @@ import (
 	"time"
 )
 
+// contentSecurityPolicy permits only resources the server-rendered interface
+// actually uses. Inline styles are limited to presentation: the months and
+// player views render data-driven bar widths as style attributes. Scripts
+// remain same-origin only, and TOTP enrolment is the reason images allow data:
+// in addition to same-origin files.
+const contentSecurityPolicy = "default-src 'self'; " +
+	"script-src 'self'; " +
+	"style-src 'self' 'unsafe-inline'; " +
+	"img-src 'self' data:; " +
+	"connect-src 'none'; " +
+	"object-src 'none'; " +
+	"base-uri 'none'; " +
+	"frame-ancestors 'none'; " +
+	"form-action 'self'"
+
 // statusRecorder captures the status code for request logging, since
 // http.ResponseWriter does not expose what was written.
 type statusRecorder struct {
@@ -37,6 +52,7 @@ func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("Referrer-Policy", "no-referrer")
+		h.Set("Content-Security-Policy", contentSecurityPolicy)
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
 		// Belt and braces with robots.txt. A crawler that respects
