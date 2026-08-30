@@ -30,7 +30,18 @@
 
 {{/* The switchers are links, and the account menu is a <details>. Nothing
      here needs JavaScript, which is the point: a control that only works
-     once a script has run is a control that sometimes does not work. */}}
+     once a script has run is a control that sometimes does not work.
+
+     Two kinds of disclosure share this pattern, each exclusive within
+     itself but not with the other — a plain <details> with a name= the
+     browser uses to close the rest of its own group:
+       - name="topbar-menu": the theme picker, the language picker and the
+         account menu — a choice or an action, not just information.
+       - name="popup": a trait's explanation, a result cell's detail — read-
+         only information with nothing to choose.
+     A menu open and a popup open at once is fine; two menus or two popups
+     open at once is not. A new one joins whichever group it actually is,
+     rather than a third name of its own. */}}
 {{define "theme-icon"}}
   {{if eq . "light"}}
     <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
@@ -75,9 +86,6 @@
 
 {{define "chevron"}}<svg class="chevron" width="9" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>{{end}}
 
-{{/* Both pickers are <details>, so they open with no script at all. They
-     share name="topbar-menu" so the browser enforces one open at a time —
-     opening the language picker closes the theme picker and back. */}}
 {{define "theme-picker"}}
 <details class="menu" name="topbar-menu">
   <summary class="menu-btn" aria-label="{{.ThemeLabel}}" title="{{.ThemeLabel}}">
@@ -153,7 +161,7 @@
         {{.T.T "nav.signIn"}}
       </a>
     {{else if .SignedIn}}
-      <details class="account">
+      <details class="account" name="topbar-menu">
         <summary aria-label="{{.T.T "account.menu"}}">
           <span class="avatar" aria-hidden="true">{{.Initials}}</span>
         </summary>
@@ -191,10 +199,8 @@
 
 {{/* A trait and its reason. title= is a desktop-only affordance — there is
      no hover on a phone — so the label is a <summary> that opens the
-     explanation on tap. Still no script: every instance shares
-     name="trait-pop", so opening one closes whichever other trait popup on
-     the page was open. */}}
-{{define "trait"}}<details class="trait-pop" name="trait-pop"><summary class="trait" title="{{.Why}}">{{.Trait}}</summary><span class="trait-why">{{.Why}}</span></details>{{end}}
+     explanation on tap. Still no script — see the popup convention above. */}}
+{{define "trait"}}<details class="trait-pop" name="popup"><summary class="trait" title="{{.Why}}">{{.Trait}}</summary><span class="trait-why">{{.Why}}</span></details>{{end}}
 
 {{define "admin-warning"}}
 {{if .AdminWarning}}
