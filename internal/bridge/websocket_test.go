@@ -170,6 +170,17 @@ func TestWebsocketReportsARefusedUpgrade(t *testing.T) {
 	}
 }
 
+func TestWebsocketRejectsOversizedFrames(t *testing.T) {
+	srv := newWSServer(t, func(conn *websocket.Conn, _ int) {
+		_ = conn.WriteMessage(websocket.TextMessage, make([]byte, maxWebsocketFrameSize+1))
+	})
+
+	_, err := testSource(t, srv).stream(context.Background(), make(chan Message, 1))
+	if err == nil || !strings.Contains(err.Error(), "read limit") {
+		t.Errorf("error = %v, want the frame read limit", err)
+	}
+}
+
 func TestWebsocketURL(t *testing.T) {
 	tests := map[string]string{
 		"http://signal:8080":  "ws://signal:8080/v1/receive/+00000000000",

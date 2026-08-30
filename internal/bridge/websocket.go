@@ -24,6 +24,10 @@ import (
 const (
 	readDeadline     = 90 * time.Second
 	handshakeTimeout = 15 * time.Second
+	// Signal envelopes are small JSON messages. A generous ceiling prevents
+	// a broken or compromised internal peer from making ReadMessage allocate
+	// without bound before the frame can be inspected.
+	maxWebsocketFrameSize = 1 << 20
 
 	minReconnectDelay = time.Second
 	maxReconnectDelay = 60 * time.Second
@@ -125,6 +129,7 @@ func (s *websocketSource) stream(ctx context.Context, out chan<- Message) (read 
 		return false, err
 	}
 	defer conn.Close()
+	conn.SetReadLimit(maxWebsocketFrameSize)
 
 	s.health.connected()
 	defer s.health.disconnected()
