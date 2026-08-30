@@ -177,7 +177,7 @@ func detailString(detail map[string]any, key string) string {
 // that is what the copy's %d verb needs. JSON has no integers, so a value
 // round-tripped through the log arrives as a float64; one written as a
 // string is parsed rather than passed through, which is what produced
-// "Wordle %!d(string=1895)".
+// "#%!d(string=1895)".
 func detailNumber(detail map[string]any, key string) (int, bool) {
 	switch v := detail[key].(type) {
 	case float64:
