@@ -12,6 +12,7 @@ import (
 	"flag"
 	"github.com/martinstenrose/wordleland/internal/auth"
 	"github.com/martinstenrose/wordleland/internal/store"
+	"github.com/martinstenrose/wordleland/internal/version"
 )
 
 // cli runs the CLI against a temporary database, returning its output.
@@ -436,5 +437,35 @@ func TestMistakesStillFail(t *testing.T) {
 		if _, err := c.run("", args...); err == nil {
 			t.Errorf("%v succeeded, want an error", args)
 		}
+	}
+}
+
+// version answers without a database, which is the point of dispatching it
+// before one is opened. The moment somebody asks which build is running is
+// often the moment the database is what is wrong, and the paired test above
+// shows the same path being refused for every verb that needs a schema.
+func TestCLIVersionNeedsNoDatabase(t *testing.T) {
+	var out bytes.Buffer
+	if err := run([]string{"-db", filepath.Join(t.TempDir(), "fresh.db"), "version"}, &out); err != nil {
+		t.Fatalf("version against an unmigrated database failed: %v", err)
+	}
+	if got := strings.TrimSpace(out.String()); got != version.String() {
+		t.Errorf("version printed %q, want %q", got, version.String())
+	}
+}
+
+// A new verb nobody can find is a verb nobody uses.
+func TestCLIUsageListsVersion(t *testing.T) {
+	var out bytes.Buffer
+	// "help", not "--help": the flag package intercepts the latter and
+	// returns ErrHelp before the dispatch ever sees it.
+	c := newCLI(t)
+	out2, err := c.run("", "help")
+	if err != nil {
+		t.Fatalf("help failed: %v", err)
+	}
+	out.WriteString(out2)
+	if !strings.Contains(out.String(), "version") {
+		t.Error("usage does not mention the version command")
 	}
 }

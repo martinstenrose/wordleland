@@ -504,6 +504,8 @@
   "settings.recovery.help": "Only the codes' fingerprints are stored, so they cannot be shown again. Generating a new set replaces the old one.",
   "settings.recovery.generate": "Generate new codes",
   "settings.recovery.low": "Running low. Generate a new set before you are locked out.",
+  "diag.version": "Version",
+  "diag.versionUnstamped": "Not a published build, so it cannot name its commit.",
   "diag.title": "Diagnostics",
   "diag.lastResult": "Last result",
   "diag.latestPuzzle": "Newest puzzle on the board",

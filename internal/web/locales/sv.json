@@ -504,6 +504,8 @@
   "settings.recovery.help": "Bara kodernas fingeravtryck sparas, så de kan inte visas igen. Att skapa nya koder ersätter de gamla.",
   "settings.recovery.generate": "Skapa nya koder",
   "settings.recovery.low": "Snart slut. Skapa nya koder innan du blir utelåst.",
+  "diag.version": "Version",
+  "diag.versionUnstamped": "Inte ett publicerat bygge, så det kan inte ange sin commit.",
   "diag.title": "Diagnostik",
   "diag.lastResult": "Senaste resultat",
   "diag.latestPuzzle": "Senaste pusslet på tavlan",

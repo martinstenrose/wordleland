@@ -12,6 +12,7 @@ import (
 
 	"github.com/martinstenrose/wordleland/internal/bridge"
 	"github.com/martinstenrose/wordleland/internal/store"
+	"github.com/martinstenrose/wordleland/internal/version"
 	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
@@ -674,5 +675,22 @@ func TestDiagnosticsNamesTheGroupOnlyWhenVerified(t *testing.T) {
 	}
 	if strings.Contains(body, "confirms this is") {
 		t.Error("an unverified group was described as confirmed")
+	}
+}
+
+// Which build is running was the one question this page could not answer,
+// and answering it by hand cost real time: an image was deployed, the page
+// was read, and the container turned out to predate the change.
+func TestDiagnosticsReportsTheRunningVersion(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	body := fetchAs(t, srv, "/admin/diagnostics", session).Body.String()
+	if !strings.Contains(body, "Version") {
+		t.Error("the page does not report which build is running")
+	}
+	if !strings.Contains(body, version.String()) {
+		t.Errorf("the page does not show %q", version.String())
 	}
 }
