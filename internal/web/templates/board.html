@@ -44,9 +44,13 @@
               aria-sort="{{.Aria}}">
             <a href="{{.Href}}">{{.Label}}<span class="sort-mark" aria-hidden="true">{{if .Active}}{{if .Desc}}▾{{else}}▴{{end}}{{end}}</span></a>
           </th>
-          {{/* The sparkline is not sortable and sits between streak and games,
-               so it is emitted here rather than being a column in the list. */}}
-          {{if eq .Column "streak"}}<th class="right spark-col">{{$.T.T "board.column.last30"}}</th>{{end}}
+          {{/* Last 30 days, Last five and Last game are not sortable, so they
+               are emitted here rather than being columns in the list. */}}
+          {{if eq .Column "form"}}
+            <th class="right spark-col">{{$.T.T "board.column.last30"}}</th>
+            <th class="right">{{$.T.T "board.column.lastFive"}}</th>
+          {{end}}
+          {{if eq .Column "games"}}<th class="right">{{$.T.T "board.column.lastGame"}}</th>{{end}}
         {{end}}
       </tr>
     </thead>
@@ -55,7 +59,7 @@
       {{range .Rows}}
         {{if and (not .Ranked) (not $seen)}}
           {{$seen = true}}
-          <tr class="divider"><td colspan="7">{{$t.T "board.notRanked"}}</td></tr>
+          <tr class="divider"><td colspan="9">{{$t.T "board.notRanked"}}</td></tr>
         {{end}}
         <tr{{if not .Ranked}} class="unranked"{{end}}>
           <td class="num">{{if .Ranked}}{{.Rank}}{{else}}—{{end}}</td>
@@ -67,7 +71,6 @@
             {{.FormText}}
             {{if .DeltaText}}<span class="delta {{.DeltaDirection}}">{{.DeltaText}}</span>{{end}}
           </td>
-          <td class="right num">{{.StreakText}}</td>
           <td class="right spark-col">
             {{if .Ranked}}
               {{if .HasSpark}}
@@ -80,7 +83,36 @@
               <span class="muted small">{{.LastSeenText}}</span>
             {{end}}
           </td>
+          <td class="right">
+            <ol class="last-five" aria-hidden="true">
+              {{range .LastFive}}
+                <li>
+                  {{if .Played}}
+                    <span class="cell t{{.Tone}} tiny" title="{{.Date}} · {{$t.T "player.puzzle" .PuzzleNo}}">{{.Label}}</span>
+                  {{else}}
+                    <span class="cell gap tiny">-</span>
+                  {{end}}
+                </li>
+              {{end}}
+            </ol>
+          </td>
+          <td class="right num">{{.StreakText}}</td>
           <td class="right num">{{.Games}}</td>
+          <td class="right num">
+            {{if .LastPuzzle}}
+              {{/* Joins the shared name="popup" group (see base.html): a
+                   read-only detail with no fixed spot, exactly like a trait
+                   or a recent-strip cell. No title= — a hover tooltip
+                   saying the same thing as a tap-away popup is one of them
+                   spare, and it is the popup that also works on a phone. */}}
+              <details class="lastgame-pop" name="popup">
+                <summary class="lastgame">{{.LastPuzzle}}</summary>
+                <p class="lastgame-detail popup-panel">{{.LastPuzzleDate}}</p>
+              </details>
+            {{else}}
+              <span class="muted">—</span>
+            {{end}}
+          </td>
         </tr>
       {{end}}
     </tbody>

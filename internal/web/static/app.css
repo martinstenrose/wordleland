@@ -1100,6 +1100,24 @@ svg .player { fill: none; stroke: var(--acc); stroke-width: 1.75; stroke-linejoi
 .legend { display: flex; align-items: center; gap: 4px; }
 .cell.tiny { width: 20px; height: 20px; border-radius: 3px; font-size: .62rem; }
 
+/* The board's compact form strip: the same score cells as everywhere else,
+   sized down to fit a table column. */
+.last-five { display: flex; gap: 3px; list-style: none; margin: 0; padding: 0; }
+
+/* The last puzzle number opens its date on tap. .popup-panel (base.html)
+   supplies the floating shell; this only sizes the content, exactly as
+   .cell-popup and .trait-why do for their own popups. */
+.lastgame-pop { position: relative; display: inline-block; }
+.lastgame-pop > summary { list-style: none; cursor: pointer; font-variant-numeric: tabular-nums; }
+.lastgame-pop > summary::-webkit-details-marker { display: none; }
+.lastgame-detail {
+  width: max-content;
+  margin: 0;
+  padding: 6px 9px;
+  font-size: .72rem;
+  white-space: nowrap;
+}
+
 .grid-wrap { display: flex; align-items: stretch; min-width: 0; }
 .grid-rail {
   flex: 0 0 230px;

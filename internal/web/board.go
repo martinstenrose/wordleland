@@ -10,6 +10,7 @@ import (
 
 	"github.com/martinstenrose/wordleland/internal/stats"
 	"github.com/martinstenrose/wordleland/internal/store"
+	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
 // boardPage is what the board template renders.
@@ -63,6 +64,18 @@ type boardRow struct {
 	SparkPath template.HTML
 	HasSpark  bool
 	Href      string
+
+	// LastFive is the most recent five puzzles, oldest first, including
+	// today — a missed or not-yet-played one is unplayed rather than a
+	// score of its own.
+	LastFive []scoreCell
+
+	// LastPuzzle is the puzzle number of the player's most recent result,
+	// 0 when they have never played. Unlike LastFive it looks at the whole
+	// history, not just the last five days, so a lapsed player still shows
+	// their real last game rather than nothing.
+	LastPuzzle     int
+	LastPuzzleDate string
 
 	// Trait is earned from the figures, empty when nothing was. Why
 	// carries the reason, so a player can find out rather than guess.
@@ -189,7 +202,7 @@ func (s *Server) boardData(r *http.Request) (stats.Board, []store.Player, []stor
 
 // handleBoard renders the board, authenticated or shared.
 func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boardPath string, readOnly bool) {
-	board, _, _, query, err := s.boardData(r)
+	board, _, results, query, err := s.boardData(r)
 	if err != nil {
 		s.logger.Error("build board", "error", err)
 		s.renderError(w, r, http.StatusInternalServerError)
@@ -211,10 +224,10 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boa
 	traits := stats.NewTraiter(board)
 	var ranked, unranked []boardRow
 	for _, p := range board.Ranked {
-		ranked = append(ranked, s.newBoardRow(p, prefix, page.T, traits))
+		ranked = append(ranked, s.newBoardRow(p, prefix, page.T, traits, results, board.CurrentPuzzle))
 	}
 	for _, p := range board.Unranked {
-		unranked = append(unranked, s.newBoardRow(p, prefix, page.T, traits))
+		unranked = append(unranked, s.newBoardRow(p, prefix, page.T, traits, results, board.CurrentPuzzle))
 	}
 	page.Sort = parseBoardSort(r)
 	sortRows(ranked, page.Sort)
@@ -236,7 +249,10 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boa
 }
 
 // newBoardRow pre-formats one player.
-func (s *Server) newBoardRow(p stats.Player, prefix string, t translator, traits stats.Traiter) boardRow {
+func (s *Server) newBoardRow(p stats.Player, prefix string, t translator, traits stats.Traiter,
+	results []store.BoardResult, currentPuzzle int) boardRow {
+
+	cells := recentCells(p, results, currentPuzzle)
 	row := boardRow{
 		Player:      p,
 		AverageText: formatScore(p.Average),
@@ -245,6 +261,12 @@ func (s *Server) newBoardRow(p stats.Player, prefix string, t translator, traits
 		SparkPath:   template.HTML(sparkPath(p.Series, sparkWidth, sparkHeight)),
 		HasSpark:    hasSparkline(p.Series),
 		Href:        prefix + "/p/" + p.Slug,
+		LastFive:    cells[len(cells)-5:],
+	}
+
+	if p.LastPlayed != nil {
+		row.LastPuzzle = wordle.PuzzleForDate(*p.LastPlayed)
+		row.LastPuzzleDate = p.LastPlayed.Format(time.DateOnly)
 	}
 
 	if p.CurrentStreak > 0 {

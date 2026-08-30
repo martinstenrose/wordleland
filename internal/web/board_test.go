@@ -6,6 +6,7 @@ import (
 	"html"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -171,6 +172,63 @@ func TestUnrankedPlayersAreSeparatedWithAReason(t *testing.T) {
 		if !strings.Contains(body, reason) {
 			t.Errorf("reason %q is missing from the board", reason)
 		}
+	}
+}
+
+// Last five shows the last five calendar days, including today: a day the
+// player didn't reach is a gap, not a score.
+func TestLastFiveShowsGapsForUnplayedDays(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+	body := fetch(t, srv, "/share/"+slug+"/board").Body.String()
+
+	// "thin" only started three days before today, so one of the five most
+	// recent calendar days has no result.
+	thin := rowFor(t, body, "thin")
+	if got := strings.Count(thin, `class="cell gap tiny"`); got != 1 {
+		t.Errorf("thin's last five has %d gaps, want 1:\n%s", got, thin)
+	}
+	if got := strings.Count(thin, `class="cell t3 tiny"`); got != 4 {
+		t.Errorf("thin's last five has %d threes, want 4:\n%s", got, thin)
+	}
+
+	// "lapsed" hasn't played in the last five days at all.
+	lapsed := rowFor(t, body, "lapsed")
+	if got := strings.Count(lapsed, `class="cell gap tiny"`); got != 5 {
+		t.Errorf("lapsed's last five has %d gaps, want 5:\n%s", got, lapsed)
+	}
+}
+
+// Last game looks at the whole history, not just the last five or thirty
+// days, so a lapsed player still shows their real last game rather than
+// nothing.
+func TestLastGameShowsTheRealLastPuzzleEvenWhenLapsed(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+
+	current := wordle.PuzzleForDate(time.Now())
+	lastPuzzle := current - 170
+	date, err := wordle.DateForPuzzle(lastPuzzle)
+	if err != nil {
+		t.Fatalf("DateForPuzzle: %v", err)
+	}
+
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+	body := fetch(t, srv, "/share/"+slug+"/board").Body.String()
+
+	lapsed := rowFor(t, body, "lapsed")
+	if want := ">" + strconv.Itoa(lastPuzzle) + "<"; !strings.Contains(lapsed, want) {
+		t.Errorf("lapsed's last game does not show puzzle %d:\n%s", lastPuzzle, lapsed)
+	}
+	if want := date.Format(time.DateOnly); !strings.Contains(lapsed, want) {
+		t.Errorf("lapsed's last game does not show its date %s:\n%s", want, lapsed)
+	}
+	// It joins the page's one shared popup group (see base.html), the same
+	// as a trait's explanation or a recent-strip cell's detail.
+	if !strings.Contains(lapsed, `<details class="lastgame-pop" name="popup">`) {
+		t.Error("the last-game popup does not share name=\"popup\" with the rest of the page")
 	}
 }
 
