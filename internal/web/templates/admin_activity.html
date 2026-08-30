@@ -19,6 +19,7 @@
   </div>
 
   {{if .Rows}}
+    <div class="table-scroll">
     <ul class="activity">
       {{/* A header, because the actor column holds an email on one row and
            "matched automatically" on the next — without a label the two
@@ -40,6 +41,7 @@
         </li>
       {{end}}
     </ul>
+    </div>
     <p class="activity-foot muted small">{{.T.T "activity.showing" .Shown .Count}}</p>
   {{else}}
     <p class="empty">{{.T.T "activity.empty"}}</p>
