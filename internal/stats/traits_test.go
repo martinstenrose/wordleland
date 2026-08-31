@@ -9,7 +9,21 @@ import (
 func traitOf(t *testing.T, players []store.Player, results []store.BoardResult, slug string) string {
 	t.Helper()
 	board := Compute(players, results, DefaultOptions(today(t)))
-	return Trait(find(t, board, slug))
+	return NewTraiter(board).For(find(t, board, slug))
+}
+
+func hasTraitOf(t *testing.T, players []store.Player, results []store.BoardResult, slug, want string) bool {
+	t.Helper()
+	board := Compute(players, results, DefaultOptions(today(t)))
+	traits := NewTraiter(board)
+	p := find(t, board, slug)
+	for puzzle := board.CurrentPuzzle; puzzle < board.CurrentPuzzle+40; puzzle++ {
+		traits.currentPuzzle = puzzle
+		if traits.For(p) == want {
+			return true
+		}
+	}
+	return false
 }
 
 // State of play beats form: a trait about somebody's recent shape would
@@ -40,14 +54,14 @@ func TestTraitForHardModeAndStreaks(t *testing.T) {
 
 	// Hard mode throughout.
 	purist := run(1, 1861, 1900, 4, true)
-	if got := traitOf(t, players, purist, "alma"); got != TraitPurist {
-		t.Errorf("Trait() = %q, want %q", got, TraitPurist)
+	if !hasTraitOf(t, players, purist, "alma", TraitPurist) {
+		t.Errorf("%q never enters the trait rotation", TraitPurist)
 	}
 
 	// A long unbroken run in ordinary mode.
 	iron := run(1, 1851, 1900, 4, false)
-	if got := traitOf(t, players, iron, "alma"); got != TraitIronman {
-		t.Errorf("Trait() = %q, want %q", got, TraitIronman)
+	if !hasTraitOf(t, players, iron, "alma", TraitIronman) {
+		t.Errorf("%q never enters the trait rotation", TraitIronman)
 	}
 }
 
@@ -60,7 +74,7 @@ func TestSniperIgnoresOldFirstGuessSolves(t *testing.T) {
 	results := run(1, 1855, 1900, 4, false)
 	results = append(results, result(1, 1820, 1, false)) // long before the window
 
-	if got := traitOf(t, players, results, "alma"); got == TraitSniper {
+	if hasTraitOf(t, players, results, "alma", TraitSniper) {
 		t.Error("a first-guess solve from outside the window earned the label")
 	}
 }
@@ -74,8 +88,8 @@ func TestTraitForAFirstGuessSolve(t *testing.T) {
 	results = append(results, run(1, 1855, 1877, 4, false)...)
 	results = append(results, result(1, 1878, 1, false))
 
-	if got := traitOf(t, players, results, "alma"); got != TraitSniper {
-		t.Errorf("Trait() = %q, want %q", got, TraitSniper)
+	if !hasTraitOf(t, players, results, "alma", TraitSniper) {
+		t.Errorf("%q never enters the trait rotation", TraitSniper)
 	}
 }
 
@@ -107,11 +121,20 @@ func TestTraitSeparatesSteadyFromVolatile(t *testing.T) {
 
 	// Steadiness is a comparison, so the group is what it is measured
 	// against — a lone player is neither steady nor erratic.
-	if got := traits.For(steady); got != TraitMetronome {
-		t.Errorf("steady player = %q, want %q", got, TraitMetronome)
+	seen := func(p Player, want string) bool {
+		for puzzle := board.CurrentPuzzle; puzzle < board.CurrentPuzzle+40; puzzle++ {
+			traits.currentPuzzle = puzzle
+			if traits.For(p) == want {
+				return true
+			}
+		}
+		return false
 	}
-	if got := traits.For(wild); got != TraitWildcard {
-		t.Errorf("volatile player = %q, want %q", got, TraitWildcard)
+	if !seen(steady, TraitMetronome) {
+		t.Errorf("steady player never rotates to %q", TraitMetronome)
+	}
+	if !seen(wild, TraitWildcard) {
+		t.Errorf("volatile player never rotates to %q", TraitWildcard)
 	}
 	// The point of the pair: their averages match, so only spread can be
 	// telling them apart.
@@ -126,15 +149,15 @@ func TestTraitForFormSwings(t *testing.T) {
 	var climbing []store.BoardResult
 	climbing = append(climbing, run(1, 1841, 1870, 6, false)...)
 	climbing = append(climbing, run(1, 1871, 1900, 3, false)...)
-	if got := traitOf(t, players, climbing, "alma"); got != TraitClimbing {
-		t.Errorf("improving player = %q, want %q", got, TraitClimbing)
+	if !hasTraitOf(t, players, climbing, "alma", TraitClimbing) {
+		t.Errorf("improving player never rotates to %q", TraitClimbing)
 	}
 
 	var slipping []store.BoardResult
 	slipping = append(slipping, run(1, 1841, 1870, 3, false)...)
 	slipping = append(slipping, run(1, 1871, 1900, 6, false)...)
-	if got := traitOf(t, players, slipping, "alma"); got != TraitSlipping {
-		t.Errorf("declining player = %q, want %q", got, TraitSlipping)
+	if !hasTraitOf(t, players, slipping, "alma", TraitSlipping) {
+		t.Errorf("declining player never rotates to %q", TraitSlipping)
 	}
 }
 
@@ -151,6 +174,10 @@ func TestTraitIsEmptyWhenNothingIsEarned(t *testing.T) {
 		if p%9 == 0 {
 			continue // a gap, so no long streak
 		}
+		if p == 1865 {
+			results = append(results, result(1, p, 0, false))
+			continue
+		}
 		results = append(results, result(1, p, pattern[i%len(pattern)], false))
 	}
 
@@ -165,7 +192,9 @@ func TestEveryTraitConstantIsReachable(t *testing.T) {
 	all := []string{
 		TraitGhost, TraitNewcomer, TraitLapsed, TraitPurist, TraitIronman,
 		TraitSniper, TraitMetronome, TraitWildcard, TraitClimbing, TraitSlipping,
-		TraitCloser,
+		TraitCloser, TraitStreaker, TraitVeteran, TraitFlawless, TraitSpeedster,
+		TraitThreepeat, TraitFourish, TraitEscape, TraitSwitcher, TraitHotHand,
+		TraitCleanRun,
 	}
 	seen := map[string]bool{}
 	for _, n := range all {
@@ -176,6 +205,47 @@ func TestEveryTraitConstantIsReachable(t *testing.T) {
 	}
 	if len(seen) != len(all) {
 		t.Fatalf("got %d distinct keys from %d constants", len(seen), len(all))
+	}
+}
+
+func TestTraitRotatesAmongEarnedDescriptions(t *testing.T) {
+	p := Player{Player: player(1, "alma"), Games: 40, HardModeGames: 40, CurrentStreak: 30}
+	p.Distribution[3] = 40
+	p.Series = []float64{4, 4, 4, 4, 4, 4, 4, 4, 4, 4}
+
+	first := (Traiter{currentPuzzle: 1900}).For(p)
+	second := (Traiter{currentPuzzle: 1901}).For(p)
+	if first == second {
+		t.Fatalf("trait stayed %q across puzzles despite multiple earned descriptions", first)
+	}
+}
+
+func TestNewTraitRulesAreDrivenByPlayerFigures(t *testing.T) {
+	tests := []struct {
+		name   string
+		player Player
+		want   string
+	}{
+		{"veteran", Player{Games: 100, Distribution: [7]int{0, 0, 0, 70, 20, 0, 10}}, TraitVeteran},
+		{"speedster", Player{Games: 20, Distribution: [7]int{0, 5, 0, 5, 5, 5, 0}}, TraitSpeedster},
+		{"mode switcher", Player{Games: 20, HardModeGames: 10, Distribution: [7]int{0, 0, 0, 10, 5, 5, 0}}, TraitSwitcher},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.player.Player = player(0, "alma")
+			traits := Traiter{}
+			found := false
+			for puzzle := 0; puzzle < 40; puzzle++ {
+				traits.currentPuzzle = puzzle
+				if traits.For(tt.player) == tt.want {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("%q never enters the trait rotation", tt.want)
+			}
+		})
 	}
 }
 

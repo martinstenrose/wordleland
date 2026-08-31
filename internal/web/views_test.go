@@ -500,12 +500,13 @@ func TestTraitsAppearAndExplainThemselves(t *testing.T) {
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
-	// seedBoard's hard-mode regulars play it near-exclusively.
+	// seedBoard's hard-mode regulars have several earned descriptions. The
+	// one shown rotates with the puzzle, but it must always explain itself.
 	page := fetchAs(t, srv, "/share/"+slug+"/p/harda", nil).Body.String()
-	if !strings.Contains(page, "Purist") {
-		t.Error("a hard-mode regular has not earned their trait")
+	if !strings.Contains(page, `class="trait"`) {
+		t.Error("a regular with earned descriptions has no trait")
 	}
-	if !strings.Contains(page, "Plays hard mode almost every day") {
+	if !strings.Contains(page, `class="trait-why popup-panel"`) {
 		t.Error("the trait does not explain itself")
 	}
 
@@ -533,9 +534,13 @@ func TestNoTraitWhenNothingIsEarned(t *testing.T) {
 
 	// Ordinary spread, flat form, gaps so there is no streak to name.
 	current := currentPuzzle()
-	pattern := []int{3, 5, 4, 3, 6, 4, 2, 4, 5, 3}
+	pattern := []int{3, 4, 5, 3, 4, 5, 3, 4, 6, 3, 4, 5, 2, 4}
 	for i, puzzle := 0, current-40; puzzle <= current; i, puzzle = i+1, puzzle+1 {
-		if puzzle%9 == 0 {
+		if puzzle%6 == 0 {
+			continue
+		}
+		if puzzle == current-35 {
+			seedResult(t, srv, p.ID, puzzle, 0, false)
 			continue
 		}
 		seedResult(t, srv, p.ID, puzzle, pattern[i%len(pattern)], false)
@@ -544,7 +549,8 @@ func TestNoTraitWhenNothingIsEarned(t *testing.T) {
 
 	body := fetchAs(t, srv, "/share/"+slug+"/p/ordinary", nil).Body.String()
 	if strings.Contains(body, `class="trait"`) {
-		t.Error("a player who has earned nothing was given a trait anyway")
+		start := strings.Index(body, `class="trait"`)
+		t.Errorf("a player who has earned nothing was given a trait anyway: %.120s", body[start:])
 	}
 }
 
