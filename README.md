@@ -55,6 +55,13 @@ The database path and listen port are not configurable: always
 lives, and the port is invisible behind the proxy. The binary accepts
 `--db <path>` for running outside a container.
 
+For SMTP submission, use a relay endpoint that advertises STARTTLS (normally
+port 587). The Go SMTP client upgrades automatically when STARTTLS is offered;
+if a received message reports an unencrypted last hop, the configured relay
+did not offer it. Transactional account mail should also have open and click
+tracking disabled at the relay: injected tracking pixels add hidden content
+and an extra URL that commonly attract spam-filter rules.
+
 ### Signal bridge
 
 | Variable | Meaning |

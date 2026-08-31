@@ -66,12 +66,36 @@ func TestMailerSends(t *testing.T) {
 		"From: wordle@example.tld",
 		"To: martin@example.tld",
 		"Subject: Reset your password",
+		"Message-ID: <",
 		"Content-Type: text/plain; charset=utf-8",
+		"Content-Transfer-Encoding: 8bit",
 		"Follow this link.",
 	} {
 		if !strings.Contains(captured.Msg, want) {
 			t.Errorf("message is missing %q:\n%s", want, captured.Msg)
 		}
+	}
+}
+
+func TestMailerGeneratesUniqueMessageIDs(t *testing.T) {
+	first := string(buildMessage("Wordleland <wordle@example.tld>", "reader@example.tld", "One", "Body"))
+	second := string(buildMessage("Wordleland <wordle@example.tld>", "reader@example.tld", "Two", "Body"))
+	id := func(message string) string {
+		for _, line := range strings.Split(message, "\r\n") {
+			if strings.HasPrefix(line, "Message-ID: ") {
+				return strings.TrimPrefix(line, "Message-ID: ")
+			}
+		}
+		return ""
+	}
+	if id(first) == "" || id(second) == "" {
+		t.Fatal("a message is missing its Message-ID")
+	}
+	if id(first) == id(second) {
+		t.Errorf("two messages share Message-ID %q", id(first))
+	}
+	if !strings.HasSuffix(id(first), "@example.tld>") {
+		t.Errorf("Message-ID %q does not use the sender's domain", id(first))
 	}
 }
 

@@ -480,6 +480,7 @@ func TestResetEmailIsMultipartAndCarriesTheLink(t *testing.T) {
 	body := string(sent)
 	for _, want := range []string{
 		"multipart/alternative",
+		"Message-ID: <",
 		"Content-Type: text/plain",
 		"Content-Type: text/html",
 		"https://wordle.example.tld/reset-password?token=",
@@ -489,9 +490,28 @@ func TestResetEmailIsMultipartAndCarriesTheLink(t *testing.T) {
 			t.Errorf("the message is missing %q", want)
 		}
 	}
+	if got := strings.Count(body, "Content-Transfer-Encoding: 8bit"); got != 2 {
+		t.Errorf("8bit transfer-encoding declarations = %d, want one per text part", got)
+	}
 	// The link has to be in the text part too, not only inside an anchor.
 	text := body[strings.Index(body, "text/plain"):strings.Index(body, "text/html")]
 	if !strings.Contains(text, "https://wordle.example.tld/reset-password?token=") {
 		t.Error("the plain-text part has no link")
+	}
+	// One occurrence in each alternative. An odd count is suspicious to
+	// spam filters because multipart alternatives are expected to agree.
+	if got := strings.Count(body, "https://wordle.example.tld/reset-password?token="); got != 2 {
+		t.Errorf("reset-link occurrences = %d, want one in each of two alternatives", got)
+	}
+	// Hidden preheaders and zero-font table spacers resemble the techniques
+	// used to conceal spam. The layout relies on explicit cell dimensions
+	// instead, so none of these hiding declarations belongs in the message.
+	for _, hidden := range []string{
+		"font-size:0", "line-height:0", "display:none", "visibility:hidden",
+		"opacity:0", "mso-hide",
+	} {
+		if strings.Contains(body, hidden) {
+			t.Errorf("the message contains hidden-content styling %q", hidden)
+		}
 	}
 }
