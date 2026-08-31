@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/martinstenrose/wordleland/internal/bridge"
@@ -187,22 +186,6 @@ func detailNumber(detail map[string]any, key string) (int, bool) {
 		return n, err == nil
 	}
 	return 0, false
-}
-
-// maskIdentity hides most of an external identifier.
-//
-// The pending list shows who has not been claimed yet, and those are phone
-// numbers and chat handles belonging to people who may never join. Enough
-// is shown to tell two senders apart and no more.
-func maskIdentity(id string) string {
-	runes := []rune(strings.TrimSpace(id))
-	switch {
-	case len(runes) == 0:
-		return "—"
-	case len(runes) <= 4:
-		return strings.Repeat("•", len(runes))
-	}
-	return "••••" + string(runes[len(runes)-4:])
 }
 
 // sinceText renders how long ago something happened, coarsely.
