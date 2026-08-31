@@ -22,9 +22,19 @@
         <li class="pending-row">
           <div class="pending-head">
             <span class="chip dashed">{{.Source}}</span>
-            <span class="num">{{.Identity}}</span>
             <span class="muted small">{{.Seen}}</span>
           </div>
+
+          <dl class="pending-identity">
+            <div>
+              <dt>{{$page.T.T "pending.seenAs"}}</dt>
+              <dd>{{if .DisplayHint}}{{.DisplayHint}}{{else}}—{{end}}</dd>
+            </div>
+            <div>
+              <dt>{{$page.T.T "pending.externalID"}}</dt>
+              <dd class="num">{{.ExternalID}}</dd>
+            </div>
+          </dl>
 
           <p class="pending-snippet">{{.Snippet}}</p>
           {{if .Suggestion}}

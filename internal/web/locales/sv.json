@@ -468,6 +468,8 @@
   "pending.more.one": "och 1 till",
   "pending.more.other": "och %d till",
   "pending.seenBefore": "Postar under ett namn som matchar %s.",
+  "pending.seenAs": "Visas som",
+  "pending.externalID": "Externt ID",
   "pending.assignTo": "Koppla till en spelare",
   "pending.choosePlayer": "Välj en spelare…",
   "pending.assign": "Koppla",

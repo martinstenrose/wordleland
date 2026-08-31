@@ -1441,13 +1441,32 @@ a.activity-text:hover { color: var(--acc-lt); text-decoration: underline; }
 .pending-row { padding: 16px 22px; border-bottom: 1px solid var(--tx-06); }
 .pending-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .pending-head .chip { margin-left: 0; }
-/* The identity is an opaque id. Monospace so a glance can tell two of
-   them apart, and it never wraps mid-token. */
-.pending-head .num {
+.pending-head .muted { margin-left: auto; }
+.pending-identity { margin: 12px 0; }
+.pending-identity > div {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  margin-top: 5px;
+}
+.pending-identity dt {
+  font-size: .62rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--tx-42);
+}
+.pending-identity dd { margin: 0; color: var(--tx-80); overflow-wrap: anywhere; }
+/* The external identity is opaque. Monospace makes similar ids easier to
+   distinguish, while wrapping keeps the complete value visible on mobile. */
+.pending-identity .num {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px; color: var(--tx-55);
 }
-.pending-head .muted { margin-left: auto; }
+
+@media (max-width: 520px) {
+  .pending-identity > div { grid-template-columns: 1fr; gap: 2px; }
+}
 
 .pending-snippet {
   display: inline-block;

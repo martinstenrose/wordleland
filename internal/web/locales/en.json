@@ -468,6 +468,8 @@
   "pending.more.one": "and 1 more",
   "pending.more.other": "and %d more",
   "pending.seenBefore": "Posts as a name matching %s.",
+  "pending.seenAs": "Seen as",
+  "pending.externalID": "External ID",
   "pending.assignTo": "Assign to a player",
   "pending.choosePlayer": "Choose a player…",
   "pending.assign": "Assign",
