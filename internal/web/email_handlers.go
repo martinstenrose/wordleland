@@ -139,6 +139,18 @@ func (s *Server) handleResetPasswordForm(w http.ResponseWriter, r *http.Request)
 		s.renderReset(w, r, http.StatusBadRequest, resetPage{Invalid: true})
 		return
 	}
+	// Do the inexpensive lookup before asking for a new password. Showing a
+	// form that can never succeed wastes the reader's time and only reveals
+	// the expired or spent link after they have typed a password twice.
+	if err := store.ValidatePasswordResetToken(r.Context(), s.db, token); err != nil {
+		if errors.Is(err, store.ErrResetTokenInvalid) {
+			s.renderReset(w, r, http.StatusBadRequest, resetPage{Invalid: true})
+			return
+		}
+		s.logger.Error("validate reset token", "error", err)
+		s.renderError(w, r, http.StatusInternalServerError)
+		return
+	}
 	s.renderReset(w, r, http.StatusOK, resetPage{Token: token})
 }
 
