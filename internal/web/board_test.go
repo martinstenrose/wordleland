@@ -526,10 +526,13 @@ func seedResult(t *testing.T, srv *Server, playerID int64, puzzle, guesses int, 
 	if err != nil {
 		t.Fatalf("DateForPuzzle: %v", err)
 	}
-	g := guesses
+	var g *int
+	if guesses > 0 {
+		g = &guesses
+	}
 	if _, _, err := store.UpsertResult(context.Background(), srv.db, store.Result{
 		PuzzleNo: puzzle, Date: date, PlayerID: playerID,
-		Guesses: &g, Solved: guesses > 0, HardMode: hardMode,
+		Guesses: g, Solved: guesses > 0, HardMode: hardMode,
 	}, nil); err != nil {
 		t.Fatalf("UpsertResult: %v", err)
 	}
