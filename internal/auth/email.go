@@ -1,11 +1,14 @@
 package auth
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"net"
+	"net/mail"
 	"net/smtp"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -91,8 +94,10 @@ func buildMessage(from, to, subject, body string) []byte {
 	// coincidence that a later change could break.
 	fmt.Fprintf(&b, "Subject: %s\r\n", sanitizeHeader(subject))
 	fmt.Fprintf(&b, "Date: %s\r\n", time.Now().Format(time.RFC1123Z))
+	fmt.Fprintf(&b, "Message-ID: %s\r\n", messageID(from))
 	b.WriteString("MIME-Version: 1.0\r\n")
 	b.WriteString("Content-Type: text/plain; charset=utf-8\r\n")
+	b.WriteString("Content-Transfer-Encoding: 8bit\r\n")
 	b.WriteString("\r\n")
 	b.WriteString(body)
 	return []byte(b.String())
@@ -113,22 +118,48 @@ func buildMultipart(from, to, subject, text, html string) []byte {
 	fmt.Fprintf(&b, "To: %s\r\n", to)
 	fmt.Fprintf(&b, "Subject: %s\r\n", sanitizeHeader(subject))
 	fmt.Fprintf(&b, "Date: %s\r\n", time.Now().Format(time.RFC1123Z))
+	fmt.Fprintf(&b, "Message-ID: %s\r\n", messageID(from))
 	b.WriteString("MIME-Version: 1.0\r\n")
 	fmt.Fprintf(&b, "Content-Type: multipart/alternative; boundary=\"%s\"\r\n", boundary)
 	b.WriteString("\r\n")
 
 	fmt.Fprintf(&b, "--%s\r\n", boundary)
-	b.WriteString("Content-Type: text/plain; charset=utf-8\r\n\r\n")
+	b.WriteString("Content-Type: text/plain; charset=utf-8\r\n")
+	b.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
 	b.WriteString(text)
 	b.WriteString("\r\n")
 
 	fmt.Fprintf(&b, "--%s\r\n", boundary)
-	b.WriteString("Content-Type: text/html; charset=utf-8\r\n\r\n")
+	b.WriteString("Content-Type: text/html; charset=utf-8\r\n")
+	b.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
 	b.WriteString(html)
 	b.WriteString("\r\n")
 
 	fmt.Fprintf(&b, "--%s--\r\n", boundary)
 	return []byte(b.String())
+}
+
+var messageIDFallback atomic.Uint64
+
+// messageID gives each message an origin identifier before it reaches a
+// relay. Relays commonly add one, but relying on that leaves the submitted
+// message malformed and makes its spam score depend on relay behaviour.
+func messageID(from string) string {
+	domain := "localhost"
+	if address, err := mail.ParseAddress(from); err == nil {
+		if at := strings.LastIndexByte(address.Address, '@'); at >= 0 && at+1 < len(address.Address) {
+			domain = address.Address[at+1:]
+		}
+	}
+
+	var random [16]byte
+	if _, err := rand.Read(random[:]); err == nil {
+		return fmt.Sprintf("<%x@%s>", random, domain)
+	}
+	// Entropy failure should not prevent an account-security message from
+	// being sent. Time plus a process-local counter remains unique enough for
+	// the identifier's threading and deduplication purpose.
+	return fmt.Sprintf("<%d.%d@%s>", time.Now().UnixNano(), messageIDFallback.Add(1), domain)
 }
 
 // sanitizeHeader strips CR and LF from a header value.
