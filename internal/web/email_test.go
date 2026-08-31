@@ -204,12 +204,18 @@ func TestResetLinkIsSingleUse(t *testing.T) {
 	if rec := submit("a whole new password"); rec.Code != http.StatusSeeOther {
 		t.Fatalf("first use status = %d", rec.Code)
 	}
-	rec := submit("another new password")
+	req := httptest.NewRequest(http.MethodGet, "/reset-password?token="+token, nil)
+	req.RemoteAddr = clientAddr(t)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
-		t.Errorf("second use status = %d, want %d", rec.Code, http.StatusBadRequest)
+		t.Errorf("spent-link status = %d, want %d", rec.Code, http.StatusBadRequest)
 	}
 	if !strings.Contains(rec.Body.String(), "no longer valid") {
-		t.Error("the page does not explain the link is spent")
+		t.Error("the link does not explain that it is spent before showing the form")
+	}
+	if strings.Contains(rec.Body.String(), `name="password"`) {
+		t.Error("a spent link still shows the new-password form")
 	}
 }
 
@@ -348,7 +354,7 @@ func TestResetRejectsUnknownTokenBeforeHashing(t *testing.T) {
 		return "hash", nil
 	}
 
-	csrf, jar := getCSRF(t, srv, "/reset-password?token=not-a-token", nil)
+	csrf, jar := getCSRF(t, srv, "/", nil)
 	rec := postForm(t, srv, "/reset-password", url.Values{
 		"csrf_token": {csrf}, "token": {"not-a-token"},
 		"password": {"a whole new password"}, "password_confirm": {"a whole new password"},
@@ -377,15 +383,16 @@ func TestResetRefusesDisabledAccount(t *testing.T) {
 		t.Fatalf("SetUserDisabled() failed: %v", err)
 	}
 
-	const newPassword = "a whole new password"
-	csrf, jar = getCSRF(t, srv, "/reset-password?token="+token, nil)
-	rec := postForm(t, srv, "/reset-password", url.Values{
-		"csrf_token": {csrf}, "token": {token},
-		"password": {newPassword}, "password_confirm": {newPassword},
-	}, jar)
+	req := httptest.NewRequest(http.MethodGet, "/reset-password?token="+token, nil)
+	req.RemoteAddr = clientAddr(t)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("status = %d, want the link refused", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), `name="password"`) {
+		t.Error("a disabled account's reset link still shows the new-password form")
 	}
 }
 
