@@ -188,18 +188,26 @@ func detailNumber(detail map[string]any, key string) (int, bool) {
 	return 0, false
 }
 
-// sinceText renders how long ago something happened, coarsely.
+// sinceText renders when something happened relative to the local calendar.
 func sinceText(t translator, when time.Time, now time.Time) string {
-	days := int(now.Sub(when).Hours() / 24)
+	localWhen, localNow := when.Local(), now.Local()
+	whenDay := time.Date(localWhen.Year(), localWhen.Month(), localWhen.Day(), 0, 0, 0, 0, time.UTC)
+	nowDay := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), 0, 0, 0, 0, time.UTC)
+	days := int(nowDay.Sub(whenDay).Hours() / 24)
+	clock := localWhen.Format("15:04:05 -07:00")
 	switch {
-	case days <= 0:
+	case days < -1:
+		return t.TN("activity.inDays", -days)
+	case days == -1:
+		return t.T("activity.tomorrowAt", clock)
+	case days == 0:
 		// The clock time, not just "today". On a page whose question is
 		// whether results are still arriving, a whole day is the wrong
 		// resolution: "today" is true at one minute past midnight and at
 		// eleven at night, and only one of those is reassuring.
-		return t.T("activity.todayAt", when.Local().Format("15:04:05 -07:00"))
+		return t.T("activity.todayAt", clock)
 	case days == 1:
-		return t.T("activity.yesterdayAt", when.Local().Format("15:04:05 -07:00"))
+		return t.T("activity.yesterdayAt", clock)
 	default:
 		return t.TN("activity.daysAgo", days)
 	}
