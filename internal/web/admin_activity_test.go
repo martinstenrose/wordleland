@@ -12,6 +12,7 @@ import (
 func TestSinceTextIncludesUTCOffset(t *testing.T) {
 	tr := translator{strings: catalogue{
 		"activity.todayAt":     "today at %s",
+		"activity.tomorrowAt":  "tomorrow at %s",
 		"activity.yesterdayAt": "yesterday at %s",
 	}}
 	now := time.Now()
@@ -23,6 +24,40 @@ func TestSinceTextIncludesUTCOffset(t *testing.T) {
 	}
 	if got := sinceText(tr, now.Add(-25*time.Hour), now); !timestampPattern.MatchString(got) {
 		t.Errorf("yesterday's rendering does not include seconds and a UTC offset: %q", got)
+	}
+}
+
+func TestSinceTextDoesNotCallTomorrowToday(t *testing.T) {
+	tr := translator{strings: catalogue{
+		"activity.todayAt":    "today at %s",
+		"activity.tomorrowAt": "tomorrow at %s",
+	}}
+	zone := time.FixedZone("CEST", 2*60*60)
+	oldLocal := time.Local
+	time.Local = zone
+	t.Cleanup(func() { time.Local = oldLocal })
+	now := time.Date(2026, time.August, 31, 23, 0, 0, 0, zone)
+	tomorrow := time.Date(2026, time.September, 1, 20, 50, 36, 0, zone)
+
+	if got, want := sinceText(tr, tomorrow, now), "tomorrow at 20:50:36 +02:00"; got != want {
+		t.Errorf("sinceText() = %q, want %q", got, want)
+	}
+}
+
+func TestSinceTextUsesCalendarDaysAcrossMidnight(t *testing.T) {
+	tr := translator{strings: catalogue{
+		"activity.todayAt":     "today at %s",
+		"activity.yesterdayAt": "yesterday at %s",
+	}}
+	zone := time.FixedZone("CEST", 2*60*60)
+	oldLocal := time.Local
+	time.Local = zone
+	t.Cleanup(func() { time.Local = oldLocal })
+	now := time.Date(2026, time.September, 1, 0, 5, 0, 0, zone)
+	yesterday := time.Date(2026, time.August, 31, 23, 55, 0, 0, zone)
+
+	if got, want := sinceText(tr, yesterday, now), "yesterday at 23:55:00 +02:00"; got != want {
+		t.Errorf("sinceText() = %q, want %q", got, want)
 	}
 }
 
