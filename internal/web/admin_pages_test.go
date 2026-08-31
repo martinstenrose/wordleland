@@ -155,6 +155,21 @@ func TestPendingAssignReplaysHeldResults(t *testing.T) {
 	}
 }
 
+func TestPendingShowsSenderIdentityInFull(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+	const externalID = "68f75570-0d6f-4f9b-b296-70dd47c9cbe9"
+	holdPending(t, srv, externalID, "Martin in Signal", 1400, 4)
+
+	body := fetchAs(t, srv, "/admin/pending", session).Body.String()
+	for _, want := range []string{"Seen as", "Martin in Signal", "External ID", externalID} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the pending page does not show %q", want)
+		}
+	}
+}
+
 // Discarding drops the held results and leaves no scores behind.
 func TestPendingDiscardDropsHeldResults(t *testing.T) {
 	srv := testServer(t)

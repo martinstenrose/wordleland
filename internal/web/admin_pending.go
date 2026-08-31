@@ -13,9 +13,9 @@ import (
 
 // pendingRow is one unmatched sender awaiting assignment.
 type pendingRow struct {
-	Source     string
-	ExternalID string
-	Identity   string
+	Source      string
+	ExternalID  string
+	DisplayHint string
 
 	// Snippet is the held results as plain text — the line the message
 	// carried, not a grid of squares.
@@ -73,11 +73,11 @@ func (s *Server) handleAdminPending(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	for _, sender := range senders {
 		row := pendingRow{
-			Source:     sender.Source,
-			ExternalID: sender.ExternalID,
-			Identity:   maskIdentity(sender.ExternalID),
-			Count:      sender.Count,
-			Seen:       sinceText(page.T, sender.LastSeen, now),
+			Source:      sender.Source,
+			ExternalID:  sender.ExternalID,
+			DisplayHint: sender.DisplayHint,
+			Count:       sender.Count,
+			Seen:        sinceText(page.T, sender.LastSeen, now),
 		}
 
 		held, _, err := store.PendingResultsFor(r.Context(), s.db, sender.Source, sender.ExternalID)
