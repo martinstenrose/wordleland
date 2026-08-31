@@ -526,6 +526,33 @@ func TestLogout(t *testing.T) {
 	}
 }
 
+// Loading another page must not invalidate a form that is already open.
+// Rotating the double-submit cookie on every GET made logout intermittently
+// fail from another tab, browser history, or overlapping page requests.
+func TestLogoutSurvivesAnotherPageLoad(t *testing.T) {
+	srv := testServer(t)
+	user := seedLogin(t, srv, "martin@example.tld", false)
+
+	_, cookies := login(t, srv, "martin@example.tld", testPassword)
+	firstToken, cookies := getCSRF(t, srv, landingPath, cookies)
+	secondToken, cookies := getCSRF(t, srv, "/leaderboard", cookies)
+	if firstToken != secondToken {
+		t.Fatal("loading another page replaced the browser session's CSRF token")
+	}
+
+	rec := postForm(t, srv, "/logout", url.Values{"csrf_token": {firstToken}}, cookies)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("logout with the first page's token = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	var count int
+	if err := srv.db.QueryRow(`SELECT COUNT(*) FROM sessions WHERE user_id = ?`, user.ID).Scan(&count); err != nil {
+		t.Fatalf("count sessions: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("sessions = %d after logout, want 0", count)
+	}
+}
+
 func TestLogoutRequiresCSRF(t *testing.T) {
 	srv := testServer(t)
 	user := seedLogin(t, srv, "martin@example.tld", false)

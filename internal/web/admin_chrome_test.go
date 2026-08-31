@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-// selfLink matches the picker links that carry the current path, and
-// csrfValue the sign-out form's token. Both are meant to vary per request.
+// selfLink matches the picker links that carry the current path. csrfValue
+// masks tokens where these isolated requests do not carry a browser cookie.
 var (
 	selfLink  = regexp.MustCompile(`href="[^"?]*\?(theme=|lang=)`)
 	csrfValue = regexp.MustCompile(`name="csrf_token" value="[^"]*"`)
@@ -180,7 +180,7 @@ func TestTopBarIsIdenticalOnEveryPage(t *testing.T) {
 		// Three things are meant to differ: which view is marked current,
 		// the theme and language links, which point back at the page you
 		// are on so switching keeps you there, and the sign-out form's
-		// CSRF token, which is per request.
+		// CSRF token: these isolated requests do not share a cookie jar.
 		bar = strings.ReplaceAll(bar, " on", "")
 		bar = strings.ReplaceAll(bar, ` aria-current="page"`, "")
 		bar = selfLink.ReplaceAllString(bar, `href="?$1`)
