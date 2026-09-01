@@ -96,11 +96,12 @@ send failed, the next live Wordle result retries the announcement. Results
 before noon do not trigger it, and a stored record makes every check a no-op
 once the month has been announced, so a restart or replay does not repost it.
 Explicitly labeled Archive shares and older back-dated results are ignored
-and cannot trigger the fallback. Nothing is sent for a month nobody reached
-the minimum games in: the board already says so for anyone who looks, and an
-unprompted "nobody qualified" message reads as the bot scolding a quiet month.
-This is the only place the app states a real display name outside the board
-itself, worth knowing before turning it on for a group that would mind.
+and cannot trigger the fallback. Nothing is sent for a month with no results
+in it at all: the board already says so for anyone who looks, and an
+unprompted "no scores to rank" message reads as the bot scolding a quiet
+month. This is the only place the app states a real display name outside the
+board itself, worth knowing before turning it on for a group that would
+mind.
 
 ### Set `TRUSTED_PROXIES`
 
