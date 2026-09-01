@@ -470,9 +470,9 @@ const (
 
 // buildMonthRanks finds a player's placing in each month they were ranked.
 //
-// Months where they did not reach the ten-game minimum are skipped rather
-// than plotted as a gap: there was no rank to have, and drawing one would
-// invent a placing.
+// Months with no score under the selected rules are skipped rather than
+// plotted as a gap: there was no rank to have, and drawing one would invent
+// a placing.
 func buildMonthRanks(months []stats.Month, playerID int64, t translator) ([]monthRank, string) {
 	var points []monthRank
 	for i := len(months) - 1; i >= 0; i-- {

@@ -160,7 +160,7 @@ func TestCalloutsAreOmittedWhenNothingIsRemarkable(t *testing.T) {
 	}
 }
 
-func TestMonthsRanksAndSeparatesThinPlayers(t *testing.T) {
+func TestMonthsRanksPlayers(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -182,6 +182,19 @@ func TestMonthsRanksAndSeparatesThinPlayers(t *testing.T) {
 	// normalb scores 2s throughout and must win the current month.
 	if !strings.Contains(body, "Normalb") {
 		t.Error("the month winner is missing")
+	}
+	start := strings.Index(body, `class="board months-table"`)
+	if start < 0 {
+		t.Fatal("the ranked month table is missing")
+	}
+	table := body[start:]
+	if end := strings.Index(table, "</table>"); end >= 0 {
+		table = table[:end]
+	}
+	// Thin has fewer than ten games. That still excludes them on the main
+	// board, but the monthly view now ranks every scorable appearance.
+	if !strings.Contains(table, "/p/thin") {
+		t.Error("a player below ten games is missing from the monthly ranking")
 	}
 }
 
@@ -1120,8 +1133,8 @@ func TestMonthsKickerStatesTheScoringRule(t *testing.T) {
 	if !strings.Contains(body, clause) {
 		t.Errorf("the kicker does not say %q, though the average counts them", clause)
 	}
-	if want := "10 puzzles minimum"; !strings.Contains(body, want) {
-		t.Errorf("the kicker does not say %q", want)
+	if unwanted := "puzzles minimum"; strings.Contains(body, unwanted) {
+		t.Errorf("the kicker still contains the removed monthly minimum: %q", unwanted)
 	}
 
 	plain := fetchAs(t, srv, "/share/"+slug+"/months?failed=0", nil).Body.String()

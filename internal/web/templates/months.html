@@ -6,7 +6,7 @@
   <div class="card-head">
     <div>
       <h1>{{.T.T "months.title"}}</h1>
-      <p class="kicker">{{.T.T "months.rule" .MinGames}}{{if .Query.CountXAsSeven}} · {{.T.T "months.rule.missed"}}{{end}}</p>
+      <p class="kicker">{{.T.T "months.rule"}}{{if .Query.CountXAsSeven}} · {{.T.T "months.rule.missed"}}{{end}}</p>
     </div>
     {{if .Range}}<p class="kicker">{{.Range}}</p>{{end}}
   </div>

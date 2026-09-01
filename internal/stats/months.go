@@ -14,8 +14,9 @@ type MonthPlayer struct {
 	store.Player
 
 	Games int
-	// Average is nil below MinGames: the same suppression the board applies,
-	// for the same reason.
+	// Average is nil only when the selected scoring rules leave no result
+	// with a value, for example a month containing only failures while
+	// failures-as-seven is disabled.
 	Average *float64
 
 	// ThreeOrBetter counts solves in three guesses or fewer.
@@ -37,13 +38,13 @@ type Month struct {
 	Year  int
 	Month time.Month
 
-	First, Last int // puzzle numbers covered
-	Days        int // distinct puzzles anybody played
+	First, Last int // puzzle numbers covered by the monthly scoring span
+	Days        int // concluded calendar puzzles, plus today once played
 
 	GroupAverage *float64
 
-	// Ranked is ordered by average ascending; Thin holds those who played
-	// but did not reach MinGames.
+	// Ranked is ordered by average ascending; Thin holds those whose results
+	// have no value under the selected scoring rules.
 	Ranked []MonthPlayer
 	Thin   []MonthPlayer
 
@@ -108,12 +109,24 @@ func buildMonth(year int, month time.Month, rows []store.BoardResult,
 
 	m := Month{Year: year, Month: month}
 
+	// The monthly competition starts on the calendar month's first puzzle.
 	// Today's puzzle is still in progress: a player who hasn't posted yet
 	// may still play it correctly, so it cannot be scored as missed until
-	// the day is over. concludedPuzzles excludes it from the denominator
-	// below; a player who has already played it gets their real score
-	// regardless, through the ordinary value(r, opts) path.
+	// the day is over. A player who has already played it gets their real
+	// score regardless, through the ordinary value(r, opts) path.
+	// firstPuzzle and monthEndPuzzle bound the month in puzzle-number space,
+	// the same space wordle.PuzzleForDate normalizes every other day into;
+	// comparing puzzle numbers here (rather than a second, hand-built
+	// today/monthStart pair of time.Time values) keeps this function from
+	// growing its own, possibly divergent, notion of a calendar day.
+	monthStart := time.Date(year, month, 1, 0, 0, 0, 0, opts.Now.Location())
+	monthEnd := monthStart.AddDate(0, 1, 0)
+	firstPuzzle := wordle.PuzzleForDate(monthStart)
+	monthEndPuzzle := wordle.PuzzleForDate(monthEnd)
 	current := wordle.PuzzleForDate(opts.Now)
+
+	concludedThrough := max(min(current, monthEndPuzzle), firstPuzzle)
+	concludedPuzzles := concludedThrough - firstPuzzle
 
 	perPlayer := make(map[int64][]store.BoardResult)
 	puzzles := make(map[int]bool)
@@ -131,17 +144,20 @@ func buildMonth(year int, month time.Month, rows []store.BoardResult,
 			group.add(v)
 		}
 	}
-	m.Days = len(puzzles)
+	// Completed calendar days form the common denominator. Include today in
+	// the displayed span only after somebody has posted it; unplayed today
+	// is neither a score nor a miss yet.
+	m.Days = concludedPuzzles
+	if puzzles[current] && current >= firstPuzzle && current < monthEndPuzzle {
+		m.Days++
+	}
+	if m.Days > 0 {
+		m.First = firstPuzzle
+		m.Last = firstPuzzle + m.Days - 1
+	}
 	if group.count > 0 {
 		avg := group.mean()
 		m.GroupAverage = &avg
-	}
-
-	concludedPuzzles := 0
-	for puzzle := range puzzles {
-		if puzzle < current {
-			concludedPuzzles++
-		}
 	}
 
 	for id, history := range perPlayer {
@@ -172,10 +188,10 @@ func buildMonth(year int, month time.Month, rows []store.BoardResult,
 		// absences is a way of looking at it. Here the window is the month
 		// and everybody had the same one.
 		//
-		// The denominator is the days the group played, not the calendar:
-		// a day nobody posted is not a day anybody missed. It follows
-		// CountXAsSeven, because with a failure scored as nothing there is
-		// no number an absence could take either.
+		// The denominator is every concluded calendar day in the month,
+		// whether or not somebody else posted it. It follows CountXAsSeven,
+		// because with a failure scored as nothing there is no number an
+		// absence could take either.
 		//
 		// It is also bounded to concludedPuzzles, not puzzles: today isn't
 		// missed until it's over, even if somebody else has already played
@@ -183,7 +199,7 @@ func buildMonth(year int, month time.Month, rows []store.BoardResult,
 		if opts.CountXAsSeven {
 			playedConcluded := 0
 			for _, r := range history {
-				if r.PuzzleNo < current {
+				if r.PuzzleNo >= firstPuzzle && r.PuzzleNo < concludedThrough {
 					playedConcluded++
 				}
 			}
@@ -192,7 +208,7 @@ func buildMonth(year int, month time.Month, rows []store.BoardResult,
 			}
 		}
 
-		if mp.Games >= MinGames && acc.count > 0 {
+		if acc.count > 0 {
 			avg := acc.mean()
 			mp.Average = &avg
 		}
@@ -306,8 +322,8 @@ type SeasonRow struct {
 	BestYear  int
 	BestMonth time.Month
 
-	// Ranked counts the months they reached the minimum in, which breaks
-	// ties between players with the same wins and podiums.
+	// Ranked counts the months in which they had a rank, which breaks ties
+	// between players with the same wins and podiums.
 	Ranked int
 
 	Marks []SeasonMark
@@ -322,9 +338,10 @@ type Season struct {
 
 // ComputeSeason totals the monthly results.
 //
-// Ordered by wins, then by how many months they were ranked in at all, then
-// by name — so a player who won twice from three months sits above one who
-// won twice from twelve, and ties do not shuffle between page loads.
+// Ordered by wins, then podiums, then by how many months they were ranked
+// in at all, then by their best month average, then by name — so a player
+// who won twice from three months sits above one who won twice from
+// twelve, and ties do not shuffle between page loads.
 func ComputeSeason(months []Month, now time.Time) Season {
 	season := Season{Months: months}
 
@@ -391,7 +408,8 @@ func ComputeSeason(months []Month, now time.Time) Season {
 		season.Rows = append(season.Rows, row)
 	}
 
-	// Wins first, then podiums, then the best month anybody managed. A
+	// Wins first, then podiums, then months ranked (the tiebreak
+	// SeasonRow.Ranked documents), then the best month anybody managed. A
 	// player who won twice from three months sits above one who won twice
 	// from twelve, and ties do not shuffle between page loads.
 	sort.Slice(season.Rows, func(i, j int) bool {
@@ -401,6 +419,8 @@ func ComputeSeason(months []Month, now time.Time) Season {
 			return a.Wins > b.Wins
 		case a.Podiums != b.Podiums:
 			return a.Podiums > b.Podiums
+		case a.Ranked != b.Ranked:
+			return a.Ranked > b.Ranked
 		case a.Best != nil && b.Best != nil && *a.Best != *b.Best:
 			return *a.Best < *b.Best
 		case (a.Best == nil) != (b.Best == nil):
