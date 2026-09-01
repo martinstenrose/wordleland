@@ -45,6 +45,13 @@ type capture struct {
 // order, with a clock fixed to a known puzzle and no real sleeping.
 func testFiler(t *testing.T, replies ...reply) (*filer, *capture) {
 	t.Helper()
+	return testFilerAtLevel(t, slog.LevelDebug, replies...)
+}
+
+// testFilerAtLevel is testFiler with the handler's level exposed, so a test
+// can prove what a given level does and does not surface.
+func testFilerAtLevel(t *testing.T, level slog.Level, replies ...reply) (*filer, *capture) {
+	t.Helper()
 
 	cap := &capture{logs: &bytes.Buffer{}}
 	var calls atomic.Int32
@@ -65,7 +72,7 @@ func testFiler(t *testing.T, replies ...reply) (*filer, *capture) {
 		return r.status, r.err
 	}
 
-	logger := slog.New(slog.NewTextHandler(cap.logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	logger := slog.New(slog.NewTextHandler(cap.logs, &slog.HandlerOptions{Level: level}))
 	f := newFiler(testGroupID, deliver, nil, logger, nil)
 
 	// A fixed "today" so the back-dating window is deterministic.
@@ -677,5 +684,75 @@ func TestAnnouncerContextCarriesADeadline(t *testing.T) {
 
 	if !hadDeadline {
 		t.Error("the announcer's context had no deadline")
+	}
+}
+
+// The regression test for the gap this whole change closes: a filed result
+// used to log only at debug, which in production is never on, so a working
+// bridge and a silently broken one produced an identical log stream.
+func TestFiledResultLogsAtInfo(t *testing.T) {
+	f, cap := testFilerAtLevel(t, slog.LevelInfo, filed)
+
+	f.handle(context.Background(), msg("Wordle 1 891 3/6"))
+
+	if !strings.Contains(cap.log(), "filed a result") {
+		t.Errorf("a filed result was not visible at info:\n%s", cap.log())
+	}
+}
+
+// The single most valuable line the debug level adds: telling "wrong group
+// configured" apart from "receiving nothing at all", by naming both ids.
+func TestWrongGroupLogsBothIDsAtDebug(t *testing.T) {
+	f, cap := testFiler(t)
+	const otherGroup = "b3RoZXItZ3JvdXAtaWQtdmFsdWU="
+
+	m := msg("Wordle 1 891 3/6")
+	m.GroupID = otherGroup
+	f.handle(context.Background(), m)
+
+	log := cap.log()
+	if !strings.Contains(log, otherGroup) {
+		t.Errorf("log does not name the received group:\n%s", log)
+	}
+	if !strings.Contains(log, testGroupID) {
+		t.Errorf("log does not name the configured group:\n%s", log)
+	}
+}
+
+// An unparsed message must log that something arrived and how long it was,
+// never the text itself — the difference between "quiet group" and "parser
+// broken" without recording anyone's conversation.
+func TestUnparsedMessageLogsShapeNotText(t *testing.T) {
+	f, cap := testFiler(t)
+	const body = "the quick brown fox jumps over the lazy dog, definitely not a wordle result"
+
+	f.handle(context.Background(), msg(body))
+
+	log := cap.log()
+	if strings.Contains(log, body) {
+		t.Errorf("log carries the message text:\n%s", log)
+	}
+	if !strings.Contains(log, "did not parse") {
+		t.Errorf("log does not say a message was dropped:\n%s", log)
+	}
+}
+
+// At info and above, nothing in this package names a sender or carries a
+// message body — those are debug-only. Exercised across the group-mismatch
+// and unparsed-message paths, the two new debug lines this change adds.
+func TestInfoLevelCarriesNoSenderOrBody(t *testing.T) {
+	f, cap := testFilerAtLevel(t, slog.LevelInfo, filed)
+	const body = "not a result and unmistakably so, seventeen thousand ducks"
+
+	wrongGroup := msg("Wordle 1 891 3/6")
+	wrongGroup.GroupID = "b3RoZXItZ3JvdXAtaWQtdmFsdWU="
+	f.handle(context.Background(), wrongGroup)
+	f.handle(context.Background(), msg(body))
+
+	log := cap.log()
+	for _, secret := range []string{testUUID, testName, body} {
+		if strings.Contains(log, secret) {
+			t.Errorf("info-level log leaks %q:\n%s", secret, log)
+		}
 	}
 }

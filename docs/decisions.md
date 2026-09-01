@@ -604,3 +604,30 @@ would need no per-site action at all, but would blind CodeQL to a genuine
 log-injection bug anywhere in the repository, including code that does not
 yet exist — a future log line built with `fmt.Sprintf` instead of an `slog`
 attribute, say, which this same query would be right to flag.
+
+## Logging
+
+**A filed result logs at info, not debug.** Diagnostics answers "what is the
+bridge doing right now," for someone with a browser open; `LOG_LEVEL` is for
+someone with neither, at a terminal on the box. A misconfigured bridge once
+ran silently for eight hours before either the group or the results were
+missed. At debug, the same silence is not distinguishable from a bridge that
+was never running at all — nothing in the log says whether it is quiet or
+dead. Info is what makes the two tell apart: a working bridge produces a line
+per result, so a stream with nothing in it for hours is itself the evidence
+something is wrong, without anyone having had to switch anything on first.
+
+**What may be logged, and at which level, follows the trust boundary
+"Identity and ingest" above already draws.** The sender's account UUID and
+current display name may appear at debug — both are already persisted to
+`player_identities` and `pending_results`, so a debug line names nobody the
+database does not already name. The phone number never appears, at any
+level including debug: the schema deliberately never stores it either,
+because unlike the UUID it identifies a person outside the app and does not
+survive a number change. And a message's text is never logged, debug
+included — not because it is sensitive in the way a phone number is, but
+because it is somebody else's conversation, sent to a Signal group and not
+to this application; signal-cli-rest-api's own container log already carries
+the full envelope for as long as that container lives, and that is the
+right place for it to exist, not a second copy with a different lifetime and
+a different set of hands with access to it.

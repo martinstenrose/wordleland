@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/mail"
 	"net/url"
@@ -76,6 +77,10 @@ type Config struct {
 	// cmd/wordleland, which purges on a schedule rather than at the moment a
 	// result crosses the boundary.
 	PendingRetention time.Duration
+
+	// LogLevel controls verbosity, from LOG_LEVEL. Info by default; Debug is
+	// a troubleshooting setting, not a normal one — see README.md.
+	LogLevel slog.Level
 
 	// AdminEmail and AdminPassword create the first administrator on a
 	// fresh database, so a new deployment does not require running the CLI
@@ -145,6 +150,12 @@ func Load(dbPath string) (*Config, error) {
 	cfg.AdminPassword = os.Getenv("ADMIN_PASSWORD")
 	problems = append(problems, checkBootstrap(cfg.AdminEmail, cfg.AdminPassword)...)
 
+	level, err := parseLogLevel(os.Getenv("LOG_LEVEL"))
+	if err != nil {
+		problems = append(problems, "LOG_LEVEL: "+err.Error())
+	}
+	cfg.LogLevel = level
+
 	if raw := strings.TrimSpace(os.Getenv("PENDING_RETENTION")); raw != "" {
 		d, err := time.ParseDuration(raw)
 		switch {
@@ -191,6 +202,28 @@ func parseDemoMode(raw string) (bool, error) {
 // bare checkout fail for a reason that has nothing to do with demo mode.
 func DemoMode() (bool, error) {
 	return parseDemoMode(os.Getenv("DEMO_MODE"))
+}
+
+// validLogLevels names the accepted values, in the error message and
+// nowhere else — an unrecognised value must say what would have worked
+// rather than fall back to a default, since a typo that silently disables
+// logging is the one failure mode this variable exists to prevent.
+var validLogLevels = map[string]slog.Level{
+	"debug": slog.LevelDebug,
+	"info":  slog.LevelInfo,
+	"warn":  slog.LevelWarn,
+	"error": slog.LevelError,
+}
+
+func parseLogLevel(raw string) (slog.Level, error) {
+	raw = strings.ToLower(strings.TrimSpace(raw))
+	if raw == "" {
+		return slog.LevelInfo, nil
+	}
+	if level, ok := validLogLevels[raw]; ok {
+		return level, nil
+	}
+	return 0, fmt.Errorf("must be one of debug, info, warn, error; got %q", raw)
 }
 
 func loadTOTPKey(raw string) ([]byte, error) {

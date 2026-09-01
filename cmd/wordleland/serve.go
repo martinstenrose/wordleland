@@ -21,6 +21,7 @@ import (
 	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/ingest"
 	"github.com/martinstenrose/wordleland/internal/store"
+	"github.com/martinstenrose/wordleland/internal/version"
 	"github.com/martinstenrose/wordleland/internal/web"
 )
 
@@ -86,9 +87,9 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 		health.Run("http://127.0.0.1" + config.ListenAddr + "/healthz")
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	slog.SetDefault(logger)
-
+	// Read before the logger exists: an unrecognised LOG_LEVEL is a startup
+	// error like any other bad variable, and the level it names is what the
+	// logger itself must be built with.
 	cfg, err := config.Load(dbPath)
 	if err != nil {
 		return err
@@ -97,6 +98,18 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 	if err != nil {
 		return err
 	}
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel}))
+	slog.SetDefault(logger)
+	// Stamped first, because a log scrolled back to days ago cannot say
+	// which binary produced it otherwise — precisely the confusion
+	// internal/version exists to end. "wordleland version" answers "which
+	// build" on demand; this stamps the log stream with it instead.
+	logger.Info("wordleland starting",
+		"version", version.String(),
+		"log_level", cfg.LogLevel.String(),
+		"bridge_enabled", bridgeCfg != nil,
+	)
 
 	db, err := store.Open(ctx, cfg.DBPath)
 	if err != nil {

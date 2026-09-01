@@ -1,8 +1,10 @@
 package bridge
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 	"testing"
 )
@@ -71,11 +73,23 @@ func syncEnvelope(body, groupID string) string {
 
 func decodeEnvelope(t *testing.T, raw string) (Message, bool) {
 	t.Helper()
+	msg, ok, _ := decodeEnvelopeLogged(t, raw)
+	return msg, ok
+}
+
+// decodeEnvelopeLogged is decodeEnvelope with the debug output a test can
+// inspect, for the tests that care what got logged rather than only what
+// got extracted.
+func decodeEnvelopeLogged(t *testing.T, raw string) (Message, bool, string) {
+	t.Helper()
 	var env envelope
 	if err := json.Unmarshal([]byte(raw), &env); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	return env.message()
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	msg, ok := env.message(logger)
+	return msg, ok, logs.String()
 }
 
 func TestEnvelopeExtraction(t *testing.T) {
@@ -216,5 +230,28 @@ func TestUnknownFieldsAreIgnored(t *testing.T) {
 	}
 	if msg.Body != "hi" {
 		t.Errorf("Body = %q", msg.Body)
+	}
+}
+
+// Most of the traffic on a busy account is receipts, typing indicators,
+// reactions and DMs, silently dropped before this change. Debug is what
+// makes that traffic visible as traffic rather than nothing happening.
+func TestNonGroupMessagesLogAtDebug(t *testing.T) {
+	tests := map[string]string{
+		"receipt":          `{"envelope":{"sourceUuid":"x","receiptMessage":{"when":1}}}`,
+		"DM, no group":     `{"envelope":{"sourceUuid":"x","dataMessage":{"message":"hello"}}}`,
+		"empty group body": dataEnvelope("", testGroupID),
+	}
+
+	for name, raw := range tests {
+		t.Run(name, func(t *testing.T) {
+			_, ok, log := decodeEnvelopeLogged(t, raw)
+			if ok {
+				t.Fatal("expected the frame to be dropped")
+			}
+			if log == "" {
+				t.Error("a dropped frame logged nothing at debug")
+			}
+		})
 	}
 }

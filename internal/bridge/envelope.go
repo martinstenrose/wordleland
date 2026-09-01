@@ -1,6 +1,9 @@
 package bridge
 
-import "strings"
+import (
+	"log/slog"
+	"strings"
+)
 
 // redacted accepts a JSON value and discards it.
 //
@@ -93,12 +96,17 @@ type Message struct {
 // Receipts, typing indicators, read markers and everything else that is not
 // a message simply have neither field set, which is the common case on a
 // busy account.
-func (e envelope) message() (Message, bool) {
+func (e envelope) message(logger *slog.Logger) (Message, bool) {
 	body := e.Envelope.DataMessage
 	if body == nil && e.Envelope.SyncMessage != nil {
 		body = e.Envelope.SyncMessage.SentMessage
 	}
 	if body == nil || body.GroupInfo == nil {
+		// The bulk of the traffic on a busy account: receipts, typing
+		// indicators, reactions, attachments, group updates, and DMs. Never
+		// logged before this, which made it indistinguishable from nothing
+		// arriving at all.
+		logger.Debug("frame carried no group message", "sender", e.Envelope.SourceUUID)
 		return Message{}, false
 	}
 	if e.Envelope.SourceUUID == "" {
@@ -110,6 +118,7 @@ func (e envelope) message() (Message, bool) {
 	}
 	if strings.TrimSpace(body.Message) == "" {
 		// An attachment, a reaction or a group update: nothing to parse.
+		logger.Debug("group message has no text", "sender", e.Envelope.SourceUUID)
 		return Message{}, false
 	}
 
