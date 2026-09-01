@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -668,14 +669,45 @@ func TestGridHidesRetiredPlayersUntilToggled(t *testing.T) {
 }
 
 // The winner pane carries the four figures the design puts beside the name.
+func seedCompletedWinningMonth(t *testing.T, srv *Server) time.Time {
+	t.Helper()
+	ctx := context.Background()
+
+	// Give a completed month enough results to have a winner regardless of
+	// which side of a month boundary the test happens to run on.
+	now := time.Now()
+	target := time.Date(now.Year(), now.Month()-2, 1, 0, 0, 0, 0, time.Local)
+	for slug, guesses := range map[string]int{"harda": 3, "hardb": 4} {
+		player, err := store.PlayerBySlug(ctx, srv.db, slug)
+		if err != nil {
+			t.Fatalf("PlayerBySlug(%s): %v", slug, err)
+		}
+		for day := 1; day <= 12; day++ {
+			date := time.Date(target.Year(), target.Month(), day, 0, 0, 0, 0, time.Local)
+			seedResult(t, srv, player.ID, wordle.PuzzleForDate(date), guesses, true)
+		}
+	}
+	return target
+}
+
 func TestMonthWinnerPaneShowsTheStats(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
+	target := seedCompletedWinningMonth(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
-	body := fetchAs(t, srv, "/share/"+slug+"/months", nil).Body.String()
-	stats := body[strings.Index(body, "month-stats"):]
-	stats = stats[:strings.Index(stats, "</dl>")]
+	month := fmt.Sprintf("%d-%d", target.Year(), target.Month())
+	body := fetchAs(t, srv, "/share/"+slug+"/months?month="+month, nil).Body.String()
+	start := strings.Index(body, "month-stats")
+	if start < 0 {
+		t.Fatal("the completed month has no winner stats")
+	}
+	stats := body[start:]
+	end := strings.Index(stats, "</dl>")
+	if end < 0 {
+		t.Fatal("the winner stats have no closing definition list")
+	}
+	stats = stats[:end]
 
 	for _, want := range []string{"Average", "Puzzles", "3 or better", "Longest streak"} {
 		if !strings.Contains(stats, want) {
@@ -699,8 +731,11 @@ func TestMonthChipsShowWholeWords(t *testing.T) {
 	chips := body[strings.Index(body, "month-chips"):]
 	chips = chips[:strings.Index(chips, "</ol>")]
 
-	// The full month name, not three letters of it.
-	if !strings.Contains(chips, "August 2026") {
+	// The full month name, not three letters of it. Derive the fixture's
+	// current month so the assertion does not expire at the next rollover.
+	now := time.Now()
+	fullMonth := now.Month().String() + " " + strconv.Itoa(now.Year())
+	if !strings.Contains(chips, fullMonth) {
 		t.Error("a chip does not carry the full month name")
 	}
 	if !strings.Contains(body, "month-chip-head") || !strings.Contains(body, "month-winner") {
@@ -782,8 +817,16 @@ func TestRunningMonthReadsAsUnfinished(t *testing.T) {
 	// The newest month is the one being played, and it is what the view
 	// opens on.
 	body := fetchAs(t, srv, "/share/"+slug+"/months", nil).Body.String()
-	head := body[strings.Index(body, "month-head"):]
-	head = head[:strings.Index(head, "month-stats")]
+	start := strings.Index(body, "month-head")
+	if start < 0 {
+		t.Fatal("the current month has no heading")
+	}
+	head := body[start:]
+	end := strings.Index(head, `<div class="table-scroll">`)
+	if end < 0 {
+		t.Fatal("the current month heading has no following table")
+	}
+	head = head[:end]
 
 	// "leading" rather than "winner" is how the head marks an unfinished
 	// month; the chips carry "still running".
@@ -799,7 +842,9 @@ func TestRunningMonthReadsAsUnfinished(t *testing.T) {
 	if !strings.Contains(head, wantProgress) {
 		t.Errorf("the current month does not show %q:\n%s", wantProgress, head)
 	}
-	if !strings.Contains(head, "is ahead") && !strings.Contains(head, "Level at") {
+	// Before the tenth puzzle there is deliberately no ranked leader yet.
+	if !strings.Contains(head, "Nobody reached the minimum") &&
+		!strings.Contains(head, "is ahead") && !strings.Contains(head, "Level at") {
 		t.Errorf("a running month is not described in the present tense:\n%s", head)
 	}
 }
@@ -811,6 +856,7 @@ func TestRunningMonthReadsAsUnfinished(t *testing.T) {
 func TestMonthViewMatchesTheDesign(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
+	target := seedCompletedWinningMonth(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/months", nil).Body.String()
@@ -832,24 +878,13 @@ func TestMonthViewMatchesTheDesign(t *testing.T) {
 	if strings.Contains(table, ">Winner<") || strings.Contains(table, ">Runner-up<") {
 		t.Error("a running month names a winner")
 	}
-	if !strings.Contains(table, ">Leading<") {
+	if !strings.Contains(body, "Nobody reached the minimum") && !strings.Contains(table, ">Leading<") {
 		t.Error("a running month does not name its leader")
 	}
 
-	// A finished one does. The chip for it is read off the page rather than
-	// guessed at, since which months exist depends on the fixture.
-	var finished string
-	for _, m := range regexp.MustCompile(`href="([^"]*month=[^"]*)"`).FindAllStringSubmatch(body, -1) {
-		href := strings.ReplaceAll(m[1], "&amp;", "&")
-		page := fetchAs(t, srv, href, nil).Body.String()
-		if !strings.Contains(page, ">Leading<") {
-			finished = page
-			break
-		}
-	}
-	if finished == "" {
-		t.Skip("the fixture has no completed month")
-	}
+	// A completed month seeded explicitly above does name its winner.
+	month := fmt.Sprintf("%d-%d", target.Year(), target.Month())
+	finished := fetchAs(t, srv, "/share/"+slug+"/months?month="+month, nil).Body.String()
 	if !strings.Contains(finished, ">Winner<") {
 		t.Error("a finished month does not name its winner")
 	}
@@ -859,6 +894,7 @@ func TestMonthViewMatchesTheDesign(t *testing.T) {
 func TestSeasonMarksReadAtAGlance(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
+	seedCompletedWinningMonth(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/months", nil).Body.String()
