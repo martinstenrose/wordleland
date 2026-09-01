@@ -70,9 +70,9 @@ func loadCatalogues(t *testing.T) i18n.Catalogues {
 	return cats
 }
 
-// A clear win: Alice averages better than Bob by a margin worth stating,
-// both past the minimum games. The exact wording mirrors what the board
-// itself would render for the same month — see internal/web/months.go's
+// A clear win: Alice averages better than Bob over the whole month, missed
+// days counted as 7 apiece. The exact wording mirrors what the board itself
+// would render for the same month — see internal/web/months.go's
 // WinnerLine — so this also pins that the two have not drifted apart.
 func TestAnnouncesTheClearWinnerOnce(t *testing.T) {
 	db := announceDB(t)
@@ -100,7 +100,9 @@ func TestAnnouncesTheClearWinnerOnce(t *testing.T) {
 	if calls.Load() != 1 {
 		t.Fatalf("send called %d times, want 1", calls.Load())
 	}
-	want := "Alice took March 2026 by 2.00 of a guess, over 12 puzzles."
+	// Alice: 12 twos and 19 missed days at 7 = 157/31. Bob: 12 fours and 19
+	// missed days at 7 = 181/31. Margin is the difference, 24/31 = 0.77.
+	want := "Alice took March 2026 by 0.77 of a guess, over 31 puzzles."
 	if sent[0] != want {
 		t.Errorf("message = %q, want %q", sent[0], want)
 	}
@@ -165,20 +167,21 @@ func TestConcurrentChecksSendOnce(t *testing.T) {
 	}
 }
 
-// Below the minimum games, nobody is a winner. The board says so on the
-// page; the group is not told anything, which is the point — see New's
-// comment on why silence is the answer here rather than the "nobody
-// reached %d games" line the board renders.
-func TestSaysNothingWhenNobodyQualified(t *testing.T) {
+// Months have no minimum-games threshold: a short appearance is penalised
+// by the monthly average itself (missed days count as 7), not by being
+// withheld from ranking. A three-game month still gets announced.
+func TestAnnouncesTheWinnerEvenBelowTenGames(t *testing.T) {
 	db := announceDB(t)
 	ctx := context.Background()
 
 	mustPlayer(t, db, "Alice", "alice")
-	fill(t, db, "alice", 2026, time.March, 1, 3, 2) // 3 games, short of MinGames
+	fill(t, db, "alice", 2026, time.March, 1, 3, 2) // 3 games, once below the ten-game minimum
 
+	var sent []string
 	var calls atomic.Int32
-	send := func(context.Context, string) error {
+	send := func(_ context.Context, text string) error {
 		calls.Add(1)
+		sent = append(sent, text)
 		return nil
 	}
 
@@ -188,16 +191,22 @@ func TestSaysNothingWhenNobodyQualified(t *testing.T) {
 	if err := announce(ctx, now); err != nil {
 		t.Fatalf("announce: %v", err)
 	}
-	if calls.Load() != 0 {
-		t.Errorf("send was called for a month with no qualifying player")
+	if calls.Load() != 1 {
+		t.Fatalf("send called %d times, want 1", calls.Load())
+	}
+	// Alice: 3 twos and 28 missed days at 7 = 202/31. Sole player, so no
+	// margin to state.
+	want := "Alice took the month over 31 puzzles."
+	if sent[0] != want {
+		t.Errorf("message = %q, want %q", sent[0], want)
 	}
 
 	done, err := store.MonthAnnounced(ctx, db, 2026, time.March)
 	if err != nil {
 		t.Fatalf("MonthAnnounced: %v", err)
 	}
-	if done {
-		t.Error("a month with nothing to say was recorded as announced")
+	if !done {
+		t.Error("the month was not recorded as announced after a successful send")
 	}
 }
 
@@ -357,7 +366,7 @@ func TestTieAnnouncementNamesEveryWinner(t *testing.T) {
 func TestWinnerLineUsesTheConfiguredLocale(t *testing.T) {
 	avg, margin := 3.0, 1.25
 	m := stats.Month{
-		Year: 2026, Month: time.March,
+		Year: 2026, Month: time.March, Days: 12,
 		Winners: []stats.MonthPlayer{{
 			Player: store.Player{Name: "Alice"}, Average: &avg, Games: 12,
 		}},

@@ -392,13 +392,15 @@ failed, receiving the bot's own announcement must not immediately send
 another copy. Explicit Archive shares and older back-dated results are also
 excluded, so replaying an old puzzle cannot make the bot speak.
 
-**A month with nobody past the minimum games gets silence, not the board's
-"nobody reached the minimum" line.** The board is read on request; this is
-pushed unprompted. Announcing a quiet month reads as the bot scolding the
-group for it. The same silence covers a month with no results in it at
-all, which is also not recorded as announced — if results appear later
+**A month with no results in it at all gets silence, not the board's "no
+scores to rank" line.** The board is read on request; this is pushed
+unprompted, and announcing a quiet month reads as the bot scolding the
+group for it. Not recorded as announced either — if results appear later
 through a correction, the next live message is free to announce them
-rather than having already given up.
+rather than having already given up. Months no longer have a minimum-games
+threshold (see "A month is a competition..." above), so this used to also
+cover a short appearance that fell below it; it now only fires when
+literally nobody posted.
 
 **The send happens before the record of it, not after.** Recording first
 and then failing to send would silently and permanently drop that month's

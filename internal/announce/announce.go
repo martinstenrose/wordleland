@@ -27,9 +27,9 @@ import (
 // New returns the closure the bridge calls after every live message.
 //
 // It reports what happened by returning nil for "nothing to do" — already
-// announced, or nobody reached the minimum games — and a non-nil error only
-// for a genuine failure: a store read, or the send, going wrong. The
-// caller (the bridge) logs an error and tries again on the next live
+// announced, or nobody posted a scorable result that month — and a non-nil
+// error only for a genuine failure: a store read, or the send, going wrong.
+// The caller (the bridge) logs an error and tries again on the next live
 // message; it never treats "nothing to do" as one.
 //
 // send is a bridge.Sender by value, not by import: this package has no
@@ -84,11 +84,13 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string,
 
 		line, ok := winnerLine(t, m)
 		if !ok {
-			// Nobody reached the minimum games. Silence, deliberately: an
-			// unprompted "nobody qualified this month" reads as the bot
-			// scolding a group that had a quiet month, and the board
-			// already says so for anyone who looks. Also not recorded, for
-			// the same reason as above.
+			// Months no longer have a minimum-games threshold, so this is
+			// not currently reachable — every player with a posted result
+			// gets a scored month under the fixed defaults this package
+			// uses. Kept as a defensive no-op rather than a panic: silence,
+			// not an unprompted "nobody qualified" message that would read
+			// as the bot scolding a quiet month. Also not recorded, for the
+			// same reason as above.
 			return nil
 		}
 
@@ -153,9 +155,9 @@ func winnerLine(t i18n.Translator, m stats.Month) (string, bool) {
 		return names + ": " + t.T("months.line.tie", t.Decimal(*w.Average, 2)), true
 	case m.Margin != nil:
 		return t.T("months.line.margin", names, monthLabel(t, m),
-			t.Decimal(*m.Margin, 2), w.Games), true
+			t.Decimal(*m.Margin, 2), m.Days), true
 	default:
-		return t.T("months.line.alone", names, w.Games), true
+		return t.T("months.line.alone", names, m.Days), true
 	}
 }
 
