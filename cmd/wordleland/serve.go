@@ -82,6 +82,14 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 			"lock out the rest. Set it to the proxy's address range.")
 	}
 
+	// Configuration, not a verb flag, precisely so this line exists: a
+	// production instance with it on by accident must say so at boot rather
+	// than silently arming a verb that deletes players.
+	if cfg.DemoMode {
+		logger.Warn("DEMO_MODE is on; the `demo` CLI verb can generate and delete players. " +
+			"This must not be set on a production instance.")
+	}
+
 	if err := bootstrapAdmin(ctx, db, cfg, logger); err != nil {
 		return err
 	}

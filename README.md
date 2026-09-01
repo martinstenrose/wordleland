@@ -49,6 +49,7 @@ wrong shifts every date by a few hours rather than failing outright.
 | `SMTP_*` | no | Absent means password reset by email is unavailable and the rest of the app runs normally. |
 | `PENDING_RETENTION` | no | How long unclaimed results are held. Empty means indefinitely. |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | no | Creates the first administrator on a fresh database. Both together; at least 12 characters. Ignored once any user exists, so they can be removed after the first boot. |
+| `DEMO_MODE` | no | Arms the `demo` CLI verb, which generates and deletes players. See [Running a staging instance](#running-a-staging-instance). Must never be `true` on the instance the group actually uses. |
 
 The database path and listen port are not configurable: always
 `/data/db.sqlite` and `:8080`. A volume decides where the file really
@@ -470,6 +471,73 @@ docker compose exec app /wordleland --as you@example.tld backfill \
 Backfill is an import rather than a sync: with a mapping it applies the
 `active` column on every run, so re-running it after the roster has moved
 on will resurrect anyone since retired.
+
+## Running a staging instance
+
+A staging instance has no Signal group to post to it, so its board is empty
+until something fills it. `demo seed` and `demo tick` generate synthetic
+players and history for exactly that; `demo clear` removes them again. All
+three are gated on `DEMO_MODE=true` and refuse to run otherwise, and `serve`
+logs a warning at boot whenever it finds the flag set — it must never be set
+on the instance the group actually uses.
+
+Give staging its own compose project name and its own `.env`, separate from
+the real deployment's, so the two never share a volume:
+
+```sh
+docker compose -p wordleland-staging up -d
+```
+
+Staging needs no `signal-cli-rest-api` service — there is no group to
+connect to — so run it from a compose file that only starts `app`, with:
+
+- `DEMO_MODE=true`
+- its own `TOTP_KEY`, generated the same way as the real one and never
+  reused across instances
+- its own `APP_URL`, since emailed links are built from it
+- `SIGNAL_ACCOUNT` and `SIGNAL_GROUP_ID` left unset, so no bridge starts
+
+Keep `ADMIN_EMAIL` / `ADMIN_PASSWORD` set, the same as on a real deployment:
+they only bootstrap the first administrator and are ignored once one exists,
+so leaving them in place costs nothing and means a rebuilt staging instance
+can always log back in. If `SMTP_*` is configured at all, point it at
+something that will not deliver to a real address — a catch-all or a
+disabled sender — since the synthetic roster is not a mailing list anyone
+consented to join.
+
+```sh
+docker compose exec app /wordleland --as you@example.tld demo seed \
+  --players 12 --days 200
+```
+
+`--seed <N>` makes a run reproducible; without it, seeding is left to vary.
+Run it once against a fresh database. Running it again on top of an existing
+seed is not a reset — it creates a second roster alongside the first, and
+`player add`'s slug collisions are the only thing that would stop it. Use
+`demo clear` first if the intent was to start over.
+
+```sh
+docker compose exec app /wordleland --as you@example.tld demo tick
+```
+
+Run this once a day, from cron on the host or an equivalent scheduler, to
+keep the board moving after the initial seed. It is safe to run more than
+once a day: a player who already has today's result is left alone rather
+than replayed with a new one, and a retired player is never brought back.
+
+```sh
+docker compose exec app /wordleland --as you@example.tld demo clear --apply
+```
+
+Without `--apply` it only reports what it would delete. This removes every
+player and their results, identities and held pending senders — everything
+`demo seed` could have produced — but never the administrator account or
+its 2FA enrolment, and never the audit log. It is a narrower operation than
+resetting the deployment: `docker compose down -v` also drops the database
+file itself, along with the admin account and the share link, so the next
+boot bootstraps from `ADMIN_EMAIL` / `ADMIN_PASSWORD` again from nothing.
+`demo clear` is for generating a new synthetic roster without redoing that
+setup.
 
 ## Monitoring
 
