@@ -306,6 +306,52 @@ hand-rolled and has had far fewer eyes on it than an established project's.
 **A signed-in non-admin gets 404 on admin paths, not 403.** The area is not
 something they are being told they cannot have.
 
+## Staging and demo data
+
+**`demo clear` deletes players outright, the one place in the codebase that
+does.** Everywhere else, removing someone from the group is
+`players.active = false`: their history stays, because it happened. Deletion
+was ruled out for the real app for exactly that reason — retiring is the
+honest operation, and a hard delete of `players` cascades to `results` and
+`player_identities`, taking a real history with it.
+
+The `demo` verb is the one place that reasoning does not apply, because there
+is no history to lose: everything a DEMO_MODE instance holds was invented by
+`demo seed` in the first place, including the retired player and the held
+pending senders. There is deliberately no column marking who is "demo data"
+and who is not — the gate is DEMO_MODE itself, checked once for the whole
+verb rather than per player, because a marker column would imply demo and
+real players could coexist in one database, and they cannot: a staging
+instance is entirely synthetic or it is not a staging instance.
+
+This is also why `demo clear` refuses to run without `DEMO_MODE=true`, and
+why `serve` warns at boot when it finds the flag set. The failure mode a
+one-off marker column invites is a real deployment where someone sets
+DEMO_MODE temporarily, generates a few test players to see the board render,
+forgets to unset it, and later runs `demo clear` expecting it to no-op —
+instead it deletes the real roster, because nothing distinguished it. Gating
+the whole verb on one piece of configuration, checked in one place, is what
+keeps that mistake from being reachable: the verb simply does not exist on a
+deployment that has not deliberately declared itself synthetic.
+
+**Seeded history is written through `internal/ingest`, not directly into
+`results`.** The precedence rule, the pending-sender hold, and puzzle-number
+derivation are the same code a live Signal post goes through, so a seeded
+board exercises the real paths rather than a shortcut that could drift from
+them. It is also why the held pending senders are genuine `StatusPending`
+results from `ingest.Apply`, not rows written straight into
+`pending_results`: the Pending admin screen is showing exactly what an
+unclaimed sender's arrival looks like.
+
+**Hard mode, miss days and guess counts are shaped, not uniformly random.**
+An evenly-random board would not exercise the same code paths a real one
+does — see "Hard mode is about half of all results" above. `internal/demo`
+reproduces that split per player, keeps guess counts centered on 4 with an
+occasional failure, and reserves three roster positions (unbroken streak,
+a player who stopped, a retirement) so the callouts and admin screens have
+something to show immediately after seeding rather than depending on enough
+random days to eventually produce one.
+
 ## Deliberately not built
 
 - **Self-report in the browser** — a player filing their own result, by form or

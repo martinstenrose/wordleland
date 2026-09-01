@@ -126,6 +126,29 @@ func TestLoad(t *testing.T) {
 			wantErr: "TOTP_KEY",
 			check:   nil,
 		},
+		{
+			name: "DEMO_MODE unset defaults to false",
+			env:  map[string]string{"TOTP_KEY": validKey},
+			check: func(t *testing.T, c *Config) {
+				if c.DemoMode {
+					t.Error("DemoMode = true, want false")
+				}
+			},
+		},
+		{
+			name: "DEMO_MODE true",
+			env:  map[string]string{"TOTP_KEY": validKey, "DEMO_MODE": "true"},
+			check: func(t *testing.T, c *Config) {
+				if !c.DemoMode {
+					t.Error("DemoMode = false, want true")
+				}
+			},
+		},
+		{
+			name:    "DEMO_MODE not a bool",
+			env:     map[string]string{"TOTP_KEY": validKey, "DEMO_MODE": "yes please"},
+			wantErr: "DEMO_MODE: must be true or false",
+		},
 	}
 
 	for _, tt := range tests {
@@ -138,7 +161,7 @@ func TestLoad(t *testing.T) {
 			for _, k := range []string{
 				"TOTP_KEY", "APP_URL", "TRUSTED_PROXIES", "PENDING_RETENTION",
 				"SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM",
-				"ADMIN_EMAIL", "ADMIN_PASSWORD",
+				"ADMIN_EMAIL", "ADMIN_PASSWORD", "DEMO_MODE",
 			} {
 				if _, ok := tt.env[k]; !ok {
 					t.Setenv(k, "")
@@ -190,6 +213,29 @@ func TestLoadDBPathFlagOverrides(t *testing.T) {
 	}
 	if cfg.DBPath != "/tmp/local.db" {
 		t.Errorf("DBPath = %q, want the -db flag value", cfg.DBPath)
+	}
+}
+
+// The demo CLI verb needs only this one flag, and must not be made to
+// satisfy the rest of the app's configuration just to check it.
+func TestDemoModeStandalone(t *testing.T) {
+	t.Setenv("TOTP_KEY", "")
+
+	on, err := DemoMode()
+	if err != nil {
+		t.Fatalf("DemoMode() failed: %v", err)
+	}
+	if on {
+		t.Error("DemoMode() = true with DEMO_MODE unset")
+	}
+
+	t.Setenv("DEMO_MODE", "true")
+	on, err = DemoMode()
+	if err != nil {
+		t.Fatalf("DemoMode() failed: %v", err)
+	}
+	if !on {
+		t.Error("DemoMode() = false with DEMO_MODE=true")
 	}
 }
 

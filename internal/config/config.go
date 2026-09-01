@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -82,6 +83,13 @@ type Config struct {
 	// cannot bring back an account that was deliberately removed.
 	AdminEmail    string
 	AdminPassword string
+
+	// DemoMode arms the `demo` CLI verb, which generates and deletes
+	// synthetic data for a staging deployment with no Signal bridge. It is
+	// configuration rather than a flag on the verb itself so serve can warn
+	// at boot when it is set — a production instance with it on by accident
+	// must say so, not arm a destructive verb silently.
+	DemoMode bool
 }
 
 // Load reads configuration from the environment. dbPath comes from the -db
@@ -146,10 +154,40 @@ func Load(dbPath string) (*Config, error) {
 		}
 	}
 
+	demoMode, err := parseDemoMode(os.Getenv("DEMO_MODE"))
+	if err != nil {
+		problems = append(problems, "DEMO_MODE: "+err.Error())
+	}
+	cfg.DemoMode = demoMode
+
 	if len(problems) > 0 {
 		return nil, fmt.Errorf("invalid configuration:\n  - %s", strings.Join(problems, "\n  - "))
 	}
 	return cfg, nil
+}
+
+// parseDemoMode reads DEMO_MODE. Empty is false: leaving it unset is the
+// ordinary, safe case and must not require typing "false" everywhere.
+func parseDemoMode(raw string) (bool, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return false, nil
+	}
+	b, err := strconv.ParseBool(raw)
+	if err != nil {
+		return false, errors.New("must be true or false")
+	}
+	return b, nil
+}
+
+// DemoMode reports whether DEMO_MODE is set, on its own.
+//
+// The `demo` CLI verb needs only this one flag and must work without the
+// rest of the app's configuration — TOTP_KEY and the bootstrap pair are
+// unrelated to it, and requiring them would make every demo invocation on a
+// bare checkout fail for a reason that has nothing to do with demo mode.
+func DemoMode() (bool, error) {
+	return parseDemoMode(os.Getenv("DEMO_MODE"))
 }
 
 func loadTOTPKey(raw string) ([]byte, error) {

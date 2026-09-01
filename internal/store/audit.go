@@ -34,6 +34,11 @@ const (
 	ActionPlayerReactivated = "player.reactivated"
 	ActionPlayerLinked      = "player.linked"
 	ActionPlayerUnlinked    = "player.unlinked"
+	// ActionPlayerDeleted is written only by demo clear, the one path that
+	// deletes a player rather than retiring them. subject_id has no foreign
+	// key, so the entry survives the row it names — the activity log already
+	// renders a vanished subject as "#id".
+	ActionPlayerDeleted = "player.deleted"
 
 	ActionInvitationSent     = "invitation.sent"
 	ActionInvitationAccepted = "invitation.accepted"
