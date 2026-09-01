@@ -203,7 +203,7 @@ func decode(data []byte, logger *slog.Logger) (Message, bool) {
 			"error", sanitizeRemote(err.Error()))
 		return Message{}, false
 	}
-	return env.message()
+	return env.message(logger)
 }
 
 // jitter spreads reconnects so a whole-stack restart does not produce a

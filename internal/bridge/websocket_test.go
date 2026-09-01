@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log/slog"
@@ -236,5 +237,29 @@ func TestWebsocketUpdatesHealth(t *testing.T) {
 	}
 	if lastMessage.IsZero() {
 		t.Error("health did not record a received frame")
+	}
+}
+
+// The test that matters most: no log line, at any level, ever contains a
+// phone number. source and sourceNumber are structurally redacted before
+// this point, but this exercises the whole decode path end to end rather
+// than trusting that in isolation.
+func TestDecodeNeverLogsAPhoneNumber(t *testing.T) {
+	const phone = "+15551234567"
+	raw := strings.ReplaceAll(
+		dataEnvelope("not a wordle result, just chatting", testGroupID),
+		"+00000000000", phone)
+
+	for _, level := range []slog.Level{slog.LevelDebug, slog.LevelInfo, slog.LevelWarn, slog.LevelError} {
+		t.Run(level.String(), func(t *testing.T) {
+			var logs bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: level}))
+
+			decode([]byte(raw), logger)
+
+			if strings.Contains(logs.String(), phone) {
+				t.Errorf("log at %s carries the phone number:\n%s", level, logs.String())
+			}
+		})
 	}
 }

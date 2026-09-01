@@ -127,12 +127,22 @@ func (f *filer) handle(ctx context.Context, m Message) {
 	// looking exactly like a bot that is simply not receiving. The
 	// config layer rejects that form at boot for the same reason.
 	if m.GroupID != f.groupID {
+		// The single most useful line for telling "wrong group configured"
+		// apart from "bot not receiving at all" — both ids are opaque
+		// base64, safe to log in full.
+		f.logger.Debug("message is for a different group; ignoring",
+			"received_group", m.GroupID, "configured_group", f.groupID)
 		return
 	}
 
 	result, ok := wordle.Parse(m.Body)
 	if !ok {
-		// Most traffic in the group is ordinary conversation.
+		// Most traffic in the group is ordinary conversation. The body
+		// itself is never logged — only its shape — so this line
+		// distinguishes a quiet group from a broken parser without
+		// recording anyone's words.
+		f.logger.Debug("message did not parse as a result",
+			"sender", m.SenderUUID, "length", len(m.Body))
 		return
 	}
 	if isArchiveShare(m.Body) {
@@ -256,9 +266,22 @@ func (f *filer) file(ctx context.Context, result wordle.Result, m Message) {
 				"puzzle", result.PuzzleNo)
 			return
 
-		default:
+		case status == ingest.StatusIgnored:
+			// A human-entered value beat this one on precedence: not an
+			// error, and not the common case either, so it earns a line
+			// only at debug — an operator diagnosing "why didn't my score
+			// change" needs it, nobody watching the log at info does.
 			f.health.deliverySucceeded()
-			f.logger.Debug("filed a result", "puzzle", result.PuzzleNo, "status", status)
+			f.logger.Debug("result was ignored; an existing value takes precedence",
+				"puzzle", result.PuzzleNo)
+			return
+
+		default:
+			// The line that would have made the outage this feature exists
+			// for visible in real time: at info, because a quiet bridge and
+			// a working one otherwise look identical from the log alone.
+			f.health.deliverySucceeded()
+			f.logger.Info("filed a result", "puzzle", result.PuzzleNo, "status", status)
 			return
 		}
 

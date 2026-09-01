@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log/slog"
 	"net"
 	"strings"
 	"testing"
@@ -30,7 +31,36 @@ func TestLoad(t *testing.T) {
 				if c.PendingRetention != 0 {
 					t.Errorf("PendingRetention = %v, want 0 (unlimited)", c.PendingRetention)
 				}
+				if c.LogLevel != slog.LevelInfo {
+					t.Errorf("LogLevel = %v, want info when LOG_LEVEL is unset", c.LogLevel)
+				}
 			},
+		},
+		{
+			name: "LOG_LEVEL debug",
+			env:  map[string]string{"TOTP_KEY": validKey, "LOG_LEVEL": "debug"},
+			check: func(t *testing.T, c *Config) {
+				if c.LogLevel != slog.LevelDebug {
+					t.Errorf("LogLevel = %v, want debug", c.LogLevel)
+				}
+			},
+		},
+		{
+			name: "LOG_LEVEL is case-insensitive",
+			env:  map[string]string{"TOTP_KEY": validKey, "LOG_LEVEL": "WARN"},
+			check: func(t *testing.T, c *Config) {
+				if c.LogLevel != slog.LevelWarn {
+					t.Errorf("LogLevel = %v, want warn", c.LogLevel)
+				}
+			},
+		},
+		{
+			// A typo that silently fell back to a default would disable the
+			// exact logging this variable exists to turn on, so it fails
+			// startup and names what would have worked instead.
+			name:    "LOG_LEVEL unrecognised",
+			env:     map[string]string{"TOTP_KEY": validKey, "LOG_LEVEL": "verbose"},
+			wantErr: "LOG_LEVEL: must be one of debug, info, warn, error",
 		},
 		{
 			name:    "missing TOTP_KEY",
@@ -161,7 +191,7 @@ func TestLoad(t *testing.T) {
 			for _, k := range []string{
 				"TOTP_KEY", "APP_URL", "TRUSTED_PROXIES", "PENDING_RETENTION",
 				"SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM",
-				"ADMIN_EMAIL", "ADMIN_PASSWORD", "DEMO_MODE",
+				"ADMIN_EMAIL", "ADMIN_PASSWORD", "DEMO_MODE", "LOG_LEVEL",
 			} {
 				if _, ok := tt.env[k]; !ok {
 					t.Setenv(k, "")

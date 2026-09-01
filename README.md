@@ -50,6 +50,15 @@ wrong shifts every date by a few hours rather than failing outright.
 | `PENDING_RETENTION` | no | How long unclaimed results are held. Empty means indefinitely. Purged by a background sweep every 15 minutes, so a result outlives the window by up to that long. |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | no | Creates the first administrator on a fresh database. Both together; at least 12 characters. Ignored once any user exists, so they can be removed after the first boot. |
 | `DEMO_MODE` | no | Arms the `demo` CLI verb, which generates and deletes players. See [Running a staging instance](#running-a-staging-instance). Must never be `true` on the instance the group actually uses. |
+| `LOG_LEVEL` | no | `debug`, `info`, `warn`, or `error`. Defaults to `info`. An unrecognised value fails at boot rather than falling back silently. |
+
+`info`, the default, is what a healthy deployment should run day to day: it
+covers what filed, what the bridge is doing, and anything that needs an
+operator's attention. `debug` adds the traffic `info` leaves out — every
+message that arrived and why it was or was not forwarded, including which
+group it was for — which is what to switch on while diagnosing a bridge that
+looks idle, not something to run all the time. It never includes a phone
+number or a message's text at any level.
 
 The database path and listen port are not configurable: always
 `/data/db.sqlite` and `:8080`. A volume decides where the file really
