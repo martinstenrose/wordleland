@@ -1,7 +1,6 @@
 package web
 
 import (
-	"fmt"
 	"net/http"
 	"sort"
 	"strings"
@@ -80,7 +79,15 @@ func (t translator) T(key string, args ...any) string {
 			args = list
 		}
 	}
-	return fmt.Sprintf(format, args...)
+	return i18n.Sprintf(t.locale, format, args...)
+}
+
+func (t translator) Integer(value int) string {
+	return i18n.Integer(t.locale, value)
+}
+
+func (t translator) Decimal(value float64, places int) string {
+	return i18n.Decimal(t.locale, value, places)
 }
 
 // translatorFor picks a locale: an explicit ?lang= wins, then the cookie it

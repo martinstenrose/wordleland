@@ -132,6 +132,7 @@ func (s *Server) invitePageFor(r *http.Request, token, errKey string) (invitePag
 		Token: token, PlayerName: player.Name, Email: inv.Email,
 		Average: "—", Error: errKey,
 	}
+	t := s.translatorFor(nil, r)
 
 	// The figures come from the same computation the board uses, so what an
 	// invitation promises matches what they will find inside.
@@ -140,7 +141,7 @@ func (s *Server) invitePageFor(r *http.Request, token, errKey string) (invitePag
 			for _, p := range group {
 				if p.ID == player.ID {
 					page.Games = p.Games
-					page.Average = formatScore(p.Average)
+					page.Average = formatScore(t, p.Average)
 				}
 			}
 		}
@@ -254,7 +255,7 @@ func (s *Server) sendInviteEmail(r *http.Request, player store.Player, admin sto
 						Label: t.T("email.invite.panel"),
 						Title: player.Name,
 						Detail: t.TN("player.games", p.Games) + " · " +
-							t.T("board.column.average") + " " + formatScore(p.Average),
+							t.T("board.column.average") + " " + formatScore(t, p.Average),
 					}
 				}
 			}

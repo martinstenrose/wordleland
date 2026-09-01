@@ -153,8 +153,8 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 			chip.Note = ch.T.T("months.running")
 		}
 		if len(m.Winners) > 0 {
-			chip.Winners = joinNames(m.Winners)
-			chip.Average = formatScore(m.Winners[0].Average)
+			chip.Winners = joinNames(ch.T, m.Winners)
+			chip.Average = formatScore(ch.T, m.Winners[0].Average)
 		} else {
 			chip.Winners = "—"
 		}
@@ -184,7 +184,7 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 		page.PartialNote = ch.T.TN("months.partialMonth", m.Days)
 	}
 	page.Days = m.Days
-	page.GroupAverage = formatScore(m.GroupAverage)
+	page.GroupAverage = formatScore(ch.T, m.GroupAverage)
 
 	// A month still being played has a leader, not a winner. Calling it a
 	// win would hand somebody a title they might yet lose.
@@ -195,7 +195,7 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 
 	if len(m.Winners) > 0 {
 		w := m.Winners[0]
-		page.WinnerNames = joinNames(m.Winners)
+		page.WinnerNames = joinNames(ch.T, m.Winners)
 
 		// A month still being played is described in the present tense: it
 		// has a leader, not a winner, and "took August" reads as settled
@@ -207,27 +207,27 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 
 		switch {
 		case len(m.Winners) > 1:
-			page.WinnerLine = ch.T.T(prefix+"tie", formatScore(w.Average))
+			page.WinnerLine = ch.T.T(prefix+"tie", formatScore(ch.T, w.Average))
 		case m.Margin != nil:
 			page.WinnerLine = ch.T.T(prefix+"margin", page.WinnerNames, page.Label,
-				strconv.FormatFloat(*m.Margin, 'f', 2, 64), m.Days)
+				ch.T.Decimal(*m.Margin, 2), m.Days)
 		default:
 			page.WinnerLine = ch.T.T(prefix+"alone", page.WinnerNames, m.Days)
 		}
 
 		// The four figures the design puts beside the name, in its order.
 		page.WinnerStats = []monthStat{
-			{Label: ch.T.T("board.column.average"), Value: formatScore(w.Average)},
-			{Label: ch.T.T("board.column.games"), Value: strconv.Itoa(w.Games) + "/" + strconv.Itoa(m.Days)},
-			{Label: ch.T.T("months.threeOrBetter"), Value: strconv.Itoa(w.ThreeOrBetter)},
-			{Label: ch.T.T("months.bestRun"), Value: strconv.Itoa(w.BestRun)},
+			{Label: ch.T.T("board.column.average"), Value: formatScore(ch.T, w.Average)},
+			{Label: ch.T.T("board.column.games"), Value: ch.T.Integer(w.Games) + "/" + ch.T.Integer(m.Days)},
+			{Label: ch.T.T("months.threeOrBetter"), Value: ch.T.Integer(w.ThreeOrBetter)},
+			{Label: ch.T.T("months.bestRun"), Value: ch.T.Integer(w.BestRun)},
 		}
 	} else {
 		page.WinnerLine = ch.T.T("months.line.nobody")
 	}
 
 	for _, p := range m.Ranked {
-		row := monthRowFor(p, prefix, m.Winners)
+		row := monthRowFor(p, prefix, m.Winners, ch.T)
 		// A month still being played has a leader rather than a winner, so
 		// nobody is labelled one until it is over.
 		switch {
@@ -249,7 +249,7 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 		page.Rows = append(page.Rows, row)
 	}
 	for _, p := range m.Thin {
-		page.Thin = append(page.Thin, monthRowFor(p, prefix, nil))
+		page.Thin = append(page.Thin, monthRowFor(p, prefix, nil, ch.T))
 	}
 
 	season := stats.ComputeSeason(months, now)
@@ -268,7 +268,7 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 			}
 		}
 		if row.Best != nil {
-			view.Best = strconv.FormatFloat(*row.Best, 'f', 2, 64) + " · " +
+			view.Best = ch.T.Decimal(*row.Best, 2) + " · " +
 				shortMonthName(ch.T, row.BestMonth)
 		}
 		for _, mark := range row.Marks {
@@ -278,7 +278,7 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 				// A star for a title, the placing for everything else.
 				cell.Label = "★"
 			case mark.Rank > 0:
-				cell.Label = strconv.Itoa(mark.Rank)
+				cell.Label = ch.T.Integer(mark.Rank)
 				cell.Podium = mark.Rank <= 3
 			}
 			cell.Title = ch.T.T("month."+strconv.Itoa(int(mark.Month))) + " " + strconv.Itoa(mark.Year)
@@ -305,10 +305,10 @@ const (
 	barCeiling = 5.2
 )
 
-func monthRowFor(p stats.MonthPlayer, prefix string, winners []stats.MonthPlayer) monthRow {
+func monthRowFor(p stats.MonthPlayer, prefix string, winners []stats.MonthPlayer, t translator) monthRow {
 	row := monthRow{
 		Rank: p.Rank, Name: p.Name, Href: prefix + "/p/" + p.Slug,
-		Average: formatScore(p.Average), Games: p.Games,
+		Average: formatScore(t, p.Average), Games: p.Games,
 		ThreeOrBetter: p.ThreeOrBetter, Fails: p.Fails, BestRun: p.BestRun,
 	}
 	if p.Average != nil {
@@ -367,7 +367,7 @@ func longDate(t translator, date time.Time) string {
 }
 
 // joinNames renders a tie as every name, because a tie is the result.
-func joinNames(ps []stats.MonthPlayer) string {
+func joinNames(t translator, ps []stats.MonthPlayer) string {
 	names := make([]string, 0, len(ps))
 	for _, p := range ps {
 		names = append(names, p.Name)
@@ -384,7 +384,7 @@ func joinNames(ps []stats.MonthPlayer) string {
 		case i == 0:
 			out = n
 		case i == len(names)-1:
-			out += " & " + n
+			out += " " + t.T("list.and") + " " + n
 		default:
 			out += ", " + n
 		}

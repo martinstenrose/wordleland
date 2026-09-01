@@ -62,7 +62,7 @@
           <tr class="divider"><td colspan="9">{{$t.T "board.notRanked"}}</td></tr>
         {{end}}
         <tr{{if not .Ranked}} class="unranked"{{end}}>
-          <td class="num">{{if .Ranked}}{{.Rank}}{{else}}—{{end}}</td>
+          <td class="num">{{if .Ranked}}{{$.T.Integer .Rank}}{{else}}—{{end}}</td>
           <td><a class="player" href="{{.Href}}">{{.Name}}</a>
             {{if .ReasonKey}}<span class="chip">{{$t.T .ReasonKey}}</span>{{end}}
           </td>
@@ -109,7 +109,7 @@
             </ol>
           </td>
           <td class="right num">{{.StreakText}}</td>
-          <td class="right num">{{.Games}}</td>
+          <td class="right num">{{$.T.Integer .Games}}</td>
           <td class="right num">
             {{if .LastPuzzle}}
               {{/* Joins the shared name="popup" group (see base.html): a
@@ -118,7 +118,7 @@
                    saying the same thing as a tap-away popup is one of them
                    spare, and it is the popup that also works on a phone. */}}
               <details class="lastgame-pop" name="popup">
-                <summary class="lastgame">{{.LastPuzzle}}</summary>
+                <summary class="lastgame">{{$.T.Integer .LastPuzzle}}</summary>
                 <p class="lastgame-detail popup-panel">{{.LastPuzzleDate}}</p>
               </details>
             {{else}}

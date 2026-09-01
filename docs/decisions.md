@@ -429,6 +429,14 @@ because the two format for a browser and for a chat message respectively,
 and a shared type for ten lines of branching would cost more to agree on
 than reading both sides once when either changes.
 
+**Display numbers follow the selected locale on every surface.** Swedish
+uses a comma as the decimal separator and spaces between thousands; English
+keeps the application's previous decimal-point and ungrouped forms. The
+formatter lives beside the shared catalogue so a monthly average cannot read
+one way on the board and another in Signal. Name lists use the same catalogue
+for their final conjunction, rendering Swedish `och` instead of the
+language-neutral ampersand used by English.
+
 **Turning it off is a separate switch from configuring the bridge at all**,
 `SIGNAL_ANNOUNCE_MONTHS`, defaulting on. The bridge's own on/off state
 already answers "does this deployment talk to Signal"; this answers "does

@@ -369,7 +369,25 @@ func TestWinnerLineUsesTheConfiguredLocale(t *testing.T) {
 	if !ok {
 		t.Fatal("winnerLine() reported no winner")
 	}
-	want := "Alice tog mars 2026 med 1.25 gissning, över 12 pussel."
+	want := "Alice tog mars 2026 med marginalen 1,25 gissningar, över 12 pussel."
+	if got != want {
+		t.Errorf("winnerLine() = %q, want %q", got, want)
+	}
+}
+
+func TestSwedishTieUsesDecimalCommaAndOch(t *testing.T) {
+	avg := 3.25
+	m := stats.Month{Winners: []stats.MonthPlayer{
+		{Player: store.Player{Name: "Alice"}, Average: &avg},
+		{Player: store.Player{Name: "Bob"}, Average: &avg},
+	}}
+	tr := i18n.NewTranslator(loadCatalogues(t), "sv")
+
+	got, ok := winnerLine(tr, m)
+	if !ok {
+		t.Fatal("winnerLine() reported no winner for a tie")
+	}
+	want := "Alice och Bob: Oavgjort på 3,25. De tar månaden."
 	if got != want {
 		t.Errorf("winnerLine() = %q, want %q", got, want)
 	}

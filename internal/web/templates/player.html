@@ -75,7 +75,7 @@
           <li>
             <span class="dist-label num">{{.Label}}</span>
             <span class="dist-track"><span class="dist-fill" style="width:{{.Percent}}%"></span></span>
-            <span class="dist-count num">{{.Count}}</span>
+            <span class="dist-count num">{{$.T.Integer .Count}}</span>
             <span class="dist-share num muted small">{{.Share}}</span>
           </li>
         {{end}}
@@ -110,7 +110,7 @@
           {{range .MonthRanks}}
             <g>
               <circle cx="{{.X}}" cy="{{.Y}}" r="3.4"/>
-              <text x="{{.X}}" y="{{.LabelY}}" text-anchor="middle" font-size="11">{{.Rank}}</text>
+              <text x="{{.X}}" y="{{.LabelY}}" text-anchor="middle" font-size="11">{{$.T.Integer .Rank}}</text>
               <text x="{{.X}}" y="114" text-anchor="middle" font-size="10" class="axis">{{.Label}}</text>
             </g>
           {{end}}

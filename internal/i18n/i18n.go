@@ -100,5 +100,13 @@ func (t Translator) T(key string, args ...any) string {
 	if len(args) == 0 {
 		return format
 	}
-	return fmt.Sprintf(format, args...)
+	return Sprintf(t.Locale, format, args...)
+}
+
+func (t Translator) Integer(value int) string {
+	return Integer(t.Locale, value)
+}
+
+func (t Translator) Decimal(value float64, places int) string {
+	return Decimal(t.Locale, value, places)
 }

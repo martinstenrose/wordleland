@@ -35,7 +35,7 @@
 
   <aside class="signin-aside">
     <p class="kicker">{{.T.T "signin.asideTitle"}}</p>
-    <p class="signin-figure">{{.Stats.Games}}</p>
+    <p class="signin-figure">{{.T.Integer .Stats.Games}}</p>
     <p class="muted small">{{.T.TN "signin.gamesOver" .Stats.Days}}</p>
     <hr>
     <dl class="signin-stats">
