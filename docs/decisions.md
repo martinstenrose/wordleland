@@ -83,10 +83,17 @@ over a window each player defines by turning up, so counting absences is one
 way of looking at it and belongs behind a toggle. A month is a competition
 over a fixed set of days everybody had, so a day not played is a failure —
 without that, the way to win a month is to play only your good days, and
-eleven cherry-picked games beat thirty honest ones. The denominator is the
-days the group played, not the calendar: a day nobody posted is not a day
-anybody missed. It still follows *count X as 7*, because with a failure
-worth nothing there is no number an absence could take either.
+eleven cherry-picked games beat thirty honest ones. The denominator is every
+concluded calendar day from the month's first puzzle, even if nobody posted
+on one of them. It still follows *count X as 7*, because with a failure worth
+nothing there is no number an absence could take either. Today's puzzle is
+not a miss while there is still time to play it.
+
+**A month has no minimum-games threshold.** Every concluded day a player
+missed already scores as 7, so a short appearance is penalised by the monthly
+calculation itself. Today's puzzle remains open and cannot become a missed
+day until the day ends. The ten-game rule on the main board is separate and
+unchanged.
 
 **Both emailed links share one table and are kept apart by a purpose
 column.** A password reset and an address confirmation are the same shape —

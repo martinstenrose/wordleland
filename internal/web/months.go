@@ -68,10 +68,6 @@ type monthsPage struct {
 	Rows []monthRow
 	Thin []monthRow
 
-	// MinGames is the ranking threshold, carried into the page so the rule
-	// the kicker states cannot drift from the one the code applies.
-	MinGames int
-
 	// Range names the puzzles the history covers, which the design puts
 	// opposite the heading. PartialNote says whether the chosen month is
 	// complete.
@@ -123,10 +119,7 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 	})
 
 	ch := s.newChrome(w, r, prefix, viewMonths, readOnly)
-	page := monthsPage{
-		chrome: ch, Prefix: prefix, BoardPath: boardPath, Query: query,
-		MinGames: stats.MinGames,
-	}
+	page := monthsPage{chrome: ch, Prefix: prefix, BoardPath: boardPath, Query: query}
 
 	if len(months) == 0 {
 		page.Empty = true
@@ -217,9 +210,9 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 			page.WinnerLine = ch.T.T(prefix+"tie", formatScore(w.Average))
 		case m.Margin != nil:
 			page.WinnerLine = ch.T.T(prefix+"margin", page.WinnerNames, page.Label,
-				strconv.FormatFloat(*m.Margin, 'f', 2, 64), w.Games)
+				strconv.FormatFloat(*m.Margin, 'f', 2, 64), m.Days)
 		default:
-			page.WinnerLine = ch.T.T(prefix+"alone", page.WinnerNames, w.Games)
+			page.WinnerLine = ch.T.T(prefix+"alone", page.WinnerNames, m.Days)
 		}
 
 		// The four figures the design puts beside the name, in its order.
@@ -230,7 +223,7 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 			{Label: ch.T.T("months.bestRun"), Value: strconv.Itoa(w.BestRun)},
 		}
 	} else {
-		page.WinnerLine = ch.T.T("months.line.nobody", 10)
+		page.WinnerLine = ch.T.T("months.line.nobody")
 	}
 
 	for _, p := range m.Ranked {

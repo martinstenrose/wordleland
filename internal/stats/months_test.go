@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -46,9 +47,9 @@ func TestMonthsGroupByCalendarMonthNewestFirst(t *testing.T) {
 	}
 }
 
-// Below the ten-game minimum a month average is withheld, exactly as on the
-// board, and the player is listed as played-but-not-ranked instead.
-func TestMonthRankingNeedsTenGames(t *testing.T) {
+// Monthly ranking has no minimum attendance threshold. Missed concluded
+// days already prevent a short run of good scores from winning the month.
+func TestMonthRanksPlayersBelowTenGames(t *testing.T) {
 	players := []store.Player{player(1, "regular"), player(2, "cameo")}
 
 	// Both play in the same month; one only three times.
@@ -59,18 +60,19 @@ func TestMonthRankingNeedsTenGames(t *testing.T) {
 	months := ComputeMonths(players, results, DefaultOptions(today(t)))
 	m := monthOf(t, months, date.Year(), date.Month())
 
-	if len(m.Ranked) != 1 || m.Ranked[0].Slug != "regular" {
-		t.Errorf("Ranked = %v, want just the regular", slugs(m.Ranked))
+	if got := slugs(m.Ranked); len(got) != 2 || got[0] != "regular" || got[1] != "cameo" {
+		t.Errorf("Ranked = %v, want regular then cameo", got)
 	}
-	if len(m.Thin) != 1 || m.Thin[0].Slug != "cameo" {
-		t.Errorf("Thin = %v, want just the cameo", slugs(m.Thin))
+	if len(m.Thin) != 0 {
+		t.Errorf("Thin = %v, want nobody", slugs(m.Thin))
 	}
-	// The cameo's three 2s must not win the month.
+	// The cameo's three 2s and 28 missed August days score 202/31, so removing
+	// the threshold does not let a cherry-picked appearance win the month.
 	if m.Winners[0].Slug != "regular" {
 		t.Errorf("winner = %s, want the regular", m.Winners[0].Slug)
 	}
-	if m.Thin[0].Average != nil {
-		t.Error("a below-threshold month average was computed anyway")
+	if got, want := *m.Ranked[1].Average, 202.0/31; got != want {
+		t.Errorf("cameo average = %.2f, want %.2f", got, want)
 	}
 }
 
@@ -99,8 +101,8 @@ func TestMonthTiesAreJoined(t *testing.T) {
 	if m.Margin == nil {
 		t.Fatal("no margin over the next player")
 	}
-	if got := *m.Margin; got < 1.99 || got > 2.01 {
-		t.Errorf("margin = %.2f, want 2.00", got)
+	if got, want := *m.Margin, 40.0/31; math.Abs(got-want) > 1e-12 {
+		t.Errorf("margin = %.2f, want %.2f", got, want)
 	}
 }
 
@@ -175,13 +177,16 @@ func slugs(ps []MonthPlayer) []string {
 func TestSeasonCountsClosedMonthsOnly(t *testing.T) {
 	players := []store.Player{player(1, "alma"), player(2, "bosse")}
 
-	// Alma leads the current month; bosse won the one before it.
-	current := today(t)
+	// Alma leads September; bosse won August. Use a fixed clock and derive
+	// puzzle numbers from it so the fixture cannot cross a real month boundary.
+	current := time.Date(2026, time.September, 15, 12, 0, 0, 0, time.Local)
+	september := wordle.PuzzleForDate(time.Date(2026, time.September, 1, 0, 0, 0, 0, time.Local))
+	august := wordle.PuzzleForDate(time.Date(2026, time.August, 1, 0, 0, 0, 0, time.Local))
 	var results []store.BoardResult
-	results = append(results, run(1, 1871, 1900, 2, false)...)
-	results = append(results, run(2, 1871, 1900, 5, false)...)
-	results = append(results, run(1, 1830, 1860, 5, false)...)
-	results = append(results, run(2, 1830, 1860, 2, false)...)
+	results = append(results, run(1, september, september+11, 2, false)...)
+	results = append(results, run(2, september, september+11, 5, false)...)
+	results = append(results, run(1, august, august+11, 5, false)...)
+	results = append(results, run(2, august, august+11, 2, false)...)
 
 	months := ComputeMonths(players, results, DefaultOptions(current))
 	season := ComputeSeason(months, current)
@@ -191,14 +196,17 @@ func TestSeasonCountsClosedMonthsOnly(t *testing.T) {
 		byPlayer[r.Slug] = r
 	}
 
-	// The running month is marked as such and won by nobody yet.
+	// The running month is marked as such but is not counted as Alma's win.
+	if byPlayer["alma"].Wins != 0 {
+		t.Errorf("Alma has %d wins, want 0 while only leading September", byPlayer["alma"].Wins)
+	}
+	if byPlayer["bosse"].Wins != 1 {
+		t.Errorf("Bosse has %d wins, want the closed August win", byPlayer["bosse"].Wins)
+	}
 	var running int
 	for _, m := range byPlayer["alma"].Marks {
 		if m.Running {
 			running++
-			if m.Won && byPlayer["alma"].Wins > 0 {
-				t.Error("a lead in an unfinished month was counted as a win")
-			}
 		}
 	}
 	if running == 0 {
@@ -211,8 +219,8 @@ func TestSeasonCountsClosedMonthsOnly(t *testing.T) {
 	}
 }
 
-// Not being ranked in a month is different from finishing last.
-func TestSeasonMarksUnrankedMonthsDistinctly(t *testing.T) {
+// Even a short appearance gets a monthly place and therefore a season mark.
+func TestSeasonMarksMonthsBelowTenGames(t *testing.T) {
 	players := []store.Player{player(1, "alma"), player(2, "cameo")}
 
 	results := run(1, 1871, 1900, 3, false)
@@ -220,19 +228,86 @@ func TestSeasonMarksUnrankedMonthsDistinctly(t *testing.T) {
 
 	months := ComputeMonths(players, results, DefaultOptions(today(t)))
 	season := ComputeSeason(months, today(t))
+	wantDate, _ := wordle.DateForPuzzle(1871)
 
 	for _, row := range season.Rows {
 		if row.Slug != "cameo" {
 			continue
 		}
 		for _, m := range row.Marks {
-			if m.Rank != 0 {
-				t.Errorf("a player below the minimum was given rank %d", m.Rank)
+			if m.Year == wantDate.Year() && m.Month == wantDate.Month() {
+				if m.Rank == 0 {
+					t.Error("a player below ten games was left unranked")
+				}
+				return
 			}
 		}
-		return
+		t.Fatal("the cameo has no season mark for its month")
 	}
 	t.Fatal("the cameo is missing from the season")
+}
+
+// When two players are tied on wins and podiums, SeasonRow.Ranked breaks
+// the tie: the player ranked in more months sits above one ranked in
+// fewer, even if that other player's single best month was better.
+func TestSeasonBreaksWinPodiumTiesOnMonthsRanked(t *testing.T) {
+	players := []store.Player{
+		player(1, "carl"), player(2, "dana"), player(3, "elin"),
+		player(4, "alma"), player(5, "bosse"),
+	}
+
+	current := time.Date(2026, time.October, 15, 12, 0, 0, 0, time.Local)
+	augStart := wordle.PuzzleForDate(time.Date(2026, time.August, 1, 0, 0, 0, 0, time.Local))
+	septStart := wordle.PuzzleForDate(time.Date(2026, time.September, 1, 0, 0, 0, 0, time.Local))
+	octStart := wordle.PuzzleForDate(time.Date(2026, time.October, 1, 0, 0, 0, 0, time.Local))
+	augEnd := septStart - 1
+	septEnd := octStart - 1
+
+	var results []store.BoardResult
+	// Carl, dana and elin take the podium in both months.
+	results = append(results, run(1, augStart, septEnd, 2, false)...)
+	results = append(results, run(2, augStart, septEnd, 3, false)...)
+	results = append(results, run(3, augStart, septEnd, 4, false)...)
+	// Alma is ranked but off the podium in both months.
+	results = append(results, run(4, augStart, septEnd, 6, false)...)
+	// Bosse only plays August, off the podium there too, but with a
+	// better average than alma ever manages.
+	results = append(results, run(5, augStart, augEnd, 5, false)...)
+
+	months := ComputeMonths(players, results, DefaultOptions(current))
+	season := ComputeSeason(months, current)
+
+	byPlayer := map[string]SeasonRow{}
+	for _, r := range season.Rows {
+		byPlayer[r.Slug] = r
+	}
+	alma, bosse := byPlayer["alma"], byPlayer["bosse"]
+
+	if alma.Wins != bosse.Wins || alma.Podiums != bosse.Podiums {
+		t.Fatalf("fixture is not tied: alma wins=%d podiums=%d, bosse wins=%d podiums=%d",
+			alma.Wins, alma.Podiums, bosse.Wins, bosse.Podiums)
+	}
+	if alma.Ranked <= bosse.Ranked {
+		t.Fatalf("alma.Ranked = %d, want more than bosse.Ranked = %d", alma.Ranked, bosse.Ranked)
+	}
+	if *alma.Best <= *bosse.Best {
+		t.Fatalf("fixture is not discriminating: alma.Best = %v should be worse than bosse.Best = %v",
+			*alma.Best, *bosse.Best)
+	}
+
+	var almaPos, bossePos int
+	for i, r := range season.Rows {
+		switch r.Slug {
+		case "alma":
+			almaPos = i
+		case "bosse":
+			bossePos = i
+		}
+	}
+	if almaPos >= bossePos {
+		t.Errorf("alma (ranked %d months) sorted below bosse (ranked %d months) despite a tie on wins and podiums",
+			alma.Ranked, bosse.Ranked)
+	}
 }
 
 // A month is a competition over a fixed set of days: turning up eleven
@@ -240,8 +315,8 @@ func TestSeasonMarksUnrankedMonthsDistinctly(t *testing.T) {
 func TestMonthCountsAMissedDayAsAFailure(t *testing.T) {
 	players := []store.Player{player(1, "everyday"), player(2, "cherry")}
 
-	// The group plays 1871-1890. Everyday plays all twenty at 4; Cherry
-	// plays half of them at 2 and skips the rest.
+	// The group posts on 1871-1890. Everyday plays all twenty at 4; Cherry
+	// plays half of them at 2. The other eleven August days count too.
 	results := run(1, 1871, 1890, 4, false)
 	for p := 1871; p <= 1880; p++ {
 		results = append(results, result(2, p, 2, false))
@@ -254,12 +329,12 @@ func TestMonthCountsAMissedDayAsAFailure(t *testing.T) {
 	if len(m.Ranked) != 2 {
 		t.Fatalf("Ranked = %v, want both", slugs(m.Ranked))
 	}
-	// Cherry: ten 2s and ten missed days at 7 = 4.5, behind Everyday's 4.
-	if got := *m.Ranked[0].Average; got != 4 || m.Ranked[0].Slug != "everyday" {
-		t.Errorf("winner is %s on %.2f, want everyday on 4.00", m.Ranked[0].Slug, got)
+	// Everyday: twenty 4s and eleven misses. Cherry: ten 2s and 21 misses.
+	if got, want := *m.Ranked[0].Average, 157.0/31; got != want || m.Ranked[0].Slug != "everyday" {
+		t.Errorf("winner is %s on %.2f, want everyday on %.2f", m.Ranked[0].Slug, got, want)
 	}
-	if got := *m.Ranked[1].Average; got != 4.5 {
-		t.Errorf("cherry averages %.2f, want 4.50 — ten 2s and ten misses at 7", got)
+	if got, want := *m.Ranked[1].Average, 167.0/31; got != want {
+		t.Errorf("cherry averages %.2f, want %.2f — ten 2s and 21 misses at 7", got, want)
 	}
 	// Games counts days played, not the denominator the average uses.
 	if m.Ranked[1].Games != 10 {
@@ -296,19 +371,16 @@ func TestMonthMissedDaysFollowCountXAsSeven(t *testing.T) {
 func TestMonthDoesNotCountTodayAsMissedYet(t *testing.T) {
 	players := []store.Player{player(1, "everyday"), player(2, "latecomer")}
 
-	// Everyday has already played today's puzzle (2020). Latecomer has
-	// played every earlier day this month but not yet today.
-	results := run(1, 2001, 2020, 4, false)
-	results = append(results, run(2, 2001, 2019, 2, false)...)
+	// Everyday has already played September 10. Latecomer has played from
+	// the first through the ninth, but still has the rest of today to play.
+	now := time.Date(2026, time.September, 10, 12, 0, 0, 0, time.Local)
+	first := wordle.PuzzleForDate(time.Date(2026, time.September, 1, 0, 0, 0, 0, time.Local))
+	current := wordle.PuzzleForDate(now)
+	results := run(1, first, current, 4, false)
+	results = append(results, run(2, first, current-1, 2, false)...)
 
-	now, err := wordle.DateForPuzzle(2020)
-	if err != nil {
-		t.Fatalf("DateForPuzzle: %v", err)
-	}
-
-	date, _ := wordle.DateForPuzzle(2001)
 	m := monthOf(t, ComputeMonths(players, results, DefaultOptions(now)),
-		date.Year(), date.Month())
+		now.Year(), now.Month())
 
 	if len(m.Ranked) != 2 {
 		t.Fatalf("Ranked = %v, want both", slugs(m.Ranked))
@@ -324,22 +396,26 @@ func TestMonthDoesNotCountTodayAsMissedYet(t *testing.T) {
 	}
 }
 
-// The denominator is the days the group played, not the calendar: a day
-// nobody posted is not a day anybody missed.
-func TestMonthIgnoresDaysNobodyPlayed(t *testing.T) {
+// The monthly window is the calendar, so a concluded day counts as missed
+// even when nobody in the group posted a result for it.
+func TestMonthCountsDaysNobodyPlayed(t *testing.T) {
 	players := []store.Player{player(1, "alma")}
 
-	// Twelve games inside a month, with a fortnight nobody touched.
-	results := run(1, 1871, 1882, 4, false)
+	// Twelve games from the start of August, then no posts for 19 days.
+	first := wordle.PuzzleForDate(time.Date(2026, time.August, 1, 0, 0, 0, 0, time.Local))
+	results := run(1, first, first+11, 4, false)
 
-	date, _ := wordle.DateForPuzzle(1871)
+	date, _ := wordle.DateForPuzzle(first)
 	m := monthOf(t, ComputeMonths(players, results, DefaultOptions(today(t))),
 		date.Year(), date.Month())
 
 	if len(m.Ranked) != 1 {
 		t.Fatalf("Ranked = %v, want alma", slugs(m.Ranked))
 	}
-	if got := *m.Ranked[0].Average; got != 4 {
-		t.Errorf("alma averages %.2f, want 4.00 — the days nobody played are not misses", got)
+	if got, want := *m.Ranked[0].Average, 181.0/31; got != want {
+		t.Errorf("alma averages %.2f, want %.2f — 12 fours and 19 missed days", got, want)
+	}
+	if m.Days != 31 {
+		t.Errorf("month covers %d days, want all 31 calendar days", m.Days)
 	}
 }
