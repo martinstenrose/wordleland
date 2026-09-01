@@ -858,9 +858,7 @@ func TestRunningMonthReadsAsUnfinished(t *testing.T) {
 	if !strings.Contains(head, wantProgress) {
 		t.Errorf("the current month does not show %q:\n%s", wantProgress, head)
 	}
-	// Before the tenth puzzle there is deliberately no ranked leader yet.
-	if !strings.Contains(head, "Nobody reached the minimum") &&
-		!strings.Contains(head, "is ahead") && !strings.Contains(head, "Level at") {
+	if !strings.Contains(head, "is ahead") && !strings.Contains(head, "Level at") {
 		t.Errorf("a running month is not described in the present tense:\n%s", head)
 	}
 }
@@ -894,7 +892,7 @@ func TestMonthViewMatchesTheDesign(t *testing.T) {
 	if strings.Contains(table, ">Winner<") || strings.Contains(table, ">Runner-up<") {
 		t.Error("a running month names a winner")
 	}
-	if !strings.Contains(body, "Nobody reached the minimum") && !strings.Contains(table, ">Leading<") {
+	if !strings.Contains(table, ">Leading<") {
 		t.Error("a running month does not name its leader")
 	}
 
