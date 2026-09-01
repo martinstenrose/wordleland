@@ -560,11 +560,13 @@ func TestTraitsAreLocalised(t *testing.T) {
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
-	sv := fetchAs(t, srv, "/share/"+slug+"/p/harda?lang=sv", nil).Body.String()
-	if !strings.Contains(sv, "Purist") {
+	// Thin has too little data, so its fixed newcomer trait does not rotate
+	// with the current puzzle as active players' earned traits do.
+	sv := fetchAs(t, srv, "/share/"+slug+"/p/thin?lang=sv", nil).Body.String()
+	if !strings.Contains(sv, "Nykomling") {
 		t.Error("the Swedish page has no trait")
 	}
-	if !strings.Contains(sv, "hard mode så gott som varje dag") {
+	if !strings.Contains(sv, "Färre än 10 pussel hittills") {
 		t.Error("the explanation is still English under ?lang=sv")
 	}
 }
