@@ -188,8 +188,8 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, pref
 		Trait: traitOf(player, board, t),
 		Why:   traitWhy(player, board, t),
 
-		AverageText: formatScore(player.Average),
-		FormText:    formatScore(player.Form),
+		AverageText: formatScore(t, player.Average),
+		FormText:    formatScore(t, player.Form),
 		ReasonKey:   reasonKey(player.Reason),
 
 		FormPath:  template.HTML(sparkPath(player.Series, chartWidth, chartHeight)),
@@ -198,7 +198,7 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, pref
 		Gridlines: chartGridlines(),
 
 		Distribution: distributionBars(player, t),
-		Recent:       recentCells(player, results, board.CurrentPuzzle),
+		Recent:       recentCells(player, results, board.CurrentPuzzle, t),
 		Calendar:     buildCalendar(results, player.ID),
 		CalendarRows: weekdays,
 	}
@@ -225,19 +225,19 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, pref
 		}
 	}
 
-	page.DeltaText, page.DeltaClass = formatDelta(player.Delta)
+	page.DeltaText, page.DeltaClass = formatDelta(t, player.Delta)
 
 	rank := "—"
 	if player.Ranked() {
-		rank = "#" + strconv.Itoa(player.Rank)
+		rank = "#" + t.Integer(player.Rank)
 	}
 	streak := "—"
 	if player.CurrentStreak > 0 {
-		streak = strconv.Itoa(player.CurrentStreak)
+		streak = t.Integer(player.CurrentStreak)
 	}
 	page.Stats = []playerStat{
-		{Label: t.T("board.column.form"), Value: formatScore(player.Form)},
-		{Label: t.T("board.column.average"), Value: formatScore(player.Average)},
+		{Label: t.T("board.column.form"), Value: formatScore(t, player.Form)},
+		{Label: t.T("board.column.average"), Value: formatScore(t, player.Average)},
 		{Label: t.T("player.currentStreak"), Value: streak},
 		{Label: t.T("board.column.rank"), Value: rank},
 	}
@@ -339,7 +339,7 @@ func distributionBars(p stats.Player, t translator) []distributionBar {
 // Days the player did not play are included as empty cells rather than
 // omitted: the gaps are the point of the strip, and a run of results with
 // the absences squeezed out would read as an unbroken streak.
-func recentCells(p stats.Player, results []store.BoardResult, currentPuzzle int) []scoreCell {
+func recentCells(p stats.Player, results []store.BoardResult, currentPuzzle int, t translator) []scoreCell {
 	byPuzzle := make(map[int]store.BoardResult)
 	for _, res := range results {
 		if res.PlayerID == p.ID {
@@ -364,7 +364,7 @@ func recentCells(p stats.Player, results []store.BoardResult, currentPuzzle int)
 		cell.Played = true
 		cell.Solved = res.Solved
 		cell.HardMode = res.HardMode
-		cell.PuzzleDate = puzzleDate(puzzle, cell.Date)
+		cell.PuzzleDate = puzzleDate(t, puzzle, cell.Date)
 		if res.Solved {
 			cell.Label = strconv.Itoa(res.Guesses)
 			cell.Tone = res.Guesses

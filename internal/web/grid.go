@@ -144,10 +144,10 @@ func (s *Server) handleGrid(w http.ResponseWriter, r *http.Request, prefix, boar
 	}
 
 	for _, p := range grid.Players {
-		page.Columns = append(page.Columns, gridColumnFor(prefix, p))
+		page.Columns = append(page.Columns, gridColumnFor(prefix, p, ch.T))
 	}
 	for _, p := range stats.GridRanking(grid.Players) {
-		page.Rail = append(page.Rail, gridColumnFor(prefix, p))
+		page.Rail = append(page.Rail, gridColumnFor(prefix, p, ch.T))
 	}
 
 	for _, row := range grid.Rows {
@@ -163,7 +163,7 @@ func (s *Server) handleGrid(w http.ResponseWriter, r *http.Request, prefix, boar
 				if c.HardMode {
 					cell.Label += "*"
 				}
-				cell.Title = grid.Players[i].Name + " · " + puzzleDate(row.PuzzleNo, row.Date.Format(time.DateOnly))
+				cell.Title = grid.Players[i].Name + " · " + puzzleDate(ch.T, row.PuzzleNo, row.Date.Format(time.DateOnly))
 			}
 			view.Cells = append(view.Cells, cell)
 		}
@@ -178,13 +178,13 @@ func (s *Server) handleGrid(w http.ResponseWriter, r *http.Request, prefix, boar
 
 // gridColumnFor is one player as a heading, shared by the grid and the
 // rail so the two orders cannot drift into showing different figures.
-func gridColumnFor(prefix string, p stats.Player) gridColumn {
+func gridColumnFor(prefix string, p stats.Player, t translator) gridColumn {
 	col := gridColumn{
 		Name: p.Name, Short: shortName(p.Name),
-		Href: prefix + "/p/" + p.Slug, Form: formatScore(p.Average),
+		Href: prefix + "/p/" + p.Slug, Form: formatScore(t, p.Average),
 	}
 	if p.Ranked() {
-		col.Rank = strconv.Itoa(p.Rank)
+		col.Rank = t.Integer(p.Rank)
 	}
 	return col
 }

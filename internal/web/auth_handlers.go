@@ -1,7 +1,6 @@
 package web
 
 import (
-	"strconv"
 	"time"
 
 	"errors"
@@ -54,20 +53,21 @@ func (s *Server) signInSummary(r *http.Request) signInStats {
 		return signInStats{}
 	}
 
+	t := s.translatorFor(nil, r)
 	out := signInStats{Games: summary.Games, Days: summary.Days}
 	out.Rows = append(out.Rows,
-		signInStat{Key: "signin.stat.players", Value: strconv.Itoa(summary.Players)},
-		signInStat{Key: "signin.stat.solved", Value: strconv.Itoa(summary.SolvedPercent) + "%"},
+		signInStat{Key: "signin.stat.players", Value: t.Integer(summary.Players)},
+		signInStat{Key: "signin.stat.solved", Value: t.Integer(summary.SolvedPercent) + "%"},
 	)
 	if summary.Average != nil {
 		out.Rows = append(out.Rows, signInStat{
 			Key:   "signin.stat.average",
-			Value: strconv.FormatFloat(*summary.Average, 'f', 2, 64),
+			Value: t.Decimal(*summary.Average, 2),
 		})
 	}
 	out.Rows = append(out.Rows, signInStat{
 		Key:   "signin.stat.today",
-		Value: strconv.Itoa(summary.FiledToday),
+		Value: t.Integer(summary.FiledToday),
 	})
 	return out
 }

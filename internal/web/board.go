@@ -252,11 +252,11 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boa
 func (s *Server) newBoardRow(p stats.Player, prefix string, t translator, traits stats.Traiter,
 	results []store.BoardResult, currentPuzzle int) boardRow {
 
-	cells := recentCells(p, results, currentPuzzle)
+	cells := recentCells(p, results, currentPuzzle, t)
 	row := boardRow{
 		Player:      p,
-		AverageText: formatScore(p.Average),
-		FormText:    formatScore(p.Form),
+		AverageText: formatScore(t, p.Average),
+		FormText:    formatScore(t, p.Form),
 		StreakText:  "—",
 		SparkPath:   template.HTML(sparkPath(p.Series, sparkWidth, sparkHeight)),
 		HasSpark:    hasSparkline(p.Series),
@@ -270,9 +270,9 @@ func (s *Server) newBoardRow(p stats.Player, prefix string, t translator, traits
 	}
 
 	if p.CurrentStreak > 0 {
-		row.StreakText = strconv.Itoa(p.CurrentStreak)
+		row.StreakText = t.Integer(p.CurrentStreak)
 	}
-	row.DeltaText, row.DeltaDirection = formatDelta(p.Delta)
+	row.DeltaText, row.DeltaDirection = formatDelta(t, p.Delta)
 	row.ReasonKey = reasonKey(p.Reason)
 
 	if key := traits.For(p); key != "" {
@@ -302,18 +302,18 @@ func (s *Server) newBoardRow(p stats.Player, prefix string, t translator, traits
 // formatScore renders an average or form figure, or an em dash when it is
 // undefined — a suppressed figure shows as a dash rather
 // than as a number computed from too little.
-func formatScore(v *float64) string {
+func formatScore(t translator, v *float64) string {
 	if v == nil {
 		return "—"
 	}
-	return strconv.FormatFloat(*v, 'f', 2, 64)
+	return t.Decimal(*v, 2)
 }
 
 // puzzleDate names a puzzle and when it fell, the way every popup that
 // names one does: "#1869 (2026-08-01)". One function rather than the
 // string built again at each call site, so they cannot drift apart.
-func puzzleDate(puzzleNo int, date string) string {
-	return fmt.Sprintf("#%d (%s)", puzzleNo, date)
+func puzzleDate(t translator, puzzleNo int, date string) string {
+	return "#" + t.Integer(puzzleNo) + " (" + date + ")"
 }
 
 // deltaDeadZone is the band within which a delta is not worth colouring. It
@@ -323,7 +323,7 @@ const deltaDeadZone = 0.04
 
 // formatDelta renders the gap between form and average, signed, using a
 // true minus rather than a hyphen.
-func formatDelta(delta *float64) (text, direction string) {
+func formatDelta(t translator, delta *float64) (text, direction string) {
 	if delta == nil {
 		return "", "level"
 	}
@@ -333,13 +333,13 @@ func formatDelta(delta *float64) (text, direction string) {
 	// a gap where every other row has a figure, which reads as missing data
 	// rather than as "no change". It shows as ±0.00 in the muted tone.
 	if d > -deltaDeadZone && d < deltaDeadZone {
-		return "+0.00", "level"
+		return "+" + t.Decimal(0, 2), "level"
 	}
 	if d < 0 {
 		// A true minus rather than a hyphen.
-		return "−" + strconv.FormatFloat(-d, 'f', 2, 64), "better"
+		return "−" + t.Decimal(-d, 2), "better"
 	}
-	return "+" + strconv.FormatFloat(d, 'f', 2, 64), "worse"
+	return "+" + t.Decimal(d, 2), "worse"
 }
 
 // reasonKey maps a reason to its localised key, so the copy lives in the

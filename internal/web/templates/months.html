@@ -65,7 +65,7 @@
     <tbody>
       {{range .Rows}}
         <tr>
-          <td class="right num muted">{{.Rank}}</td>
+          <td class="right num muted">{{$.T.Integer .Rank}}</td>
           <td>
             <span class="admin-name">
               <a class="player" href="{{.Href}}">{{.Name}}</a>
@@ -75,10 +75,10 @@
           </td>
           <td class="bar-cell"><span class="bar"><span class="bar-fill{{if .Winner}} win{{end}}" style="width:{{.BarPercent}}%"></span></span></td>
           <td class="right num strong">{{.Average}}</td>
-          <td class="right num muted">{{.Games}}</td>
-          <td class="right num muted">{{.ThreeOrBetter}}</td>
-          <td class="right num muted">{{.Fails}}</td>
-          <td class="right num muted">{{.BestRun}}</td>
+          <td class="right num muted">{{$.T.Integer .Games}}</td>
+          <td class="right num muted">{{$.T.Integer .ThreeOrBetter}}</td>
+          <td class="right num muted">{{$.T.Integer .Fails}}</td>
+          <td class="right num muted">{{$.T.Integer .BestRun}}</td>
         </tr>
       {{end}}
     </tbody>
@@ -111,8 +111,8 @@
                   {{if .Trait}}{{template "trait" .}}{{end}}
                 </span>
               </td>
-              <td class="right num strong">{{.Wins}}</td>
-              <td class="right num muted">{{.Podiums}}</td>
+              <td class="right num strong">{{$.T.Integer .Wins}}</td>
+              <td class="right num muted">{{$.T.Integer .Podiums}}</td>
               <td class="right num muted">{{.Best}}</td>
               {{range .Marks}}
                 <td class="right mark-col">

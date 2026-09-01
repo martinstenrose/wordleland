@@ -146,21 +146,17 @@ func winnerLine(t i18n.Translator, m stats.Month) (string, bool) {
 		return "", false
 	}
 	w := m.Winners[0]
-	names := joinNames(m.Winners)
+	names := joinNames(t, m.Winners)
 
 	switch {
 	case len(m.Winners) > 1:
-		return names + ": " + t.T("months.line.tie", formatAverage(*w.Average)), true
+		return names + ": " + t.T("months.line.tie", t.Decimal(*w.Average, 2)), true
 	case m.Margin != nil:
 		return t.T("months.line.margin", names, monthLabel(t, m),
-			formatAverage(*m.Margin), w.Games), true
+			t.Decimal(*m.Margin, 2), w.Games), true
 	default:
 		return t.T("months.line.alone", names, w.Games), true
 	}
-}
-
-func formatAverage(v float64) string {
-	return strconv.FormatFloat(v, 'f', 2, 64)
 }
 
 func monthLabel(t i18n.Translator, m stats.Month) string {
@@ -168,7 +164,7 @@ func monthLabel(t i18n.Translator, m stats.Month) string {
 }
 
 // joinNames renders a tie as every name, because a tie is the result.
-func joinNames(ps []stats.MonthPlayer) string {
+func joinNames(t i18n.Translator, ps []stats.MonthPlayer) string {
 	names := make([]string, 0, len(ps))
 	for _, p := range ps {
 		names = append(names, p.Name)
@@ -185,7 +181,7 @@ func joinNames(ps []stats.MonthPlayer) string {
 		case i == 0:
 			out = n
 		case i == len(names)-1:
-			out += " & " + n
+			out += " " + t.T("list.and") + " " + n
 		default:
 			out += ", " + n
 		}

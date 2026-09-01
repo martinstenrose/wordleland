@@ -60,7 +60,7 @@
             <tr>
               <th class="grid-date" scope="row">
                 <span>{{.Date}}</span>
-                <span class="muted">{{.PuzzleNo}}</span>
+                <span class="muted">{{$.T.Integer .PuzzleNo}}</span>
               </th>
               {{range .Cells}}
                 <td>

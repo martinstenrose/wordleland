@@ -1,4 +1,5 @@
 {
+  "list.and": "och",
   "app.name": "Wordleland",
   "nav.board": "Tavlan",
   "nav.signOut": "Logga ut",
@@ -335,7 +336,7 @@
   "grid.span.recent": "Senaste %d dagarna",
   "grid.span.all": "Alla %d dagar",
   "months.line.tie": "Oavgjort på %s. De tar månaden.",
-  "months.line.margin": "%s tog %s med %s gissning, över %d pussel.",
+  "months.line.margin": "%s tog %s med marginalen %s gissningar, över %d pussel.",
   "months.line.alone": "%s tog månaden över %d pussel.",
   "months.line.nobody": "Det finns inga resultat att ranka den här månaden.",
   "player.group": "gruppen",
@@ -404,7 +405,7 @@
   "today.formNote": "Sorterad på form. Siffran vid varje namn är placeringen på tavlan.",
   "today.boardRank": "Placering på tavlan",
   "months.running.tie": "Lika på %s i topp.",
-  "months.running.margin": "%s leder i %s med %s gissning, över %d pussel hittills.",
+  "months.running.margin": "%s leder i %s med marginalen %s gissningar, över %d pussel hittills.",
   "months.running.alone": "%s leder, över %d pussel hittills.",
   "months.range": "#%d–#%d",
   "months.topThree": "Topp tre",

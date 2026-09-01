@@ -62,7 +62,7 @@
           <div class="podium-card">
             <div class="podium-head">
               <a class="player" href="{{.Href}}">{{.Name}}</a>
-              <span class="muted small" title="{{$.T.T "today.boardRank"}}">#{{.Rank}}</span>
+              <span class="muted small" title="{{$.T.T "today.boardRank"}}">#{{$.T.Integer .Rank}}</span>
             </div>
             <p class="podium-figure">{{.FormText}}
               {{if .DeltaText}}<span class="delta {{.DeltaDirection}}">{{.DeltaText}}</span>{{end}}
@@ -93,7 +93,7 @@
           </li>
           {{range .Rest}}
             <li>
-              <span class="num muted" title="{{$.T.T "today.boardRank"}}">{{.Rank}}</span>
+              <span class="num muted" title="{{$.T.T "today.boardRank"}}">{{$.T.Integer .Rank}}</span>
               <span class="row-name">
                 <a class="player" href="{{.Href}}">{{.Name}}</a>
                 {{if .Trait}}{{template "trait" .}}{{end}}

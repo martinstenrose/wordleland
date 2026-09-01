@@ -8,10 +8,11 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/martinstenrose/wordleland/internal/stats"
 	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/wordle"
-	"time"
 )
 
 // The nav offers only views that exist. A tab leading to a 404 is worse
@@ -302,6 +303,21 @@ func TestMonthNamesAreLocalised(t *testing.T) {
 	}
 	if checked == 0 {
 		t.Fatal("no month names on the page to check")
+	}
+}
+
+func TestSwedishWinnerListsUseOch(t *testing.T) {
+	srv := testServer(t)
+	tr := translator{
+		locale: "sv", strings: srv.catalogues["sv"], fallback: srv.catalogues["en"],
+	}
+	avg := 3.25
+	players := []stats.MonthPlayer{
+		{Player: store.Player{Name: "Alice"}, Average: &avg},
+		{Player: store.Player{Name: "Bob"}, Average: &avg},
+	}
+	if got, want := joinNames(tr, players), "Alice och Bob"; got != want {
+		t.Errorf("joinNames() = %q, want %q", got, want)
 	}
 }
 

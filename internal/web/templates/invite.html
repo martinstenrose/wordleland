@@ -39,7 +39,7 @@
   {{if not .Invalid}}
     <aside class="signin-aside">
       <p class="kicker">{{.T.T "invite.aside.title"}}</p>
-      <p class="signin-figure">{{.Games}}</p>
+      <p class="signin-figure">{{.T.Integer .Games}}</p>
       <p class="muted small">{{.T.TN "invite.gamesAlready" .Games}}</p>
       <hr>
       <dl class="signin-stats">

@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/wordle"
 )
@@ -106,6 +107,24 @@ func TestShareBoardMirrorsTheAuthenticatedOne(t *testing.T) {
 	// And it offers no authenticated surface.
 	if strings.Contains(body, "/logout") {
 		t.Error("the share board offers sign-out")
+	}
+}
+
+func TestSwedishBoardLocalisesDisplayedNumbers(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	body := fetchAs(t, srv, "/share/"+slug+"/board?lang=sv", nil).Body.String()
+	if !strings.Contains(body, ">3,00<") {
+		t.Error("the Swedish board does not render an average with a decimal comma")
+	}
+	wantPuzzle := "#" + i18n.Integer("sv", currentPuzzle())
+	if !strings.Contains(body, wantPuzzle) {
+		t.Errorf("the Swedish board does not render the puzzle as %q", wantPuzzle)
+	}
+	if strings.Contains(body, ">3.00<") {
+		t.Error("the Swedish board still renders an average with a decimal point")
 	}
 }
 

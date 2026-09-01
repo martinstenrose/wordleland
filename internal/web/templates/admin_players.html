@@ -30,7 +30,7 @@
             <span class="player">{{.Name}}</span>
             {{if .Trait}}{{template "trait" .}}{{end}}
           </span>
-          <span class="right num">{{.Games}}</span>
+          <span class="right num">{{$.T.Integer .Games}}</span>
           <span class="right num">{{.Average}}</span>
           <span class="muted small">{{if .LinkedEmail}}{{.LinkedEmail}}{{else}}—{{end}}</span>
           <span class="right muted small">{{.Status}}</span>
@@ -66,7 +66,7 @@
           </label>
 
           <dl class="admin-figures">
-            <div><dt>{{$.T.T "board.column.games"}}</dt><dd class="num">{{.Games}}</dd></div>
+            <div><dt>{{$.T.T "board.column.games"}}</dt><dd class="num">{{$.T.Integer .Games}}</dd></div>
             <div><dt>{{$.T.T "board.column.average"}}</dt><dd class="num">{{.Average}}</dd></div>
             <div><dt>{{$.T.T "admin.lastScore"}}</dt><dd class="num">{{.LastSeen}}</dd></div>
           </dl>

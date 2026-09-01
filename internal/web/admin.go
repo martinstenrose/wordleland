@@ -156,7 +156,7 @@ func (s *Server) handleAdminPlayers(w http.ResponseWriter, r *http.Request) {
 			row.Status = page.T.T("admin.retired")
 		}
 		if f, ok := figures[p.ID]; ok {
-			row.Average = formatScore(f.Average)
+			row.Average = formatScore(page.T, f.Average)
 			if key := traits.For(f); key != "" {
 				row.Trait = page.T.T("trait." + key)
 				row.Why = page.T.T("trait." + key + ".why")
@@ -219,7 +219,7 @@ func (s *Server) adminPanel(r *http.Request, slug string, games map[int64]int, f
 		Form:     formFor(player),
 	}
 	if f, ok := figures[player.ID]; ok {
-		panel.Average = formatScore(f.Average)
+		panel.Average = formatScore(t, f.Average)
 		if f.LastPlayed != nil {
 			panel.LastSeen = f.LastPlayed.Format(time.DateOnly)
 		}
@@ -415,7 +415,7 @@ func (s *Server) renderAdminPlayer(w http.ResponseWriter, r *http.Request, playe
 			row.Status = page.T.T("admin.retired")
 		}
 		if f, ok := figures[p.ID]; ok {
-			row.Average = formatScore(f.Average)
+			row.Average = formatScore(page.T, f.Average)
 			if key := traits.For(f); key != "" {
 				row.Trait = page.T.T("trait." + key)
 				row.Why = page.T.T("trait." + key + ".why")
