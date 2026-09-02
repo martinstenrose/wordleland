@@ -71,6 +71,14 @@ func securityHeaders(next http.Handler) http.Handler {
 // It deliberately logs only the path, never the query string or headers: the
 // share slug is a capability and reset tokens arrive as query parameters, so
 // logging full URLs would write credentials to disk.
+//
+// r.URL.Path is user-controlled, which is why CodeQL's go/log-injection query
+// flags every site in this package that logs it (suppressed inline below and
+// in templates.go). It's a false positive here: slog quotes any attribute
+// value containing control characters — newlines, CR, ANSI escapes — instead
+// of passing them through, for both the text and JSON handlers, so a crafted
+// path cannot forge a second log line or inject terminal escapes. Sanitizing
+// the path again before logging it would be redundant.
 func requestLogger(logger *slog.Logger, trusted []*net.IPNet, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -87,7 +95,7 @@ func requestLogger(logger *slog.Logger, trusted []*net.IPNet, next http.Handler)
 		// header anybody can set.
 		logger.Info("request",
 			"method", r.Method,
-			"path", r.URL.Path,
+			"path", r.URL.Path, // codeql[go/log-injection] -- slog quotes control chars, see doc comment above
 			"status", status,
 			"duration", time.Since(start),
 			"client", auth.ClientIP(r, trusted),
@@ -108,7 +116,7 @@ func recoverPanic(logger *slog.Logger, next http.Handler) http.Handler {
 				}
 				logger.Error("panic recovered",
 					"method", r.Method,
-					"path", r.URL.Path,
+					"path", r.URL.Path, // codeql[go/log-injection] -- slog quotes control chars, see requestLogger's doc comment
 					"panic", p,
 				)
 				http.Error(w, "internal server error", http.StatusInternalServerError)
