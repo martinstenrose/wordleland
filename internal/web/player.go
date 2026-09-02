@@ -86,8 +86,9 @@ type playerPage struct {
 	Calendar     []calendarDay
 	CalendarRows int
 
-	MonthRanks []monthRank
-	RankPath   template.HTML
+	MonthRanks     []monthRank
+	RankPath       template.HTML
+	RankPathDashed template.HTML
 
 	// Figures pre-formatted the same way the board formats them.
 	AverageText    string
@@ -204,15 +205,17 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, pref
 
 	// Ranked against the whole roster, not against themselves: a month
 	// computed over one player would place them first every time.
+	now := time.Now()
 	months := stats.ComputeMonths(players, results, stats.Options{
 		CountXAsSeven: query.CountXAsSeven,
 		CountMissed:   query.CountMissed,
 		HardModeOnly:  query.HardModeOnly,
-		Now:           time.Now(),
+		Now:           now,
 	})
-	ranks, path := buildMonthRanks(months, player.ID, t)
+	ranks, path, dashedPath := buildMonthRanks(months, player.ID, now, t)
 	page.MonthRanks = ranks
 	page.RankPath = template.HTML(path)
+	page.RankPathDashed = template.HTML(dashedPath)
 
 	for _, group := range [][]stats.Player{board.Ranked, board.Unranked} {
 		for _, p := range group {
@@ -473,8 +476,14 @@ const (
 // Months with no score under the selected rules are skipped rather than
 // plotted as a gap: there was no rank to have, and drawing one would invent
 // a placing.
-func buildMonthRanks(months []stats.Month, playerID int64, t translator) ([]monthRank, string) {
-	var points []monthRank
+//
+// It returns the point data plus two path strings: path covers every
+// segment up to the most recent completed month, and dashedPath, when
+// non-empty, is the single trailing segment into a month still being
+// played — its rank can still move, so the line into it is drawn dashed
+// rather than as a finished result.
+func buildMonthRanks(months []stats.Month, playerID int64, now time.Time, t translator) (points []monthRank, path, dashedPath string) {
+	lastComplete := true
 	for i := len(months) - 1; i >= 0; i-- {
 		m := months[i]
 		for _, p := range m.Ranked {
@@ -486,10 +495,11 @@ func buildMonthRanks(months []stats.Month, playerID int64, t translator) ([]mont
 				Rank:  p.Rank,
 				Of:    len(m.Ranked),
 			})
+			lastComplete = m.Complete(now)
 		}
 	}
 	if len(points) < 2 {
-		return nil, ""
+		return nil, "", ""
 	}
 
 	worst := 1
@@ -499,7 +509,6 @@ func buildMonthRanks(months []stats.Month, playerID int64, t translator) ([]mont
 		}
 	}
 
-	var path strings.Builder
 	for i := range points {
 		x := 0.0
 		if len(points) > 1 {
@@ -511,15 +520,32 @@ func buildMonthRanks(months []stats.Month, playerID int64, t translator) ([]mont
 		points[i].X = strconv.FormatFloat(x, 'f', 1, 64)
 		points[i].Y = strconv.FormatFloat(y, 'f', 1, 64)
 		points[i].LabelY = strconv.FormatFloat(y-9, 'f', 1, 64)
-
-		if i == 0 {
-			path.WriteString("M")
-		} else {
-			path.WriteString(" L")
-		}
-		fmt.Fprintf(&path, "%.1f %.1f", x, y)
 	}
-	return points, path.String()
+
+	splitAt := len(points) - 1
+	if !lastComplete {
+		splitAt = len(points) - 2
+	}
+	path = rankPath(points[:splitAt+1])
+	if splitAt < len(points)-1 {
+		dashedPath = rankPath(points[splitAt:])
+	}
+	return points, path, dashedPath
+}
+
+// rankPath renders a sequence of already-positioned points as a single SVG
+// path: one straight segment per consecutive pair.
+func rankPath(points []monthRank) string {
+	var b strings.Builder
+	for i, p := range points {
+		if i == 0 {
+			b.WriteString("M")
+		} else {
+			b.WriteString(" L")
+		}
+		fmt.Fprintf(&b, "%s %s", p.X, p.Y)
+	}
+	return b.String()
 }
 
 // traitOf is the localised label a player has earned, or "".

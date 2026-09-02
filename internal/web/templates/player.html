@@ -106,6 +106,7 @@
         <svg class="rank-chart" viewBox="0 0 300 120" width="100%" height="120" role="img"
              aria-label="{{.T.T "player.rankByMonth"}}">
           <path class="player" d="{{.RankPath}}"/>
+          {{if .RankPathDashed}}<path class="player dashed" d="{{.RankPathDashed}}"/>{{end}}
           {{range .MonthRanks}}
             <g>
               <circle cx="{{.X}}" cy="{{.Y}}" r="3.4"/>
