@@ -1239,6 +1239,7 @@ svg .player { fill: none; stroke: var(--acc); stroke-width: 1.75; stroke-linejoi
 
 .rank-chart { display: block; overflow: visible; margin-top: 4px; }
 .rank-chart .player { fill: none; stroke: var(--acc-lt); stroke-width: 2; }
+.rank-chart .player.dashed { stroke-dasharray: 4 4; }
 .rank-chart circle { fill: var(--acc-lt); }
 .rank-chart text { fill: var(--tx-55); }
 .rank-chart .axis { fill: var(--tx-35); }

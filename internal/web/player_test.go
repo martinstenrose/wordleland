@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/martinstenrose/wordleland/internal/stats"
 	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/wordle"
 )
@@ -211,4 +213,59 @@ func TestLapsedPlayerIsNotCalledThin(t *testing.T) {
 	if !strings.Contains(page, "no recent puzzles") {
 		t.Error("the page does not carry the board's reason")
 	}
+}
+
+// The rank-by-month chart plots the current month alongside finished ones,
+// but its rank can still move: the segment leading into it must be dashed
+// rather than drawn as a settled result.
+func TestBuildMonthRanksDashesTheSegmentIntoAnUnfinishedMonth(t *testing.T) {
+	const playerID = 1
+	others := []stats.MonthPlayer{{Player: store.Player{ID: 2}}, {Player: store.Player{ID: 3}}}
+
+	monthWith := func(year int, month time.Month, rank int) stats.Month {
+		return stats.Month{
+			Year:  year,
+			Month: month,
+			Ranked: append([]stats.MonthPlayer{
+				{Player: store.Player{ID: playerID}, Rank: rank},
+			}, others...),
+		}
+	}
+
+	// Newest first, matching stats.ComputeMonths's documented order.
+	months := []stats.Month{
+		monthWith(2026, time.September, 1),
+		monthWith(2026, time.August, 2),
+		monthWith(2026, time.July, 3),
+	}
+
+	srv := testServer(t)
+	tr := translator{locale: "en", strings: srv.catalogues["en"], fallback: srv.catalogues["en"]}
+
+	t.Run("current month still running", func(t *testing.T) {
+		now := time.Date(2026, time.September, 15, 0, 0, 0, 0, time.UTC)
+		_, path, dashedPath := buildMonthRanks(months, playerID, now, tr)
+
+		wantPath := "M0.0 64.0 L150.0 32.0"
+		wantDashed := "M150.0 32.0 L300.0 0.0"
+		if path != wantPath {
+			t.Errorf("path = %q, want %q", path, wantPath)
+		}
+		if dashedPath != wantDashed {
+			t.Errorf("dashedPath = %q, want %q", dashedPath, wantDashed)
+		}
+	})
+
+	t.Run("current month finished", func(t *testing.T) {
+		now := time.Date(2026, time.October, 1, 0, 0, 0, 0, time.UTC)
+		_, path, dashedPath := buildMonthRanks(months, playerID, now, tr)
+
+		wantPath := "M0.0 64.0 L150.0 32.0 L300.0 0.0"
+		if path != wantPath {
+			t.Errorf("path = %q, want %q", path, wantPath)
+		}
+		if dashedPath != "" {
+			t.Errorf("dashedPath = %q, want none once the month has closed", dashedPath)
+		}
+	})
 }
