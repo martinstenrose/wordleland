@@ -545,18 +545,26 @@ func TestNoTraitWhenNothingIsEarned(t *testing.T) {
 		t.Fatalf("CreatePlayer: %v", err)
 	}
 
-	// Ordinary spread, flat form, gaps so there is no streak to name.
+	// Ordinary spread, flat form, gaps so there is no streak to name. The
+	// deliberate failure is picked by position among the puzzles actually
+	// seeded, not by an absolute puzzle number: current-35 landed on a
+	// multiple of 6 on some calendar days, colliding with the gap below and
+	// silently dropping the only failure, which left this player flawless
+	// instead of earning nothing.
 	current := currentPuzzle()
 	pattern := []int{3, 4, 5, 3, 4, 5, 3, 4, 6, 3, 4, 5, 2, 4}
+	seeded := 0
 	for i, puzzle := 0, current-40; puzzle <= current; i, puzzle = i+1, puzzle+1 {
 		if puzzle%6 == 0 {
 			continue
 		}
-		if puzzle == current-35 {
+		if seeded == 5 {
 			seedResult(t, srv, p.ID, puzzle, 0, false)
+			seeded++
 			continue
 		}
 		seedResult(t, srv, p.ID, puzzle, pattern[i%len(pattern)], false)
+		seeded++
 	}
 	slug, _, _ := store.EnsureShareSlug(ctx, srv.db)
 
