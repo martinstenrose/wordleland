@@ -161,7 +161,8 @@ func submissionFor(slug string, puzzleNo int, outcome demo.Outcome) ingest.Submi
 
 func demoTick(e *env, args []string) error {
 	fs := flagSet(e, "demo tick")
-	seed := fs.Int64("seed", 0, "random seed; omit to vary from run to run")
+	seed := fs.Int64("seed", 0,
+		"salt for tests that need a different simulated puzzle; leave at 0 for a real deployment")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -170,11 +171,6 @@ func demoTick(e *env, args []string) error {
 	if err != nil {
 		return err
 	}
-
-	if *seed == 0 {
-		*seed = time.Now().UnixNano()
-	}
-	rng := rand.New(rand.NewSource(*seed))
 
 	today := wordle.PuzzleForDate(time.Now())
 
@@ -193,8 +189,9 @@ func demoTick(e *env, args []string) error {
 			continue
 		}
 
-		// Checked before rolling anything, so running tick twice for the
-		// same puzzle is a no-op rather than a second, different result.
+		// Skips the roll entirely for a player already filed, so a repeat
+		// run does not spam the audit log with identical "updated" entries
+		// — UpsertResult does not check whether the value actually changed.
 		_, err := store.ResultFor(e.ctx, e.db, today, player.ID)
 		if err == nil {
 			already++
@@ -204,7 +201,13 @@ func demoTick(e *env, args []string) error {
 			return err
 		}
 
+		// Seeded from the player and the puzzle, not the time tick happens
+		// to run: sitting a day out leaves no row to check against, so a
+		// second invocation for the same puzzle must reroll to exactly the
+		// same decision rather than a fresh one, or a retry could go from
+		// "sat out" to "played" on nothing but bad timing.
 		persona := demo.PersonaFor(player.Name)
+		rng := demo.DailyRNG(player.Name, today, *seed)
 		if rng.Float64() < persona.MissRate {
 			satOut++
 			continue
