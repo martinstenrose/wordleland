@@ -506,14 +506,17 @@ the real deployment's, so the two never share a volume:
 docker compose -p wordleland-staging up -d
 ```
 
-Staging needs no `signal-cli-rest-api` service — there is no group to
-connect to — so run it from a compose file that only starts `app`, with:
+Its `.env` needs:
 
 - `DEMO_MODE=true`
 - its own `TOTP_KEY`, generated the same way as the real one and never
   reused across instances
 - its own `APP_URL`, since emailed links are built from it
 - `SIGNAL_ACCOUNT` and `SIGNAL_GROUP_ID` left unset, so no bridge starts
+
+`signal-cli-rest-api` still starts alongside `app` — `compose.yml` does not
+offer a way to leave it out — but with no account linked to it, it sits idle
+and does nothing.
 
 Keep `ADMIN_EMAIL` / `ADMIN_PASSWORD` set, the same as on a real deployment:
 they only bootstrap the first administrator and are ignored once one exists,

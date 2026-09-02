@@ -224,3 +224,35 @@ func TestPersonaPlayNeverStoresSixForAFailure(t *testing.T) {
 		}
 	}
 }
+
+// TestDailyRNGIsDeterministic pins the property tick depends on: the same
+// player, puzzle and salt must draw the same sequence every time, since a
+// rerun for a puzzle that left no row to check against has nothing else to
+// reproduce the earlier decision from.
+func TestDailyRNGIsDeterministic(t *testing.T) {
+	a := DailyRNG("Erik Andersson", 1900, 0)
+	b := DailyRNG("Erik Andersson", 1900, 0)
+	for i := 0; i < 10; i++ {
+		x, y := a.Float64(), b.Float64()
+		if x != y {
+			t.Fatalf("draw %d differs between two DailyRNG() calls with identical inputs: %v vs %v", i, x, y)
+		}
+	}
+}
+
+// TestDailyRNGVariesWithItsInputs is what makes DailyRNG useful rather than
+// a constant: a different puzzle, player, or salt must not draw the same
+// sequence, or every day (or every player) would play out identically.
+func TestDailyRNGVariesWithItsInputs(t *testing.T) {
+	base := DailyRNG("Erik Andersson", 1900, 0).Float64()
+
+	if got := DailyRNG("Erik Andersson", 1901, 0).Float64(); got == base {
+		t.Error("a different puzzle number drew the same first value")
+	}
+	if got := DailyRNG("Anna Karlsson", 1900, 0).Float64(); got == base {
+		t.Error("a different name drew the same first value")
+	}
+	if got := DailyRNG("Erik Andersson", 1900, 1).Float64(); got == base {
+		t.Error("a different salt drew the same first value")
+	}
+}

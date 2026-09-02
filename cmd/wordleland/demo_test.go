@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/martinstenrose/wordleland/internal/store"
+	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
 // demoCLI is newCLI plus an admin, since every demo verb needs --as.
@@ -148,21 +150,20 @@ func TestDemoSeedRejectsTooManyPlayersForTheNamePool(t *testing.T) {
 // existing result with a new random outcome. Seeding's backfill already
 // reaches today's puzzle for most players, so a row count alone would not
 // catch a second tick overwriting one of them with different guesses; this
-// snapshots every row's content instead.
+// snapshots every row's content instead. Neither run passes --seed: a real
+// deployment never does, and the default must be safe to repeat exactly
+// because of that.
 func TestDemoTickIsIdempotent(t *testing.T) {
 	c := demoCLI(t)
 	t.Setenv("DEMO_MODE", "true")
 	c.mustRun("", "--as", "admin@example.tld", "demo", "seed", "--players", "6", "--days", "10", "--seed", "1")
 
-	c.mustRun("", "--as", "admin@example.tld", "demo", "tick", "--seed", "1")
+	c.mustRun("", "--as", "admin@example.tld", "demo", "tick")
 
 	ctx := context.Background()
 	before := snapshotResults(t, c.db(), ctx)
 
-	// A different --seed on purpose: an idempotent tick must change nothing
-	// further regardless of what a second run would have rolled, not only
-	// when it happens to reroll the same way.
-	out := c.mustRun("", "--as", "admin@example.tld", "demo", "tick", "--seed", "2")
+	out := c.mustRun("", "--as", "admin@example.tld", "demo", "tick")
 	if !strings.Contains(out, "filed 0 result") {
 		t.Errorf("second tick output = %q, want it to file nothing", out)
 	}
@@ -174,6 +175,42 @@ func TestDemoTickIsIdempotent(t *testing.T) {
 	for key, want := range before {
 		if got := after[key]; got != want {
 			t.Errorf("result %v changed from %q to %q on a repeat tick, want it untouched", key, want, got)
+		}
+	}
+}
+
+// TestDemoTickRerollsIdenticallyForAPlayerNotYetDecided is the sharper
+// failure a bare "already filed" check misses: a player tick decides should
+// sit a day out gets no row, so a second run has nothing to compare against
+// and must reroll — the fix is that the reroll reproduces the exact same
+// decision, for every player, not a fresh one. Forces every active player
+// to lack today's result first, so this exercises tick's own roll for the
+// whole roster rather than whatever backfill happened to decide for it.
+func TestDemoTickRerollsIdenticallyForAPlayerNotYetDecided(t *testing.T) {
+	c := demoCLI(t)
+	t.Setenv("DEMO_MODE", "true")
+	c.mustRun("", "--as", "admin@example.tld", "demo", "seed", "--players", "10", "--days", "5", "--seed", "1")
+
+	ctx := context.Background()
+	db := c.db()
+	today := wordle.PuzzleForDate(time.Now())
+	if _, err := db.ExecContext(ctx, `DELETE FROM results WHERE puzzle_no = ?`, today); err != nil {
+		t.Fatalf("clear today's results: %v", err)
+	}
+
+	c.mustRun("", "--as", "admin@example.tld", "demo", "tick")
+	first := snapshotResults(t, db, ctx)
+
+	c.mustRun("", "--as", "admin@example.tld", "demo", "tick")
+	second := snapshotResults(t, db, ctx)
+
+	if len(first) != len(second) {
+		t.Fatalf("result count for today changed from %d to %d on a repeat tick with nothing decided yet, want identical",
+			len(first), len(second))
+	}
+	for key, want := range first {
+		if got := second[key]; got != want {
+			t.Errorf("result %v changed from %q to %q on a repeat tick, want the same roll both times", key, want, got)
 		}
 	}
 }

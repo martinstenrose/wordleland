@@ -1,6 +1,7 @@
 package demo
 
 import (
+	"encoding/binary"
 	"hash/fnv"
 	"math/rand"
 )
@@ -29,6 +30,29 @@ func PersonaFor(name string) Persona {
 	p.MissRate = 0.03 + rng.Float64()*0.15
 
 	return p
+}
+
+// DailyRNG derives the random source for one persona's decision on one
+// puzzle: whether they play at all, and if so what happens.
+//
+// tick must be safe to run more than once for the same puzzle — a cron
+// misfire, a manual retry — and reproduce not just an already-filed result
+// (ResultFor's job) but also an earlier decision to sit the day out, which
+// leaves no row to check against. Keying the source on the player's name and
+// the puzzle number, rather than the time the command happened to run,
+// makes that decision a pure function of the two things that actually
+// identify it: nothing changes unless one of them does. seed is a salt for
+// tests that need a different simulated day without waiting for the puzzle
+// number to change; leaving it at zero is what makes two ordinary
+// invocations for the same puzzle agree.
+func DailyRNG(name string, puzzleNo int, seed int64) *rand.Rand {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(name))
+	var buf [16]byte
+	binary.LittleEndian.PutUint64(buf[:8], uint64(puzzleNo))
+	binary.LittleEndian.PutUint64(buf[8:], uint64(seed))
+	_, _ = h.Write(buf[:])
+	return rand.New(rand.NewSource(int64(h.Sum64())))
 }
 
 // guessWeights centers the guess distribution on 4, with a small tail of
