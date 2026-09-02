@@ -95,7 +95,8 @@ func requestLogger(logger *slog.Logger, trusted []*net.IPNet, next http.Handler)
 		// header anybody can set.
 		logger.Info("request",
 			"method", r.Method,
-			"path", r.URL.Path, // codeql[go/log-injection] -- slog quotes control chars, see doc comment above
+			// codeql[go/log-injection] -- slog quotes control chars, see doc comment above
+			"path", r.URL.Path,
 			"status", status,
 			"duration", time.Since(start),
 			"client", auth.ClientIP(r, trusted),
@@ -116,7 +117,8 @@ func recoverPanic(logger *slog.Logger, next http.Handler) http.Handler {
 				}
 				logger.Error("panic recovered",
 					"method", r.Method,
-					"path", r.URL.Path, // codeql[go/log-injection] -- slog quotes control chars, see requestLogger's doc comment
+					// codeql[go/log-injection] -- slog quotes control chars, see requestLogger's doc comment
+					"path", r.URL.Path,
 					"panic", p,
 				)
 				http.Error(w, "internal server error", http.StatusInternalServerError)
