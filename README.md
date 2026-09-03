@@ -602,10 +602,10 @@ before the noun — unlike a Docker `exec`, where they follow `/wordleland`
 but still precede the noun the same way:
 
 ```sh
-export TOTP_KEY=$(head -c 32 /dev/urandom | base64)
-export APP_URL=http://localhost:8080
-
-ADMIN_EMAIL=you@example.tld ADMIN_PASSWORD=<12+ characters> \
+TOTP_KEY=$(head -c 32 /dev/urandom | base64) \
+APP_URL=http://localhost:8080 \
+ADMIN_EMAIL=you@example.tld \
+ADMIN_PASSWORD=<12+ characters> \
   go run ./cmd/wordleland --db ./db.sqlite serve
 ```
 
