@@ -368,3 +368,28 @@ a result last arrived, because the failure that costs a season of scores is
 a bridge connected to the wrong group: green on every connection indicator,
 delivering nothing. A warning follows an admin around the area rather than
 waiting on a page nobody opens.
+
+## CI and security scanning
+
+**CodeQL's `go/log-injection` alerts on `internal/web` are false positives,
+dismissed on the security tab rather than suppressed in code.** Every site it
+flags — the request logger, panic recovery, template render and write errors
+— logs `r.URL.Path` through `slog`'s structured attribute API (`"path",
+r.URL.Path`), never by concatenating it into a message string. `slog` quotes
+any attribute value containing control characters — newlines, CR, ANSI
+escapes — for both the text and JSON handlers, so a crafted path cannot forge
+a second log line or inject terminal escapes. Verified directly: logging a
+payload containing both a newline and a forged second entry came back as one
+escaped, quoted line, in both handlers.
+
+Each alert is dismissed as false positive, with that reasoning, rather than
+either alternative. An inline `// codeql[go/log-injection]` suppression
+comment must stand alone on the line *before* the flagged expression — a
+trailing comment on the same line changes the line's content, which changes
+the alert's hash and opens a *new* alert instead of closing the old one. That
+is easy to get wrong (it happened once, in the PR that added this entry) and
+has to be repeated at every call site. A repository-wide query exclusion
+would need no per-site action at all, but would blind CodeQL to a genuine
+log-injection bug anywhere in the repository, including code that does not
+yet exist — a future log line built with `fmt.Sprintf` instead of an `slog`
+attribute, say, which this same query would be right to flag.

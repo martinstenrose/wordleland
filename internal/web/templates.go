@@ -61,11 +61,10 @@ func parseTemplates() (templates, error) {
 // render writes a page, buffering first so a template error mid-execution
 // cannot emit a half-written page under a 200 status.
 func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, name string, data any) {
-	// r.URL.Path is logged below at every branch; see the go/log-injection
-	// note on requestLogger in middleware.go for why that's safe.
+	// r.URL.Path is logged below at every branch; see docs/decisions.md,
+	// "CI and security scanning", for why that's safe.
 	t, ok := s.templates[name]
 	if !ok {
-		// codeql[go/log-injection]
 		s.logger.Error("unknown template", "template", name, "path", r.URL.Path)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
@@ -73,7 +72,6 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, name
 
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, "base", data); err != nil {
-		// codeql[go/log-injection]
 		s.logger.Error("render template", "template", name, "path", r.URL.Path, "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
@@ -82,7 +80,6 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, name
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	if _, err := buf.WriteTo(w); err != nil {
-		// codeql[go/log-injection]
 		s.logger.Warn("write response", "path", r.URL.Path, "error", err)
 	}
 }
