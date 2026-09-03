@@ -47,7 +47,7 @@ wrong shifts every date by a few hours rather than failing outright.
 | `TOTP_KEY` | yes | 32 bytes, base64: `head -c 32 /dev/urandom \| base64`. Encrypts every TOTP secret at rest. Validated at boot. |
 | `TRUSTED_PROXIES` | in practice | CIDRs of the reverse proxy. See the warning below. |
 | `SMTP_*` | no | Absent means password reset by email is unavailable and the rest of the app runs normally. |
-| `PENDING_RETENTION` | no | How long unclaimed results are held. Empty means indefinitely. |
+| `PENDING_RETENTION` | no | How long unclaimed results are held. Empty means indefinitely. Purged by a background sweep every 15 minutes, so a result outlives the window by up to that long. |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | no | Creates the first administrator on a fresh database. Both together; at least 12 characters. Ignored once any user exists, so they can be removed after the first boot. |
 | `DEMO_MODE` | no | Arms the `demo` CLI verb, which generates and deletes players. See [Running a staging instance](#running-a-staging-instance). Must never be `true` on the instance the group actually uses. |
 

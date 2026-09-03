@@ -71,7 +71,9 @@ type Config struct {
 	SMTP SMTP
 
 	// PendingRetention bounds how long unclaimed results are held. Zero means
-	// unlimited, which is the default. No purge job exists yet.
+	// unlimited, which is the default. Enforced by the janitor in
+	// cmd/wordleland, which purges on a schedule rather than at the moment a
+	// result crosses the boundary.
 	PendingRetention time.Duration
 
 	// AdminEmail and AdminPassword create the first administrator on a

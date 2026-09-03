@@ -173,7 +173,8 @@ func ConsumePasswordResetToken(ctx context.Context, db *sql.DB, token, passwordH
 	return user, err
 }
 
-// DeleteExpiredResetTokens removes spent and expired tokens.
+// DeleteExpiredResetTokens removes spent and expired tokens. Called on a
+// schedule by the janitor in cmd/wordleland.
 func DeleteExpiredResetTokens(ctx context.Context, q Querier) (int64, error) {
 	res, err := q.ExecContext(ctx,
 		`DELETE FROM password_reset_tokens WHERE expires_at < ? OR used_at IS NOT NULL`, time.Now())
