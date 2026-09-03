@@ -211,6 +211,84 @@ func TestLoginRequiresTOTPWhenEnrolled(t *testing.T) {
 	}
 }
 
+// A pending session on an already-enrolled account is what a password
+// alone gets you: the second factor has not been cleared. It must not be
+// enough to reach a fresh enrolment, which would let that password replace
+// the real secret and delete the recovery codes with it.
+func TestEnrolmentFormBlockedWhenAlreadyEnrolled(t *testing.T) {
+	srv := testServer(t)
+	seedLogin(t, srv, "admin@example.tld", true)
+
+	_, cookies := login(t, srv, "admin@example.tld", testPassword)
+	secret, _ := enrol(t, srv, cookies)
+
+	// A fresh sign-in on the now-enrolled account is pending, not past TOTP.
+	_, fresh := login(t, srv, "admin@example.tld", testPassword)
+
+	req := httptest.NewRequest(http.MethodGet, "/enroll-totp", nil)
+	req.RemoteAddr = clientAddr(t)
+	for _, c := range fresh {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/totp" {
+		t.Fatalf("GET /enroll-totp on a pending enrolled session: status %d, Location %q, want 303 to /totp",
+			rec.Code, rec.Header().Get("Location"))
+	}
+
+	// The account's real secret must still be the one that validates.
+	csrf, fresh := getCSRF(t, srv, "/totp", fresh)
+	done := postForm(t, srv, "/totp", url.Values{
+		"csrf_token": {csrf},
+		"code":       {codeFor(t, secret, time.Now().Add(nextWindow))},
+	}, fresh)
+	if done.Code != http.StatusSeeOther || done.Header().Get("Location") != landingPath {
+		t.Fatalf("the original secret no longer validates after GET /enroll-totp: status %d\n%s",
+			done.Code, done.Body.String())
+	}
+}
+
+// The submit handler is reachable directly and must not rely on the form
+// handler's guard: a POST with only a pending session must not be able to
+// promote a fresh secret over the account's real one.
+func TestEnrolmentSubmitCannotOverwriteExistingSecret(t *testing.T) {
+	srv := testServer(t)
+	seedLogin(t, srv, "admin@example.tld", true)
+
+	_, cookies := login(t, srv, "admin@example.tld", testPassword)
+	secret, _ := enrol(t, srv, cookies)
+
+	// A fresh sign-in on the now-enrolled account is pending, not past TOTP
+	// — the state reachable holding only the password.
+	_, fresh := login(t, srv, "admin@example.tld", testPassword)
+
+	// /enroll-totp itself now redirects away before rendering a form, so the
+	// CSRF token comes from the one page a pending session can still reach.
+	csrf, fresh := getCSRF(t, srv, "/totp", fresh)
+
+	rec := postForm(t, srv, "/enroll-totp", url.Values{
+		"csrf_token": {csrf},
+		"code":       {"000000"},
+	}, fresh)
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/totp" {
+		t.Fatalf("POST /enroll-totp on a pending enrolled session: status %d, Location %q, want 303 to /totp",
+			rec.Code, rec.Header().Get("Location"))
+	}
+
+	// The account's real secret must be unchanged by the blocked attempt.
+	csrf, fresh = getCSRF(t, srv, "/totp", fresh)
+	done := postForm(t, srv, "/totp", url.Values{
+		"csrf_token": {csrf},
+		"code":       {codeFor(t, secret, time.Now().Add(nextWindow))},
+	}, fresh)
+	if done.Code != http.StatusSeeOther || done.Header().Get("Location") != landingPath {
+		t.Fatalf("the account's secret was replaced by the blocked enrolment attempt: status %d\n%s",
+			done.Code, done.Body.String())
+	}
+}
+
 // A code from a step already accepted is refused, so one observed over a
 // shoulder cannot be reused inside its window.
 func TestTOTPCodeCannotBeReplayed(t *testing.T) {

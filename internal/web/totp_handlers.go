@@ -55,25 +55,47 @@ type totpPage struct {
 	Error string
 }
 
+// enrolCandidate returns the user this enrolment page is for, having
+// already sent anyone who shouldn't be here somewhere sensible.
+//
+// Enrolment mints a secret and, on submit, overwrites whatever was there
+// before — so an account that already has one does not belong here. A
+// pending session needs only the password to reach this page; letting it
+// re-enrol would let a password alone replace the real secret and delete
+// the recovery codes with it, defeating the second factor entirely. Route
+// it to the TOTP prompt instead, which asks for the secret that already
+// exists. An enrolled account whose session has already cleared TOTP has
+// nothing to do here either.
+func (s *Server) enrolCandidate(w http.ResponseWriter, r *http.Request) (store.User, bool) {
+	session, ok := sessionFrom(r)
+	if !ok {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return store.User{}, false
+	}
+	user, ok := userFrom(r)
+	if !ok {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return store.User{}, false
+	}
+	if user.HasTOTP {
+		if session.PendingTOTP {
+			http.Redirect(w, r, "/totp", http.StatusSeeOther)
+		} else {
+			http.Redirect(w, r, landingPath, http.StatusSeeOther)
+		}
+		return store.User{}, false
+	}
+	return user, true
+}
+
 // handleEnrolTOTPForm shows a QR code for a new secret.
 //
 // The secret is stored pending, never live, so abandoning this page leaves the
 // account exactly as it was. Revisiting generates a fresh one, which is
 // what makes a mis-scanned code recoverable by simply reloading.
 func (s *Server) handleEnrolTOTPForm(w http.ResponseWriter, r *http.Request) {
-	session, ok := sessionFrom(r)
+	user, ok := s.enrolCandidate(w, r)
 	if !ok {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
-	}
-	user, ok := userFrom(r)
-	if !ok {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
-	}
-	// Already enrolled and past the prompt: nothing to do here.
-	if user.HasTOTP && !session.PendingTOTP {
-		http.Redirect(w, r, landingPath, http.StatusSeeOther)
 		return
 	}
 
@@ -131,9 +153,8 @@ func (s *Server) handleEnrolTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusForbidden)
 		return
 	}
-	user, ok := userFrom(r)
+	user, ok := s.enrolCandidate(w, r)
 	if !ok {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
 
