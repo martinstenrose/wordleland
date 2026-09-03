@@ -100,9 +100,9 @@ func TestAnnouncesTheClearWinnerOnce(t *testing.T) {
 	if calls.Load() != 1 {
 		t.Fatalf("send called %d times, want 1", calls.Load())
 	}
-	// Alice: 12 twos and 19 missed days at 7 = 157/31. Bob: 12 fours and 19
-	// missed days at 7 = 181/31. Margin is the difference, 24/31 = 0.77.
-	want := "Alice took March 2026 by 0.77 of a guess, over 31 puzzles."
+	// Alice: 12 twos and 19 missed days at 7 = 157/31 = 5.06. Bob: 12 fours
+	// and 19 missed days at 7 = 181/31. Margin is the difference, 24/31 = 0.77.
+	want := "🏆 Alice took March 2026 with an average of 5.06, by 0.77 of a guess over 31 puzzles."
 	if sent[0] != want {
 		t.Errorf("message = %q, want %q", sent[0], want)
 	}
@@ -194,9 +194,9 @@ func TestAnnouncesTheWinnerEvenBelowTenGames(t *testing.T) {
 	if calls.Load() != 1 {
 		t.Fatalf("send called %d times, want 1", calls.Load())
 	}
-	// Alice: 3 twos and 28 missed days at 7 = 202/31. Sole player, so no
-	// margin to state.
-	want := "Alice took the month over 31 puzzles."
+	// Alice: 3 twos and 28 missed days at 7 = 202/31 = 6.52. Sole player, so
+	// no margin to state.
+	want := "🏆 Alice took the month with an average of 6.52, over 31 puzzles."
 	if sent[0] != want {
 		t.Errorf("message = %q, want %q", sent[0], want)
 	}
@@ -357,7 +357,7 @@ func TestTieAnnouncementNamesEveryWinner(t *testing.T) {
 	if !ok {
 		t.Fatal("winnerLine() reported no winner for a three-way tie")
 	}
-	want := "Alice, Bob & Charlie: A tie at 2.50. They take the month."
+	want := "🏆 Alice, Bob & Charlie: A tie at 2.50. They take the month."
 	if got != want {
 		t.Errorf("winnerLine() = %q, want %q", got, want)
 	}
@@ -378,7 +378,7 @@ func TestWinnerLineUsesTheConfiguredLocale(t *testing.T) {
 	if !ok {
 		t.Fatal("winnerLine() reported no winner")
 	}
-	want := "Alice tog mars 2026 med marginalen 1,25 gissningar, över 12 pussel."
+	want := "🏆 Alice tog mars 2026 med ett snitt på 3,00, med marginalen 1,25 gissningar över 12 pussel."
 	if got != want {
 		t.Errorf("winnerLine() = %q, want %q", got, want)
 	}
@@ -396,7 +396,7 @@ func TestSwedishTieUsesDecimalCommaAndOch(t *testing.T) {
 	if !ok {
 		t.Fatal("winnerLine() reported no winner for a tie")
 	}
-	want := "Alice och Bob: Oavgjort på 3,25. De tar månaden."
+	want := "🏆 Alice och Bob: Oavgjort på 3,25. De tar månaden."
 	if got != want {
 		t.Errorf("winnerLine() = %q, want %q", got, want)
 	}

@@ -433,17 +433,30 @@ per-recipient choice to make here the way there is for a page render or an
 email.
 
 **The catalogue of translated strings moved out of `internal/web` into
-`internal/i18n`** so this feature could reuse the exact sentences the board
-already renders (`months.line.*`) without a second copy that could drift
-from the first. `internal/bridge` cannot import `internal/web` — `web`
-already imports `bridge`, to hold the running supervisor for the
-diagnostics page — so the shared catalogue had to move to a package
-neither depends on. What did not move: the small switch that picks a tie,
-a margin or an "alone" sentence for a given month. It exists once in
-`internal/web/months.go` and once in `internal/announce`, deliberately,
-because the two format for a browser and for a chat message respectively,
-and a shared type for ten lines of branching would cost more to agree on
-than reading both sides once when either changes.
+`internal/i18n`** so this feature could reuse strings the board already
+carries — month names, the tied-name conjunction, number formatting —
+without a second copy that could drift from the first. `internal/bridge`
+cannot import `internal/web` — `web` already imports `bridge`, to hold the
+running supervisor for the diagnostics page — so the shared catalogue had
+to move to a package neither depends on. What did not move: the small
+switch that picks a tie, a margin or an "alone" sentence for a given
+month. It exists once in `internal/web/months.go` and once in
+`internal/announce`, deliberately, because the two format for a browser
+and for a chat message respectively, and a shared type for ten lines of
+branching would cost more to agree on than reading both sides once when
+either changes.
+
+**The winner-line sentences themselves are not shared, on purpose:
+`months.line.*` on the board, `announce.line.*` in Signal.** They started
+as the same keys, but the chat message wants things the page does not — a
+🏆, and the winner's average folded into the sentence — and the board
+already shows the average as one of the four stat figures beside the
+winner's name, so repeating it in the page's prose would say it twice.
+Reusing one key family for both would mean either putting a trophy emoji
+into on-page text, or branching the rendering on which surface is asking,
+which defeats the point of a shared string. Everything else in the
+catalogue stays one shared set of keys; this is the one deliberate
+exception, not a precedent for splitting further without the same reason.
 
 **Display numbers follow the selected locale on every surface.** Swedish
 uses a comma as the decimal separator and spaces between thousands; English
