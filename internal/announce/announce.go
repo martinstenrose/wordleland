@@ -135,29 +135,38 @@ func monthByKey(months []stats.Month, year int, month time.Month) (stats.Month, 
 	return stats.Month{}, false
 }
 
-// winnerLine mirrors the switch internal/web's months page uses to render
-// WinnerLine for a closed month — closed being the only case this package
-// ever sees, so there is no "running" branch to carry here. Kept as its
-// own small copy rather than a shared function: the two sides format for a
-// browser and for a chat message respectively, and the branching itself
-// — tie, clear margin, alone at the top — is stable enough that "read both
-// before changing either" costs less than a type both packages would have
-// to agree on.
+// winnerLine mirrors the branching internal/web's months page uses to pick
+// a tie, a clear margin or an "alone at the top" sentence for a closed
+// month — closed being the only case this package ever sees, so there is
+// no "running" branch to carry here. Kept as its own small copy rather
+// than a shared function: the two sides format for a browser and for a
+// chat message respectively, and the branching itself is stable enough
+// that "read both before changing either" costs less than a type both
+// packages would have to agree on.
+//
+// The wording itself has its own "announce.line.*" keys rather than
+// reusing the board's "months.line.*": the trophy and the winner's
+// average read naturally in a chat announcement, but would duplicate the
+// average the board already shows as one of the four stat figures beside
+// the winner's name, and an emoji sitting in the page's prose would look
+// out of place there. See internal/i18n's package doc for the keys that
+// do stay shared between the two surfaces.
 func winnerLine(t i18n.Translator, m stats.Month) (string, bool) {
 	if len(m.Winners) == 0 {
 		return "", false
 	}
 	w := m.Winners[0]
 	names := joinNames(t, m.Winners)
+	avg := t.Decimal(*w.Average, 2)
 
 	switch {
 	case len(m.Winners) > 1:
-		return names + ": " + t.T("months.line.tie", t.Decimal(*w.Average, 2)), true
+		return "🏆 " + names + ": " + t.T("announce.line.tie", avg), true
 	case m.Margin != nil:
-		return t.T("months.line.margin", names, monthLabel(t, m),
-			t.Decimal(*m.Margin, 2), m.Days), true
+		return "🏆 " + t.T("announce.line.margin", names, monthLabel(t, m),
+			avg, t.Decimal(*m.Margin, 2), m.Days), true
 	default:
-		return t.T("months.line.alone", names, m.Days), true
+		return "🏆 " + t.T("announce.line.alone", names, avg, m.Days), true
 	}
 }
 

@@ -1,13 +1,18 @@
 // Package i18n loads the string catalogues shared by the web frontend and
 // the Signal bridge.
 //
-// It exists so a sentence translated once cannot drift between the two
-// surfaces that say it: the board renders "months.line.*" in a template,
-// and the Signal bridge posts the same keys back into the group when a
-// month closes. Splitting the catalogue out of internal/web is what lets
-// the bridge read it without importing the web package, which it cannot —
-// web already imports bridge, to hold the running Supervisor for the
-// diagnostics page.
+// It exists so that what both surfaces render the same way — a month
+// name, a tied name list's conjunction, a formatted score — cannot drift
+// between them by using one shared set of keys. Splitting the catalogue
+// out of internal/web is what lets the bridge read it without importing
+// the web package, which it cannot — web already imports bridge, to hold
+// the running Supervisor for the diagnostics page.
+//
+// Not every key is shared on purpose: the board's "months.line.*" and the
+// Signal bridge's "announce.line.*" both describe a closed month's winner,
+// but say it differently on purpose — see internal/announce's winnerLine
+// for why — so they are deliberately two key families, not one reused
+// across a "for the page" and "for the chat message" branch.
 package i18n
 
 import (

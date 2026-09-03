@@ -88,9 +88,9 @@ form at boot, because configuring it would otherwise produce a bot that
 connects, reports itself healthy, and matches nothing for ever.
 
 **The bridge posts back, once a month.** At 12:00 local time on the first day
-of a month, it sends one message naming who won the previous month (a tie
-names everyone tied) and by how much, in the same words the board itself
-uses. Participation on the closing day is irrelevant: noon is a simple grace
+of a month, it sends one 🏆 message naming who won the previous month (a tie
+names everyone tied), their average score, and by how much they took it.
+Participation on the closing day is irrelevant: noon is a simple grace
 period, not a wait for every player. If the app was offline at noon or the
 send failed, the next live Wordle result retries the announcement. Results
 before noon do not trigger it, and a stored record makes every check a no-op
