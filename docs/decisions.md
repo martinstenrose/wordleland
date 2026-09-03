@@ -392,6 +392,20 @@ failed, receiving the bot's own announcement must not immediately send
 another copy. Explicit Archive shares and older back-dated results are also
 excluded, so replaying an old puzzle cannot make the bot speak.
 
+**The catch-up check only ever looks at `previousMonth(now)`, deliberately,
+not at every unannounced month back to some watermark.** The gap that leaves:
+if the scheduled send fails and the group also goes completely silent for the
+rest of that month — no live result at all to trigger the catch-up check —
+the next month's own scheduled run only examines its own previous month, and
+the missed one is never revisited. Accepted rather than fixed, because a
+group inactive enough to fail both conditions at once is not the case this
+feature is for, and the alternative — bounding the check by the most recent
+month ever recorded as announced, so it can walk forward and post several
+months at once — creates a stranger failure than the one it solves: the
+first time the feature runs against a board with months of prior history, or
+after any long-enough gap, it would post that entire backlog into the group
+in one burst, which reads as far more surprising than one quiet month.
+
 **A month with no results in it at all gets silence, not the board's "no
 scores to rank" line.** The board is read on request; this is pushed
 unprompted, and announcing a quiet month reads as the bot scolding the
