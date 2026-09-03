@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"testing"
+	"time"
 )
 
 const testUUID = "11111111-2222-3333-4444-555555555555"
@@ -275,6 +276,42 @@ func TestDiscardPendingResults(t *testing.T) {
 	}
 	if results != 0 {
 		t.Errorf("results = %d, want 0", results)
+	}
+}
+
+// Zero retention means unlimited, so nothing is purged regardless of age;
+// past the window, a held result is dropped.
+func TestDeleteExpiredPendingResults(t *testing.T) {
+	db, _, _, _ := identityFixture(t)
+	ctx := context.Background()
+
+	holdResult(t, db, 1900, 4, false)
+	if _, err := db.ExecContext(ctx,
+		`UPDATE pending_results SET received_at = ? WHERE puzzle_no = 1900`,
+		time.Now().Add(-48*time.Hour)); err != nil {
+		t.Fatalf("backdate pending result: %v", err)
+	}
+
+	if n, err := DeleteExpiredPendingResults(ctx, db, 0); err != nil {
+		t.Fatalf("DeleteExpiredPendingResults() failed: %v", err)
+	} else if n != 0 {
+		t.Errorf("purged %d with zero (unlimited) retention, want 0", n)
+	}
+
+	n, err := DeleteExpiredPendingResults(ctx, db, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("DeleteExpiredPendingResults() failed: %v", err)
+	}
+	if n != 1 {
+		t.Errorf("purged = %d, want 1", n)
+	}
+
+	var held int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM pending_results`).Scan(&held); err != nil {
+		t.Fatalf("count pending results: %v", err)
+	}
+	if held != 0 {
+		t.Errorf("pending_results still has %d rows after purge", held)
 	}
 }
 

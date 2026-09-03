@@ -28,6 +28,46 @@ import (
 // SIGTERM before the process exits anyway.
 const shutdownTimeout = 10 * time.Second
 
+// janitorInterval sets how often expired state is purged. The deletes are
+// cheap at this scale, so there is no need for finer granularity than the
+// rate limiter's own window.
+const janitorInterval = auth.DefaultWindow
+
+// runJanitor periodically purges state that nothing else reaps on its own:
+// expired rate-limit buckets, expired sessions, spent or expired password
+// reset tokens, and — when PENDING_RETENTION is set — held results past
+// their retention window.
+func runJanitor(ctx context.Context, db *sql.DB, limiter *auth.Limiter, retention time.Duration, logger *slog.Logger) {
+	ticker := time.NewTicker(janitorInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if ctx.Err() != nil {
+				return
+			}
+			limiter.Cleanup()
+			if n, err := store.DeleteExpiredSessions(ctx, db); err != nil {
+				logger.Error("purge expired sessions", "error", err)
+			} else if n > 0 {
+				logger.Info("purged expired sessions", "count", n)
+			}
+			if n, err := store.DeleteExpiredResetTokens(ctx, db); err != nil {
+				logger.Error("purge expired reset tokens", "error", err)
+			} else if n > 0 {
+				logger.Info("purged expired reset tokens", "count", n)
+			}
+			if n, err := store.DeleteExpiredPendingResults(ctx, db, retention); err != nil {
+				logger.Error("purge expired pending results", "error", err)
+			} else if n > 0 {
+				logger.Info("purged expired pending results", "count", n)
+			}
+		}
+	}
+}
+
 // runServe starts the server, and the Signal bridge if one is configured.
 //
 // This is the one subcommand that migrates and the one that runs forever;
@@ -167,6 +207,13 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 		logger.Info("no signal bridge configured; results can still be entered by hand",
 			"enable", "set SIGNAL_ACCOUNT and SIGNAL_GROUP_ID")
 	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		runJanitor(ctx, db, srv.Limiter(), cfg.PendingRetention, logger)
+	}()
+	logger.Info("housekeeping janitor started", "interval", janitorInterval)
 
 	errCh := make(chan error, 1)
 	go func() {

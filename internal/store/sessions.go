@@ -143,7 +143,8 @@ func DeleteSession(ctx context.Context, q Querier, id []byte) error {
 }
 
 // DeleteExpiredSessions removes every session past its expiry, returning how
-// many. Nothing calls this on a schedule yet; SessionUser reaps opportunistically.
+// many. Called on a schedule by the janitor in cmd/wordleland; SessionUser
+// also reaps opportunistically in between.
 func DeleteExpiredSessions(ctx context.Context, q Querier) (int64, error) {
 	res, err := q.ExecContext(ctx, `DELETE FROM sessions WHERE expires_at < ?`, time.Now())
 	if err != nil {

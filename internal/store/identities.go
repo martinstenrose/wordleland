@@ -347,7 +347,8 @@ func DiscardPendingResults(ctx context.Context, db *sql.DB, actor Actor, source,
 }
 
 // DeleteExpiredPendingResults drops held results older than the retention
-// window. Nothing schedules this yet; retention is unlimited by default.
+// window. Called on a schedule by the janitor in cmd/wordleland, which
+// passes PENDING_RETENTION; retention is unlimited by default.
 func DeleteExpiredPendingResults(ctx context.Context, q Querier, olderThan time.Duration) (int64, error) {
 	if olderThan <= 0 {
 		return 0, nil

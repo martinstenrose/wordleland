@@ -124,6 +124,12 @@ type Bridge interface {
 	Status() bridge.Status
 }
 
+// Limiter exposes the rate limiter so the janitor started in cmd/wordleland
+// can evict its expired buckets on a schedule.
+func (s *Server) Limiter() *auth.Limiter {
+	return s.limiter
+}
+
 // SetBridge attaches the bridge. Passing nil, or not calling it, means
 // no bridge is configured — which is a valid deployment, not a fault.
 func (s *Server) SetBridge(b Bridge) {
