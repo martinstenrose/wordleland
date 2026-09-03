@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"hash/fnv"
 	"math/rand"
+
+	"github.com/martinstenrose/wordleland/internal/stats"
 )
 
 // PersonaFor derives a persona's stable traits from their name alone.
@@ -12,6 +14,13 @@ import (
 // run, without knowing the seed the roster was originally generated with
 // and without persisting any new state to derive it from later. Hashing the
 // name into a seed makes the traits a pure function of it.
+//
+// Deriving from the name assumes it identifies the persona uniquely. A
+// second `demo seed` run on top of an uncleared roster can produce a player
+// sharing a name with an existing one — see docs/decisions.md's "Staging
+// and demo data" — at which point the two become indistinguishable here.
+// Nothing in this package resolves that; keeping the roster free of
+// duplicate names is the caller's job.
 func PersonaFor(name string) Persona {
 	h := fnv.New64a()
 	_, _ = h.Write([]byte(name))
@@ -73,14 +82,22 @@ type Outcome struct {
 // day and totalDays are both zero-based, oldest to most recent, so
 // totalDays-1 is the last day generated. RoleMissing needs that endpoint to
 // stop playing well before it: the "Missing" callout only fires past
-// AbsentDays (7) of real absence, so this persona is guaranteed to clear it
-// by never playing the final third of the window, however wide it is.
+// AbsentDays (7) of real absence, so this persona stops at whichever comes
+// first of the final third of the window or AbsentDays before the end —
+// the latter is what keeps the guarantee true for a short --days rather
+// than just the default 200, where the final third alone already clears
+// it. Below stats.AbsentDays+1 total days there is no room left to
+// guarantee: demoSeed's flag validation rejects --days that small.
 func (p Persona) Played(rng *rand.Rand, day, totalDays int) bool {
 	switch p.Role {
 	case RoleUnbroken:
 		return true
 	case RoleMissing:
-		return day < (totalDays*2)/3
+		cutoff := (totalDays * 2) / 3
+		if last := totalDays - stats.AbsentDays; last < cutoff {
+			cutoff = last
+		}
+		return day < cutoff
 	default:
 		return rng.Float64() >= p.MissRate
 	}
