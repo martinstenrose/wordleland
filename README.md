@@ -594,12 +594,58 @@ from. `wordleland version` prints the same string without opening a browser.
 ```sh
 go build ./...
 go test ./...
-go run ./cmd/wordleland serve --db ./db.sqlite
+```
+
+Running the server directly, without Docker, needs the same environment
+`compose.yml` would otherwise supply. Global flags (`--db`, `--as`) come
+before the noun — unlike a Docker `exec`, where they follow `/wordleland`
+but still precede the noun the same way:
+
+```sh
+export TOTP_KEY=$(head -c 32 /dev/urandom | base64)
+export APP_URL=http://localhost:8080
+
+ADMIN_EMAIL=you@example.tld ADMIN_PASSWORD=<12+ characters> \
+  go run ./cmd/wordleland --db ./db.sqlite serve
+```
+
+`APP_URL` matters here even though nothing sends mail: unset, cookies
+default to `Secure`, and some browsers won't send a `Secure` cookie back
+over plain `http://localhost`, which fails login with what looks like an
+expired-session error rather than anything about cookies. Setting it to the
+origin you're actually browsing from fixes that.
+
+Two-factor is mandatory for the admin account, deliberately with no
+bypass. Generate codes from a terminal instead of a phone, against the
+secret the enrolment screen shows next to its QR code:
+
+```sh
+oathtool --totp -b '<SECRET_FROM_ENROLLMENT>'          # brew install oath-toolkit
+python3 -c "import pyotp; print(pyotp.TOTP('<SECRET_FROM_ENROLLMENT>').now())"  # or, with pyotp installed
 ```
 
 `compose.override.yml` adds build contexts and is picked up automatically,
 so `docker compose build` works from a checkout and overrides the published
 images with locally built ones.
+
+### Exercising the demo verb locally
+
+The `demo` verb works the same way against a local `go run` server as it
+does in the Docker staging setup "Running a staging instance" describes
+above — same subcommands, same `DEMO_MODE=true` gate — just with `--db`
+and `--as` as global flags before the noun instead of following
+`/wordleland`:
+
+```sh
+export DEMO_MODE=true
+go run ./cmd/wordleland --db ./db.sqlite --as you@example.tld demo seed --players 10 --days 30
+go run ./cmd/wordleland --db ./db.sqlite --as you@example.tld demo tick
+go run ./cmd/wordleland --db ./db.sqlite --as you@example.tld demo clear --apply
+```
+
+`rm ./db.sqlite` between runs for a clean slate. Unset `DEMO_MODE` to
+confirm the verb refuses to run without it — the same lockout "Running a
+staging instance" relies on to keep it off a real deployment.
 
 ## Contributing
 
