@@ -90,14 +90,11 @@ func TestClearDemoDataLeavesUsersAndAuditUntouched(t *testing.T) {
 		t.Fatalf("count audit_log: %v", err)
 	}
 
-	// This player's only result was entered by the admin, so
-	// results.entered_by (ON DELETE RESTRICT) blocks the player delete —
-	// exactly like a pending invitation would. Clear it via a correction
-	// first so the cascade case above stays isolated from this one.
-	if _, err := db.ExecContext(ctx, `DELETE FROM results WHERE player_id = ?`, p.ID); err != nil {
-		t.Fatalf("remove human-entered result: %v", err)
-	}
-
+	// The result stays in place through the clear: results.player_id is ON
+	// DELETE CASCADE, so the player delete removes it regardless of who
+	// entered it. entered_by's own ON DELETE RESTRICT protects the users
+	// row it names, not the player — and ClearDemoData never deletes users,
+	// so it never comes into play here at all.
 	if _, err := ClearDemoData(ctx, db, actor, false); err != nil {
 		t.Fatalf("ClearDemoData() failed: %v", err)
 	}

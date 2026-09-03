@@ -352,6 +352,21 @@ a player who stopped, a retirement) so the callouts and admin screens have
 something to show immediately after seeding rather than depending on enough
 random days to eventually produce one.
 
+**Persona traits are keyed on the player's name, not a database id.**
+`tick` has to reconstruct the same `HardModeRate`/`MissRate`/daily roll a
+player had during `seed`, days or months later, without persisting
+anything beyond what `players` already stores — so `PersonaFor` and
+`DailyRNG` hash the name itself. `players.name` carries no uniqueness
+constraint (only `slug` does), so two players can end up sharing a name if
+`demo seed` is run a second time without `demo clear` first — at which
+point their behaviour becomes fully correlated, since the same name hashes
+to the same persona. This is a real, if narrow, consequence of the
+stateless design rather than a bug to fix: the documented workflow already
+says not to re-seed onto an existing roster (see the "Running a staging
+instance" section of README.md), and a fix would mean the roster knowing
+its eventual, database-unique slug before any player row exists, which it
+cannot today.
+
 ## Deliberately not built
 
 - **Self-report in the browser** — a player filing their own result, by form or

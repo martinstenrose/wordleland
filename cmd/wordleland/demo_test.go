@@ -145,6 +145,24 @@ func TestDemoSeedRejectsTooManyPlayersForTheNamePool(t *testing.T) {
 	}
 }
 
+// TestDemoSeedRejectsTooFewDaysForTheMissingPersona pins the floor below
+// which the reserved "Missing" persona cannot possibly leave
+// stats.AbsentDays of trailing absence, whatever Played's cutoff formula
+// does — --days must be rejected outright rather than silently seeding a
+// persona that never triggers the callout it exists to demonstrate.
+func TestDemoSeedRejectsTooFewDaysForTheMissingPersona(t *testing.T) {
+	c := demoCLI(t)
+	t.Setenv("DEMO_MODE", "true")
+
+	_, err := c.run("", "--as", "admin@example.tld", "demo", "seed", "--days", "7")
+	if err == nil {
+		t.Fatal("demo seed --days 7 succeeded, want an error")
+	}
+	if !strings.Contains(err.Error(), "--days") {
+		t.Errorf("error = %v, want it to name --days", err)
+	}
+}
+
 // TestDemoTickIsIdempotent is the requirement that running tick twice for
 // the same puzzle does not double-file, error, or quietly re-roll an
 // existing result with a new random outcome. Seeding's backfill already
@@ -189,7 +207,7 @@ func TestDemoTickIsIdempotent(t *testing.T) {
 func TestDemoTickRerollsIdenticallyForAPlayerNotYetDecided(t *testing.T) {
 	c := demoCLI(t)
 	t.Setenv("DEMO_MODE", "true")
-	c.mustRun("", "--as", "admin@example.tld", "demo", "seed", "--players", "10", "--days", "5", "--seed", "1")
+	c.mustRun("", "--as", "admin@example.tld", "demo", "seed", "--players", "10", "--days", "10", "--seed", "1")
 
 	ctx := context.Background()
 	db := c.db()
@@ -346,7 +364,7 @@ func TestDemoClearDryRunThenApply(t *testing.T) {
 func TestDemoClearReportsBlockedInvitation(t *testing.T) {
 	c := demoCLI(t)
 	t.Setenv("DEMO_MODE", "true")
-	c.mustRun("", "--as", "admin@example.tld", "demo", "seed", "--players", "1", "--days", "5", "--seed", "1")
+	c.mustRun("", "--as", "admin@example.tld", "demo", "seed", "--players", "1", "--days", "10", "--seed", "1")
 
 	ctx := context.Background()
 	db := c.db()

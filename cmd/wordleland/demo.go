@@ -10,6 +10,7 @@ import (
 	"github.com/martinstenrose/wordleland/internal/config"
 	"github.com/martinstenrose/wordleland/internal/demo"
 	"github.com/martinstenrose/wordleland/internal/ingest"
+	"github.com/martinstenrose/wordleland/internal/stats"
 	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/wordle"
 )
@@ -53,8 +54,10 @@ func demoSeed(e *env, args []string) error {
 	if *players <= 0 {
 		return errors.New("--players must be positive")
 	}
-	if *days <= 0 {
-		return errors.New("--days must be positive")
+	if *days <= stats.AbsentDays {
+		return fmt.Errorf("--days must be greater than %d: the reserved \"Missing\" persona needs "+
+			"at least that many trailing days with nobody playing to demonstrate the callout it exists for",
+			stats.AbsentDays)
 	}
 
 	actor, err := e.actor()

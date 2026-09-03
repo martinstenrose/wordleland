@@ -3,6 +3,8 @@ package demo
 import (
 	"math/rand"
 	"testing"
+
+	"github.com/martinstenrose/wordleland/internal/stats"
 )
 
 func TestNewRosterIsReproducibleForSameSeed(t *testing.T) {
@@ -179,6 +181,28 @@ func TestPersonaPlayedRoles(t *testing.T) {
 	for day := lastPlayed + 1; day < totalDays; day++ {
 		if missing.Played(rng, day, totalDays) {
 			t.Errorf("RoleMissing played again on day %d after stopping on day %d", day, lastPlayed)
+		}
+	}
+}
+
+// TestPersonaMissingClearsAbsentDaysForShortWindows is the case
+// TestPersonaPlayedRoles's hardcoded totalDays=30 doesn't reach: a short
+// --days run must still leave at least stats.AbsentDays of trailing
+// absence, or the "Missing" callout it exists to demonstrate never fires.
+func TestPersonaMissingClearsAbsentDaysForShortWindows(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	missing := Persona{Role: RoleMissing}
+
+	for _, totalDays := range []int{stats.AbsentDays + 1, 10, 18, 30, 200} {
+		lastPlayed := -1
+		for day := 0; day < totalDays; day++ {
+			if missing.Played(rng, day, totalDays) {
+				lastPlayed = day
+			}
+		}
+		if trailing := totalDays - 1 - lastPlayed; trailing < stats.AbsentDays {
+			t.Errorf("totalDays=%d: trailing absence = %d, want at least stats.AbsentDays (%d)",
+				totalDays, trailing, stats.AbsentDays)
 		}
 	}
 }
