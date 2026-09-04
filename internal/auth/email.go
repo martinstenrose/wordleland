@@ -86,12 +86,14 @@ func (m *Mailer) deliver(to string, msg []byte) error {
 // buildMessage assembles RFC 5322 headers and body.
 func buildMessage(from, to, subject, body string) []byte {
 	var b strings.Builder
-	fmt.Fprintf(&b, "From: %s\r\n", from)
-	fmt.Fprintf(&b, "To: %s\r\n", to)
-	// Header injection defence: a newline in the subject would otherwise let
-	// a caller add headers or a second recipient. Subjects here are built
-	// from constants, but the sanitiser makes that a property rather than a
-	// coincidence that a later change could break.
+	// Header injection defence: a newline in any of these would otherwise let
+	// a caller add headers or a second recipient. The subject is built from
+	// constants and the sender from configuration, but the recipient is an
+	// address someone typed into a form, and validation upstream is the kind
+	// of thing that gets relaxed. Sanitising here makes it a property of the
+	// message rather than a coincidence a later change could break.
+	fmt.Fprintf(&b, "From: %s\r\n", sanitizeHeader(from))
+	fmt.Fprintf(&b, "To: %s\r\n", sanitizeHeader(to))
 	fmt.Fprintf(&b, "Subject: %s\r\n", sanitizeHeader(subject))
 	fmt.Fprintf(&b, "Date: %s\r\n", time.Now().Format(time.RFC1123Z))
 	fmt.Fprintf(&b, "Message-ID: %s\r\n", messageID(from))
@@ -114,8 +116,9 @@ func buildMultipart(from, to, subject, text, html string) []byte {
 	const boundary = "----=_wordleland_alt_boundary"
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "From: %s\r\n", from)
-	fmt.Fprintf(&b, "To: %s\r\n", to)
+	// Sanitised for the same reason as in buildMessage.
+	fmt.Fprintf(&b, "From: %s\r\n", sanitizeHeader(from))
+	fmt.Fprintf(&b, "To: %s\r\n", sanitizeHeader(to))
 	fmt.Fprintf(&b, "Subject: %s\r\n", sanitizeHeader(subject))
 	fmt.Fprintf(&b, "Date: %s\r\n", time.Now().Format(time.RFC1123Z))
 	fmt.Fprintf(&b, "Message-ID: %s\r\n", messageID(from))

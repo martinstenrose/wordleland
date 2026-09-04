@@ -327,6 +327,21 @@ func TestBootstrapAdminConfig(t *testing.T) {
 			name: "not an email address", email: "admin", password: "correct horse battery staple",
 			wantErr: "is not an email address",
 		},
+		{
+			// This address ends up in a To: header, so a newline in it is a
+			// header of somebody else's choosing. "Contains an @" let it past.
+			name:     "address carrying a header break",
+			email:    "admin@example.tld\nBcc: attacker@example.tld",
+			password: "correct horse battery staple",
+			wantErr:  "is not an email address",
+		},
+		{
+			// A display name here would go on the message unasked, and this
+			// field holds an address.
+			name: "address with a display name", email: "Someone <admin@example.tld>",
+			password: "correct horse battery staple",
+			wantErr:  "is not an email address",
+		},
 	}
 
 	for _, tt := range tests {

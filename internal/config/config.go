@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/mail"
 	"net/url"
 	"os"
 	"strconv"
@@ -287,7 +288,12 @@ func checkBootstrap(email, password string) []string {
 	}
 
 	var problems []string
-	if !strings.Contains(email, "@") {
+	// The same rule store.ValidEmail applies, spelled out again rather than
+	// imported: this package deliberately depends on nothing else in the
+	// tree, since it is what everything else is configured from. net/mail
+	// rather than a check for "@", because the address ends up in a To:
+	// header and "contains an @" lets a CR or LF straight through.
+	if addr, err := mail.ParseAddress(email); err != nil || addr.Address != email {
 		problems = append(problems, fmt.Sprintf("ADMIN_EMAIL: %q is not an email address", email))
 	}
 	if len([]rune(password)) < minAdminPasswordLength {
