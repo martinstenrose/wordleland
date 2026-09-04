@@ -124,6 +124,15 @@ func TestEnvelopeExtraction(t *testing.T) {
 			raw:    `{"envelope":{"sourceUuid":"x","syncMessage":{"readMessages":[]}}}`,
 			wantOK: false,
 		},
+		{
+			// The uuid is the external id a result is filed under, so a frame
+			// without one cannot be attributed. Forwarding it anyway would be
+			// rejected by ingest and logged as a parser bug, which it is not.
+			name: "group message with no sender uuid",
+			raw: fmt.Sprintf(`{"envelope":{"sourceName":%q,"dataMessage":{"message":"Wordle 1 891 3/6",
+				"groupInfo":{"groupId":%q,"type":"DELIVER"}}}}`, testName, testGroupID),
+			wantOK: false,
+		},
 	}
 
 	for _, tt := range tests {
