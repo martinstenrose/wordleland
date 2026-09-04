@@ -127,6 +127,46 @@ func TestMailerStripsHeaderInjection(t *testing.T) {
 	}
 }
 
+// The subject is built from constants; the recipient is an address somebody
+// typed into a form, which makes it the more likely way a newline arrives.
+// Both message builders are covered, because only one of them was reachable
+// from Send.
+func TestMailerStripsHeaderInjectionFromTheRecipient(t *testing.T) {
+	const injected = "victim@example.tld\r\nBcc: attacker@example.tld"
+
+	for _, tc := range []struct {
+		name string
+		send func(*Mailer) error
+	}{
+		{"plain", func(m *Mailer) error {
+			return m.Send(injected, "Reset your password", "Body")
+		}},
+		{"multipart", func(m *Mailer) error {
+			return m.SendHTML(injected, "Reset your password", "Body", "<p>Body</p>")
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m, captured := recordingMailer(t)
+			if err := tc.send(m); err != nil {
+				t.Fatalf("send failed: %v", err)
+			}
+
+			headers, _, found := strings.Cut(captured.Msg, "\r\n\r\n")
+			if !found {
+				t.Fatalf("message has no header/body separator:\n%s", captured.Msg)
+			}
+			for _, line := range strings.Split(headers, "\r\n") {
+				if strings.HasPrefix(strings.ToLower(line), "bcc:") {
+					t.Errorf("an injected header became a real header:\n%s", headers)
+				}
+			}
+			if got := strings.Count(headers, "To:"); got != 1 {
+				t.Errorf("To appears %d times, want 1: the value broke across lines", got)
+			}
+		})
+	}
+}
+
 func TestMailerDefaultsPort(t *testing.T) {
 	m, captured := recordingMailer(t)
 	m.port = ""

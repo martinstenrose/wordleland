@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/mail"
 	"strings"
 	"time"
 )
@@ -58,6 +59,26 @@ func (u User) Disabled() bool { return u.DisabledAt != nil }
 // which one someone is logging into.
 func NormalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
+}
+
+// ValidEmail reports whether a normalised address is one this application
+// will accept.
+//
+// The rule is net/mail's rather than "it contains an @", because the strings
+// that matter are the ones carrying a CR or LF: an address is written
+// straight into a To: header, and a newline there is a second recipient or
+// an extra header of the sender's choosing. "Contains an @" passes every one
+// of them.
+//
+// A display-name form ("Someone <a@b>") is refused too, by requiring the
+// parsed address back unchanged: these columns hold an address, and a name
+// accepted here is a name on the message that nobody chose.
+//
+// It is not an attempt to decide whether an address exists — only delivery
+// answers that, which is what the confirmation mail is for.
+func ValidEmail(email string) bool {
+	addr, err := mail.ParseAddress(email)
+	return err == nil && addr.Address == email
 }
 
 const userColumns = `id, handle, email, email_verified_at, disabled_at, password_hash, is_admin,
@@ -178,7 +199,7 @@ func createUserTx(ctx context.Context, tx *sql.Tx, actor Actor, email, passwordH
 // with no way back.
 func SetPendingEmail(ctx context.Context, db *sql.DB, actor Actor, userID int64, email string) error {
 	email = NormalizeEmail(email)
-	if email == "" || !strings.Contains(email, "@") {
+	if !ValidEmail(email) {
 		return ErrInvalidEmail
 	}
 

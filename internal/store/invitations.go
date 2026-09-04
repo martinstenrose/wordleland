@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -56,7 +55,7 @@ func CreateInvitation(ctx context.Context, db *sql.DB, actor Actor, playerID int
 	email, locale string) (string, error) {
 
 	email = NormalizeEmail(email)
-	if email == "" || !strings.Contains(email, "@") {
+	if !ValidEmail(email) {
 		return "", ErrInvalidEmail
 	}
 	if locale == "" {

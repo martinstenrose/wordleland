@@ -289,6 +289,51 @@ func TestNormalizeEmail(t *testing.T) {
 	}
 }
 
+// An accepted address is written straight into a To: header, so the cases
+// that matter are the ones "contains an @" waved through.
+func TestValidEmail(t *testing.T) {
+	tests := map[string]bool{
+		"martin@example.tld":        true,
+		"martin+wordle@example.tld": true,
+		"":                          false,
+		"martin":                    false,
+		"@example.tld":              false,
+		"martin@example.tld\r\nBcc: other@evil.tld": false,
+		"martin@example.tld\nBcc: other@evil.tld":   false,
+		// A display name is a name on the message nobody chose.
+		"Martin <martin@example.tld>": false,
+		// Two recipients where the column holds one.
+		"martin@example.tld, other@evil.tld": false,
+	}
+	for in, want := range tests {
+		if got := ValidEmail(in); got != want {
+			t.Errorf("ValidEmail(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
+
+// The two writes that take an address from a form share the rule, so a
+// header break is refused before it can reach the mailer.
+func TestAddressWritesRejectAHeaderBreak(t *testing.T) {
+	db := migratedDB(t)
+	ctx := context.Background()
+	adminID, actor := adminFixture(t, db)
+
+	const injected = "victim@example.tld\nBcc: attacker@example.tld"
+
+	if err := SetPendingEmail(ctx, db, actor, adminID, injected); !errors.Is(err, ErrInvalidEmail) {
+		t.Errorf("SetPendingEmail() error = %v, want ErrInvalidEmail", err)
+	}
+
+	player, err := CreatePlayer(ctx, db, actor, "Martin", "martin")
+	if err != nil {
+		t.Fatalf("CreatePlayer() failed: %v", err)
+	}
+	if _, err := CreateInvitation(ctx, db, actor, player.ID, injected, "en"); !errors.Is(err, ErrInvalidEmail) {
+		t.Errorf("CreateInvitation() error = %v, want ErrInvalidEmail", err)
+	}
+}
+
 func seedSession(t *testing.T, db *sql.DB, userID int64, id string) {
 	t.Helper()
 	if _, err := db.Exec(
