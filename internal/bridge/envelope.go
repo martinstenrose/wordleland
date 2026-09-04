@@ -101,6 +101,13 @@ func (e envelope) message() (Message, bool) {
 	if body == nil || body.GroupInfo == nil {
 		return Message{}, false
 	}
+	if e.Envelope.SourceUUID == "" {
+		// Nothing to file a result against: the UUID is the external id
+		// every submission is keyed by. Forwarding it anyway would fail
+		// ingest's validation and be logged as a parser bug, which this is
+		// not — it is a frame the bridge cannot attribute.
+		return Message{}, false
+	}
 	if strings.TrimSpace(body.Message) == "" {
 		// An attachment, a reaction or a group update: nothing to parse.
 		return Message{}, false
