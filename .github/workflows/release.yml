@@ -29,6 +29,7 @@ env:
 
 jobs:
   test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -40,6 +41,7 @@ jobs:
       - run: go test ./...
 
   images:
+    name: Images
     needs: test
     runs-on: ubuntu-latest
     permissions:
