@@ -64,8 +64,16 @@ const announceTimeout = 20 * time.Second
 // source-agnostic and the CLI legitimately writes old puzzles.
 const (
 	// maxPuzzlesBehind allows a result posted late in the evening, or from
-	// a timezone still on yesterday.
-	maxPuzzlesBehind = 2
+	// a player whose timezone is still on yesterday. Either is one puzzle
+	// behind; neither needs more.
+	//
+	// Two would also cover someone in a trailing timezone posting after
+	// their own midnight — both slips at once. That is not a case worth
+	// widening the window for: the point is to post on the day, and in
+	// practice late has meant a minute or two, never a day and a half. A
+	// window that accommodates it is a window that also lets a genuinely
+	// back-dated result in through the same door.
+	maxPuzzlesBehind = 1
 	// maxPuzzlesAhead allows a timezone that has already rolled over.
 	maxPuzzlesAhead = 1
 )
