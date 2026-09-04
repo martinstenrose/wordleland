@@ -385,7 +385,7 @@ func TestStylesheetIsWhole(t *testing.T) {
 
 	// Both light blocks carry the same ground, so a system-preference reader
 	// and one who chose light see the same page.
-	if strings.Count(css, "--pg: #cfd3e5") != 2 && strings.Count(css, "--pg:#cfd3e5") != 2 {
+	if strings.Count(css, "--color-canvas: #cfd3e5") != 2 && strings.Count(css, "--color-canvas:#cfd3e5") != 2 {
 		t.Error("the light ground is not defined in both light blocks")
 	}
 }
