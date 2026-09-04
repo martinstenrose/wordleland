@@ -30,9 +30,14 @@ jobs:
       # work to do rather than noise to triage. It also catches the go
       # directive in go.mod going stale: that is a floor, and Dependabot
       # does not raise it.
+      #
+      # The version pinned here is the tool's, not the advisory database's:
+      # that is fetched at run time, so the weekly scan still sees what was
+      # published this week. Pinning only stops a tool release changing the
+      # result on a morning nobody pushed anything.
       - name: govulncheck
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
           "$(go env GOPATH)/bin/govulncheck" ./...
 
   codeql:
