@@ -198,9 +198,13 @@ func TestRejectsBackDatedResults(t *testing.T) {
 	}{
 		{"today", 1891, 1},
 		{"yesterday, posted after midnight", 1890, 1},
-		{"two days back, a late catch-up", 1889, 1},
 		{"one ahead, a timezone that has rolled over", 1892, 1},
 
+		// One behind is a late post or a trailing timezone. Two is both at
+		// once, which is not a slip this accommodates: the puzzle is meant
+		// to be posted on the day, and a window wide enough for a day and a
+		// half is wide enough for a back-dated result to arrive as one.
+		{"two days back", 1889, 0},
 		{"three days back", 1888, 0},
 		{"an archive puzzle from February", 1707, 0},
 		{"the very first puzzle", 1, 0},
