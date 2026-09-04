@@ -17,7 +17,12 @@ import (
 
 // Argon2id parameters. These are a starting point rather than a ceiling: the
 // encoding below records the parameters alongside each hash, so raising them
-// later re-hashes on next login instead of invalidating every password.
+// does not invalidate every password — a hash written under the old ones
+// still verifies under its own.
+//
+// Nothing upgrades an existing hash, though. An account keeps the parameters
+// its was written with until the password is set again, so raising these
+// reaches new and changed passwords only.
 const (
 	argonTime    = 3
 	argonMemory  = 64 * 1024 // KiB, so 64 MiB per hash
@@ -25,6 +30,12 @@ const (
 	argonKeyLen  = 32
 	argonSaltLen = 16
 )
+
+// maxDecodedMemory bounds the m= a stored hash may ask for when it is
+// verified. Eight times the current setting: enough headroom that raising
+// argonMemory two or three times over the years does not strand hashes
+// written by an earlier build, and still a bound.
+const maxDecodedMemory = 8 * argonMemory
 
 // argonVersion is the argon2 version the encoding records. Verifying a hash
 // produced by a different version is refused rather than attempted, since the
@@ -118,6 +129,15 @@ func decodeHash(encoded string) (params argonParams, salt, key []byte, err error
 	}
 	if params.memory == 0 || params.time == 0 || params.threads == 0 {
 		return params, nil, nil, errors.New("password hash has zero parameters")
+	}
+	if params.memory > maxDecodedMemory {
+		// The parameters come from the stored hash, and argon2 allocates
+		// whatever they say: one row with m=4194304 is a 4 GiB allocation
+		// on the next sign-in for that account. Reaching this needs write
+		// access to the users table, so it is a second line rather than the
+		// first — but the first line is the whole database, and a ceiling
+		// here costs nothing.
+		return params, nil, nil, errors.New("password hash asks for more memory than this build allows")
 	}
 
 	if salt, err = base64.RawStdEncoding.DecodeString(parts[4]); err != nil {
