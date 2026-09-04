@@ -3,6 +3,7 @@ package web
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/martinstenrose/wordleland/internal/auth"
@@ -49,6 +50,16 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, user store.User, notice, errKey string, form settingsForm) {
+	s.renderSettingsStatus(w, r, user, notice, errKey, form, 0)
+}
+
+// renderSettingsStatus is renderSettings with the response code chosen by
+// the caller, and a status of 0 meaning "the usual one for this errKey".
+//
+// Only the rate limiter needs it. Being throttled is a 429 because the
+// answer is to wait, not the 422 that every other rejected settings form
+// gets, which means the form itself is wrong.
+func (s *Server) renderSettingsStatus(w http.ResponseWriter, r *http.Request, user store.User, notice, errKey string, form settingsForm, status int) {
 	page := settingsPage{
 		chrome:       s.newChrome(w, r, "", "", false),
 		Email:        user.Email,
@@ -97,9 +108,11 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, user sto
 		return
 	}
 
-	status := http.StatusOK
-	if errKey != "" {
-		status = http.StatusUnprocessableEntity
+	if status == 0 {
+		status = http.StatusOK
+		if errKey != "" {
+			status = http.StatusUnprocessableEntity
+		}
 	}
 	s.render(w, r, status, "settings.html", page)
 }
@@ -187,6 +200,23 @@ func (s *Server) handleSettingsPassword(w http.ResponseWriter, r *http.Request) 
 	// The current password is required even though the session is already
 	// authenticated: a borrowed screen should not be enough to take the
 	// account.
+	//
+	// Which makes this a second place to guess a password at, so it is
+	// limited like the first one, and before the hash rather than after:
+	// verifying costs 64 MiB and the CPU time to go with it, so an
+	// unthrottled endpoint is a way to spend the box's memory as well as a
+	// way to find the password. Its own key, not login's — throttling the
+	// two together would let a signed-in tab lock its owner out of the
+	// sign-in form.
+	clientIP := auth.ClientIP(r, s.cfg.TrustedProxies)
+	if !s.limiter.Allow("settings-password:user:"+strconv.FormatInt(user.ID, 10),
+		"settings-password:ip:"+clientIP) {
+		s.logger.Warn("settings password change rate limited", "ip", clientIP)
+		s.renderSettingsStatus(w, r, user, "", "settings.error.tooMany",
+			settingsForm{}, http.StatusTooManyRequests)
+		return
+	}
+
 	var verifyErr error
 	if err := s.limiter.WithHashSlot(r.Context(), func() error {
 		verifyErr = auth.VerifyPassword(user.PasswordHash, current)
@@ -221,6 +251,9 @@ func (s *Server) handleSettingsPassword(w http.ResponseWriter, r *http.Request) 
 		s.renderSettings(w, r, user, "", "settings.error.failed", settingsForm{})
 		return
 	}
+	// Cleared on success, as sign-in does, so earlier typos are not still
+	// being counted against whoever gets this right.
+	s.limiter.Reset("settings-password:user:" + strconv.FormatInt(user.ID, 10))
 
 	// Changing the password ends every session, this one included, so the
 	// reader lands back at sign-in rather than on a page they can no longer

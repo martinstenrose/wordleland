@@ -298,6 +298,7 @@
   "settings.error.sameEmail": "Det är redan adressen på det här kontot.",
   "settings.error.wrongPassword": "Det är inte ditt nuvarande lösenord.",
   "settings.error.shortPassword": "Välj ett lösenord på minst 12 tecken.",
+  "settings.error.tooMany": "För många försök. Vänta några minuter och försök igen.",
   "settings.error.expired": "Formuläret gick ut. Försök igen.",
   "settings.error.failed": "Ändringen kunde inte sparas.",
   "grid.inactive": "Visa inaktiva (%d)",

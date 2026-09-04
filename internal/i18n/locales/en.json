@@ -298,6 +298,7 @@
   "settings.error.sameEmail": "That is already the address on this account.",
   "settings.error.wrongPassword": "That is not your current password.",
   "settings.error.shortPassword": "Please choose a password of at least 12 characters.",
+  "settings.error.tooMany": "Too many attempts. Please wait a few minutes and try again.",
   "settings.error.expired": "The form expired. Try again.",
   "settings.error.failed": "That change could not be saved.",
   "grid.inactive": "Show inactive (%d)",
