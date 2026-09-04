@@ -6,6 +6,12 @@ on:
     branches:
       - main
 
+# Nothing here writes anything back, so the token gets read access and no
+# more. Without this it inherits whatever the repository's default is, which
+# is a setting somebody can widen without touching this file.
+permissions:
+  contents: read
+
 jobs:
   check:
     name: Check
@@ -35,9 +41,13 @@ jobs:
       # staticcheck catches what go vet does not. Deliberate exceptions
       # carry a //lint:ignore naming the reason, so a hit here is a real
       # one.
+      #
+      # Pinned rather than @latest: a new release can add a check, and a
+      # build that starts failing on a morning nobody pushed anything is a
+      # bad way to find that out. Raise it deliberately.
       - name: staticcheck
         run: |
-          go install honnef.co/go/tools/cmd/staticcheck@latest
+          go install honnef.co/go/tools/cmd/staticcheck@v0.8.1
           "$(go env GOPATH)/bin/staticcheck" ./...
 
   image:
