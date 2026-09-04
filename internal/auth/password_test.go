@@ -118,6 +118,11 @@ func TestVerifyPasswordRejectsMalformedHash(t *testing.T) {
 		{"wrong version", "$argon2id$v=16$m=65536,t=3,p=2$c2FsdA$aGFzaA"},
 		{"unreadable parameters", "$argon2id$v=19$nonsense$c2FsdA$aGFzaA"},
 		{"zero parameters", "$argon2id$v=19$m=0,t=0,p=0$c2FsdA$aGFzaA"},
+		// argon2 allocates whatever m= says, so a row asking for more than
+		// the build allows must be refused rather than sized to. Just over
+		// the ceiling on purpose: a plausible-looking number, so what is
+		// being checked is the bound and not "this is obviously absurd".
+		{"more memory than the build allows", "$argon2id$v=19$m=589824,t=3,p=2$c2FsdA$aGFzaA"},
 		{"bad salt encoding", "$argon2id$v=19$m=65536,t=3,p=2$not!base64$aGFzaA"},
 		{"bad key encoding", "$argon2id$v=19$m=65536,t=3,p=2$c2FsdA$not!base64"},
 	}
