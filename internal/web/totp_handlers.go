@@ -6,6 +6,7 @@ import (
 	"errors"
 	"html/template"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -137,7 +138,12 @@ func (s *Server) handleEnrolTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !s.limiter.Allow("totp:user:"+user.Email, "totp:ip:"+auth.ClientIP(r, s.cfg.TrustedProxies)) {
+	// Keyed by user id rather than address. Sign-in has to key on the
+	// address because it is all it has before the account is found, but
+	// here the account is already known — and an address can change, which
+	// would hand the holder of a password a fresh budget of code guesses
+	// just by editing a settings field.
+	if !s.limiter.Allow("totp:user:"+strconv.FormatInt(user.ID, 10), "totp:ip:"+auth.ClientIP(r, s.cfg.TrustedProxies)) {
 		s.renderEnrolError(w, r, http.StatusTooManyRequests,
 			"Too many attempts. Please wait a few minutes and try again.")
 		return
@@ -174,7 +180,7 @@ func (s *Server) handleEnrolTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusInternalServerError)
 		return
 	}
-	s.limiter.Reset("totp:user:" + user.Email)
+	s.limiter.Reset("totp:user:" + strconv.FormatInt(user.ID, 10))
 
 	// Enrolment completes the second factor, so the session is rotated out of
 	// its pending state rather than requiring an immediate second code.
@@ -245,7 +251,7 @@ func (s *Server) handleTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 
 	// Six digits is a million possibilities; without a limit it is
 	// brute-forceable in an afternoon.
-	if !s.limiter.Allow("totp:user:"+user.Email, "totp:ip:"+auth.ClientIP(r, s.cfg.TrustedProxies)) {
+	if !s.limiter.Allow("totp:user:"+strconv.FormatInt(user.ID, 10), "totp:ip:"+auth.ClientIP(r, s.cfg.TrustedProxies)) {
 		s.renderTOTPError(w, r, http.StatusTooManyRequests,
 			"Too many attempts. Please wait a few minutes and try again.")
 		return
@@ -285,7 +291,7 @@ func (s *Server) handleTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.limiter.Reset("totp:user:" + user.Email)
+	s.limiter.Reset("totp:user:" + strconv.FormatInt(user.ID, 10))
 	if err := s.clearPendingTOTP(w, r); err != nil {
 		s.logger.Error("rotate session", "error", err)
 		s.renderError(w, r, http.StatusInternalServerError)

@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -264,6 +265,57 @@ func TestTOTPIsRateLimited(t *testing.T) {
 	}
 	if !blocked {
 		t.Error("six digits is a million possibilities and none of the attempts were throttled")
+	}
+}
+
+// Changing the address on an account must not hand back a fresh budget of
+// code guesses.
+//
+// Every attempt here comes from an address of its own, which is the case the
+// per-account key exists for: many addresses against one account. It also
+// means the IP key never blocks anything, so a 429 can only have come from
+// the account key — and it only survives the rename if that key is not the
+// address.
+func TestTOTPRateLimitSurvivesAnEmailChange(t *testing.T) {
+	srv := testServer(t)
+	seedLogin(t, srv, "admin@example.tld", true)
+
+	_, cookies := login(t, srv, "admin@example.tld", testPassword)
+	enrol(t, srv, cookies)
+
+	_, fresh := login(t, srv, "admin@example.tld", testPassword)
+
+	// 203.0.113.0/24 rather than clientAddr's range, so no address here can
+	// collide with one another test has already spent.
+	guess := func(t *testing.T, n int) int {
+		t.Helper()
+		addr := fmt.Sprintf("203.0.113.%d:1025", n)
+		csrf, updated := getCSRFFrom(t, srv, "/totp", fresh, addr)
+		fresh = updated
+		return postFormFrom(t, srv, "/totp",
+			url.Values{"csrf_token": {csrf}, "code": {"000000"}}, fresh, addr).Code
+	}
+
+	for i := 0; i < auth.DefaultMaxAttempts; i++ {
+		if got := guess(t, i+1); got != http.StatusUnauthorized {
+			t.Fatalf("attempt %d got %d, want %d", i+1, got, http.StatusUnauthorized)
+		}
+	}
+	if got := guess(t, 200); got != http.StatusTooManyRequests {
+		t.Fatalf("the account was never throttled: got %d, want %d", got, http.StatusTooManyRequests)
+	}
+
+	// Straight to the column: going through settings would need a mail
+	// server and a verification round trip, and neither is under test here.
+	if _, err := srv.db.ExecContext(context.Background(),
+		`UPDATE users SET email = ? WHERE email = ?`,
+		"renamed@example.tld", "admin@example.tld"); err != nil {
+		t.Fatalf("rename the account: %v", err)
+	}
+
+	if got := guess(t, 201); got != http.StatusTooManyRequests {
+		t.Errorf("after the rename an attempt got %d, want %d: the budget reset with the address",
+			got, http.StatusTooManyRequests)
 	}
 }
 

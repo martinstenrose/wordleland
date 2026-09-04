@@ -3,6 +3,7 @@ package web
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/martinstenrose/wordleland/internal/auth"
@@ -92,7 +93,7 @@ func (s *Server) handleRecoverySubmit(w http.ResponseWriter, r *http.Request) {
 	// The same bucket as the TOTP step, deliberately: a recovery code is a
 	// second factor too, and giving it a separate allowance would double
 	// the guesses an attacker gets at the same account.
-	if !s.limiter.Allow("totp:user:"+user.Email, "totp:ip:"+auth.ClientIP(r, s.cfg.TrustedProxies)) {
+	if !s.limiter.Allow("totp:user:"+strconv.FormatInt(user.ID, 10), "totp:ip:"+auth.ClientIP(r, s.cfg.TrustedProxies)) {
 		s.renderRecoveryError(w, r, http.StatusTooManyRequests, "recovery.error.tooMany")
 		return
 	}
@@ -116,7 +117,7 @@ func (s *Server) handleRecoverySubmit(w http.ResponseWriter, r *http.Request) {
 		s.logger.Error("record totp step", "error", err)
 	}
 
-	s.limiter.Reset("totp:user:" + user.Email)
+	s.limiter.Reset("totp:user:" + strconv.FormatInt(user.ID, 10))
 	if err := s.clearPendingTOTP(w, r); err != nil {
 		s.logger.Error("rotate session", "error", err)
 		s.renderError(w, r, http.StatusInternalServerError)
