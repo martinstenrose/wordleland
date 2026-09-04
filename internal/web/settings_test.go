@@ -122,6 +122,29 @@ func TestSettingsPasswordRequiresTheCurrentOne(t *testing.T) {
 	}
 }
 
+// Guessing at the current password is guessing at a password, so it is
+// limited the way sign-in is. Unthrottled it is both a second door to try
+// the password on and a way to spend 64 MiB of the box's memory a request,
+// since every attempt is an argon2id verify.
+func TestSettingsPasswordIsRateLimited(t *testing.T) {
+	srv := testServer(t)
+	_, session := settingsUser(t, srv, "reader@example.tld", "correct horse battery staple", false)
+
+	var blocked bool
+	for i := 0; i < auth.DefaultMaxAttempts+2; i++ {
+		rec := postSettings(t, srv, "/settings/password", url.Values{
+			"current": {"not the password"}, "password": {"a brand new passphrase"},
+		}, session)
+		if rec.Code == http.StatusTooManyRequests {
+			blocked = true
+			break
+		}
+	}
+	if !blocked {
+		t.Error("the current-password check was never throttled")
+	}
+}
+
 func TestSettingsChangesThePassword(t *testing.T) {
 	srv := testServer(t)
 	const old, next = "correct horse battery staple", "an entirely different one"

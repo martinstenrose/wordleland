@@ -272,6 +272,20 @@ checked before hashing, so a blocked attempt costs nothing, and concurrent
 argon2 calls are bounded separately — at 64 MiB a hash, an unthrottled login
 endpoint is a memory-exhaustion DoS whether or not anything is ever guessed.
 
+**Every prompt that takes a password is limited, not only sign-in.** Changing
+the password from settings asks for the current one, which makes it a second
+door to try a password on and a second way to spend 64 MiB a request. It
+counts under its own key rather than sign-in's: sharing one would let a
+signed-in tab lock its owner out of the sign-in form.
+
+**The two-factor budget is keyed on the account, not its address.** Sign-in
+has to key on the address, because that is all it holds before the account is
+found. By the time a code is being checked the account is known — and keying
+on a field the account holder can edit meant a password alone bought an
+unlimited supply of guesses at the second factor: exhaust the budget, change
+the address, start again. The row id also cannot drift if the rule for
+normalising addresses changes.
+
 **Recovery codes share the two-factor rate limit** rather than getting their
 own, which would double the guesses an attacker gets at one account. They
 carry 80 bits, which is what makes storing only a SHA-256 hash safe: there is
