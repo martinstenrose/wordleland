@@ -42,6 +42,31 @@ type pendingPage struct {
 	Error  string
 }
 
+// pendingProblems is every problem code pendingRedirect issues.
+//
+// The template renders Error as {{.T.T .Error}}, so whatever reaches it is
+// used as a translation-catalogue key — and it arrives in a query string,
+// which means a link somebody else wrote chooses which entry of the
+// catalogue is shown on an admin page. The template already matches Notice
+// against fixed values before translating it; Error cannot be checked the
+// same way there, because there are five of it, so it is checked here.
+var pendingProblems = map[string]bool{
+	"pending.error.noPlayer": true,
+	"pending.error.taken":    true,
+	"pending.error.gone":     true,
+	"pending.error.expired":  true,
+	"pending.error.failed":   true,
+}
+
+// pendingProblem passes through a problem code this handler issues, and
+// drops anything else.
+func pendingProblem(problem string) string {
+	if pendingProblems[problem] {
+		return problem
+	}
+	return ""
+}
+
 // handleAdminPending lists senders whose results are held for want of a
 // player to attach them to.
 func (s *Server) handleAdminPending(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +88,7 @@ func (s *Server) handleAdminPending(w http.ResponseWriter, r *http.Request) {
 		Players: players,
 		Open:    len(senders),
 		Notice:  r.URL.Query().Get("notice"),
-		Error:   r.URL.Query().Get("problem"),
+		Error:   pendingProblem(r.URL.Query().Get("problem")),
 	}
 
 	for _, sender := range senders {
