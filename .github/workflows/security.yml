@@ -1,4 +1,4 @@
-name: security
+name: Security
 
 # Runs on pull requests and on a schedule. The schedule is the point: an
 # advisory published next week is not a code change, so a scan that only

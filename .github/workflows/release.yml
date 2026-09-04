@@ -1,4 +1,4 @@
-name: release
+name: Release
 
 # Tags publish a release. Pushes to main publish a rolling `testing` tag so
 # there's always an image for the tip of the branch without cutting a
