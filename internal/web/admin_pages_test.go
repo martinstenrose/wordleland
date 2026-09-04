@@ -712,3 +712,25 @@ func TestDiagnosticsReportsTheRunningVersion(t *testing.T) {
 		t.Error("the running version is not formatted as code")
 	}
 }
+
+// ?problem= is fed to the translator as a catalogue key, so a value that is
+// not one this handler issues would let a link somebody else wrote choose
+// which entry of the catalogue appears on an admin page.
+func TestPendingProblemIsNotAFreeChoiceOfCatalogueKey(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	// A real key from elsewhere in the catalogue: the interesting case, since
+	// an unknown key only renders as itself.
+	body := fetchAs(t, srv, "/admin/pending?problem=settings.error.wrongPassword", session).Body.String()
+	if strings.Contains(body, "not your current password") {
+		t.Error("a query string chose which translated message the page shows")
+	}
+
+	// One the handler does issue still reaches the reader.
+	body = fetchAs(t, srv, "/admin/pending?problem=pending.error.taken", session).Body.String()
+	if !strings.Contains(body, "already attached to a player") {
+		t.Error("a problem this handler issues was dropped")
+	}
+}
