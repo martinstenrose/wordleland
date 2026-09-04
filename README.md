@@ -1,8 +1,8 @@
 # Wordleland
 
-[![ci](https://github.com/martinstenrose/wordleland/actions/workflows/ci.yml/badge.svg)](https://github.com/martinstenrose/wordleland/actions/workflows/ci.yml)
-[![security](https://github.com/martinstenrose/wordleland/actions/workflows/security.yml/badge.svg)](https://github.com/martinstenrose/wordleland/actions/workflows/security.yml)
-[![release](https://github.com/martinstenrose/wordleland/actions/workflows/release.yml/badge.svg)](https://github.com/martinstenrose/wordleland/actions/workflows/release.yml)
+[![CI](https://github.com/martinstenrose/wordleland/actions/workflows/ci.yml/badge.svg)](https://github.com/martinstenrose/wordleland/actions/workflows/ci.yml)
+[![Security](https://github.com/martinstenrose/wordleland/actions/workflows/security.yml/badge.svg)](https://github.com/martinstenrose/wordleland/actions/workflows/security.yml)
+[![Release](https://github.com/martinstenrose/wordleland/actions/workflows/release.yml/badge.svg)](https://github.com/martinstenrose/wordleland/actions/workflows/release.yml)
 
 Self-hosted Wordle tracker for a group of friends. Results arrive
 automatically from a Signal group; manual entry and admin correction are
