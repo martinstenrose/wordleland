@@ -35,9 +35,13 @@ type Supervisor struct {
 	bridge *Bridge
 	logger *slog.Logger
 
-	mu      sync.Mutex
-	running bool
-	// stopped is why the supervisor gave up, empty while it has not.
+	mu sync.Mutex
+	// exited is set once the supervising loop has returned, whether it gave
+	// up or the process is shutting down. It is deliberately not "is an
+	// attempt running right now": see Alive.
+	exited bool
+	// stopped is why the supervisor gave up, empty while it has not and
+	// empty for an ordinary shutdown, which is not a fault.
 	stopped string
 
 	// sleep is swapped in tests so a restart costs no real time.
@@ -56,12 +60,19 @@ func Supervise(b *Bridge, logger *slog.Logger) *Supervisor {
 //
 // This is the only bridge state the liveness probe consults. A bridge
 // that is disconnected and retrying is alive: restarting the process would
-// interrupt its backoff and fix nothing. A bridge that has stopped is not,
-// and a restart is exactly the right response.
+// interrupt its backoff and fix nothing. A bridge whose supervisor has
+// returned is not, and a restart is exactly the right response.
+//
+// What is reported is the supervisor's state, not the current attempt's.
+// Between a panic and the restart that follows it there is no attempt
+// running at all, and answering the probe with "dead" through that window
+// would have the container bounced for a fault the supervisor was already
+// recovering from — and bounced on a 503 carrying no reason, which reads
+// exactly like the case where it had given up for good.
 func (s *Supervisor) Alive() (bool, string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.running, s.stopped
+	return !s.exited, s.stopped
 }
 
 // Status reports what the bridge is doing, for the diagnostics page.
@@ -125,7 +136,6 @@ func (s *Supervisor) Run(ctx context.Context) {
 // runOnce runs the bridge, converting a panic into a return value.
 func (s *Supervisor) runOnce(ctx context.Context) (err error, panicked bool) {
 	defer func() {
-		s.setRunning(false)
 		if r := recover(); r != nil {
 			panicked = true
 			// The stack is the whole value of catching this: without it the
@@ -135,19 +145,12 @@ func (s *Supervisor) runOnce(ctx context.Context) (err error, panicked bool) {
 		}
 	}()
 
-	s.setRunning(true)
 	return s.run(ctx), false
-}
-
-func (s *Supervisor) setRunning(v bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.running = v
 }
 
 func (s *Supervisor) setStopped(reason string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.running = false
+	s.exited = true
 	s.stopped = reason
 }

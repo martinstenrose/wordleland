@@ -178,3 +178,58 @@ func TestSupervisorRestartsOnError(t *testing.T) {
 	cancel()
 	<-done
 }
+
+// The delay between a panic and the attempt that follows it is not a fault.
+// No attempt is running through that window, and answering the liveness
+// probe with "dead" would have the container bounced for something the
+// supervisor was already recovering from — on a 503 carrying no reason,
+// which reads exactly like the case where it had given up for good.
+//
+// The other half of the contract, flipping to dead once it does give up, is
+// TestSupervisorGivesUpOnAPanicLoop.
+func TestSupervisorStaysAliveDuringTheRestartDelay(t *testing.T) {
+	var attempts int
+	var mu sync.Mutex
+
+	s := superviseFunc(t, func(ctx context.Context) error {
+		mu.Lock()
+		attempts++
+		n := attempts
+		mu.Unlock()
+		if n == 1 {
+			panic("boom")
+		}
+		<-ctx.Done()
+		return ctx.Err()
+	})
+
+	// Hold the supervisor inside the restart delay so the window can be
+	// observed at all; the stub sleep it comes with returns immediately.
+	sleeping := make(chan struct{})
+	resume := make(chan struct{})
+	var once sync.Once
+	s.sleep = func(context.Context, time.Duration) {
+		once.Do(func() {
+			close(sleeping)
+			<-resume
+		})
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { defer close(done); s.Run(ctx) }()
+
+	select {
+	case <-sleeping:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the supervisor never reached the restart delay after a panic")
+	}
+
+	if alive, reason := s.Alive(); !alive || reason != "" {
+		t.Errorf("mid-restart Alive() = (%v, %q), want (true, %q)", alive, reason, "")
+	}
+
+	close(resume)
+	cancel()
+	<-done
+}
