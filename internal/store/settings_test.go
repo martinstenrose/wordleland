@@ -74,7 +74,7 @@ func TestEnsureShareSlugCreatesOnce(t *testing.T) {
 
 // The first slug should have the same visible provenance as every later
 // rotation rather than appearing from nowhere.
-func TestEnsureShareSlugIsAudited(t *testing.T) {
+func TestEnsureShareSlugIsLogged(t *testing.T) {
 	db := migratedDB(t)
 	ctx := context.Background()
 
@@ -84,9 +84,9 @@ func TestEnsureShareSlugIsAudited(t *testing.T) {
 
 	var kind, action string
 	if err := db.QueryRow(
-		`SELECT actor_kind, action FROM audit_log WHERE subject_type = ?`, SubjectSettings,
+		`SELECT actor_kind, action FROM activity_log WHERE subject_type = ?`, SubjectSettings,
 	).Scan(&kind, &action); err != nil {
-		t.Fatalf("read audit entry: %v", err)
+		t.Fatalf("read activity entry: %v", err)
 	}
 	if kind != ActorSystem {
 		t.Errorf("actor_kind = %q, want %q", kind, ActorSystem)
@@ -101,8 +101,8 @@ func TestEnsureShareSlugIsAudited(t *testing.T) {
 	}
 	var count int
 	if err := db.QueryRow(
-		`SELECT COUNT(*) FROM audit_log WHERE action = ?`, ActionSlugGenerated).Scan(&count); err != nil {
-		t.Fatalf("count audit entries: %v", err)
+		`SELECT COUNT(*) FROM activity_log WHERE action = ?`, ActionSlugGenerated).Scan(&count); err != nil {
+		t.Fatalf("count activity entries: %v", err)
 	}
 	if count != 1 {
 		t.Errorf("slug generation logged %d times, want 1", count)
@@ -137,7 +137,7 @@ func TestRotateShareSlug(t *testing.T) {
 }
 
 // A link that stops working should be traceable to the rotation that retired
-// it; the audit log is admin-only and the recorded slug is already spent.
+// it; the activity log is admin-only and the recorded slug is already spent.
 func TestRotateShareSlugRecordsPrevious(t *testing.T) {
 	db := migratedDB(t)
 	ctx := context.Background()
@@ -153,11 +153,11 @@ func TestRotateShareSlugRecordsPrevious(t *testing.T) {
 
 	var detail string
 	if err := db.QueryRow(
-		`SELECT detail FROM audit_log WHERE action = ?`, ActionSlugRotated).Scan(&detail); err != nil {
-		t.Fatalf("read audit detail: %v", err)
+		`SELECT detail FROM activity_log WHERE action = ?`, ActionSlugRotated).Scan(&detail); err != nil {
+		t.Fatalf("read activity detail: %v", err)
 	}
 	if !strings.Contains(detail, original) {
-		t.Errorf("audit detail = %q, want it to record the previous slug %q", detail, original)
+		t.Errorf("activity detail = %q, want it to record the previous slug %q", detail, original)
 	}
 }
 

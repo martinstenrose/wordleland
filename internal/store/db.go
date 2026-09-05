@@ -120,7 +120,7 @@ func checkMigrated(ctx context.Context, q Querier) error {
 
 // InTx runs fn inside a transaction, rolling back on error or panic.
 //
-// Audit entries are written through the same transaction as the change they
+// Activity entries are written through the same transaction as the change they
 // describe, so a crash between the two cannot leave a mutation with
 // no record of it. Taking the transaction as a parameter throughout is what
 // makes that guarantee mechanical rather than a matter of remembering.

@@ -185,10 +185,10 @@ func TestDeleteResult(t *testing.T) {
 		t.Errorf("error = %v, want ErrResultNotFound", err)
 	}
 
-	// The row is gone, so the audit entry is the only record of what it held.
+	// The row is gone, so the activity entry is the only record of what it held.
 	var detail string
-	if err := db.QueryRow(`SELECT detail FROM audit_log WHERE action = ?`, ActionResultDeleted).Scan(&detail); err != nil {
-		t.Fatalf("read audit detail: %v", err)
+	if err := db.QueryRow(`SELECT detail FROM activity_log WHERE action = ?`, ActionResultDeleted).Scan(&detail); err != nil {
+		t.Fatalf("read activity detail: %v", err)
 	}
 	if detail == "" {
 		t.Error("the deletion was logged without the value it removed")

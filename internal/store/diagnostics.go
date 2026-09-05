@@ -15,7 +15,7 @@ import (
 // that. "Last result three days ago" is not.
 type Freshness struct {
 	// LastResultAt is when a result was most recently written — arrival
-	// time, not the puzzle's date. Read from the audit log, because results
+	// time, not the puzzle's date. Read from the activity log, because results
 	// carry only the day they belong to, and a backfill of last month would
 	// otherwise read as nothing having arrived since.
 	LastResultAt time.Time
@@ -39,7 +39,7 @@ func ReadFreshness(ctx context.Context, q Querier) (Freshness, error) {
 	// type the driver keys its time parsing off, and comes back a string.
 	var at sql.NullTime
 	err := q.QueryRowContext(ctx,
-		`SELECT at FROM audit_log WHERE action IN (?, ?) ORDER BY at DESC LIMIT 1`,
+		`SELECT at FROM activity_log WHERE action IN (?, ?) ORDER BY at DESC LIMIT 1`,
 		ActionResultCreated, ActionResultUpdated,
 	).Scan(&at)
 	if err != nil && err != sql.ErrNoRows {

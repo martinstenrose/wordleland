@@ -203,7 +203,7 @@ func CreatePlayer(ctx context.Context, db *sql.DB, actor Actor, name, slug strin
 			return fmt.Errorf("create player: %w", err)
 		}
 
-		if err := Audit(ctx, tx, actor, ActionPlayerCreated, SubjectPlayer, &id,
+		if err := LogActivity(ctx, tx, actor, ActionPlayerCreated, SubjectPlayer, &id,
 			map[string]any{"slug": slug, "name": name}); err != nil {
 			return err
 		}
@@ -313,7 +313,7 @@ func UpdatePlayer(ctx context.Context, db *sql.DB, actor Actor, playerID int64, 
 				action = ActionPlayerRetired
 			}
 		}
-		if err := Audit(ctx, tx, actor, action, SubjectPlayer, &playerID, changed); err != nil {
+		if err := LogActivity(ctx, tx, actor, action, SubjectPlayer, &playerID, changed); err != nil {
 			return err
 		}
 
@@ -359,7 +359,7 @@ func LinkPlayer(ctx context.Context, db *sql.DB, actor Actor, playerID int64, us
 		if before.UserID != nil {
 			detail["previous_user_id"] = *before.UserID
 		}
-		if err := Audit(ctx, tx, actor, action, SubjectPlayer, &playerID, detail); err != nil {
+		if err := LogActivity(ctx, tx, actor, action, SubjectPlayer, &playerID, detail); err != nil {
 			return err
 		}
 
@@ -383,7 +383,7 @@ func ReactivatePlayer(ctx context.Context, q Querier, actor Actor, playerID int6
 		// Already active: nothing happened, so nothing is logged.
 		return nil
 	}
-	return Audit(ctx, q, actor, ActionPlayerReactivated, SubjectPlayer, &playerID,
+	return LogActivity(ctx, q, actor, ActionPlayerReactivated, SubjectPlayer, &playerID,
 		map[string]any{"reason": "posted a result after leaving"})
 }
 
@@ -409,7 +409,7 @@ func CreatePlayerTx(ctx context.Context, tx *sql.Tx, actor Actor, name, slug str
 	if err != nil {
 		return Player{}, fmt.Errorf("create player: %w", err)
 	}
-	if err := Audit(ctx, tx, actor, ActionPlayerCreated, SubjectPlayer, &id,
+	if err := LogActivity(ctx, tx, actor, ActionPlayerCreated, SubjectPlayer, &id,
 		map[string]any{"slug": slug, "name": name}); err != nil {
 		return Player{}, err
 	}
@@ -432,7 +432,7 @@ func UpdatePlayerTx(ctx context.Context, tx *sql.Tx, actor Actor, playerID int64
 	if *update.Active {
 		action = ActionPlayerReactivated
 	}
-	if err := Audit(ctx, tx, actor, action, SubjectPlayer, &playerID,
+	if err := LogActivity(ctx, tx, actor, action, SubjectPlayer, &playerID,
 		map[string]any{"active": map[string]any{"from": before.Active, "to": *update.Active}}); err != nil {
 		return Player{}, err
 	}

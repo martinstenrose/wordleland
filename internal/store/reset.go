@@ -167,7 +167,7 @@ func ConsumePasswordResetToken(ctx context.Context, db *sql.DB, token, passwordH
 
 		// The actor is the user themselves: nobody else authorised this, and
 		// attributing it to an admin would be a lie.
-		return Audit(ctx, tx, PlayerActor(userID), ActionUserPasswordReset, SubjectUser, &userID,
+		return LogActivity(ctx, tx, PlayerActor(userID), ActionUserPasswordReset, SubjectUser, &userID,
 			map[string]any{"via": "email", "sessions_invalidated": deleted})
 	})
 	return user, err

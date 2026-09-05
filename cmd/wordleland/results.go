@@ -131,7 +131,7 @@ func resultsUnset(e *env, args []string) error {
 	return nil
 }
 
-// writeResult stores a hand-entered result and audits it in one transaction.
+// writeResult stores a hand-entered result and logs it in one transaction.
 func (e *env) writeResult(actor store.Actor, playerID int64, r store.Result) (store.Outcome, error) {
 	var outcome store.Outcome
 	err := store.InTx(e.ctx, e.db, func(tx *sql.Tx) error {
@@ -148,7 +148,7 @@ func (e *env) writeResult(actor store.Actor, playerID int64, r store.Result) (st
 		if outcome == store.OutcomeUpdated {
 			action = store.ActionResultUpdated
 		}
-		return store.AuditResult(e.ctx, tx, actor, action, playerID, r, previous)
+		return store.LogResultActivity(e.ctx, tx, actor, action, playerID, r, previous)
 	})
 	return outcome, err
 }

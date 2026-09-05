@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -12,6 +13,122 @@ import (
 // ErrEventNotFound covers an id that does not exist and one the log does
 // not surface. They are not distinguished: both mean "no such row here".
 var ErrEventNotFound = errors.New("no such activity event")
+
+// Actor kinds, matching the CHECK on activity_log.
+const (
+	ActorAdmin  = "admin"
+	ActorToken  = "token"
+	ActorPlayer = "player"
+	ActorSystem = "system"
+)
+
+// Activity actions. Constants rather than literals so a typo is a compile
+// error and the vocabulary stays greppable as it grows.
+const (
+	ActionUserCreated         = "user.created"
+	ActionUserDisabled        = "user.disabled"
+	ActionUserEnabled         = "user.enabled"
+	ActionUserPasswordReset   = "user.password_reset"
+	ActionUser2FAReset        = "user.2fa_reset"
+	ActionUser2FAEnrolled     = "user.2fa_enrolled"
+	ActionUserEmailPending    = "user.email_pending"
+	ActionRecoveryCodesIssued = "user.recovery_codes_issued"
+	ActionRecoveryCodeUsed    = "user.recovery_code_used"
+	ActionUserEmailChanged    = "user.email_changed"
+
+	ActionPlayerCreated     = "player.created"
+	ActionPlayerUpdated     = "player.updated"
+	ActionPlayerRetired     = "player.retired"
+	ActionPlayerReactivated = "player.reactivated"
+	ActionPlayerLinked      = "player.linked"
+	ActionPlayerUnlinked    = "player.unlinked"
+	// ActionPlayerDeleted is written only by demo clear, the one path that
+	// deletes a player rather than retiring them. subject_id has no foreign
+	// key, so the entry survives the row it names — the activity log already
+	// renders a vanished subject as "#id".
+	ActionPlayerDeleted = "player.deleted"
+
+	ActionInvitationSent     = "invitation.sent"
+	ActionInvitationAccepted = "invitation.accepted"
+
+	ActionTokenCreated = "token.created"
+	ActionTokenRevoked = "token.revoked"
+
+	ActionResultCreated = "result.created"
+	ActionResultUpdated = "result.updated"
+	ActionResultDeleted = "result.deleted"
+
+	ActionIdentityAdded     = "identity.added"
+	ActionIdentityClaimed   = "identity.claimed"
+	ActionIdentityDiscarded = "identity.discarded"
+
+	ActionSlugGenerated = "settings.slug_generated"
+	ActionSlugRotated   = "settings.slug_rotated"
+)
+
+// Subject types.
+const (
+	SubjectUser     = "user"
+	SubjectPlayer   = "player"
+	SubjectResult   = "result"
+	SubjectIdentity = "identity"
+	SubjectToken    = "token"
+	SubjectSettings = "settings"
+)
+
+// Actor identifies who caused a change. Exactly one of UserID or TokenID is
+// set, except for Kind == ActorSystem where neither is; the activity_log
+// CHECK enforces the same rule at the database.
+type Actor struct {
+	Kind    string
+	UserID  *int64
+	TokenID *int64
+}
+
+// AdminActor is an administrator acting through the CLI or admin UI.
+func AdminActor(userID int64) Actor { return Actor{Kind: ActorAdmin, UserID: &userID} }
+
+// TokenActor is an API token: a script, a curl client, or the bridge as
+// it was before the services merged and it needed one.
+func TokenActor(tokenID int64) Actor { return Actor{Kind: ActorToken, TokenID: &tokenID} }
+
+// PlayerActor is a logged-in player acting on their own results.
+func PlayerActor(userID int64) Actor { return Actor{Kind: ActorPlayer, UserID: &userID} }
+
+// SystemActor is the application acting on its own, such as generating the
+// share slug on first startup.
+func SystemActor() Actor { return Actor{Kind: ActorSystem} }
+
+// LogActivity appends an entry to the log.
+//
+// It takes a Querier so it runs inside the same transaction as the change it
+// describes. That is what makes the log trustworthy: a crash between
+// the mutation and its record cannot leave one without the other.
+//
+// detail is optional and is stored as JSON. On an overwrite it should carry
+// the previous value, which is what turns a list of events into a correction
+// trail.
+func LogActivity(ctx context.Context, q Querier, actor Actor, action, subjectType string, subjectID *int64, detail any) error {
+	var encoded any
+	if detail != nil {
+		b, err := json.Marshal(detail)
+		if err != nil {
+			return fmt.Errorf("encode activity detail for %s: %w", action, err)
+		}
+		encoded = string(b)
+	}
+
+	_, err := q.ExecContext(ctx, `
+		INSERT INTO activity_log
+			(actor_kind, actor_user_id, actor_token_id, action, subject_type, subject_id, detail)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		actor.Kind, actor.UserID, actor.TokenID, action, subjectType, subjectID, encoded,
+	)
+	if err != nil {
+		return fmt.Errorf("write activity entry %s: %w", action, err)
+	}
+	return nil
+}
 
 // Activity categories. The log records fine-grained actions; an admin
 // reading it wants three questions answered — what was scored, who changed
@@ -92,11 +209,11 @@ const activitySelect = `
 		       COALESCE(u.email, ''), a.subject_type, a.subject_id,
 		       COALESCE(p.slug, su.email, ''), COALESCE(a.detail, ''),
 		       COALESCE(tk.label, '')
-		FROM audit_log a
+		FROM activity_log a
 		LEFT JOIN users u   ON u.id = a.actor_user_id
 		-- A token write is done by whatever the operator named that token,
 		-- which is the only honest answer to "who changed this". Tokens are
-		-- never deleted once they have acted (audit_log holds them under
+		-- never deleted once they have acted (activity_log holds them under
 		-- RESTRICT), so the label survives revocation.
 		LEFT JOIN api_tokens tk ON tk.id = a.actor_token_id
 		-- A result's subject_id is the player it belongs to, not a result
@@ -130,7 +247,7 @@ func ListActivity(ctx context.Context, q Querier, kind string, limit int) ([]Eve
 
 	var total int
 	if err := q.QueryRowContext(ctx,
-		`SELECT count(*) FROM audit_log WHERE action IN (`+placeholders+`)`, args...,
+		`SELECT count(*) FROM activity_log WHERE action IN (`+placeholders+`)`, args...,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count activity: %w", err)
 	}
