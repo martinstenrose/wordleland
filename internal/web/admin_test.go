@@ -300,17 +300,17 @@ func TestAdminRefusesALoginLinkedElsewhere(t *testing.T) {
 	}
 }
 
-// Every write goes through the store's actor, so the audit log records who
-// made the change.
-func TestAdminEditIsAudited(t *testing.T) {
+// Every write goes through the store's actor, so the activity log records
+// who made the change.
+func TestAdminEditIsLogged(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, session := adminSession(t, srv)
 	ctx := context.Background()
 
 	var before int
-	if err := srv.db.QueryRowContext(ctx, `SELECT count(*) FROM audit_log`).Scan(&before); err != nil {
-		t.Fatalf("count audit_log: %v", err)
+	if err := srv.db.QueryRowContext(ctx, `SELECT count(*) FROM activity_log`).Scan(&before); err != nil {
+		t.Fatalf("count activity_log: %v", err)
 	}
 
 	if rec := postAdmin(t, srv, "/admin/players/harda", url.Values{
@@ -321,18 +321,18 @@ func TestAdminEditIsAudited(t *testing.T) {
 
 	var after int
 	var actor *int64
-	if err := srv.db.QueryRowContext(ctx, `SELECT count(*) FROM audit_log`).Scan(&after); err != nil {
-		t.Fatalf("count audit_log: %v", err)
+	if err := srv.db.QueryRowContext(ctx, `SELECT count(*) FROM activity_log`).Scan(&after); err != nil {
+		t.Fatalf("count activity_log: %v", err)
 	}
 	if after <= before {
-		t.Fatal("the edit wrote no audit entry")
+		t.Fatal("the edit wrote no activity entry")
 	}
 	if err := srv.db.QueryRowContext(ctx,
-		`SELECT actor_user_id FROM audit_log ORDER BY id DESC LIMIT 1`).Scan(&actor); err != nil {
-		t.Fatalf("read audit_log: %v", err)
+		`SELECT actor_user_id FROM activity_log ORDER BY id DESC LIMIT 1`).Scan(&actor); err != nil {
+		t.Fatalf("read activity_log: %v", err)
 	}
 	if actor == nil || *actor != admin.ID {
-		t.Errorf("audit actor = %v, want the signed-in admin %d", actor, admin.ID)
+		t.Errorf("activity actor = %v, want the signed-in admin %d", actor, admin.ID)
 	}
 }
 

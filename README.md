@@ -379,7 +379,7 @@ covering the display name, the slug, the linked login and whether they are
 still in the group.
 
 It writes through the same code the CLI does, so every change lands in the
-audit log against the admin who made it. There is no delete — retirement is
+activity log against the admin who made it. There is no delete — retirement is
 clearing "still in the group", which keeps the history (§4). Everything else
 in the CLI below is still CLI-only.
 
@@ -553,7 +553,7 @@ docker compose exec app /wordleland --as you@example.tld demo clear --apply
 Without `--apply` it only reports what it would delete. This removes every
 player and their results, identities and held pending senders — everything
 `demo seed` could have produced — but never the administrator account or
-its 2FA enrolment, and never the audit log. It is a narrower operation than
+its 2FA enrolment, and never the activity log. It is a narrower operation than
 resetting the deployment: `docker compose down -v` also drops the database
 file itself, along with the admin account and the share link, so the next
 boot bootstraps from `ADMIN_EMAIL` / `ADMIN_PASSWORD` again from nothing.

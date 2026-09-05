@@ -337,7 +337,7 @@ func TestUpdatePlayerUnknownPlayer(t *testing.T) {
 
 // Retirement and return are membership decisions, so they are logged
 // as themselves rather than buried in a generic update.
-func TestUpdatePlayerAuditsRetirementDistinctly(t *testing.T) {
+func TestUpdatePlayerLogsRetirementDistinctly(t *testing.T) {
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -360,20 +360,20 @@ func TestUpdatePlayerAuditsRetirementDistinctly(t *testing.T) {
 	}
 
 	want := []string{ActionPlayerCreated, ActionPlayerRetired, ActionPlayerReactivated, ActionPlayerUpdated}
-	got := auditActions(t, db, SubjectPlayer, player.ID)
+	got := activityActions(t, db, SubjectPlayer, player.ID)
 	if len(got) != len(want) {
-		t.Fatalf("audit actions = %v, want %v", got, want)
+		t.Fatalf("activity actions = %v, want %v", got, want)
 	}
 	for i := range want {
 		if got[i] != want[i] {
-			t.Errorf("audit action %d = %q, want %q", i, got[i], want[i])
+			t.Errorf("activity action %d = %q, want %q", i, got[i], want[i])
 		}
 	}
 }
 
 // A no-op update writes nothing, so the log records changes rather than
 // commands that happened to be run.
-func TestUpdatePlayerNoOpIsNotAudited(t *testing.T) {
+func TestUpdatePlayerNoOpIsNotLogged(t *testing.T) {
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -388,9 +388,9 @@ func TestUpdatePlayerNoOpIsNotAudited(t *testing.T) {
 		t.Fatalf("UpdatePlayer() failed: %v", err)
 	}
 
-	got := auditActions(t, db, SubjectPlayer, player.ID)
+	got := activityActions(t, db, SubjectPlayer, player.ID)
 	if len(got) != 1 || got[0] != ActionPlayerCreated {
-		t.Errorf("audit actions = %v, want only the creation entry", got)
+		t.Errorf("activity actions = %v, want only the creation entry", got)
 	}
 }
 
@@ -425,8 +425,8 @@ func TestLinkAndUnlinkPlayer(t *testing.T) {
 	}
 
 	want := []string{ActionPlayerCreated, ActionPlayerLinked, ActionPlayerUnlinked}
-	if got := auditActions(t, db, SubjectPlayer, player.ID); len(got) != 3 {
-		t.Errorf("audit actions = %v, want %v", got, want)
+	if got := activityActions(t, db, SubjectPlayer, player.ID); len(got) != 3 {
+		t.Errorf("activity actions = %v, want %v", got, want)
 	}
 }
 

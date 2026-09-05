@@ -123,7 +123,7 @@ func (s *Server) handleSettingsName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The actor is the player themselves, which the audit log distinguishes
+	// The actor is the player themselves, which the activity log distinguishes
 	// from an admin doing it for them.
 	if _, err := store.UpdatePlayer(r.Context(), s.db, store.PlayerActor(user.ID), player.ID,
 		store.PlayerUpdate{Name: &name}); err != nil {

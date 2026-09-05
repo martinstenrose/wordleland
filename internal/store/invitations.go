@@ -101,7 +101,7 @@ func CreateInvitation(ctx context.Context, db *sql.DB, actor Actor, playerID int
 			return fmt.Errorf("create invitation: %w", err)
 		}
 
-		return Audit(ctx, tx, actor, ActionInvitationSent, SubjectPlayer, &playerID,
+		return LogActivity(ctx, tx, actor, ActionInvitationSent, SubjectPlayer, &playerID,
 			map[string]any{"email": email, "locale": locale})
 	})
 	return token, err
@@ -205,7 +205,7 @@ func AcceptInvitation(ctx context.Context, db *sql.DB, token, passwordHash strin
 		}
 
 		actor := PlayerActor(user.ID)
-		if err := Audit(ctx, tx, actor, ActionInvitationAccepted, SubjectPlayer, &player.ID,
+		if err := LogActivity(ctx, tx, actor, ActionInvitationAccepted, SubjectPlayer, &player.ID,
 			map[string]any{"email": inv.Email}); err != nil {
 			return err
 		}

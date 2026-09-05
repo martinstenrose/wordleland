@@ -67,10 +67,10 @@ func TestClearDemoDataDeletesPlayersAndCascades(t *testing.T) {
 	}
 }
 
-// TestClearDemoDataLeavesUsersAndAuditUntouched pins the one hard requirement
-// on the whole feature: a verb that deletes players must never be able to
-// take an administrator, or their history in the log, with it.
-func TestClearDemoDataLeavesUsersAndAuditUntouched(t *testing.T) {
+// TestClearDemoDataLeavesUsersAndActivityUntouched pins the one hard
+// requirement on the whole feature: a verb that deletes players must never
+// be able to take an administrator, or their history in the log, with it.
+func TestClearDemoDataLeavesUsersAndActivityUntouched(t *testing.T) {
 	db := migratedDB(t)
 	ctx := context.Background()
 	adminID, actor := adminFixture(t, db)
@@ -85,9 +85,9 @@ func TestClearDemoDataLeavesUsersAndAuditUntouched(t *testing.T) {
 		t.Fatalf("seed result: %v", err)
 	}
 
-	var auditBefore int
-	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_log`).Scan(&auditBefore); err != nil {
-		t.Fatalf("count audit_log: %v", err)
+	var activityBefore int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM activity_log`).Scan(&activityBefore); err != nil {
+		t.Fatalf("count activity_log: %v", err)
 	}
 
 	// The result stays in place through the clear: results.player_id is ON
@@ -107,14 +107,14 @@ func TestClearDemoDataLeavesUsersAndAuditUntouched(t *testing.T) {
 		t.Errorf("admin user survived = %v, want the account untouched", userCount == 1)
 	}
 
-	var auditAfter int
-	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_log`).Scan(&auditAfter); err != nil {
-		t.Fatalf("count audit_log: %v", err)
+	var activityAfter int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM activity_log`).Scan(&activityAfter); err != nil {
+		t.Fatalf("count activity_log: %v", err)
 	}
 	// >= not ==: ClearDemoData itself appends a player.deleted entry, so the
 	// log must have grown, not been wiped.
-	if auditAfter <= auditBefore {
-		t.Errorf("audit_log count = %d after clear, want more than the %d before (log must survive, not shrink)", auditAfter, auditBefore)
+	if activityAfter <= activityBefore {
+		t.Errorf("activity_log count = %d after clear, want more than the %d before (log must survive, not shrink)", activityAfter, activityBefore)
 	}
 }
 
@@ -191,9 +191,9 @@ func TestClearDemoDataDryRunWritesNothing(t *testing.T) {
 		t.Fatalf("HoldPendingResult() failed: %v", err)
 	}
 
-	var auditBefore int
-	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_log`).Scan(&auditBefore); err != nil {
-		t.Fatalf("count audit_log: %v", err)
+	var activityBefore int
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM activity_log`).Scan(&activityBefore); err != nil {
+		t.Fatalf("count activity_log: %v", err)
 	}
 
 	summary, err := ClearDemoData(ctx, db, actor, true)
@@ -207,7 +207,7 @@ func TestClearDemoDataDryRunWritesNothing(t *testing.T) {
 		t.Errorf("PendingCleared = %d, want 1 reported even under a dry run", summary.PendingCleared)
 	}
 
-	var playerCount, pendingCount, auditAfter int
+	var playerCount, pendingCount, activityAfter int
 	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM players WHERE id = ?`, p.ID).Scan(&playerCount); err != nil {
 		t.Fatalf("count players: %v", err)
 	}
@@ -220,10 +220,10 @@ func TestClearDemoDataDryRunWritesNothing(t *testing.T) {
 	if pendingCount != 1 {
 		t.Errorf("pending_results survived dry run = %v, want the row untouched", pendingCount == 1)
 	}
-	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM audit_log`).Scan(&auditAfter); err != nil {
-		t.Fatalf("count audit_log: %v", err)
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM activity_log`).Scan(&activityAfter); err != nil {
+		t.Fatalf("count activity_log: %v", err)
 	}
-	if auditAfter != auditBefore {
-		t.Errorf("audit_log count changed from %d to %d, want no entry written on a dry run", auditBefore, auditAfter)
+	if activityAfter != activityBefore {
+		t.Errorf("activity_log count changed from %d to %d, want no entry written on a dry run", activityBefore, activityAfter)
 	}
 }

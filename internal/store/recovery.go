@@ -42,7 +42,7 @@ func ReplaceRecoveryCodes(ctx context.Context, db *sql.DB, actor Actor, userID i
 				return fmt.Errorf("store recovery code: %w", err)
 			}
 		}
-		return Audit(ctx, tx, actor, ActionRecoveryCodesIssued, SubjectUser, &userID,
+		return LogActivity(ctx, tx, actor, ActionRecoveryCodesIssued, SubjectUser, &userID,
 			map[string]any{"count": len(codes)})
 	})
 	if err != nil {
@@ -83,7 +83,7 @@ func ConsumeRecoveryCode(ctx context.Context, db *sql.DB, userID int64, typed st
 		}
 		// The count goes in the log so the owner can see an account
 		// running out before it locks somebody out.
-		return Audit(ctx, tx, PlayerActor(userID), ActionRecoveryCodeUsed, SubjectUser, &userID,
+		return LogActivity(ctx, tx, PlayerActor(userID), ActionRecoveryCodeUsed, SubjectUser, &userID,
 			map[string]any{"remaining": remaining})
 	})
 }

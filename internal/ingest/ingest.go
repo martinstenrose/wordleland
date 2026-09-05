@@ -70,7 +70,7 @@ type Submission struct {
 	Guesses  *int
 	HardMode bool
 
-	// Via names where the result came from, recorded in the audit detail so
+	// Via names where the result came from, recorded in the activity detail so
 	// the activity log can say how a score arrived. Empty for a direct API
 	// call, which is already attributed to its token.
 	Via string
@@ -227,7 +227,7 @@ func write(ctx context.Context, db *sql.DB, actor store.Actor,
 		if outcome == store.OutcomeUpdated {
 			action = store.ActionResultUpdated
 		}
-		return store.AuditResultVia(ctx, tx, actor, action, player.ID, result, previous, sub.Via)
+		return store.LogResultActivityVia(ctx, tx, actor, action, player.ID, result, previous, sub.Via)
 	})
 	if err != nil {
 		return "", err

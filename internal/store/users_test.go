@@ -233,9 +233,9 @@ func TestSetUserDisabledThenEnabled(t *testing.T) {
 	}
 }
 
-// Attribution is the reason the audit log exists; a mutation that writes no
+// Attribution is the reason the activity log exists; a mutation that writes no
 // entry is invisible to the admin view later.
-func TestUserMutationsAreAudited(t *testing.T) {
+func TestUserMutationsAreLogged(t *testing.T) {
 	db := migratedDB(t)
 	ctx := context.Background()
 	adminID, actor := adminFixture(t, db)
@@ -255,24 +255,24 @@ func TestUserMutationsAreAudited(t *testing.T) {
 	}
 
 	want := []string{ActionUserCreated, ActionUserDisabled, ActionUserEnabled, ActionUser2FAReset}
-	got := auditActions(t, db, SubjectUser, user.ID)
+	got := activityActions(t, db, SubjectUser, user.ID)
 	if len(got) != len(want) {
-		t.Fatalf("audit actions = %v, want %v", got, want)
+		t.Fatalf("activity actions = %v, want %v", got, want)
 	}
 	for i := range want {
 		if got[i] != want[i] {
-			t.Errorf("audit action %d = %q, want %q", i, got[i], want[i])
+			t.Errorf("activity action %d = %q, want %q", i, got[i], want[i])
 		}
 	}
 
 	var actorID int64
 	if err := db.QueryRow(
-		`SELECT actor_user_id FROM audit_log WHERE action = ? AND subject_id = ?`,
+		`SELECT actor_user_id FROM activity_log WHERE action = ? AND subject_id = ?`,
 		ActionUserCreated, user.ID).Scan(&actorID); err != nil {
-		t.Fatalf("read audit actor: %v", err)
+		t.Fatalf("read activity actor: %v", err)
 	}
 	if actorID != adminID {
-		t.Errorf("audit actor = %d, want the acting admin %d", actorID, adminID)
+		t.Errorf("activity actor = %d, want the acting admin %d", actorID, adminID)
 	}
 }
 
@@ -307,13 +307,13 @@ func countSessions(t *testing.T, db *sql.DB, userID int64) int {
 	return n
 }
 
-func auditActions(t *testing.T, db *sql.DB, subjectType string, subjectID int64) []string {
+func activityActions(t *testing.T, db *sql.DB, subjectType string, subjectID int64) []string {
 	t.Helper()
 	rows, err := db.Query(
-		`SELECT action FROM audit_log WHERE subject_type = ? AND subject_id = ? ORDER BY id`,
+		`SELECT action FROM activity_log WHERE subject_type = ? AND subject_id = ? ORDER BY id`,
 		subjectType, subjectID)
 	if err != nil {
-		t.Fatalf("read audit log: %v", err)
+		t.Fatalf("read activity log: %v", err)
 	}
 	defer rows.Close()
 
@@ -321,7 +321,7 @@ func auditActions(t *testing.T, db *sql.DB, subjectType string, subjectID int64)
 	for rows.Next() {
 		var a string
 		if err := rows.Scan(&a); err != nil {
-			t.Fatalf("scan audit action: %v", err)
+			t.Fatalf("scan activity action: %v", err)
 		}
 		actions = append(actions, a)
 	}
@@ -329,7 +329,7 @@ func auditActions(t *testing.T, db *sql.DB, subjectType string, subjectID int64)
 }
 
 // Re-disabling an already-disabled account still ends any sessions opened in
-// between, so the audit entry records that something happened even though
+// between, so the activity entry records that something happened even though
 // disabled_at does not move.
 func TestSetUserDisabledTwiceKeepsOriginalTimestamp(t *testing.T) {
 	db := migratedDB(t)
@@ -372,12 +372,12 @@ func TestSetUserDisabledTwiceKeepsOriginalTimestamp(t *testing.T) {
 	// Two entries: the sessions really were ended the second time.
 	var entries int
 	if err := db.QueryRow(
-		`SELECT COUNT(*) FROM audit_log WHERE action = ? AND subject_id = ?`,
+		`SELECT COUNT(*) FROM activity_log WHERE action = ? AND subject_id = ?`,
 		ActionUserDisabled, user.ID).Scan(&entries); err != nil {
-		t.Fatalf("count audit entries: %v", err)
+		t.Fatalf("count activity entries: %v", err)
 	}
 	if entries != 2 {
-		t.Errorf("audit entries = %d, want 2", entries)
+		t.Errorf("activity entries = %d, want 2", entries)
 	}
 }
 
@@ -454,7 +454,7 @@ func TestBootstrapAdminDoesNotResurrectARemovedAccount(t *testing.T) {
 }
 
 // Nothing authorised it, because nothing existed that could have.
-func TestBootstrapAdminIsAuditedAsSystem(t *testing.T) {
+func TestBootstrapAdminIsLoggedAsSystem(t *testing.T) {
 	db := migratedDB(t)
 	ctx := context.Background()
 
@@ -465,9 +465,9 @@ func TestBootstrapAdminIsAuditedAsSystem(t *testing.T) {
 
 	var kind, detail string
 	if err := db.QueryRow(
-		`SELECT actor_kind, detail FROM audit_log WHERE subject_id = ? AND action = ?`,
+		`SELECT actor_kind, detail FROM activity_log WHERE subject_id = ? AND action = ?`,
 		user.ID, ActionUserCreated).Scan(&kind, &detail); err != nil {
-		t.Fatalf("read audit entry: %v", err)
+		t.Fatalf("read activity entry: %v", err)
 	}
 	if kind != ActorSystem {
 		t.Errorf("actor_kind = %q, want %q", kind, ActorSystem)
