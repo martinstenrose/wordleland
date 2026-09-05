@@ -1,0 +1,26 @@
+{{/* Generic icons: no knowledge of chrome, accounts or Wordleland. */}}
+
+{{define "theme-icon"}}
+  {{if eq . "light"}}
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+        <circle cx="12" cy="12" r="4.2"/>
+        <path d="M12 2.6v2.2M12 19.2v2.2M4.4 4.4l1.6 1.6M18 18l1.6 1.6M2.6 12h2.2M19.2 12h2.2M4.4 19.6L6 18M18 6l1.6-1.6"/>
+      </g>
+    </svg>
+  {{else if eq . "dark"}}
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20 14.2A8.4 8.4 0 019.8 4a8.4 8.4 0 1010.2 10.2z"
+            fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    </svg>
+  {{else}}
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+        <rect x="2.8" y="4.2" width="18.4" height="12.4" rx="2"/>
+        <path d="M8.6 20.2h6.8M12 16.6v3.6"/>
+      </g>
+    </svg>
+  {{end}}
+{{end}}
+
+{{define "chevron"}}<svg class="chevron" width="9" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>{{end}}

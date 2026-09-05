@@ -1,0 +1,9 @@
+{{/* A descriptive tag next to other text — a retirement notice, a result's
+     reason, an activity row's kind. Deliberately not merged with badge
+     (below): a chip annotates something else, a badge reports a status of
+     its own. Not wired into any page yet — see
+     internal/web/templates/README.md. Data: {Label string; Kind string;
+     Dashed bool}. Kind is optional and adds a "kind-<Kind>" modifier (the
+     admin activity log's colour-by-kind chips); Dashed is the placeholder
+     styling used for a missing/expected-but-absent item. */}}
+{{define "chip"}}<span class="chip{{if .Kind}} kind-{{.Kind}}{{end}}{{if .Dashed}} dashed{{end}}">{{.Label}}</span>{{end}}

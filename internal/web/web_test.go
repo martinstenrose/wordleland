@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -271,15 +272,17 @@ func TestEveryTemplateKeyHasAString(t *testing.T) {
 	catalogue := srv.catalogues["en"]
 
 	pattern := regexp.MustCompile(`\.TN?\s+"([a-zA-Z0-9._]+)"`)
-	entries, err := templateFS.ReadDir("templates")
-	if err != nil {
-		t.Fatalf("read templates: %v", err)
-	}
 
-	for _, entry := range entries {
-		body, err := templateFS.ReadFile("templates/" + entry.Name())
+	err := fs.WalkDir(templateFS, "templates", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
-			t.Fatalf("read %s: %v", entry.Name(), err)
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		body, err := templateFS.ReadFile(p)
+		if err != nil {
+			t.Fatalf("read %s: %v", p, err)
 		}
 		for _, match := range pattern.FindAllStringSubmatch(string(body), -1) {
 			key := match[1]
@@ -288,9 +291,13 @@ func TestEveryTemplateKeyHasAString(t *testing.T) {
 			_, one := catalogue[key+".one"]
 			_, other := catalogue[key+".other"]
 			if !plain && !(one && other) {
-				t.Errorf("%s uses %q, which is not in the English catalogue", entry.Name(), key)
+				t.Errorf("%s uses %q, which is not in the English catalogue", p, key)
 			}
 		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk templates: %v", err)
 	}
 }
 
