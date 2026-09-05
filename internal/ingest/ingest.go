@@ -51,6 +51,16 @@ const (
 	StatusPending Status = "pending"
 )
 
+// Result is what Apply did, and who it did it to.
+//
+// PlayerID and Slug are zero when Status is StatusPending: the sender
+// resolved to no player, so there is nothing yet to name.
+type Result struct {
+	Status   Status
+	PlayerID int64
+	Slug     string
+}
+
 // Submission is one result and the way its player was named.
 //
 // Exactly one naming method: the sender pair, an id, or a slug. Ambiguity is
@@ -128,13 +138,13 @@ func (s Submission) Validate() error {
 // mayReactivate says whether this arrival is evidence that a retired player
 // has returned. True only for a live post: replayed and backfilled results
 // are historical and say nothing about the present.
-func Apply(ctx context.Context, db *sql.DB, actor store.Actor, sub Submission, mayReactivate bool) (Status, error) {
+func Apply(ctx context.Context, db *sql.DB, actor store.Actor, sub Submission, mayReactivate bool) (Result, error) {
 	method, err := sub.Method()
 	if err != nil {
-		return "", err
+		return Result{}, err
 	}
 	if err := sub.Validate(); err != nil {
-		return "", err
+		return Result{}, err
 	}
 
 	if method == "sender" {
@@ -150,10 +160,10 @@ func Apply(ctx context.Context, db *sql.DB, actor store.Actor, sub Submission, m
 	if errors.Is(err, store.ErrPlayerNotFound) {
 		// Nothing is stored: a bad id or a mistyped slug is a mistake by the
 		// caller, not a sender we have yet to meet.
-		return "", ErrNoSuchPlayer
+		return Result{}, ErrNoSuchPlayer
 	}
 	if err != nil {
-		return "", err
+		return Result{}, err
 	}
 
 	// Naming a player directly is an admin or a script, which says nothing
@@ -162,7 +172,7 @@ func Apply(ctx context.Context, db *sql.DB, actor store.Actor, sub Submission, m
 }
 
 func applyFromSender(ctx context.Context, db *sql.DB, actor store.Actor,
-	sub Submission, mayReactivate bool) (Status, error) {
+	sub Submission, mayReactivate bool) (Result, error) {
 
 	player, err := store.ResolveIdentity(ctx, db, sub.Source, sub.ExternalID)
 	if errors.Is(err, store.ErrIdentityNotFound) {
@@ -172,12 +182,12 @@ func applyFromSender(ctx context.Context, db *sql.DB, actor store.Actor,
 		}
 		if err := store.HoldPendingResult(ctx, db,
 			sub.Source, sub.ExternalID, sub.DisplayHint, held); err != nil {
-			return "", err
+			return Result{}, err
 		}
-		return StatusPending, nil
+		return Result{Status: StatusPending}, nil
 	}
 	if err != nil {
-		return "", err
+		return Result{}, err
 	}
 
 	if err := store.RefreshDisplayHint(ctx, db, sub.Source, sub.ExternalID, sub.DisplayHint); err != nil {
@@ -190,11 +200,11 @@ func applyFromSender(ctx context.Context, db *sql.DB, actor store.Actor,
 }
 
 func write(ctx context.Context, db *sql.DB, actor store.Actor,
-	player store.Player, sub Submission, mayReactivate bool) (Status, error) {
+	player store.Player, sub Submission, mayReactivate bool) (Result, error) {
 
 	date, err := wordle.DateForPuzzle(sub.PuzzleNo)
 	if err != nil {
-		return "", &ValidationError{err: err}
+		return Result{}, &ValidationError{err: err}
 	}
 
 	result := store.Result{
@@ -230,9 +240,9 @@ func write(ctx context.Context, db *sql.DB, actor store.Actor,
 		return store.AuditResultVia(ctx, tx, actor, action, player.ID, result, previous, sub.Via)
 	})
 	if err != nil {
-		return "", err
+		return Result{}, err
 	}
-	return Status(outcome), nil
+	return Result{Status: Status(outcome), PlayerID: player.ID, Slug: player.Slug}, nil
 }
 
 func joinAnd(parts []string) string {

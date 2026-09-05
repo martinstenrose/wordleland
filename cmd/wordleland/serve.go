@@ -164,7 +164,7 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 		// Delivery is a direct call now. The bridge writes as the
 		// application itself rather than as a token holder, because since
 		// the services merged it is not an API client — it is us.
-		deliver := func(ctx context.Context, sub ingest.Submission) (ingest.Status, error) {
+		deliver := func(ctx context.Context, sub ingest.Submission) (ingest.Result, error) {
 			return ingest.Apply(ctx, db, store.SystemActor(), sub, true)
 		}
 

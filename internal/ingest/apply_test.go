@@ -92,12 +92,12 @@ func TestApplyHoldsAnUnclaimedSender(t *testing.T) {
 		Source: "signal", ExternalID: "uuid-1", DisplayHint: "M.",
 		PuzzleNo: 1500, Solved: true, Guesses: ptr(3), Via: "signal",
 	}
-	status, err := Apply(ctx, db, actor, sub, true)
+	result, err := Apply(ctx, db, actor, sub, true)
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
-	if status != StatusPending {
-		t.Errorf("status = %q, want %q", status, StatusPending)
+	if result.Status != StatusPending {
+		t.Errorf("status = %q, want %q", result.Status, StatusPending)
 	}
 
 	held, err := store.ListPendingSenders(ctx, db)
@@ -129,12 +129,12 @@ func TestApplyDoesNotOverwriteAHumanEntry(t *testing.T) {
 	}
 
 	// The bridge then reports 5 for the same puzzle.
-	status, err := Apply(ctx, db, store.SystemActor(), submission("martin", 1500, 5), true)
+	result, err := Apply(ctx, db, store.SystemActor(), submission("martin", 1500, 5), true)
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
-	if status != StatusIgnored {
-		t.Errorf("status = %q, want %q — an automated write overwrote a hand-entered one", status, StatusIgnored)
+	if result.Status != StatusIgnored {
+		t.Errorf("status = %q, want %q — an automated write overwrote a hand-entered one", result.Status, StatusIgnored)
 	}
 
 	results, err := store.ResultsForBoard(ctx, db)
