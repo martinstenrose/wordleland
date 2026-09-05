@@ -116,10 +116,10 @@ func ResultFor(ctx context.Context, q Querier, puzzleNo int, playerID int64) (*R
 	return resultFor(ctx, q, puzzleNo, playerID)
 }
 
-// auditDetailFor describes a result change, carrying the previous value on an
+// activityDetailFor describes a result change, carrying the previous value on an
 // overwrite. That is what makes the log a correction trail rather than a list
 // of events.
-func auditDetailFor(r Result, previous *Result) map[string]any {
+func activityDetailFor(r Result, previous *Result) map[string]any {
 	detail := map[string]any{
 		"puzzle_no": r.PuzzleNo,
 		"solved":    r.Solved,
@@ -158,33 +158,33 @@ func DeleteResult(ctx context.Context, db *sql.DB, actor Actor, playerID int64, 
 		); err != nil {
 			return fmt.Errorf("delete result: %w", err)
 		}
-		// The row is gone, so the audit entry is the only remaining record of
+		// The row is gone, so the activity entry is the only remaining record of
 		// what it held and who removed it.
-		return Audit(ctx, tx, actor, ActionResultDeleted, SubjectResult, &playerID,
-			auditDetailFor(Result{PuzzleNo: puzzleNo}, previous))
+		return LogActivity(ctx, tx, actor, ActionResultDeleted, SubjectResult, &playerID,
+			activityDetailFor(Result{PuzzleNo: puzzleNo}, previous))
 	})
 }
 
-// AuditResult records a result change, carrying the previous value on an
-// overwrite so the log reads as a correction trail.
-func AuditResult(ctx context.Context, q Querier, actor Actor, action string,
+// LogResultActivity records a result change, carrying the previous value on
+// an overwrite so the log reads as a correction trail.
+func LogResultActivity(ctx context.Context, q Querier, actor Actor, action string,
 	playerID int64, r Result, previous *Result) error {
-	return AuditResultVia(ctx, q, actor, action, playerID, r, previous, "")
+	return LogResultActivityVia(ctx, q, actor, action, playerID, r, previous, "")
 }
 
-// AuditResultVia records where the result came in from as well.
+// LogResultActivityVia records where the result came in from as well.
 //
 // The bridge writes as the application itself rather than as a token
 // holder — since the services merged it is not an API client any more — so
 // "who" alone no longer distinguishes a score that arrived from Signal from
 // one the app wrote for another reason. This carries that, without a schema
 // change and without pretending a credential was involved.
-func AuditResultVia(ctx context.Context, q Querier, actor Actor, action string,
+func LogResultActivityVia(ctx context.Context, q Querier, actor Actor, action string,
 	playerID int64, r Result, previous *Result, via string) error {
 
-	detail := auditDetailFor(r, previous)
+	detail := activityDetailFor(r, previous)
 	if via != "" {
 		detail["via"] = via
 	}
-	return Audit(ctx, q, actor, action, SubjectResult, &playerID, detail)
+	return LogActivity(ctx, q, actor, action, SubjectResult, &playerID, detail)
 }

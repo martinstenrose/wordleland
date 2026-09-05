@@ -31,7 +31,7 @@ var errClearDryRun = errors.New("dry run")
 // player_identities with them via ON DELETE CASCADE, and separately clears
 // pending_results — which has no foreign key to players, since it only ever
 // holds results for senders nobody has claimed yet — leaving users and the
-// audit log untouched.
+// activity log untouched.
 //
 // This is the only place in the codebase that deletes a player rather than
 // retiring them. It exists only for DEMO_MODE: see docs/decisions.md for why
@@ -71,7 +71,7 @@ func ClearDemoData(ctx context.Context, db *sql.DB, actor Actor, dryRun bool) (C
 			}
 			// The row is gone; this and the "#id" rendering already used for
 			// a vanished subject are the only remaining record it existed.
-			if err := Audit(ctx, tx, actor, ActionPlayerDeleted, SubjectPlayer, &p.ID,
+			if err := LogActivity(ctx, tx, actor, ActionPlayerDeleted, SubjectPlayer, &p.ID,
 				map[string]any{"slug": p.Slug, "name": p.Name}); err != nil {
 				return err
 			}

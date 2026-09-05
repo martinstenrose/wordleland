@@ -211,8 +211,8 @@ func TestApplyByNameNeverReactivates(t *testing.T) {
 	}
 }
 
-// The audit trail records how a result arrived, which is what lets the
-// activity log tell a bridge write from a hand-entered one.
+// The activity log records how a result arrived, which is what lets it
+// tell a bridge write from a hand-entered one.
 func TestApplyRecordsHowTheResultArrived(t *testing.T) {
 	db, actor := applyDB(t)
 	ctx := context.Background()

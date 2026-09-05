@@ -174,7 +174,7 @@ type ReplaySummary struct {
 
 // LinkIdentity maps a sender to a player and replays everything held for them.
 //
-// The identity row, every result write, the pending deletes and the audit
+// The identity row, every result write, the pending deletes and the activity
 // entries are one transaction. A crash midway would otherwise leave an
 // identity that exists with results half-replayed — and re-running would not
 // recover, because claiming refuses a sender that already resolves.
@@ -254,12 +254,12 @@ func LinkIdentity(ctx context.Context, db *sql.DB, actor Actor, playerID int64,
 			}
 
 			if outcome != OutcomeIgnored {
-				auditAction := ActionResultCreated
+				activityAction := ActionResultCreated
 				if outcome == OutcomeUpdated {
-					auditAction = ActionResultUpdated
+					activityAction = ActionResultUpdated
 				}
-				if err := Audit(ctx, tx, actor, auditAction, SubjectResult, &playerID,
-					auditDetailFor(result, previous)); err != nil {
+				if err := LogActivity(ctx, tx, actor, activityAction, SubjectResult, &playerID,
+					activityDetailFor(result, previous)); err != nil {
 					return err
 				}
 			}
@@ -280,7 +280,7 @@ func LinkIdentity(ctx context.Context, db *sql.DB, actor Actor, playerID int64,
 			return fmt.Errorf("clear held results: %w", err)
 		}
 
-		return Audit(ctx, tx, actor, action, SubjectIdentity, &playerID, map[string]any{
+		return LogActivity(ctx, tx, actor, action, SubjectIdentity, &playerID, map[string]any{
 			"source": source, "external_id": externalID,
 			"replayed": summary.Replayed, "updated": summary.Updated, "skipped": summary.Skipped,
 		})
@@ -339,7 +339,7 @@ func DiscardPendingResults(ctx context.Context, db *sql.DB, actor Actor, source,
 			source, externalID); err != nil {
 			return fmt.Errorf("discard held results: %w", err)
 		}
-		return Audit(ctx, tx, actor, ActionIdentityDiscarded, SubjectIdentity, nil, map[string]any{
+		return LogActivity(ctx, tx, actor, ActionIdentityDiscarded, SubjectIdentity, nil, map[string]any{
 			"source": source, "external_id": externalID, "discarded": discarded,
 		})
 	})

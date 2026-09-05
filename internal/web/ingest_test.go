@@ -302,12 +302,12 @@ func TestIngestReactivatesPlayerWhoPostsAgain(t *testing.T) {
 
 	// Visible rather than silent.
 	var count int
-	if err := srv.db.QueryRow(`SELECT COUNT(*) FROM audit_log WHERE action = ?`,
+	if err := srv.db.QueryRow(`SELECT COUNT(*) FROM activity_log WHERE action = ?`,
 		store.ActionPlayerReactivated).Scan(&count); err != nil {
-		t.Fatalf("count audit entries: %v", err)
+		t.Fatalf("count activity entries: %v", err)
 	}
 	if count != 1 {
-		t.Errorf("reactivation audit entries = %d, want 1", count)
+		t.Errorf("reactivation activity entries = %d, want 1", count)
 	}
 }
 
@@ -337,9 +337,9 @@ func TestIngestByNamedPlayerDoesNotReactivate(t *testing.T) {
 	}
 }
 
-// The audit entry carries the previous value, which is what makes the log a
-// correction trail rather than a list of events.
-func TestIngestAuditsWithPreviousValue(t *testing.T) {
+// The activity entry carries the previous value, which is what makes the log
+// a correction trail rather than a list of events.
+func TestIngestLogsWithPreviousValue(t *testing.T) {
 	srv, token, player, adminID := ingestFixture(t)
 	ctx := context.Background()
 
@@ -353,9 +353,9 @@ func TestIngestAuditsWithPreviousValue(t *testing.T) {
 
 	var detail string
 	if err := srv.db.QueryRow(
-		`SELECT detail FROM audit_log WHERE action = ? ORDER BY id DESC LIMIT 1`,
+		`SELECT detail FROM activity_log WHERE action = ? ORDER BY id DESC LIMIT 1`,
 		store.ActionResultUpdated).Scan(&detail); err != nil {
-		t.Fatalf("read audit detail: %v", err)
+		t.Fatalf("read activity detail: %v", err)
 	}
 	if !bytes.Contains([]byte(detail), []byte(`"previous"`)) {
 		t.Errorf("the overwrite was logged without the value it replaced: %s", detail)
@@ -364,7 +364,7 @@ func TestIngestAuditsWithPreviousValue(t *testing.T) {
 	// The actor is the token, not a user.
 	var kind string
 	if err := srv.db.QueryRow(
-		`SELECT actor_kind FROM audit_log WHERE action = ? ORDER BY id DESC LIMIT 1`,
+		`SELECT actor_kind FROM activity_log WHERE action = ? ORDER BY id DESC LIMIT 1`,
 		store.ActionResultUpdated).Scan(&kind); err != nil {
 		t.Fatalf("read actor: %v", err)
 	}

@@ -193,7 +193,7 @@ func demoTick(e *env, args []string) error {
 		}
 
 		// Skips the roll entirely for a player already filed, so a repeat
-		// run does not spam the audit log with identical "updated" entries
+		// run does not spam the activity log with identical "updated" entries
 		// — UpsertResult does not check whether the value actually changed.
 		_, err := store.ResultFor(e.ctx, e.db, today, player.ID)
 		if err == nil {

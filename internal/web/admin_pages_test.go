@@ -352,8 +352,8 @@ func TestActivityDetailShowsAResultChange(t *testing.T) {
 		if outcome == store.OutcomeUpdated {
 			action = store.ActionResultUpdated
 		}
-		if err := store.AuditResult(ctx, srv.db, actor, action, player.ID, r, previous); err != nil {
-			t.Fatalf("AuditResult: %v", err)
+		if err := store.LogResultActivity(ctx, srv.db, actor, action, player.ID, r, previous); err != nil {
+			t.Fatalf("LogResultActivity: %v", err)
 		}
 	}
 
@@ -446,9 +446,9 @@ func TestActivityNamesTheTokenThatWrote(t *testing.T) {
 	if _, _, err := store.UpsertResult(ctx, srv.db, r, nil); err != nil {
 		t.Fatalf("UpsertResult: %v", err)
 	}
-	if err := store.AuditResult(ctx, srv.db, store.TokenActor(token.ID),
+	if err := store.LogResultActivity(ctx, srv.db, store.TokenActor(token.ID),
 		store.ActionResultCreated, player.ID, r, nil); err != nil {
-		t.Fatalf("AuditResult: %v", err)
+		t.Fatalf("LogResultActivity: %v", err)
 	}
 
 	body := fetchAs(t, srv, "/admin/activity?kind=results", session).Body.String()
@@ -479,9 +479,9 @@ func TestActivityNamesTheBridge(t *testing.T) {
 	if _, _, err := store.UpsertResult(ctx, srv.db, r, nil); err != nil {
 		t.Fatalf("UpsertResult: %v", err)
 	}
-	if err := store.AuditResultVia(ctx, srv.db, store.SystemActor(),
+	if err := store.LogResultActivityVia(ctx, srv.db, store.SystemActor(),
 		store.ActionResultCreated, player.ID, r, nil, bridge.SourceSignal); err != nil {
-		t.Fatalf("AuditResultVia: %v", err)
+		t.Fatalf("LogResultActivityVia: %v", err)
 	}
 
 	body := fetchAs(t, srv, "/admin/activity?kind=results", session).Body.String()
@@ -497,7 +497,7 @@ func TestActivityLeavesOtherSystemRowsGeneric(t *testing.T) {
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
 
-	// EnsureShareSlug audits as the system actor with no via.
+	// EnsureShareSlug logs as the system actor with no via.
 	if _, _, err := store.EnsureShareSlug(context.Background(), srv.db); err != nil {
 		t.Fatalf("EnsureShareSlug: %v", err)
 	}

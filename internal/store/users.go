@@ -164,7 +164,7 @@ func createUserTx(ctx context.Context, tx *sql.Tx, actor Actor, email, passwordH
 		return User{}, fmt.Errorf("create user: %w", err)
 	}
 
-	if err := Audit(ctx, tx, actor, ActionUserCreated, SubjectUser, &id,
+	if err := LogActivity(ctx, tx, actor, ActionUserCreated, SubjectUser, &id,
 		map[string]any{"email": email, "is_admin": isAdmin}); err != nil {
 		return User{}, err
 	}
@@ -207,7 +207,7 @@ func SetPendingEmail(ctx context.Context, db *sql.DB, actor Actor, userID int64,
 		// The address itself is the change worth recording; it is not a
 		// secret, and an admin reading the log needs to see what was asked
 		// for.
-		return Audit(ctx, tx, actor, ActionUserEmailPending, SubjectUser, &userID,
+		return LogActivity(ctx, tx, actor, ActionUserEmailPending, SubjectUser, &userID,
 			map[string]any{"pending_email": email})
 	})
 }
@@ -230,7 +230,7 @@ func PromotePendingEmail(ctx context.Context, tx *sql.Tx, actor Actor, userID in
 		}
 		return fmt.Errorf("promote pending email: %w", err)
 	}
-	return Audit(ctx, tx, actor, ActionUserEmailChanged, SubjectUser, &userID,
+	return LogActivity(ctx, tx, actor, ActionUserEmailChanged, SubjectUser, &userID,
 		map[string]any{"email": map[string]any{"from": user.Email, "to": *user.PendingEmail}})
 }
 
@@ -254,7 +254,7 @@ func SetUserPassword(ctx context.Context, db *sql.DB, actor Actor, userID int64,
 		if err != nil {
 			return err
 		}
-		return Audit(ctx, tx, actor, ActionUserPasswordReset, SubjectUser, &userID,
+		return LogActivity(ctx, tx, actor, ActionUserPasswordReset, SubjectUser, &userID,
 			map[string]any{"sessions_invalidated": deleted})
 	})
 }
@@ -290,7 +290,7 @@ func ResetUserTOTP(ctx context.Context, db *sql.DB, actor Actor, userID int64) e
 		if err != nil {
 			return err
 		}
-		return Audit(ctx, tx, actor, ActionUser2FAReset, SubjectUser, &userID,
+		return LogActivity(ctx, tx, actor, ActionUser2FAReset, SubjectUser, &userID,
 			map[string]any{"sessions_invalidated": deleted})
 	})
 }
@@ -333,7 +333,7 @@ func SetUserDisabled(ctx context.Context, db *sql.DB, actor Actor, userID int64,
 			}
 			detail["sessions_invalidated"] = deleted
 		}
-		return Audit(ctx, tx, actor, action, SubjectUser, &userID, detail)
+		return LogActivity(ctx, tx, actor, action, SubjectUser, &userID, detail)
 	})
 }
 
@@ -412,7 +412,7 @@ func BootstrapAdmin(ctx context.Context, db *sql.DB, email, passwordHash string)
 		// Attributed to the system: nothing existed that could have
 		// authorised it, which is the same reasoning the CLI uses for the
 		// first user it creates.
-		if err := Audit(ctx, tx, SystemActor(), ActionUserCreated, SubjectUser, &id,
+		if err := LogActivity(ctx, tx, SystemActor(), ActionUserCreated, SubjectUser, &id,
 			map[string]any{"email": normalized, "is_admin": true, "via": "bootstrap"}); err != nil {
 			return err
 		}

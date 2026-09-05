@@ -172,7 +172,7 @@ func detailString(detail map[string]any, key string) string {
 	return ""
 }
 
-// detailNumber reads a number out of the audit detail as an int, because
+// detailNumber reads a number out of the activity detail as an int, because
 // that is what the copy's %d verb needs. JSON has no integers, so a value
 // round-tripped through the log arrives as a float64; one written as a
 // string is parsed rather than passed through, which is what produced
