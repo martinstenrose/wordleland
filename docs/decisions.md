@@ -265,6 +265,16 @@ rewrite the roster and read the activity log; a player can see a scoreboard.
 **An enrolling secret is held pending until a valid code proves it.** A
 mis-scanned QR code therefore cannot lock anyone out.
 
+**Enrolment is for accounts that have no second factor, and a session that
+has not cleared one cannot reach it.** Reaching the enrolment page needs only
+the password, and confirming it overwrites whatever secret was there and
+revokes the recovery codes with it — so a stolen password alone would
+otherwise replace the second factor and delete the way back, which is the
+whole of what the second factor is for. An account that already has one is
+sent to the prompt for the one it has. There is deliberately no self-service
+way to re-enrol: the routes back are proving the current secret, spending a
+recovery code, or an admin running `reset-2fa`.
+
 **Rate limiting lives in memory, not the database.** DB-backed counters would
 turn every failed attempt into a write, and writes serialise in SQLite, so a
 flood could stall ingest or a CLI command behind `busy_timeout`. The limit is
@@ -443,6 +453,24 @@ a result last arrived, because the failure that costs a season of scores is
 a bridge connected to the wrong group: green on every connection indicator,
 delivering nothing. A warning follows an admin around the area rather than
 waiting on a page nobody opens.
+
+**One janitor sweeps every kind of expired state, rather than a job per
+table.** Sessions, password-reset tokens, rate-limit buckets and — when
+`PENDING_RETENTION` is set — held results all expire, and for a long time
+none of them were reaped. Nothing was ever *wrong*: every check treats an
+expired row as absent, so the cost was unbounded growth rather than bad
+answers. One goroutine on a ticker covers all four, because four schedules
+would be four things to reason about for deletes that cost nothing at this
+size.
+
+**Its interval is not a security setting**, which is worth stating because it
+looks like one. Each sweep removes only what the code already treats as
+absent — the limiter deletes a bucket using the same staleness test `Allow`
+uses to ignore it — so sweeping cannot hand back an attacker's attempt
+budget or shorten a lockout, however often it runs. A longer interval only
+holds dead rows longer. What the sweep does bound is the rate-limit map,
+whose client-address key is attacker-controlled and would otherwise grow
+with every distinct address ever seen.
 
 ## Announcing the month
 
