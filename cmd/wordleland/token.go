@@ -106,8 +106,8 @@ func tokenRevoke(e *env, args []string) error {
 	}
 
 	fmt.Fprintf(e.out, "Revoked token %d. It can no longer write results.\n", *id)
-	// Revocation is by flag because audit_log references tokens under
+	// Revocation is by flag because activity_log references tokens under
 	// RESTRICT: what the token did stays on the record.
-	fmt.Fprintln(e.out, "The row is kept so its history in the audit log stays intact.")
+	fmt.Fprintln(e.out, "The row is kept so its history in the activity log stays intact.")
 	return nil
 }

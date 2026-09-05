@@ -77,7 +77,7 @@ func EnsureShareSlug(ctx context.Context, db *sql.DB) (slug string, created bool
 		}
 		// Recorded so the first slug has the same visible provenance as every
 		// later rotation, rather than appearing from nowhere.
-		if err := Audit(ctx, tx, SystemActor(), ActionSlugGenerated, SubjectSettings, nil, nil); err != nil {
+		if err := LogActivity(ctx, tx, SystemActor(), ActionSlugGenerated, SubjectSettings, nil, nil); err != nil {
 			return err
 		}
 		created = true
@@ -116,8 +116,8 @@ func RotateShareSlug(ctx context.Context, db *sql.DB, actor Actor) (string, erro
 
 		// The previous slug is recorded so a link that stops working can be
 		// matched to the rotation that retired it. It is a capability, but a
-		// spent one, and the audit log is already admin-only.
-		return Audit(ctx, tx, actor, ActionSlugRotated, SubjectSettings, nil,
+		// spent one, and the activity log is already admin-only.
+		return LogActivity(ctx, tx, actor, ActionSlugRotated, SubjectSettings, nil,
 			map[string]string{"previous_slug": previous})
 	})
 	if err != nil {

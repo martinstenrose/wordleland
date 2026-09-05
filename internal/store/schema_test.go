@@ -52,7 +52,7 @@ func TestSchemaTablesExist(t *testing.T) {
 	db := migratedDB(t)
 
 	want := []string{
-		"api_tokens", "audit_log", "password_reset_tokens", "pending_results",
+		"activity_log", "api_tokens", "password_reset_tokens", "pending_results",
 		"player_identities", "players", "results", "sessions", "settings",
 		"users",
 	}
@@ -412,8 +412,8 @@ func TestSettingsIsSingleRow(t *testing.T) {
 	}
 }
 
-// : an audit entry must identify its actor unless the system acted.
-func TestAuditLogActorConstraint(t *testing.T) {
+// : an activity entry must identify its actor unless the system acted.
+func TestActivityLogActorConstraint(t *testing.T) {
 	db := migratedDB(t)
 	userID := seedUser(t, db, "martin@example.tld", true)
 
@@ -451,7 +451,7 @@ func TestAuditLogActorConstraint(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := db.Exec(
-				`INSERT INTO audit_log (actor_kind, actor_user_id, actor_token_id, action, subject_type, subject_id)
+				`INSERT INTO activity_log (actor_kind, actor_user_id, actor_token_id, action, subject_type, subject_id)
 				 VALUES (?, ?, ?, ?, ?, ?)`,
 				tt.kind, tt.userID, tt.tokenID, "result.created", "result", 1,
 			)
@@ -468,9 +468,9 @@ func TestAuditLogActorConstraint(t *testing.T) {
 	}
 }
 
-// An audit trail that can be erased by deleting a row elsewhere is not a
-// trail. This is also why a token is revoked via revoked_at, not deletion.
-func TestAuditLogBlocksActorDeletion(t *testing.T) {
+// An activity log that can be erased by deleting a row elsewhere is not a
+// log. This is also why a token is revoked via revoked_at, not deletion.
+func TestActivityLogBlocksActorDeletion(t *testing.T) {
 	db := migratedDB(t)
 
 	userID := seedUser(t, db, "martin@example.tld", true)
@@ -484,23 +484,23 @@ func TestAuditLogBlocksActorDeletion(t *testing.T) {
 	}
 
 	if _, err := db.Exec(
-		`INSERT INTO audit_log (actor_kind, actor_user_id, action, subject_type, subject_id)
+		`INSERT INTO activity_log (actor_kind, actor_user_id, action, subject_type, subject_id)
 		 VALUES ('admin', ?, 'player.created', 'player', 1)`, userID,
 	); err != nil {
-		t.Fatalf("insert admin audit entry: %v", err)
+		t.Fatalf("insert admin activity entry: %v", err)
 	}
 	if _, err := db.Exec(
-		`INSERT INTO audit_log (actor_kind, actor_token_id, action, subject_type, subject_id)
+		`INSERT INTO activity_log (actor_kind, actor_token_id, action, subject_type, subject_id)
 		 VALUES ('token', ?, 'result.created', 'result', 1)`, tokenID,
 	); err != nil {
-		t.Fatalf("insert token audit entry: %v", err)
+		t.Fatalf("insert token activity entry: %v", err)
 	}
 
 	if _, err := db.Exec(`DELETE FROM users WHERE id = ?`, userID); err == nil {
-		t.Error("deleted a user with audit entries, want RESTRICT")
+		t.Error("deleted a user with activity entries, want RESTRICT")
 	}
 	if _, err := db.Exec(`DELETE FROM api_tokens WHERE id = ?`, tokenID); err == nil {
-		t.Error("deleted a token with audit entries, want RESTRICT; revocation is revoked_at")
+		t.Error("deleted a token with activity entries, want RESTRICT; revocation is revoked_at")
 	}
 
 	// Revocation, the supported path, must still work.

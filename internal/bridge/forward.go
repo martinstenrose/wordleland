@@ -22,8 +22,8 @@ import (
 	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
-// SourceSignal names this bridge in player_identities and in the audit
-// trail. One constant so the stored value and the logged one cannot drift.
+// SourceSignal names this bridge in player_identities and in the activity
+// log. One constant so the stored value and the logged one cannot drift.
 const SourceSignal = "signal"
 
 // Deliverer files one parsed result. The filer does not know how: it

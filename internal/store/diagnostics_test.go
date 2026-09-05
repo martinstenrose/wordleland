@@ -23,7 +23,7 @@ func TestFreshnessOnAnEmptyDatabase(t *testing.T) {
 	}
 }
 
-// Arrival time comes from the audit log rather than the puzzle's date: a
+// Arrival time comes from the activity log rather than the puzzle's date: a
 // backfill of last month is a result arriving now, and reading the date
 // would report the board as untouched for weeks.
 func TestFreshnessReadsArrivalNotPuzzleDate(t *testing.T) {
@@ -42,8 +42,8 @@ func TestFreshnessReadsArrivalNotPuzzleDate(t *testing.T) {
 	if _, _, err := UpsertResult(ctx, db, r, nil); err != nil {
 		t.Fatalf("UpsertResult: %v", err)
 	}
-	if err := AuditResult(ctx, db, actor, ActionResultCreated, playerID, r, nil); err != nil {
-		t.Fatalf("AuditResult: %v", err)
+	if err := LogResultActivity(ctx, db, actor, ActionResultCreated, playerID, r, nil); err != nil {
+		t.Fatalf("LogResultActivity: %v", err)
 	}
 
 	f, err := ReadFreshness(ctx, db)

@@ -50,7 +50,7 @@ func CreateAPIToken(ctx context.Context, db *sql.DB, actor Actor, label string, 
 			return fmt.Errorf("create token: %w", err)
 		}
 		token = APIToken{ID: id, Label: label, ExpiresAt: expiresAt}
-		return Audit(ctx, tx, actor, ActionTokenCreated, SubjectToken, &id,
+		return LogActivity(ctx, tx, actor, ActionTokenCreated, SubjectToken, &id,
 			map[string]any{"label": label})
 	})
 	return plaintext, token, err
@@ -82,7 +82,7 @@ func AuthenticateToken(ctx context.Context, q Querier, plaintext string) (APITok
 
 // RevokeAPIToken marks a token revoked.
 //
-// Revocation is by flag, never by deleting the row: audit_log references
+// Revocation is by flag, never by deleting the row: activity_log references
 // tokens under RESTRICT, so a token that has written anything cannot be
 // deleted — and should not be, since that would erase what it did.
 func RevokeAPIToken(ctx context.Context, db *sql.DB, actor Actor, id int64) error {
@@ -95,7 +95,7 @@ func RevokeAPIToken(ctx context.Context, db *sql.DB, actor Actor, id int64) erro
 		if affected, _ := res.RowsAffected(); affected == 0 {
 			return ErrTokenInvalid
 		}
-		return Audit(ctx, tx, actor, ActionTokenRevoked, SubjectToken, &id, nil)
+		return LogActivity(ctx, tx, actor, ActionTokenRevoked, SubjectToken, &id, nil)
 	})
 }
 

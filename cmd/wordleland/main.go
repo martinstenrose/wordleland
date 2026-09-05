@@ -30,7 +30,7 @@ type env struct {
 	db     *sql.DB
 	dbPath string
 	// adminEmail identifies who is acting, for entered_by attribution and the
-	// audit log. The CLI has no session, so it must be told.
+	// activity log. The CLI has no session, so it must be told.
 	adminEmail string
 	out        io.Writer
 }
@@ -176,7 +176,7 @@ func run(args []string, out io.Writer) error {
 //
 // Every mutation is attributed, and the CLI has no session to infer it
 // from. Requiring it explicitly is deliberate: silently attributing changes to
-// "the first admin" would make the audit log a guess.
+// "the first admin" would make the activity log a guess.
 func (e *env) actor() (store.Actor, error) {
 	if e.adminEmail == "" {
 		return store.Actor{}, errors.New(

@@ -96,7 +96,7 @@ func PromotePendingTOTPSecret(ctx context.Context, db *sql.DB, actor Actor, user
 		if err := DiscardRecoveryCodes(ctx, tx, userID); err != nil {
 			return err
 		}
-		return Audit(ctx, tx, actor, ActionUser2FAEnrolled, SubjectUser, &userID, nil)
+		return LogActivity(ctx, tx, actor, ActionUser2FAEnrolled, SubjectUser, &userID, nil)
 	})
 }
 

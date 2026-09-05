@@ -192,7 +192,7 @@ func TestConsumeResetTokenRejectsDisabledAccount(t *testing.T) {
 }
 
 // The user reset it themselves; attributing it to an admin would be a lie.
-func TestConsumeResetTokenAuditsAsTheUser(t *testing.T) {
+func TestConsumeResetTokenLogsAsTheUser(t *testing.T) {
 	db, user, _ := resetFixture(t)
 	ctx := context.Background()
 
@@ -207,9 +207,9 @@ func TestConsumeResetTokenAuditsAsTheUser(t *testing.T) {
 	var kind string
 	var actorID int64
 	if err := db.QueryRow(
-		`SELECT actor_kind, actor_user_id FROM audit_log WHERE action = ? AND subject_id = ?`,
+		`SELECT actor_kind, actor_user_id FROM activity_log WHERE action = ? AND subject_id = ?`,
 		ActionUserPasswordReset, user.ID).Scan(&kind, &actorID); err != nil {
-		t.Fatalf("read audit entry: %v", err)
+		t.Fatalf("read activity entry: %v", err)
 	}
 	if kind != ActorPlayer || actorID != user.ID {
 		t.Errorf("actor = %s/%d, want %s/%d", kind, actorID, ActorPlayer, user.ID)
