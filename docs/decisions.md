@@ -64,9 +64,14 @@ common case rather than the rare one: people play archive puzzles precisely
 on the days they missed. An existing row is protected by the precedence
 rule, but a puzzle the player has no row for inserts cleanly.
 
-The fallback window is two puzzles behind and one ahead, not today alone — a
+The fallback window is one puzzle behind and one ahead, not today alone — a
 result posted late in the evening, or from a timezone that has already rolled
-over, is still today's as far as the poster is concerned. Anything explicitly
+over, is still today's as far as the poster is concerned. Each of those is a
+single puzzle. Two behind would also cover a trailing timezone posting after
+its own midnight, both slips at once, and that is not worth the slack: the
+puzzle is meant to be posted on the day, late has in practice meant a minute
+or two rather than a day and a half, and every extra puzzle of window is
+another door an unlabeled archive result arrives through. Anything explicitly
 labeled Archive or outside that window is dropped with a log line naming the
 puzzle, so it is visible rather than a mystery.
 
