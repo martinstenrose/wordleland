@@ -238,6 +238,49 @@ func TestParseTemplates(t *testing.T) {
 	}
 }
 
+// dict is what every struct-shaped ui/ partial (chip, badge, stat-list,
+// pill-nav) relies on to build its data inline from a page template's
+// pipeline; without it those partials are unreachable from any page.
+func TestDictBuildsPartialData(t *testing.T) {
+	got, err := dict("Label", "x", "Dashed", true)
+	if err != nil {
+		t.Fatalf("dict() failed: %v", err)
+	}
+	if got["Label"] != "x" || got["Dashed"] != true {
+		t.Errorf("dict() = %#v, want Label=x Dashed=true", got)
+	}
+
+	if _, err := dict("Label"); err == nil {
+		t.Error("dict() with an odd argument count should fail, not silently drop the trailing key")
+	}
+	if _, err := dict(1, "x"); err == nil {
+		t.Error("dict() with a non-string key should fail, not silently stringify it")
+	}
+}
+
+// A page passes dict's output straight into {{template "chip" ...}}; this
+// confirms that round trip actually renders, not just that dict itself
+// builds a map.
+func TestChipPartialRendersDictData(t *testing.T) {
+	tmpl, err := parseTemplates()
+	if err != nil {
+		t.Fatalf("parseTemplates() failed: %v", err)
+	}
+	data, err := dict("Label", "Signal only", "Dashed", true)
+	if err != nil {
+		t.Fatalf("dict() failed: %v", err)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl["today.html"].ExecuteTemplate(&buf, "chip", data); err != nil {
+		t.Fatalf("execute chip: %v", err)
+	}
+	body := buf.String()
+	if !strings.Contains(body, `class="chip dashed"`) || !strings.Contains(body, "Signal only") {
+		t.Errorf("chip did not render dashed label; got:\n%s", body)
+	}
+}
+
 func TestRenderUnknownTemplate(t *testing.T) {
 	srv := testServer(t)
 

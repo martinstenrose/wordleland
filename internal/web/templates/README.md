@@ -16,6 +16,14 @@ Go's template namespace is flat regardless of which file a `{{define}}`
 lives in, so a page's `{{template "x" .}}` call sites don't change when a
 partial moves between files.
 
+A struct-shaped partial (`chip`, `badge`, `stat-list`, `pill-nav`) needs
+its data built at the call site, and `html/template` only passes one
+pipeline argument. `dict` (also in `internal/web/templates.go`, registered
+on every page's `template.FuncMap`) builds that argument from alternating
+key/value pairs: `{{template "chip" (dict "Label" . "Dashed" true)}}`. It
+returns `map[string]any`, which `.Label`/`.Dashed` read the same way they'd
+read fields on a struct.
+
 ## `ui/` — domain-agnostic
 
 | Partial | What it is |
@@ -28,11 +36,12 @@ partial moves between files.
 | `chip` | A tag on something else — a reason, a retirement notice, an activity kind. |
 | `badge` | A status of the thing itself — on/off, remaining/none. |
 
-**`pill-nav`, `progress-bar`, `stat-list`, `button`, `chip` and `badge` are
-not called from any page template yet.** They exist so Phase 3 (migrating
-each page's markup) has a canonical target instead of inventing one
+**`pill-nav`, `progress-bar`, `stat-list`, `button` and `badge` are not
+called from any page template yet.** They exist so Phase 3 (migrating each
+page's markup) has a canonical target instead of inventing one
 mid-migration. Until then they're dead code the template parser touches
-but nothing renders — that's expected, not a bug.
+but nothing renders — that's expected, not a bug. `chip` is the first one
+wired in, from `today.html` (§ below).
 
 They replace patterns already duplicated across pages under different
 names:
@@ -89,3 +98,14 @@ Inline SVG, `currentColor` fill/stroke, sized at the call site via the
 size parameter because every existing icon is already used at exactly one
 size. A future icon needing more than one size can take a size argument
 then; adding one now with no second caller would be a guess.
+
+## Phase 3 migration status
+
+Page templates keep their own markup until they're migrated to the shared
+partials above, one page at a time, each its own commit:
+
+- **today.html** — migrated. Both `.chip` call sites (the "still out" list
+  and a benched player's reason) now go through the `chip` partial.
+- Everything else — not yet migrated; still hand-rolls `.chip`, `.view`,
+  `.pick`, `.dist-track`/`.bar`, and the four `*-stats`/`*-figures` lists
+  directly.
