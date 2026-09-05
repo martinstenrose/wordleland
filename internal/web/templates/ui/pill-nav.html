@@ -1,0 +1,9 @@
+{{/* One active choice among several, as a row of pills. Not wired into any
+     page yet — see internal/web/templates/README.md. Data: {Label string;
+     Items []{Label, Href string; On bool}}, the same item shape .Nav and
+     .Tabs already use in app/topbar.html. */}}
+{{define "pill-nav"}}
+<nav class="pill-nav"{{with .Label}} aria-label="{{.}}"{{end}}>
+  {{range .Items}}<a class="pill-nav-item{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}
+</nav>
+{{end}}

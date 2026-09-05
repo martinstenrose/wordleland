@@ -1,0 +1,5 @@
+{{/* A trait and its reason. title= is a desktop-only affordance — there is
+     no hover on a phone — so the label is a <summary> that opens the
+     explanation on tap. Still no script — see the popup convention in
+     app/topbar.html. */}}
+{{define "trait"}}<details class="trait-pop" name="popup"><summary class="trait" title="{{.Why}}">{{.Trait}}</summary><span class="trait-why popup-panel">{{.Why}}</span></details>{{end}}

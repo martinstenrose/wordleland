@@ -36,12 +36,25 @@ func (s *Server) serveStatic() http.Handler {
 // whoever visits that page first.
 type templates map[string]*template.Template
 
-// parseTemplates pairs every page with the shared base layout.
+// parseTemplates pairs every page with the shared base layout and the
+// partial library: every file under templates/ui/ (domain-agnostic) and
+// templates/app/ (Wordleland-specific) — see
+// internal/web/templates/README.md for the rule that sorts a partial into
+// one or the other.
 func parseTemplates() (templates, error) {
 	pages, err := fs.Glob(templateFS, "templates/*.html")
 	if err != nil {
 		return nil, fmt.Errorf("list templates: %w", err)
 	}
+	partials, err := fs.Glob(templateFS, "templates/ui/*.html")
+	if err != nil {
+		return nil, fmt.Errorf("list ui partials: %w", err)
+	}
+	appPartials, err := fs.Glob(templateFS, "templates/app/*.html")
+	if err != nil {
+		return nil, fmt.Errorf("list app partials: %w", err)
+	}
+	partials = append(partials, appPartials...)
 
 	const base = "templates/base.html"
 	parsed := make(templates)
@@ -49,7 +62,8 @@ func parseTemplates() (templates, error) {
 		if page == base {
 			continue
 		}
-		t, err := template.ParseFS(templateFS, base, page)
+		files := append([]string{base, page}, partials...)
+		t, err := template.ParseFS(templateFS, files...)
 		if err != nil {
 			return nil, fmt.Errorf("parse template %s: %w", page, err)
 		}

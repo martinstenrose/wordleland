@@ -1919,3 +1919,71 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   white-space: nowrap;
 }
 .mark-cell.podium { background: var(--score-4); color: var(--color-text-80); }
+
+/* ---- ui/ component primitives (not wired into any page yet) -----------
+   These back the new templates/ui/*.html partials from the Phase 2 audit
+   — see internal/web/templates/README.md. Nothing here is referenced by a
+   page template yet; that migration is Phase 3. .view/.pick/.span and
+   .dist-track/.bar above stay as they are until each page that uses them
+   is migrated to the matching partial, so this section is additive, not a
+   replacement. */
+
+.pill-nav { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill-nav-item {
+  font-size: var(--text-md);
+  padding: 6px 11px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: var(--color-text-50);
+}
+.pill-nav-item:hover { background: var(--color-text-06); color: var(--color-text-80); }
+.pill-nav-item.on { background: var(--color-accent-22); color: var(--color-text); }
+
+.progress-bar {
+  display: block;
+  background: var(--color-text-06);
+  border-radius: var(--radius-pill);
+  height: 10px;
+  overflow: hidden;
+}
+.progress-bar.compact { height: 8px; border-radius: var(--radius-sm); }
+.progress-bar-fill {
+  display: block;
+  height: 100%;
+  width: calc(var(--pct) * 1%);
+  background: var(--color-accent-50);
+  border-radius: inherit;
+}
+.progress-bar-fill.win { background: var(--color-accent); }
+
+.stat-list { margin: 0; }
+.stat-list-figure { display: flex; gap: 26px; flex: none; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
+.stat-list-figure > div { flex: none; }
+.stat-list-figure dt {
+  font-size: var(--text-2xs);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--color-text-42);
+  text-align: right;
+}
+.stat-list-figure dd { margin: 0; font-size: 1.4rem; font-weight: 500; letter-spacing: -.02em; text-align: right; }
+
+.stat-list-row { display: grid; gap: 8px; }
+.stat-list-row > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.stat-list-row dt { font-size: var(--text-md); color: var(--color-text-60); }
+.stat-list-row dd { margin: 0; font-size: var(--text-md); }
+
+.stat-list-admin {
+  display: flex;
+  gap: var(--space-card);
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-text-08);
+}
+.stat-list-admin dt {
+  font-size: var(--text-2xs);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--color-text-42);
+}
+.stat-list-admin dd { margin: 2px 0 0; font-size: 1.15rem; font-weight: 500; }

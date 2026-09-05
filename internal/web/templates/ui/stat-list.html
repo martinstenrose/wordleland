@@ -1,0 +1,13 @@
+{{/* A label/value list: player-stats, month-stats, admin-figures and
+     signin-stats are this same <dl> shape today under four names and three
+     slightly different visual treatments. Not wired into any page yet —
+     see internal/web/templates/README.md. Data: {Variant string; Items
+     []{Label, Value string}}. Variant is "figure" (a large right-aligned
+     number, the player/month case), "row" (a compact label-left,
+     value-right row, the sign-in aside case) or "admin" (the admin detail
+     panel's footer figures). */}}
+{{define "stat-list"}}
+<dl class="stat-list stat-list-{{.Variant}}">
+  {{range .Items}}<div><dt>{{.Label}}</dt><dd class="num">{{.Value}}</dd></div>{{end}}
+</dl>
+{{end}}
