@@ -30,7 +30,7 @@ const SourceSignal = "signal"
 // posted over HTTP when it was its own service, and calls ingest directly
 // now. Kept as a function so a test can watch what it was handed without
 // standing up a database.
-type Deliverer func(context.Context, ingest.Submission) (ingest.Status, error)
+type Deliverer func(context.Context, ingest.Submission) (ingest.Result, error)
 
 // Announcer checks whether a month's scheduled noon post was missed and
 // posts its winner if so. It is called after every live result, but is a
@@ -229,7 +229,7 @@ func (f *filer) file(ctx context.Context, result wordle.Result, m Message) {
 	}
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		status, err := f.deliver(ctx, sub)
+		delivered, err := f.deliver(ctx, sub)
 		if ctx.Err() != nil {
 			return
 		}
@@ -253,35 +253,37 @@ func (f *filer) file(ctx context.Context, result wordle.Result, m Message) {
 			f.logger.Warn("filing a result failed, will retry",
 				"puzzle", result.PuzzleNo, "attempt", attempt, "error", err)
 
-		case status == ingest.StatusPending:
-			// The sender has no claimed identity yet, so the result is held
-			// and replayed when they are claimed. Normal, not an error.
-			//
-			// Deliberately without the sender's uuid or name: both identify
-			// a person, and `wordleland identity pending` already lists
-			// exactly who is waiting, from the database.
+		case delivered.Status == ingest.StatusPending:
+			// The sender has no claimed identity yet, so there is no player
+			// to name — `wordleland identity pending` already lists exactly
+			// who is waiting, from the database. Normal, not an error.
 			f.health.deliverySucceeded()
 			f.logger.Info("result held for an unclaimed sender; "+
 				"run 'wordleland identity pending' to see who and claim them",
 				"puzzle", result.PuzzleNo)
 			return
 
-		case status == ingest.StatusIgnored:
+		case delivered.Status == ingest.StatusIgnored:
 			// A human-entered value beat this one on precedence: not an
 			// error, and not the common case either, so it earns a line
 			// only at debug — an operator diagnosing "why didn't my score
 			// change" needs it, nobody watching the log at info does.
 			f.health.deliverySucceeded()
 			f.logger.Debug("result was ignored; an existing value takes precedence",
-				"puzzle", result.PuzzleNo)
+				"puzzle", result.PuzzleNo, "player_id", delivered.PlayerID, "slug", delivered.Slug)
 			return
 
 		default:
 			// The line that would have made the outage this feature exists
 			// for visible in real time: at info, because a quiet bridge and
 			// a working one otherwise look identical from the log alone.
+			//
+			// player_id and slug both appear because the slug is what an
+			// admin reading the log actually recognises, and the id is what
+			// survives a rename — see docs/decisions.md, "Logging".
 			f.health.deliverySucceeded()
-			f.logger.Info("filed a result", "puzzle", result.PuzzleNo, "status", status)
+			f.logger.Info("filed a result", "puzzle", result.PuzzleNo, "status", delivered.Status,
+				"player_id", delivered.PlayerID, "slug", delivered.Slug)
 			return
 		}
 

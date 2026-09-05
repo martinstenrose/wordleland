@@ -74,7 +74,7 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 
 	// A token holder posting a sender is the live path, so it may reactivate
 	// a player who has evidently come back. Naming a player directly does not.
-	status, err := ingest.Apply(r.Context(), s.db, store.TokenActor(token.ID), sub, true)
+	result, err := ingest.Apply(r.Context(), s.db, store.TokenActor(token.ID), sub, true)
 	switch {
 	case errors.Is(err, ingest.ErrNoSuchPlayer):
 		writeJSON(w, http.StatusNotFound, ingestResponse{Status: "not_found", Error: "no such player"})
@@ -88,13 +88,13 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch status {
+	switch result.Status {
 	case ingest.StatusPending:
-		writeJSON(w, http.StatusAccepted, ingestResponse{Status: string(status)})
+		writeJSON(w, http.StatusAccepted, ingestResponse{Status: string(result.Status)})
 	case ingest.StatusCreated:
-		writeJSON(w, http.StatusCreated, ingestResponse{Status: string(status)})
+		writeJSON(w, http.StatusCreated, ingestResponse{Status: string(result.Status)})
 	default:
-		writeJSON(w, http.StatusOK, ingestResponse{Status: string(status)})
+		writeJSON(w, http.StatusOK, ingestResponse{Status: string(result.Status)})
 	}
 }
 

@@ -19,17 +19,24 @@ import (
 // reply is one canned outcome from the delivery seam, standing in for what
 // ingest would have returned.
 type reply struct {
-	status ingest.Status
+	result ingest.Result
 	err    error
 }
+
+// testPlayerID and testSlug stand in for a resolved player, so tests can
+// assert that a filed or updated result actually names one.
+const (
+	testPlayerID int64 = 7
+	testSlug           = "sample-player"
+)
 
 // These name the outcomes the old HTTP harness expressed as status codes,
 // so the tests below read the same way they did before delivery moved
 // in-process.
 var (
-	filed     = reply{status: ingest.StatusCreated}
-	updated   = reply{status: ingest.StatusUpdated}
-	held      = reply{status: ingest.StatusPending}
+	filed     = reply{result: ingest.Result{Status: ingest.StatusCreated, PlayerID: testPlayerID, Slug: testSlug}}
+	updated   = reply{result: ingest.Result{Status: ingest.StatusUpdated, PlayerID: testPlayerID, Slug: testSlug}}
+	held      = reply{result: ingest.Result{Status: ingest.StatusPending}}
 	transient = reply{err: errors.New("database is locked")}
 	unusable  = reply{err: &ingest.ValidationError{}}
 )
@@ -56,7 +63,7 @@ func testFilerAtLevel(t *testing.T, level slog.Level, replies ...reply) (*filer,
 	cap := &capture{logs: &bytes.Buffer{}}
 	var calls atomic.Int32
 
-	deliver := func(_ context.Context, sub ingest.Submission) (ingest.Status, error) {
+	deliver := func(_ context.Context, sub ingest.Submission) (ingest.Result, error) {
 		n := int(calls.Add(1)) - 1
 		r := filed
 		if n < len(replies) {
@@ -69,7 +76,7 @@ func testFilerAtLevel(t *testing.T, level slog.Level, replies ...reply) (*filer,
 		cap.subs = append(cap.subs, sub)
 		cap.mu.Unlock()
 
-		return r.status, r.err
+		return r.result, r.err
 	}
 
 	logger := slog.New(slog.NewTextHandler(cap.logs, &slog.HandlerOptions{Level: level}))
@@ -358,8 +365,10 @@ func TestHeldResultIsNotRetried(t *testing.T) {
 	}
 }
 
-// Logs must carry no identifying field: display names are Signal display
-// names and the uuid is an account identifier (CLAUDE.md).
+// The sender's Signal identity — display name and account uuid — must never
+// appear in these outcome lines, at any level: see docs/decisions.md,
+// "Logging". A resolved player identity (player_id, slug) is a different
+// thing and is allowed; TestFiledResultLogsAtInfo covers that it appears.
 func TestLogsCarryNoIdentifyingFields(t *testing.T) {
 	for _, replies := range [][]reply{
 		{filed},
@@ -388,10 +397,10 @@ func TestSlowDeliveryDoesNotBlockTheReader(t *testing.T) {
 	release := make(chan struct{})
 	var served atomic.Int32
 
-	deliver := func(context.Context, ingest.Submission) (ingest.Status, error) {
+	deliver := func(context.Context, ingest.Submission) (ingest.Result, error) {
 		served.Add(1)
 		<-release // hold the first write open
-		return ingest.StatusCreated, nil
+		return ingest.Result{Status: ingest.StatusCreated}, nil
 	}
 	defer close(release)
 
@@ -486,8 +495,8 @@ func TestFailingDeliveryTurnsTheStatusRed(t *testing.T) {
 	h.received()
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	deliver := func(context.Context, ingest.Submission) (ingest.Status, error) {
-		return "", errors.New("database is locked")
+	deliver := func(context.Context, ingest.Submission) (ingest.Result, error) {
+		return ingest.Result{}, errors.New("database is locked")
 	}
 	f := newFiler(testGroupID, deliver, nil, logger, h)
 	today, err := wordle.DateForPuzzle(1891)
@@ -521,8 +530,8 @@ func TestRejectedResultIsReportedAsLossNotFailure(t *testing.T) {
 	h.connected()
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	deliver := func(context.Context, ingest.Submission) (ingest.Status, error) {
-		return "", &ingest.ValidationError{}
+	deliver := func(context.Context, ingest.Submission) (ingest.Result, error) {
+		return ingest.Result{}, &ingest.ValidationError{}
 	}
 	f := newFiler(testGroupID, deliver, nil, logger, h)
 	today, _ := wordle.DateForPuzzle(1891)
@@ -549,11 +558,11 @@ func TestStatusRecoversAfterDeliveryResumes(t *testing.T) {
 
 	var fail atomic.Bool
 	fail.Store(true)
-	deliver := func(context.Context, ingest.Submission) (ingest.Status, error) {
+	deliver := func(context.Context, ingest.Submission) (ingest.Result, error) {
 		if fail.Load() {
-			return "", errors.New("database is locked")
+			return ingest.Result{}, errors.New("database is locked")
 		}
-		return ingest.StatusCreated, nil
+		return ingest.Result{Status: ingest.StatusCreated}, nil
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -695,8 +704,15 @@ func TestFiledResultLogsAtInfo(t *testing.T) {
 
 	f.handle(context.Background(), msg("Wordle 1 891 3/6"))
 
-	if !strings.Contains(cap.log(), "filed a result") {
-		t.Errorf("a filed result was not visible at info:\n%s", cap.log())
+	log := cap.log()
+	if !strings.Contains(log, "filed a result") {
+		t.Errorf("a filed result was not visible at info:\n%s", log)
+	}
+	// The player, not just the puzzle: a stream of "filed a result" lines
+	// with nothing to tell them apart is not meaningfully more diagnosable
+	// than no line at all. See docs/decisions.md, "Logging".
+	if !strings.Contains(log, testSlug) {
+		t.Errorf("a filed result does not name the player:\n%s", log)
 	}
 }
 

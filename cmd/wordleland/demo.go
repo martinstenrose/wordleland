@@ -97,11 +97,11 @@ func demoSeed(e *env, args []string) error {
 				continue
 			}
 			outcome := persona.Play(rng)
-			status, err := ingest.Apply(e.ctx, e.db, actor, submissionFor(player.Slug, oldest+day, outcome), false)
+			result, err := ingest.Apply(e.ctx, e.db, actor, submissionFor(player.Slug, oldest+day, outcome), false)
 			if err != nil {
 				return fmt.Errorf("file result for %s, puzzle %d: %w", player.Slug, oldest+day, err)
 			}
-			if status == ingest.StatusCreated {
+			if result.Status == ingest.StatusCreated {
 				resultsFiled++
 			}
 		}
@@ -125,11 +125,11 @@ func demoSeed(e *env, args []string) error {
 		sub := submissionFor("", puzzleNo, outcome)
 		sub.Source, sub.ExternalID, sub.DisplayHint = "signal", externalID, persona.Name
 
-		status, err := ingest.Apply(e.ctx, e.db, actor, sub, false)
+		result, err := ingest.Apply(e.ctx, e.db, actor, sub, false)
 		if err != nil {
 			return fmt.Errorf("hold result for sender %s: %w", externalID, err)
 		}
-		if status == ingest.StatusPending {
+		if result.Status == ingest.StatusPending {
 			resultsPending++
 		}
 	}
@@ -217,11 +217,11 @@ func demoTick(e *env, args []string) error {
 		}
 
 		outcome := persona.Play(rng)
-		status, err := ingest.Apply(e.ctx, e.db, actor, submissionFor(player.Slug, today, outcome), false)
+		result, err := ingest.Apply(e.ctx, e.db, actor, submissionFor(player.Slug, today, outcome), false)
 		if err != nil {
 			return fmt.Errorf("file result for %s: %w", player.Slug, err)
 		}
-		if status == ingest.StatusCreated {
+		if result.Status == ingest.StatusCreated {
 			filed++
 		}
 	}

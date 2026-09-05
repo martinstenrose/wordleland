@@ -618,16 +618,26 @@ per result, so a stream with nothing in it for hours is itself the evidence
 something is wrong, without anyone having had to switch anything on first.
 
 **What may be logged, and at which level, follows the trust boundary
-"Identity and ingest" above already draws.** The sender's account UUID and
-current display name may appear at debug — both are already persisted to
-`player_identities` and `pending_results`, so a debug line names nobody the
-database does not already name. The phone number never appears, at any
-level including debug: the schema deliberately never stores it either,
-because unlike the UUID it identifies a person outside the app and does not
-survive a number change. And a message's text is never logged, debug
-included — not because it is sensitive in the way a phone number is, but
-because it is somebody else's conversation, sent to a Signal group and not
-to this application; signal-cli-rest-api's own container log already carries
-the full envelope for as long as that container lives, and that is the
-right place for it to exist, not a second copy with a different lifetime and
-a different set of hands with access to it.
+"Identity and ingest" above already draws — the audience is what matters,
+not the level.** The log's only reader is whoever is deploying and operating
+this instance, and that person already has full access to the database and
+the admin dashboard: a resolved player's id and slug, and the sender's
+account UUID and current display name, name nobody a log line tells them
+about for the first time. There is therefore no privacy reason to hold any
+of it back to debug — a bridge that files a result at info should say whose
+it was, or the line is a heartbeat with nothing to show for it. `filed a
+result` and the other outcomes in `forward.go` log the resolved
+`player_id` and `slug` together rather than either alone: the slug is what
+a human reads, the id is what survives the slug changing under it.
+
+Two things stay excluded regardless of level, because the reason is not
+about the audience being wider than the admin — it is about the field
+itself. The phone number never appears, because the schema deliberately
+never stores it either: unlike the UUID it identifies a person outside the
+app and does not survive a number change, so there is nothing to log that
+is not itself a mistake. And a message's text is never logged, because it
+is somebody else's conversation, sent to a Signal group and not to this
+application; signal-cli-rest-api's own container log already carries the
+full envelope for as long as that container lives, and that is the right
+place for it to exist, not a second copy with a different lifetime and a
+different set of hands with access to it.
