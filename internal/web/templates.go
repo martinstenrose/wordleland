@@ -36,6 +36,28 @@ func (s *Server) serveStatic() http.Handler {
 // whoever visits that page first.
 type templates map[string]*template.Template
 
+// templateFuncs are available to every page and partial.
+var templateFuncs = template.FuncMap{"dict": dict}
+
+// dict builds a map from alternating key/value arguments, so a page can
+// construct a partial's data inline — {{template "chip" (dict "Label" .
+// "Dashed" true)}} — instead of every partial call site needing its own
+// named Go type just to satisfy html/template's one-argument pipeline.
+func dict(pairs ...any) (map[string]any, error) {
+	if len(pairs)%2 != 0 {
+		return nil, fmt.Errorf("dict: odd number of arguments")
+	}
+	m := make(map[string]any, len(pairs)/2)
+	for i := 0; i < len(pairs); i += 2 {
+		key, ok := pairs[i].(string)
+		if !ok {
+			return nil, fmt.Errorf("dict: key %v is not a string", pairs[i])
+		}
+		m[key] = pairs[i+1]
+	}
+	return m, nil
+}
+
 // parseTemplates pairs every page with the shared base layout and the
 // partial library: every file under templates/ui/ (domain-agnostic) and
 // templates/app/ (Wordleland-specific) — see
@@ -63,7 +85,7 @@ func parseTemplates() (templates, error) {
 			continue
 		}
 		files := append([]string{base, page}, partials...)
-		t, err := template.ParseFS(templateFS, files...)
+		t, err := template.New(path.Base(base)).Funcs(templateFuncs).ParseFS(templateFS, files...)
 		if err != nil {
 			return nil, fmt.Errorf("parse template %s: %w", page, err)
 		}

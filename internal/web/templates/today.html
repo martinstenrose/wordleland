@@ -24,7 +24,7 @@
       {{if .Missing}}
         <div class="today-out">
           <p class="kicker">{{.T.T "today.stillOut"}}</p>
-          <ul class="chips">{{range .Missing}}<li class="chip dashed">{{.}}</li>{{end}}</ul>
+          <ul class="chips">{{range .Missing}}<li>{{template "chip" (dict "Label" . "Dashed" true)}}</li>{{end}}</ul>
         </div>
       {{end}}
     </div>
@@ -127,7 +127,7 @@
             <div class="bench-card">
               <div class="bench-head">
                 <a class="player" href="{{.Href}}">{{.Name}}</a>
-                {{if .ReasonKey}}<span class="chip">{{$t.T .ReasonKey}}</span>{{end}}
+                {{if .ReasonKey}}{{template "chip" (dict "Label" ($t.T .ReasonKey))}}{{end}}
               </div>
               <p class="muted small">{{$t.TN "today.benchedGames" .Games}}{{if .LastSeenText}} · {{.LastSeenText}}{{end}}</p>
             </div>
