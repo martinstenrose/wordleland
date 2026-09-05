@@ -435,6 +435,11 @@ docker compose exec app /wordleland identity claim \
 # Corrections. A hand-entered value wins over anything the Signal bridge sends.
 docker compose exec app /wordleland results set --player martin --puzzle 1893 --guesses 4 --hard-mode
 docker compose exec app /wordleland results unset --player martin --puzzle 1893
+
+# The audit log the admin pages show, from a shell instead of a browser.
+docker compose exec app /wordleland activity list
+docker compose exec app /wordleland activity list --kind users --limit 20
+docker compose exec app /wordleland activity show --id 42
 ```
 
 The share link is a read-only capability: anyone who knows its URL can view
