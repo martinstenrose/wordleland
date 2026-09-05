@@ -70,6 +70,7 @@ Nouns:
   token     create, list, revoke
   backfill  import history from the spreadsheet
   slug      show, rotate
+  activity  list, show
   demo      seed, tick, clear — synthetic data for a staging instance (DEMO_MODE=true)
 
 Global flags:
@@ -161,6 +162,8 @@ func run(args []string, out io.Writer) error {
 		return runBackfill(e, verbArgs)
 	case "slug":
 		return runSlug(e, verbArgs)
+	case "activity":
+		return runActivity(e, verbArgs)
 	case "demo":
 		return runDemo(e, verbArgs)
 	case "help", "-h", "--help":
