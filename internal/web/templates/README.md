@@ -106,6 +106,11 @@ partials above, one page at a time, each its own commit:
 
 - **today.html** — migrated. Both `.chip` call sites (the "still out" list
   and a benched player's reason) now go through the `chip` partial.
+- **board.html** — migrated. Its one `.chip` call site (a row's reason,
+  e.g. "on leave") now goes through the `chip` partial. `board.html` also
+  serves the read-only share view of the leaderboard (`board.go` renders it
+  for both authenticated and `/share/...` requests via `chrome.ReadOnly`),
+  so this covers that view too.
 - Everything else — not yet migrated; still hand-rolls `.chip`, `.view`,
   `.pick`, `.dist-track`/`.bar`, and the four `*-stats`/`*-figures` lists
   directly.
