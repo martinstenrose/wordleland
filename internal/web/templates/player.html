@@ -3,31 +3,21 @@
 {{template "topbar" .}}
 
 <section class="card">
-  {{if .Picker}}
-    <nav class="picker" aria-label="{{.T.T "nav.view.players"}}">
-      {{range .Picker}}<a class="pick{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>{{.Name}}</a>{{end}}
-    </nav>
-  {{end}}
+  {{if .Picker}}{{template "pill-nav" (dict "Label" (.T.T "nav.view.players") "Items" .Picker)}}{{end}}
 
   <div class="player-head">
     <div class="player-head-main">
       <h1>{{.Player.Name}}
         {{if .Trait}}{{template "trait" .}}{{end}}
-        {{if not .Player.Active}}<span class="chip">{{.T.T "player.retired"}}</span>{{end}}
-        {{if .ReasonKey}}<span class="chip">{{.T.T .ReasonKey}}</span>{{end}}
+        {{if not .Player.Active}}{{template "chip" (dict "Label" (.T.T "player.retired"))}}{{end}}
+        {{if .ReasonKey}}{{template "chip" (dict "Label" (.T.T .ReasonKey))}}{{end}}
       </h1>
       <p class="muted">
         {{if .Player.Ranked}}{{.T.T "player.rank" .Player.Rank}}{{else}}{{.T.T "player.notRanked"}}{{end}}
         {{if .LastPlayedText}} · {{.T.T "player.lastPlayed"}} {{.LastPlayedText}}{{end}}
       </p>
     </div>
-    {{if .Player.Games}}
-      <dl class="player-stats">
-        {{range .Stats}}
-          <div><dt>{{.Label}}</dt><dd class="num">{{.Value}}</dd></div>
-        {{end}}
-      </dl>
-    {{end}}
+    {{if .Player.Games}}{{template "stat-list" (dict "Variant" "figure" "Items" .Stats)}}{{end}}
   </div>
 
   {{if not .Player.Games}}
@@ -74,7 +64,7 @@
         {{range .Distribution}}
           <li>
             <span class="dist-label num">{{.Label}}</span>
-            <span class="dist-track"><span class="dist-fill" style="width:{{.Percent}}%"></span></span>
+            {{template "progress-bar" (dict "Percent" .Percent)}}
             <span class="dist-count num">{{$.T.Integer .Count}}</span>
             <span class="dist-share num muted small">{{.Share}}</span>
           </li>

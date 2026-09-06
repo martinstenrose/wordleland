@@ -187,7 +187,7 @@ func TestAuthenticatedPlayerPageRequiresASession(t *testing.T) {
 	// you move between players, and the mark is how you leave. What matters
 	// is that the page is not a dead end.
 	body := page.Body.String()
-	if !strings.Contains(body, `class="pick`) {
+	if !strings.Contains(body, `class="pill-nav-item`) {
 		t.Error("the player page has no picker to move with")
 	}
 	if !strings.Contains(body, `class="brand"`) {
