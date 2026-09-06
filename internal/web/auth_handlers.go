@@ -30,12 +30,7 @@ type loginPage struct {
 type signInStats struct {
 	Games int
 	Days  int
-	Rows  []signInStat
-}
-
-type signInStat struct {
-	Key   string
-	Value string
+	Rows  []playerStat
 }
 
 // signInSummary reads the group totals, returning a zero value on error.
@@ -56,17 +51,17 @@ func (s *Server) signInSummary(r *http.Request) signInStats {
 	t := s.translatorFor(nil, r)
 	out := signInStats{Games: summary.Games, Days: summary.Days}
 	out.Rows = append(out.Rows,
-		signInStat{Key: "signin.stat.players", Value: t.Integer(summary.Players)},
-		signInStat{Key: "signin.stat.solved", Value: t.Integer(summary.SolvedPercent) + "%"},
+		playerStat{Label: t.T("signin.stat.players"), Value: t.Integer(summary.Players)},
+		playerStat{Label: t.T("signin.stat.solved"), Value: t.Integer(summary.SolvedPercent) + "%"},
 	)
 	if summary.Average != nil {
-		out.Rows = append(out.Rows, signInStat{
-			Key:   "signin.stat.average",
+		out.Rows = append(out.Rows, playerStat{
+			Label: t.T("signin.stat.average"),
 			Value: t.Decimal(*summary.Average, 2),
 		})
 	}
-	out.Rows = append(out.Rows, signInStat{
-		Key:   "signin.stat.today",
+	out.Rows = append(out.Rows, playerStat{
+		Label: t.T("signin.stat.today"),
 		Value: t.Integer(summary.FiledToday),
 	})
 	return out

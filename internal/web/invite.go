@@ -29,6 +29,11 @@ type invitePage struct {
 	Error   string
 }
 
+// Stats feeds the stat-list partial beside the form.
+func (p invitePage) Stats() []playerStat {
+	return []playerStat{{Label: p.T.T("board.column.average"), Value: p.Average}}
+}
+
 // handleInviteForm shows the claim form for a token.
 func (s *Server) handleInviteForm(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")

@@ -797,11 +797,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 }
 .signin-aside hr { height: 1px; border: 0; background: var(--color-text-08); width: 100%; margin: 0; }
 .signin-figure { font-size: 2.1rem; font-weight: 500; letter-spacing: -.02em; line-height: 1; margin: 0; }
-.signin-stats { display: grid; gap: 8px; margin: 0; }
-.signin-stats > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.signin-stats dt { font-size: var(--text-md); color: var(--color-text-60); }
-.signin-stats dd { margin: 0; font-size: var(--text-md); }
-
 @media (max-width: 720px) {
   .signin { grid-template-columns: 1fr; margin: 0; min-height: 100dvh; border-radius: 0; box-shadow: none; }
   .signin-main { padding: 34px 24px 30px; }
