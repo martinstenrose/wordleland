@@ -36,13 +36,7 @@
       {{if .WinnerLine}}<p class="muted">{{.WinnerLine}}</p>{{end}}
       <p class="muted small">{{.PartialNote}} · {{.T.T "months.groupAverage"}} {{.GroupAverage}}</p>
     </div>
-    {{if .WinnerStats}}
-      <dl class="month-stats">
-        {{range .WinnerStats}}
-          <div><dt>{{.Label}}</dt><dd class="num">{{.Value}}</dd></div>
-        {{end}}
-      </dl>
-    {{end}}
+    {{if .WinnerStats}}{{template "stat-list" (dict "Variant" "figure" "Items" .WinnerStats)}}{{end}}
   </div>
 
   <div class="table-scroll">
@@ -73,7 +67,7 @@
               {{if .Medal}}<span class="medal">{{.Medal}}</span>{{end}}
             </span>
           </td>
-          <td class="bar-cell"><span class="bar"><span class="bar-fill{{if .Winner}} win{{end}}" style="width:{{.BarPercent}}%"></span></span></td>
+          <td class="bar-cell">{{template "progress-bar" (dict "Percent" .BarPercent "Win" .Winner "Compact" true)}}</td>
           <td class="right num strong">{{.Average}}</td>
           <td class="right num muted">{{$.T.Integer .Games}}</td>
           <td class="right num muted">{{$.T.Integer .ThreeOrBetter}}</td>
@@ -133,7 +127,7 @@
       <p class="kicker">{{.T.T "months.playedNotRanked"}}</p>
       <ul class="chips">
         {{range .Thin}}
-          <li class="chip dashed">{{.Name}} · {{$.T.TN "months.gamesChip" .Games}}</li>
+          <li>{{template "chip" (dict "Label" (print .Name " · " ($.T.TN "months.gamesChip" .Games)) "Dashed" true)}}</li>
         {{end}}
       </ul>
     </div>

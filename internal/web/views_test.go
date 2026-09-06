@@ -714,7 +714,7 @@ func TestMonthWinnerPaneShowsTheStats(t *testing.T) {
 
 	month := fmt.Sprintf("%d-%d", target.Year(), target.Month())
 	body := fetchAs(t, srv, "/share/"+slug+"/months?month="+month, nil).Body.String()
-	start := strings.Index(body, "month-stats")
+	start := strings.Index(body, "stat-list-figure")
 	if start < 0 {
 		t.Fatal("the completed month has no winner stats")
 	}
