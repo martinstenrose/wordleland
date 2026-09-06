@@ -810,15 +810,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .brand-sub { font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; color: var(--color-text-45); }
 
 .views { display: contents; }
-.view {
-  font-size: var(--text-md);
-  padding: 6px 11px;
-  border-radius: var(--radius-sm);
-  text-decoration: none;
-  color: var(--color-text-50);
-}
-.view:hover { background: var(--color-text-06); color: var(--color-text-80); }
-.view.on { background: var(--color-accent-22); color: var(--color-text); }
 
 /* ---- Today ------------------------------------------------------------ */
 
@@ -1444,10 +1435,10 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
     scrollbar-width: none;
   }
   .views-mobile::-webkit-scrollbar { display: none; }
-  .views-mobile .view { flex: none; white-space: nowrap; }
+  .views-mobile .pill-nav-item { flex: none; white-space: nowrap; }
 
   /* The views leave the top bar so it does not wrap to three rows. */
-  .topbar-nav .view,
+  .topbar-nav .pill-nav-item,
   .topbar-divider { display: none; }
 }
 
@@ -1819,10 +1810,9 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 
 /* ---- ui/ component primitives -----------------------------------------
    Back the templates/ui/*.html partials — see
-   internal/web/templates/README.md. Every page that used .view/.pick/.span
-   or .dist-track/.bar has been migrated to the matching partial below; the
-   old classes and their rules are gone. .topbar's own view switcher (.view)
-   is the one caller not yet migrated — see the README's Phase 3 status. */
+   internal/web/templates/README.md. Every page and partial that used
+   .view/.pick/.span or .dist-track/.bar has been migrated to the matching
+   partial below; the old classes and their rules are gone. */
 
 .pill-nav {
   display: flex;
