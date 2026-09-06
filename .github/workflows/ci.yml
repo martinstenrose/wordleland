@@ -14,7 +14,6 @@ permissions:
 
 jobs:
   check:
-    name: Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -51,7 +50,6 @@ jobs:
           "$(go env GOPATH)/bin/staticcheck" ./...
 
   image:
-    name: Image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
