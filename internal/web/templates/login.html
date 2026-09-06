@@ -38,11 +38,7 @@
     <p class="signin-figure">{{.T.Integer .Stats.Games}}</p>
     <p class="muted small">{{.T.TN "signin.gamesOver" .Stats.Days}}</p>
     <hr>
-    <dl class="signin-stats">
-      {{range .Stats.Rows}}
-        <div><dt>{{$.T.T .Key}}</dt><dd class="num">{{.Value}}</dd></div>
-      {{end}}
-    </dl>
+    {{template "stat-list" (dict "Variant" "row" "Items" .Stats.Rows)}}
     <p class="muted small">{{.T.T "signin.asideNote"}}</p>
   </aside>
 </section>

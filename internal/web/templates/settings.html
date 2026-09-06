@@ -67,8 +67,8 @@
   <div class="settings-section">
     <h2 class="section">{{.T.T "settings.twoFactor"}}</h2>
     <p class="settings-state">
-      {{if .HasTOTP}}<span class="badge on">{{.T.T "settings.totp.on"}}</span>
-      {{else}}<span class="badge">{{.T.T "settings.totp.off"}}</span>{{end}}
+      {{if .HasTOTP}}{{template "badge" (dict "Label" (.T.T "settings.totp.on") "On" true)}}
+      {{else}}{{template "badge" (dict "Label" (.T.T "settings.totp.off"))}}{{end}}
       {{if .TOTPRequired}}<span class="muted small">{{.T.T "settings.totp.required"}}</span>{{end}}
     </p>
     <p class="hint">{{if .HasTOTP}}{{.T.T "settings.totp.onHint"}}{{else}}{{.T.T "settings.totp.offHint"}}{{end}}</p>
@@ -84,9 +84,9 @@
       <h2 class="section">{{.T.T "settings.recovery.title"}}</h2>
       <p class="settings-state">
         {{if .RecoveryLeft}}
-          <span class="badge{{if gt .RecoveryLeft 2}} on{{end}}">{{.T.TN "settings.recovery.remaining" .RecoveryLeft}}</span>
+          {{template "badge" (dict "Label" (.T.TN "settings.recovery.remaining" .RecoveryLeft) "On" (gt .RecoveryLeft 2))}}
         {{else}}
-          <span class="badge">{{.T.T "settings.recovery.none"}}</span>
+          {{template "badge" (dict "Label" (.T.T "settings.recovery.none"))}}
         {{end}}
       </p>
       {{/* The warning is on the count, not on the act of generating: a set

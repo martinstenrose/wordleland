@@ -42,9 +42,7 @@
       <p class="signin-figure">{{.T.Integer .Games}}</p>
       <p class="muted small">{{.T.TN "invite.gamesAlready" .Games}}</p>
       <hr>
-      <dl class="signin-stats">
-        <div><dt>{{.T.T "board.column.average"}}</dt><dd class="num">{{.Average}}</dd></div>
-      </dl>
+      {{template "stat-list" (dict "Variant" "row" "Items" .Stats)}}
       <p class="muted small">{{.T.T "invite.aside.note"}}</p>
     </aside>
   {{end}}

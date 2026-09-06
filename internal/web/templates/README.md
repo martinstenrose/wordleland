@@ -170,5 +170,20 @@ partials above, one page at a time, each its own commit:
   4px to `pill-nav`'s 6px now that `.admin-tabs`'s own override is gone —
   same open caveat as grid.html and player.html, not checked in a
   browser.
-- Everything else — not yet migrated; still hand-rolls `.chip` and
-  `topbar.html`'s own `.view` switcher directly.
+- **Auth screens** (`login.html`, `invite.html`, `settings.html`) —
+  migrated. `login.html`'s and `invite.html`'s group-summary asides
+  (`.signin-stats`) go through `stat-list` (`Variant: "row"`,
+  byte-identical CSS). `signInStats.Rows` and `invitePage`'s new `Stats()`
+  method both feed it with `playerStat` — the shape already existed for
+  player.html, so `signInStat{Key, Value}` is gone rather than kept as a
+  fourth type with the same two fields; `Key` (an untranslated i18n key)
+  is now translated at the point each row is built, where the translator
+  is already in scope, instead of at render time. `settings.html`'s two
+  status pairs (TOTP on/off, recovery codes remaining/none) go through
+  `badge` — they were already exactly `badge`'s target case, just not
+  routed through it. `.signin-stats` is deleted; it was the last user.
+  `enroll_totp.html`, `recovery.html`, `recovery_codes.html` and
+  `totp.html` have none of the four duplicated patterns and needed no
+  changes.
+- Everything else — not yet migrated: `topbar.html`'s own `.view`
+  switcher, the last unmigrated pill-nav-shaped pattern.
