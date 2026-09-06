@@ -69,6 +69,54 @@ of which are requirements. Never port a literal player list, a literal roster
 count, or gendered pronouns from it. It is also a JavaScript artifact; it
 describes what the pages should look like, not how they are built.
 
+## Design system
+
+`internal/web/static/app.css`'s tokens and `internal/web/templates/ui/*.html`
+are the design system: every color, spacing, radius and repeated visual
+pattern goes through one of them. Both directories carry their own README
+(`internal/web/static/README.md` for tokens, `internal/web/templates/README.md`
+for partials) documenting what exists and why — read those before adding
+either, not this file, which only holds the standing rules:
+
+- **No hardcoded visual values in a page template or a new component.** A
+  color, a spacing number, a radius, a `style="width:NN%"` — if it isn't
+  already a token or a `--pct`-style computed property, it's the kind of
+  thing the Phase 1 audit of this branch spent a release finding and
+  removing. A new value earns a token; a one-off literal does not.
+- **A new token needs a one-line rationale in `static/README.md`** — its
+  role, and, if it doesn't match Claude Design exactly, why not. A token
+  with no documented reason is indistinguishable from a mistake six months
+  later.
+- **A new shared visual pattern is a `ui/` or `app/` partial, in the right
+  one.** The test is in `templates/README.md`: needs `chrome`-shaped data
+  or a Wordleland concept → `app/`; would make sense unchanged in any
+  server-rendered `html/template` app → `ui/`. Getting this wrong is how
+  `base.html` grew to 232 lines of partials nobody could find.
+- **A partial's contract is for every caller, not the one in front of you.**
+  `pill-nav` needed splitting into a bare `pill-nav-items` and a wrapped
+  `pill-nav` when a third caller's markup didn't fit the existing wrapper —
+  extend the shape rather than bending a caller to match it, or duplicating
+  the markup back out into the page.
+- **Migrating a page to a partial should not change what renders.** Diff
+  the CSS the old class and the partial's class produce, not just their
+  names, before assuming a swap is safe — `pill-nav-item`'s font size,
+  padding and active-state color didn't match every raw class it replaced,
+  and the container padding it was missing shipped once before a browser
+  caught it. When a swap does change the visual (a genuine consolidation,
+  not a bug), say so plainly rather than implying parity.
+
+**The visual design is produced in Claude Design, not here** (see Sources
+of truth, above) — this repository's `ui/` library is downstream of it, not
+the other way around. `/design-sync` pushes the current `ui/` partials and
+tokens to a Claude Design design-system project as previews, so a design
+pass there is working from what's actually built rather than a stale
+export. Run it after a `ui/`- or token-level change lands, not per page
+migration — it's a sync point, not a build step. It only pushes; a design
+change made in Claude Design comes back the way any export does (see
+Sources of truth): as a visual reference to redo by hand in `app.css`/
+`ui/`, never imported wholesale, and never bringing real names or scores
+with it (see Personal data, below).
+
 ## Personal data
 
 Never commit personal data about anyone other than the repo owner. That
