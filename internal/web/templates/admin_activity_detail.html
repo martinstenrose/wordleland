@@ -12,7 +12,7 @@
   </div>
 
   <div class="detail-head">
-    <span class="chip kind-{{.Row.Kind}}">{{.Row.Tag}}</span>
+    {{template "chip" (dict "Label" .Row.Tag "Kind" .Row.Kind)}}
     <span class="muted small">{{.T.T "activity.column.actor"}}: {{.Row.Actor}}</span>
   </div>
 

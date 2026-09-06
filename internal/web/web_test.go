@@ -419,9 +419,9 @@ func TestStylesheetIsWhole(t *testing.T) {
 		".topbar", ".card", ".board", ".panels", ".panel-head",
 		".month-chip", ".grid", ".signin", ".auth-card", ".menu-panel",
 		".views-mobile", ".trait", ".season", ".calendar", ".dist", ".strip",
-		".admin-tabs", ".activity", ".pending-row",
+		".pill-nav", ".activity", ".pending-row",
 		".recovery-codes",
-		".account-menu", ".picker", ".spans", ".callout",
+		".account-menu", ".callout",
 	} {
 		if !strings.Contains(css, selector+" ") && !strings.Contains(css, selector+" {") &&
 			!strings.Contains(css, selector+",") && !strings.Contains(css, selector+".") {

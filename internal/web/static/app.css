@@ -419,16 +419,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .player-head h1 { margin: 0 0 6px; font-size: 1.9rem; letter-spacing: -.02em; }
 .player-head p { margin: 0; }
 
-.player-stats { display: flex; gap: 26px; margin: 0; flex: none; }
-.player-stats dt {
-  font-size: var(--text-2xs);
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--color-text-42);
-  text-align: right;
-}
-.player-stats dd { margin: 0; font-size: 1.4rem; font-weight: 500; letter-spacing: -.02em; text-align: right; }
-
 /* Two columns of panels, as the design lays them out, dropping to one when
    there is not room. The separators are the grid's own gap over a tinted
    ground, which is how every other panelled block here is built. */
@@ -528,8 +518,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   gap: 10px;
 }
 .dist-label { color: var(--color-text-60); }
-.dist-track { background: var(--color-text-06); border-radius: var(--radius-pill); height: 10px; overflow: hidden; }
-.dist-fill { display: block; height: 100%; background: var(--color-accent-50); border-radius: var(--radius-pill); }
 .dist-count { text-align: right; }
 .dist-share { text-align: right; }
 
@@ -1034,28 +1022,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .month-head p { margin: 0 0 8px; }
 .month-head p:last-child { margin-bottom: 0; }
 
-/* flex:none keeps the figures from being squeezed by the winner's name, but
-   on a narrow viewport the row itself can be wider than the card. Rather
-   than let .card's overflow:hidden clip the trailing figures, the row
-   scrolls on its own axis so all of them stay reachable. */
-.month-stats {
-  display: flex;
-  gap: 26px;
-  margin: 0;
-  flex: none;
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-.month-stats > div { flex: none; }
-.month-stats dt {
-  font-size: var(--text-2xs);
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--color-text-42);
-  text-align: right;
-}
-.month-stats dd { margin: 0; font-size: 1.4rem; font-weight: 500; letter-spacing: -.02em; text-align: right; }
 .month-winner-name { font-size: 2rem; font-weight: 500; letter-spacing: -.02em; line-height: var(--line-tight); margin: 6px 0 8px; }
 
 /* The table scrolls inside its own box rather than the page scrolling
@@ -1066,9 +1032,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .board th { white-space: nowrap; }
 
 .months-table .bar-cell { width: 150px; padding-right: 18px; }
-.bar { display: block; height: 8px; border-radius: var(--radius-sm); background: var(--color-text-06); position: relative; }
-.bar-fill { position: absolute; inset: 0 auto 0 0; background: var(--color-accent-50); border-radius: var(--radius-sm); display: block; }
-.bar-fill.win { background: var(--color-accent); }
 .month-thin { padding-top: 16px; padding-bottom: 20px; }
 
 @media (max-width: 720px) {
@@ -1100,23 +1063,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 .grid-controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 
-.spans {
-  display: flex;
-  gap: 4px;
-  padding-top: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--color-text-10);
-}
-.span {
-  font-size: var(--text-sm);
-  padding: 5px 11px;
-  border-radius: var(--radius-sm);
-  text-decoration: none;
-  color: var(--color-text-60);
-  border: 1px solid transparent;
-}
-.span:hover { background: var(--color-text-06); color: var(--color-text); }
-.span.on { background: var(--color-accent-14); color: var(--color-text); border-color: var(--color-accent-45); }
 .legend { display: flex; align-items: center; gap: 4px; }
 .cell.tiny { width: 20px; height: 20px; border-radius: var(--radius-xs); font-size: var(--text-2xs); }
 
@@ -1321,36 +1267,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .menu-check { color: var(--color-accent-strong); font-size: var(--text-sm); }
 .menu-row svg { display: block; flex: none; border-radius: var(--radius-xs); }
 
-/* ---- Player picker ----------------------------------------------------- */
-
-.picker {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding-top: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--color-text-10);
-}
-.pick {
-  font-size: var(--text-md);
-  padding: 5px 11px;
-  border-radius: var(--radius-sm);
-  text-decoration: none;
-  color: var(--color-text-55);
-  border: 1px solid transparent;
-}
-.pick:hover { background: var(--color-text-06); color: var(--color-text-80); }
-.pick.on { background: var(--color-accent-22); color: var(--color-text); border-color: var(--color-accent-60); }
-
 /* ---- Admin: tabs, activity log, pending results ------------------------ */
-
-/* The three admin screens are one area, so they carry one set of tabs
-   rather than each linking to the other two in prose. */
-.admin-tabs {
-  padding: 12px var(--space-card);
-  border-bottom: 1px solid var(--color-text-10);
-  gap: 4px;
-}
 
 .activity-filters {
   display: flex;
@@ -1361,7 +1278,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   padding: 0 var(--space-card);
   border-bottom: 1px solid var(--color-text-10);
 }
-.activity-filters .spans { border-bottom: 0; }
+.activity-filters .pill-nav { border-bottom: 0; }
 
 .activity { list-style: none; margin: 0; padding: 0; }
 /* A grid rather than a flex row, so the header and the cells under it line
@@ -1858,21 +1775,6 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 .switch-label { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: var(--text-md); }
 .switch-label .hint { margin: 0; }
 
-.admin-figures {
-  display: flex;
-  gap: 22px;
-  margin: 18px 0 0;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-text-08);
-}
-.admin-figures dt {
-  font-size: var(--text-2xs);
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--color-text-42);
-}
-.admin-figures dd { margin: 2px 0 0; font-size: 1.15rem; font-weight: 500; }
-
 .admin-linked { display: flex; align-items: center; gap: 10px; margin: 8px 0 4px; }
 
 @media (max-width: 860px) {
@@ -1920,13 +1822,12 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 }
 .mark-cell.podium { background: var(--score-4); color: var(--color-text-80); }
 
-/* ---- ui/ component primitives (not wired into any page yet) -----------
-   These back the new templates/ui/*.html partials from the Phase 2 audit
-   — see internal/web/templates/README.md. Nothing here is referenced by a
-   page template yet; that migration is Phase 3. .view/.pick/.span and
-   .dist-track/.bar above stay as they are until each page that uses them
-   is migrated to the matching partial, so this section is additive, not a
-   replacement. */
+/* ---- ui/ component primitives -----------------------------------------
+   Back the templates/ui/*.html partials — see
+   internal/web/templates/README.md. Every page that used .view/.pick/.span
+   or .dist-track/.bar has been migrated to the matching partial below; the
+   old classes and their rules are gone. .topbar's own view switcher (.view)
+   is the one caller not yet migrated — see the README's Phase 3 status. */
 
 .pill-nav {
   display: flex;
@@ -1964,6 +1865,10 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 .progress-bar-fill.win { background: var(--color-accent); }
 
 .stat-list { margin: 0; }
+/* flex:none keeps the figures from being squeezed by their sibling, but on a
+   narrow viewport the row itself can be wider than the card. Rather than let
+   .card's overflow:hidden clip the trailing figures, the row scrolls on its
+   own axis so all of them stay reachable. */
 .stat-list-figure { display: flex; gap: 26px; flex: none; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
 .stat-list-figure > div { flex: none; }
 .stat-list-figure dt {

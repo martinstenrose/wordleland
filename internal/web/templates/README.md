@@ -36,12 +36,12 @@ read fields on a struct.
 | `chip` | A tag on something else — a reason, a retirement notice, an activity kind. |
 | `badge` | A status of the thing itself — on/off, remaining/none. |
 
-**`pill-nav`, `progress-bar`, `stat-list`, `button` and `badge` are not
-called from any page template yet.** They exist so Phase 3 (migrating each
-page's markup) has a canonical target instead of inventing one
-mid-migration. Until then they're dead code the template parser touches
-but nothing renders — that's expected, not a bug. `chip` is the first one
-wired in, from `today.html` (§ below).
+**`button` and `badge` are not called from any page template yet.** They
+exist so a future page that needs them has a canonical target instead of
+inventing one on the spot — until then they're dead code the template
+parser touches but nothing renders, which is expected, not a bug.
+`pill-nav`, `progress-bar`, `stat-list` and `chip` are all wired in; see
+the Phase 3 migration status below for which page uses which.
 
 They replace patterns already duplicated across pages under different
 names:
@@ -141,5 +141,34 @@ partials above, one page at a time, each its own commit:
   `.picker` and `.spans` did (identical values in both) — caught by
   browser testing and fixed by adding those three declarations to
   `.pill-nav` itself, which also fixed grid.html's span picker.
-- Everything else — not yet migrated; still hand-rolls `.chip`, `.view`,
-  and the remaining `*-figures` lists directly.
+- **Admin screens** (`admin_activity.html`, `admin_activity_detail.html`,
+  `admin_pending.html`, `admin_players.html`) and the shared `admin-tabs`
+  partial — migrated. The admin-tabs strip now goes through `pill-nav`,
+  fed by a new `chrome.AdminTabs()` method (the four destinations are
+  fixed, so it builds the items itself rather than every handler passing
+  the same slice). All three `.chip` sites (two activity-kind tags, one
+  pending-result source) go through `chip`. The activity filter picker
+  (`.spans`/`.span`, the last page still using it) goes through
+  `pill-nav`. `admin_players.html`'s figures (`.admin-figures`) go through
+  `stat-list` (`Variant: "admin"`, byte-identical CSS); `adminPlayerPanel`
+  gained a `Figures []playerStat` field built in `adminPanel()`, replacing
+  its separate `Games`/`Average`/`LastSeen` fields (reusing player.go's
+  `playerStat` type rather than inventing a second one with the same
+  shape).
+
+  This was the last user of `.picker`/`.pick`, `.spans`/`.span`,
+  `.dist-track`/`.dist-fill`, `.bar`/`.bar-fill` (the component classes,
+  not `.months-table .bar-cell`'s layout rule) and `.player-stats`/
+  `.month-stats`/`.admin-figures`, so all of that CSS is now deleted
+  rather than left dangling — `TestStylesheetIsWhole`'s selector list was
+  updated to match (`.pill-nav` replacing the three dead selectors it
+  checked for). `.signin-stats` (login/invite) is untouched; it has
+  nothing to do with this migration.
+
+  Not verified: `pill-nav-item`'s styling still doesn't match `.pick`'s or
+  `.span`'s pixel-for-pixel, and the admin-tabs strip's gap changes from
+  4px to `pill-nav`'s 6px now that `.admin-tabs`'s own override is gone —
+  same open caveat as grid.html and player.html, not checked in a
+  browser.
+- Everything else — not yet migrated; still hand-rolls `.chip` and
+  `topbar.html`'s own `.view` switcher directly.

@@ -12,9 +12,7 @@
   </div>
 
   <div class="activity-filters">
-    <nav class="spans" aria-label="{{.T.T "activity.filterLabel"}}">
-      {{range .Filters}}<a class="span{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
-    </nav>
+    {{template "pill-nav" (dict "Label" (.T.T "activity.filterLabel") "Items" .Filters)}}
     <span class="muted small">{{.Summary}}</span>
   </div>
 
@@ -32,7 +30,7 @@
       </li>
       {{range .Rows}}
         <li>
-          <span class="chip kind-{{.Kind}}">{{.Tag}}</span>
+          {{template "chip" (dict "Label" .Tag "Kind" .Kind)}}
           {{/* The whole sentence is the link, so the target is easy to hit
                on a phone rather than a word-sized tap. */}}
           <a class="activity-text" href="{{.Href}}">{{.Text}}</a>

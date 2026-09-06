@@ -9,11 +9,4 @@
 {{end}}
 {{end}}
 
-{{define "admin-tabs"}}
-<nav class="picker admin-tabs" aria-label="{{.T.T "nav.admin"}}">
-  <a class="pick{{if eq .AdminTab "players"}} on{{end}}" href="/admin/players">{{.T.T "admin.players.title"}}</a>
-  <a class="pick{{if eq .AdminTab "pending"}} on{{end}}" href="/admin/pending">{{.T.T "pending.title"}}</a>
-  <a class="pick{{if eq .AdminTab "activity"}} on{{end}}" href="/admin/activity">{{.T.T "activity.title"}}</a>
-  <a class="pick{{if eq .AdminTab "diagnostics"}} on{{end}}" href="/admin/diagnostics">{{.T.T "diag.title"}}</a>
-</nav>
-{{end}}
+{{define "admin-tabs"}}{{template "pill-nav" (dict "Label" (.T.T "nav.admin") "Items" .AdminTabs)}}{{end}}
