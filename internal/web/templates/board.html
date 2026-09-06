@@ -64,7 +64,7 @@
         <tr{{if not .Ranked}} class="unranked"{{end}}>
           <td class="num">{{if .Ranked}}{{$.T.Integer .Rank}}{{else}}—{{end}}</td>
           <td><a class="player" href="{{.Href}}">{{.Name}}</a>
-            {{if .ReasonKey}}<span class="chip">{{$t.T .ReasonKey}}</span>{{end}}
+            {{if .ReasonKey}}{{template "chip" (dict "Label" ($t.T .ReasonKey))}}{{end}}
           </td>
           <td class="right num strong">{{.AverageText}}</td>
           <td class="right num">
