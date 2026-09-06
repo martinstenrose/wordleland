@@ -19,11 +19,7 @@
     </div>
   </div>
 
-  {{if .Spans}}
-    <nav class="spans" aria-label="{{.T.T "grid.span.label"}}">
-      {{range .Spans}}<a class="span{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
-    </nav>
-  {{end}}
+  {{if .Spans}}{{template "pill-nav" (dict "Label" (.T.T "grid.span.label") "Items" .Spans)}}{{end}}
 
   {{if .Empty}}
     <p class="empty">{{.T.T "board.empty"}}</p>
