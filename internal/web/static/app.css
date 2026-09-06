@@ -1928,7 +1928,14 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
    is migrated to the matching partial, so this section is additive, not a
    replacement. */
 
-.pill-nav { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill-nav {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-text-10);
+}
 .pill-nav-item {
   font-size: var(--text-md);
   padding: 6px 11px;

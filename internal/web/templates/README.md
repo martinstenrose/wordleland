@@ -117,24 +117,29 @@ partials above, one page at a time, each its own commit:
   true`, matching `.bar`'s sizing exactly), and the "played, not ranked"
   chip list goes through `chip`.
 - **grid.html** — migrated. The time-span picker (`.spans`/`.span`) now
-  goes through `pill-nav`. Unlike every other Phase 3 slice so far, this is
-  **not** a byte-identical swap: `pill-nav-item`'s CSS (added in Part B)
-  doesn't match `.span`'s pixel-for-pixel — different font size, padding,
-  border treatment and active-state background (see `app.css`'s `.span`
-  vs `.pill-nav-item` rules). That divergence is deliberate per this
-  file's own `pill-nav` rationale above, not an oversight, but it has not
-  been checked in a browser. `.span`/`.spans` stay in `app.css` — they're
-  still used by `admin_activity.html`, not yet migrated.
+  goes through `pill-nav`. `pill-nav`'s item styling (`pill-nav-item`)
+  still doesn't match `.span`'s pixel-for-pixel — different font size,
+  padding, border treatment and active-state background (see `app.css`'s
+  `.span` vs `.pill-nav-item` rules) — a deliberate divergence per this
+  file's own `pill-nav` rationale above, not checked in a browser.
+  `.pill-nav`'s *container* padding/border-bottom, however, was a real
+  gap caught by browser testing on player.html (below) and fixed for both
+  pages at once. `.span`/`.spans` stay in `app.css` — they're still used
+  by `admin_activity.html`, not yet migrated.
 - **player.html** — migrated. The player picker (`.picker`/`.pick`) now
-  goes through `pill-nav` (same not-byte-identical caveat as grid.html's
-  span picker, above — `.pick`'s CSS doesn't quite match `pill-nav-item`
-  either, and this hasn't been checked in a browser); `playerTab.Name`
-  was renamed to `Label` to match `pill-nav`'s item shape. Both `.chip`
-  sites (retired, benched reason) go through `chip`. `.player-stats` goes
-  through `stat-list` (`Variant: "figure"`, byte-identical CSS, confirmed
-  same as months.html's case). The distribution bar (`.dist-track`/
-  `.dist-fill`) goes through `progress-bar` (default, non-compact —
-  byte-identical CSS match, confirmed the same way as `.bar`'s compact
-  case in months.html).
+  goes through `pill-nav`; `playerTab.Name` was renamed to `Label` to
+  match `pill-nav`'s item shape. Both `.chip` sites (retired, benched
+  reason) go through `chip`. `.player-stats` goes through `stat-list`
+  (`Variant: "figure"`, byte-identical CSS, confirmed same as
+  months.html's case). The distribution bar (`.dist-track`/`.dist-fill`)
+  goes through `progress-bar` (default, non-compact — byte-identical CSS
+  match, confirmed the same way as `.bar`'s compact case in months.html).
+  `pill-nav-item`'s per-item styling still doesn't match `.pick`'s
+  pixel-for-pixel (same caveat as grid.html's span picker) — not checked
+  in a browser. Its *container* styling was missing entirely: `.pill-nav`
+  had no `padding-top`/`padding-bottom`/`border-bottom`, where both
+  `.picker` and `.spans` did (identical values in both) — caught by
+  browser testing and fixed by adding those three declarations to
+  `.pill-nav` itself, which also fixed grid.html's span picker.
 - Everything else — not yet migrated; still hand-rolls `.chip`, `.view`,
   and the remaining `*-figures` lists directly.
