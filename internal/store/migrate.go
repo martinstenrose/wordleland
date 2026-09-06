@@ -44,28 +44,16 @@ func Migrations() fs.FS { return migrationsFS }
 // how the CLI is actually run — inside the already-migrated app
 // container.
 func Migrate(ctx context.Context, db *sql.DB, fsys fs.FS) error {
-	if _, err := db.ExecContext(ctx, `
-		CREATE TABLE IF NOT EXISTS `+migrationsTable+` (
-			version    TEXT PRIMARY KEY,
-			applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		)`); err != nil {
-		return fmt.Errorf("create %s: %w", migrationsTable, err)
+	if err := ensureMigrationsTable(ctx, db); err != nil {
+		return err
 	}
 
-	applied, err := appliedVersions(ctx, db)
+	pending, err := pendingMigrations(ctx, db, fsys)
 	if err != nil {
 		return err
 	}
 
-	names, err := migrationNames(fsys)
-	if err != nil {
-		return err
-	}
-
-	for _, name := range names {
-		if applied[name] {
-			continue
-		}
+	for _, name := range pending {
 		body, err := fs.ReadFile(fsys, path.Join(migrationsDir, name))
 		if err != nil {
 			return fmt.Errorf("read migration %s: %w", name, err)
@@ -87,6 +75,55 @@ func Migrate(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 		}
 	}
 	return nil
+}
+
+// ensureMigrationsTable creates migrationsTable if this is a fresh database.
+// It is idempotent, so calling it before every read of the table costs
+// nothing on the common path where it already exists.
+func ensureMigrationsTable(ctx context.Context, db *sql.DB) error {
+	if _, err := db.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS `+migrationsTable+` (
+			version    TEXT PRIMARY KEY,
+			applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`); err != nil {
+		return fmt.Errorf("create %s: %w", migrationsTable, err)
+	}
+	return nil
+}
+
+// pendingMigrations lists the migration files in fsys not yet recorded in
+// migrationsTable, in the order Migrate would apply them. It assumes
+// migrationsTable already exists.
+func pendingMigrations(ctx context.Context, db *sql.DB, fsys fs.FS) ([]string, error) {
+	applied, err := appliedVersions(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	names, err := migrationNames(fsys)
+	if err != nil {
+		return nil, err
+	}
+	var pending []string
+	for _, name := range names {
+		if !applied[name] {
+			pending = append(pending, name)
+		}
+	}
+	return pending, nil
+}
+
+// PendingMigrations reports which migrations Migrate would apply if run
+// right now, without applying them.
+//
+// serve uses this to log that a migration run is starting — and how many
+// files it covers — before Migrate does the (possibly slow) work, rather
+// than the operator's first sign of it being a silent pause between
+// "database ready" and the line that comes after it today.
+func PendingMigrations(ctx context.Context, db *sql.DB, fsys fs.FS) ([]string, error) {
+	if err := ensureMigrationsTable(ctx, db); err != nil {
+		return nil, err
+	}
+	return pendingMigrations(ctx, db, fsys)
 }
 
 func appliedVersions(ctx context.Context, q Querier) (map[string]bool, error) {

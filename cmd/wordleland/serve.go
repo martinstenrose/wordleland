@@ -120,8 +120,26 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 	// The server is the only process that migrates: a single migrator means
 	// two cannot race on first start, and the CLI runs against a file this
 	// has already prepared.
+	//
+	// Logged only when there is something to do: on every ordinary start
+	// this is empty and silent, the same as it always was. When it isn't,
+	// a migration slow enough to matter (a backfill over a large table,
+	// say) would otherwise look like the process hanging between "database
+	// ready" and the next line, with nothing in the log to tell an operator
+	// what it's waiting on.
+	pending, err := store.PendingMigrations(ctx, db, store.Migrations())
+	if err != nil {
+		return err
+	}
+	if len(pending) > 0 {
+		logger.Info("running database migrations", "count", len(pending), "migrations", pending)
+	}
+	start := time.Now()
 	if err := store.Migrate(ctx, db, store.Migrations()); err != nil {
 		return err
+	}
+	if len(pending) > 0 {
+		logger.Info("database migrations applied", "count", len(pending), "elapsed", time.Since(start))
 	}
 	logger.Info("database ready", "path", cfg.DBPath)
 
