@@ -1,9 +1,17 @@
-{{/* One active choice among several, as a row of pills. Not wired into any
-     page yet — see internal/web/templates/README.md. Data: {Label string;
-     Items []{Label, Href string; On bool}}, the same item shape .Nav and
-     .Tabs already use in app/topbar.html. */}}
+{{/* pill-nav-items is the bare row of links with no wrapper — the piece
+     topbar.html's desktop nav (embedded inside .topbar-nav alongside the
+     brand) and its mobile tab strip (.views-mobile, which needs its own
+     scroll behaviour) both need without pill-nav's own <nav>, padding and
+     border-bottom forcing a second, conflicting wrapper on top of theirs.
+     Data: []{Label, Href string; On bool} — chromeOpt's shape, which .Nav
+     and .Tabs already use. */}}
+{{define "pill-nav-items"}}{{range .}}<a class="pill-nav-item{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}{{end}}
+
+{{/* One active choice among several, as a row of pills with its own
+     container (padding, bottom rule). Data: {Label string; Items
+     []{Label, Href string; On bool}}. */}}
 {{define "pill-nav"}}
 <nav class="pill-nav"{{with .Label}} aria-label="{{.}}"{{end}}>
-  {{range .Items}}<a class="pill-nav-item{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}
+  {{template "pill-nav-items" .Items}}
 </nav>
 {{end}}

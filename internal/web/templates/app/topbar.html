@@ -92,7 +92,7 @@
     </span>
     {{if .Nav}}
       <span class="topbar-divider" aria-hidden="true"></span>
-      {{range .Nav}}<a class="view{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}
+      {{template "pill-nav-items" .Nav}}
     {{end}}
   </nav>
 
@@ -149,7 +149,7 @@
        narrow screen. A bottom tab bar was a second navigation to keep in
        step with the first. */}}
   <nav class="views-mobile" aria-label="{{.T.T "nav.views"}}">
-    {{range .Tabs}}<a class="view{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}
+    {{template "pill-nav-items" .Tabs}}
   </nav>
 {{end}}
 {{end}}

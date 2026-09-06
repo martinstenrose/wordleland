@@ -480,7 +480,7 @@ func TestPlayerDetailHighlightsThePlayersTab(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/p/harda", nil).Body.String()
-	i := strings.Index(body, `class="view on"`)
+	i := strings.Index(body, `class="pill-nav-item on"`)
 	if i < 0 {
 		t.Fatal("no active nav tab on the player page")
 	}
@@ -518,7 +518,7 @@ func TestMobileNavCoversEveryView(t *testing.T) {
 	}
 	// It is the same pill markup as the top bar, not a second kind of
 	// navigation with its own classes to keep in step.
-	if !strings.Contains(bar, `class="view`) {
+	if !strings.Contains(bar, `class="pill-nav-item`) {
 		t.Error("the mobile row does not reuse the top bar's pills")
 	}
 }

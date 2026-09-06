@@ -185,5 +185,20 @@ partials above, one page at a time, each its own commit:
   `enroll_totp.html`, `recovery.html`, `recovery_codes.html` and
   `totp.html` have none of the four duplicated patterns and needed no
   changes.
-- Everything else — not yet migrated: `topbar.html`'s own `.view`
-  switcher, the last unmigrated pill-nav-shaped pattern.
+- **topbar.html** — migrated, the last remaining slice. `.view`'s CSS
+  turned out already byte-identical to `pill-nav-item`'s (padding, radius,
+  color, hover and active states all matched — `pill-nav-item` was
+  written to `.view`'s values in the first place), but neither of
+  `.view`'s two call sites fit `pill-nav`'s own contract: the desktop nav
+  is embedded inside `.topbar-nav` alongside the brand and a divider, and
+  the mobile tab strip (`.views-mobile`) needs its own scroll behaviour —
+  wrapping either in `pill-nav`'s own `<nav>`, padding and border-bottom
+  would fight the wrapper each already has. Added `pill-nav-items`, the
+  bare `{{range}}` with no wrapper, and had `pill-nav` itself call it —
+  `topbar.html`'s two call sites use `pill-nav-items` directly inside
+  their own existing `<nav>` elements. `.view`, `.view:hover`, `.view.on`
+  and the `.views-mobile .view`/`.topbar-nav .view` responsive selectors
+  are deleted; `.view` was their only user. `TestStylesheetIsWhole`
+  wasn't checking `.view` directly, so its selector list needed no
+  change. Every duplicated pattern the Phase 1 audit found is now behind
+  a `ui/` partial somewhere in the app.

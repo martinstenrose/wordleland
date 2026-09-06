@@ -76,7 +76,7 @@ func TestTopBarKeepsItsViewsEverywhere(t *testing.T) {
 	for _, path := range []string{"/", "/forgot"} {
 		body := fetchAs(t, srv, path, nil).Body.String()
 		for _, v := range views {
-			if strings.Contains(body, `class="view`) && strings.Contains(body, ">"+v+"<") {
+			if strings.Contains(body, `class="pill-nav-item`) && strings.Contains(body, ">"+v+"<") {
 				t.Errorf("%s offers %q before sign-in", path, v)
 			}
 		}
