@@ -111,6 +111,11 @@ partials above, one page at a time, each its own commit:
   serves the read-only share view of the leaderboard (`board.go` renders it
   for both authenticated and `/share/...` requests via `chrome.ReadOnly`),
   so this covers that view too.
+- **months.html** — migrated. The winner-pane figures now go through
+  `stat-list` (`Variant: "figure"`, matching `.month-stats`'s CSS exactly),
+  each month row's average bar goes through `progress-bar` (`Compact:
+  true`, matching `.bar`'s sizing exactly), and the "played, not ranked"
+  chip list goes through `chip`.
 - Everything else — not yet migrated; still hand-rolls `.chip`, `.view`,
-  `.pick`, `.dist-track`/`.bar`, and the four `*-stats`/`*-figures` lists
+  `.pick`, `.dist-track`, and the remaining `*-stats`/`*-figures` lists
   directly.
