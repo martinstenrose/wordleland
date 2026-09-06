@@ -116,6 +116,15 @@ partials above, one page at a time, each its own commit:
   each month row's average bar goes through `progress-bar` (`Compact:
   true`, matching `.bar`'s sizing exactly), and the "played, not ranked"
   chip list goes through `chip`.
+- **grid.html** — migrated. The time-span picker (`.spans`/`.span`) now
+  goes through `pill-nav`. Unlike every other Phase 3 slice so far, this is
+  **not** a byte-identical swap: `pill-nav-item`'s CSS (added in Part B)
+  doesn't match `.span`'s pixel-for-pixel — different font size, padding,
+  border treatment and active-state background (see `app.css`'s `.span`
+  vs `.pill-nav-item` rules). That divergence is deliberate per this
+  file's own `pill-nav` rationale above, not an oversight, but it has not
+  been checked in a browser. `.span`/`.spans` stay in `app.css` — they're
+  still used by `admin_activity.html`, not yet migrated.
 - Everything else — not yet migrated; still hand-rolls `.chip`, `.view`,
   `.pick`, `.dist-track`, and the remaining `*-stats`/`*-figures` lists
   directly.
