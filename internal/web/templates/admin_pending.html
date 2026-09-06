@@ -21,7 +21,7 @@
       {{range .Rows}}
         <li class="pending-row">
           <div class="pending-head">
-            <span class="chip dashed">{{.Source}}</span>
+            {{template "chip" (dict "Label" .Source "Dashed" true)}}
             <span class="muted small">{{.Seen}}</span>
           </div>
 

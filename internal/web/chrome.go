@@ -94,6 +94,19 @@ func (c chrome) SignedIn() bool { return c.User != nil && !c.ReadOnly }
 // IsAdmin reports whether the admin entries belong in the account menu.
 func (c chrome) IsAdmin() bool { return c.SignedIn() && c.User.IsAdmin }
 
+// AdminTabs feeds the pill-nav shared by every admin screen. The four
+// destinations are fixed, unlike Nav's — there is no admin page that can be
+// absent — so this builds them from AdminTab rather than the caller passing
+// a slice each time.
+func (c chrome) AdminTabs() []chromeOpt {
+	return []chromeOpt{
+		{Label: c.T.T("admin.players.title"), Href: "/admin/players", On: c.AdminTab == "players"},
+		{Label: c.T.T("pending.title"), Href: "/admin/pending", On: c.AdminTab == "pending"},
+		{Label: c.T.T("activity.title"), Href: "/admin/activity", On: c.AdminTab == "activity"},
+		{Label: c.T.T("diag.title"), Href: "/admin/diagnostics", On: c.AdminTab == "diagnostics"},
+	}
+}
+
 // newChrome resolves the locale and theme for this request and builds the
 // switchers.
 //

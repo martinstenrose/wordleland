@@ -72,9 +72,8 @@ type adminPlayersPage struct {
 type adminPlayerPanel struct {
 	store.Player
 
-	Games    int
-	Average  string
-	LastSeen string
+	// Figures feeds the stat-list partial directly (Variant "admin").
+	Figures  []playerStat
 	SlugBase string
 	Users    []store.User
 	Form     adminPlayerForm
@@ -206,23 +205,26 @@ func (s *Server) adminPanel(r *http.Request, slug string, games map[int64]int, f
 	}
 
 	t := s.translatorFor(nil, r)
+	average, lastSeen := "—", "—"
+	if f, ok := figures[player.ID]; ok {
+		average = formatScore(t, f.Average)
+		if f.LastPlayed != nil {
+			lastSeen = f.LastPlayed.Format(time.DateOnly)
+		}
+	}
 	panel := &adminPlayerPanel{
-		Player:   player,
-		Games:    games[player.ID],
-		Average:  "—",
-		LastSeen: "—",
+		Player: player,
+		Figures: []playerStat{
+			{Label: t.T("board.column.games"), Value: t.Integer(games[player.ID])},
+			{Label: t.T("board.column.average"), Value: average},
+			{Label: t.T("admin.lastScore"), Value: lastSeen},
+		},
 		// Shown beside the slug field so an admin can see the address they
 		// are about to change. Falls back to a bare path when APP_URL is
 		// unset, which is the local-run case.
 		SlugBase: strings.TrimPrefix(s.cfg.AppURL, "https://") + "/p/",
 		Users:    users,
 		Form:     formFor(player),
-	}
-	if f, ok := figures[player.ID]; ok {
-		panel.Average = formatScore(t, f.Average)
-		if f.LastPlayed != nil {
-			panel.LastSeen = f.LastPlayed.Format(time.DateOnly)
-		}
 	}
 
 	panel.CanInvite = s.mailer.Configured()
