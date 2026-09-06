@@ -125,6 +125,16 @@ partials above, one page at a time, each its own commit:
   file's own `pill-nav` rationale above, not an oversight, but it has not
   been checked in a browser. `.span`/`.spans` stay in `app.css` — they're
   still used by `admin_activity.html`, not yet migrated.
+- **player.html** — migrated. The player picker (`.picker`/`.pick`) now
+  goes through `pill-nav` (same not-byte-identical caveat as grid.html's
+  span picker, above — `.pick`'s CSS doesn't quite match `pill-nav-item`
+  either, and this hasn't been checked in a browser); `playerTab.Name`
+  was renamed to `Label` to match `pill-nav`'s item shape. Both `.chip`
+  sites (retired, benched reason) go through `chip`. `.player-stats` goes
+  through `stat-list` (`Variant: "figure"`, byte-identical CSS, confirmed
+  same as months.html's case). The distribution bar (`.dist-track`/
+  `.dist-fill`) goes through `progress-bar` (default, non-compact —
+  byte-identical CSS match, confirmed the same way as `.bar`'s compact
+  case in months.html).
 - Everything else — not yet migrated; still hand-rolls `.chip`, `.view`,
-  `.pick`, `.dist-track`, and the remaining `*-stats`/`*-figures` lists
-  directly.
+  and the remaining `*-figures` lists directly.

@@ -115,9 +115,9 @@ type playerStat struct {
 
 // playerTab is one name in the picker.
 type playerTab struct {
-	Name string
-	Href string
-	On   bool
+	Label string
+	Href  string
+	On    bool
 }
 
 // chartGridline is one horizontal rule with the score it marks.
@@ -220,7 +220,7 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, pref
 	for _, group := range [][]stats.Player{board.Ranked, board.Unranked} {
 		for _, p := range group {
 			page.Picker = append(page.Picker, playerTab{
-				Name: p.Name, Href: prefix + "/p/" + p.Slug, On: p.ID == player.ID,
+				Label: p.Name, Href: prefix + "/p/" + p.Slug, On: p.ID == player.ID,
 			})
 		}
 	}

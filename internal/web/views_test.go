@@ -467,7 +467,7 @@ func TestPlayersViewShowsThePickerAndTheLeader(t *testing.T) {
 		}
 	}
 	// And the picker marks who is showing.
-	if !strings.Contains(body, `class="pick on"`) {
+	if !strings.Contains(body, `class="pill-nav-item on"`) {
 		t.Error("the picker does not mark the current player")
 	}
 }
