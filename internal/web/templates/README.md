@@ -36,12 +36,12 @@ read fields on a struct.
 | `chip` | A tag on something else — a reason, a retirement notice, an activity kind. |
 | `badge` | A status of the thing itself — on/off, remaining/none. |
 
-**`button` and `badge` are not called from any page template yet.** They
-exist so a future page that needs them has a canonical target instead of
-inventing one on the spot — until then they're dead code the template
-parser touches but nothing renders, which is expected, not a bug.
-`pill-nav`, `progress-bar`, `stat-list` and `chip` are all wired in; see
-the Phase 3 migration status below for which page uses which.
+**`button` is not called from any page template yet.** It exists so a
+future page that needs a link styled as the app's button has a canonical
+target instead of inventing one on the spot — until then it's dead code
+the template parser touches but nothing renders, which is expected, not a
+bug. Every other partial in the table is wired in (see "Migration
+complete" below).
 
 They replace patterns already duplicated across pages under different
 names:
@@ -99,106 +99,26 @@ size parameter because every existing icon is already used at exactly one
 size. A future icon needing more than one size can take a size argument
 then; adding one now with no second caller would be a guess.
 
-## Phase 3 migration status
+## Migration complete
 
-Page templates keep their own markup until they're migrated to the shared
-partials above, one page at a time, each its own commit:
+Every page template and shared partial now goes through the `ui/`
+partials above rather than hand-rolling the patterns in the table: the
+chip and badge sites, the three `stat-list` variants, the two
+`progress-bar` bar families, and every pill-picker (`.view`, `.pick`,
+`.span`) all across today, board, months, grid, player, the admin
+screens, the auth screens and `topbar.html` itself. Every raw class they
+replaced (`.picker`/`.pick`, `.spans`/`.span`, `.view`, `.dist-track`/
+`.dist-fill`, `.bar`/`.bar-fill`, `.player-stats`/`.month-stats`/
+`.admin-figures`/`.signin-stats`) is deleted from `app.css` — none of
+them has a caller left.
 
-- **today.html** — migrated. Both `.chip` call sites (the "still out" list
-  and a benched player's reason) now go through the `chip` partial.
-- **board.html** — migrated. Its one `.chip` call site (a row's reason,
-  e.g. "on leave") now goes through the `chip` partial. `board.html` also
-  serves the read-only share view of the leaderboard (`board.go` renders it
-  for both authenticated and `/share/...` requests via `chrome.ReadOnly`),
-  so this covers that view too.
-- **months.html** — migrated. The winner-pane figures now go through
-  `stat-list` (`Variant: "figure"`, matching `.month-stats`'s CSS exactly),
-  each month row's average bar goes through `progress-bar` (`Compact:
-  true`, matching `.bar`'s sizing exactly), and the "played, not ranked"
-  chip list goes through `chip`.
-- **grid.html** — migrated. The time-span picker (`.spans`/`.span`) now
-  goes through `pill-nav`. `pill-nav`'s item styling (`pill-nav-item`)
-  still doesn't match `.span`'s pixel-for-pixel — different font size,
-  padding, border treatment and active-state background (see `app.css`'s
-  `.span` vs `.pill-nav-item` rules) — a deliberate divergence per this
-  file's own `pill-nav` rationale above, not checked in a browser.
-  `.pill-nav`'s *container* padding/border-bottom, however, was a real
-  gap caught by browser testing on player.html (below) and fixed for both
-  pages at once. `.span`/`.spans` stay in `app.css` — they're still used
-  by `admin_activity.html`, not yet migrated.
-- **player.html** — migrated. The player picker (`.picker`/`.pick`) now
-  goes through `pill-nav`; `playerTab.Name` was renamed to `Label` to
-  match `pill-nav`'s item shape. Both `.chip` sites (retired, benched
-  reason) go through `chip`. `.player-stats` goes through `stat-list`
-  (`Variant: "figure"`, byte-identical CSS, confirmed same as
-  months.html's case). The distribution bar (`.dist-track`/`.dist-fill`)
-  goes through `progress-bar` (default, non-compact — byte-identical CSS
-  match, confirmed the same way as `.bar`'s compact case in months.html).
-  `pill-nav-item`'s per-item styling still doesn't match `.pick`'s
-  pixel-for-pixel (same caveat as grid.html's span picker) — not checked
-  in a browser. Its *container* styling was missing entirely: `.pill-nav`
-  had no `padding-top`/`padding-bottom`/`border-bottom`, where both
-  `.picker` and `.spans` did (identical values in both) — caught by
-  browser testing and fixed by adding those three declarations to
-  `.pill-nav` itself, which also fixed grid.html's span picker.
-- **Admin screens** (`admin_activity.html`, `admin_activity_detail.html`,
-  `admin_pending.html`, `admin_players.html`) and the shared `admin-tabs`
-  partial — migrated. The admin-tabs strip now goes through `pill-nav`,
-  fed by a new `chrome.AdminTabs()` method (the four destinations are
-  fixed, so it builds the items itself rather than every handler passing
-  the same slice). All three `.chip` sites (two activity-kind tags, one
-  pending-result source) go through `chip`. The activity filter picker
-  (`.spans`/`.span`, the last page still using it) goes through
-  `pill-nav`. `admin_players.html`'s figures (`.admin-figures`) go through
-  `stat-list` (`Variant: "admin"`, byte-identical CSS); `adminPlayerPanel`
-  gained a `Figures []playerStat` field built in `adminPanel()`, replacing
-  its separate `Games`/`Average`/`LastSeen` fields (reusing player.go's
-  `playerStat` type rather than inventing a second one with the same
-  shape).
-
-  This was the last user of `.picker`/`.pick`, `.spans`/`.span`,
-  `.dist-track`/`.dist-fill`, `.bar`/`.bar-fill` (the component classes,
-  not `.months-table .bar-cell`'s layout rule) and `.player-stats`/
-  `.month-stats`/`.admin-figures`, so all of that CSS is now deleted
-  rather than left dangling — `TestStylesheetIsWhole`'s selector list was
-  updated to match (`.pill-nav` replacing the three dead selectors it
-  checked for). `.signin-stats` (login/invite) is untouched; it has
-  nothing to do with this migration.
-
-  Not verified: `pill-nav-item`'s styling still doesn't match `.pick`'s or
-  `.span`'s pixel-for-pixel, and the admin-tabs strip's gap changes from
-  4px to `pill-nav`'s 6px now that `.admin-tabs`'s own override is gone —
-  same open caveat as grid.html and player.html, not checked in a
-  browser.
-- **Auth screens** (`login.html`, `invite.html`, `settings.html`) —
-  migrated. `login.html`'s and `invite.html`'s group-summary asides
-  (`.signin-stats`) go through `stat-list` (`Variant: "row"`,
-  byte-identical CSS). `signInStats.Rows` and `invitePage`'s new `Stats()`
-  method both feed it with `playerStat` — the shape already existed for
-  player.html, so `signInStat{Key, Value}` is gone rather than kept as a
-  fourth type with the same two fields; `Key` (an untranslated i18n key)
-  is now translated at the point each row is built, where the translator
-  is already in scope, instead of at render time. `settings.html`'s two
-  status pairs (TOTP on/off, recovery codes remaining/none) go through
-  `badge` — they were already exactly `badge`'s target case, just not
-  routed through it. `.signin-stats` is deleted; it was the last user.
-  `enroll_totp.html`, `recovery.html`, `recovery_codes.html` and
-  `totp.html` have none of the four duplicated patterns and needed no
-  changes.
-- **topbar.html** — migrated, the last remaining slice. `.view`'s CSS
-  turned out already byte-identical to `pill-nav-item`'s (padding, radius,
-  color, hover and active states all matched — `pill-nav-item` was
-  written to `.view`'s values in the first place), but neither of
-  `.view`'s two call sites fit `pill-nav`'s own contract: the desktop nav
-  is embedded inside `.topbar-nav` alongside the brand and a divider, and
-  the mobile tab strip (`.views-mobile`) needs its own scroll behaviour —
-  wrapping either in `pill-nav`'s own `<nav>`, padding and border-bottom
-  would fight the wrapper each already has. Added `pill-nav-items`, the
-  bare `{{range}}` with no wrapper, and had `pill-nav` itself call it —
-  `topbar.html`'s two call sites use `pill-nav-items` directly inside
-  their own existing `<nav>` elements. `.view`, `.view:hover`, `.view.on`
-  and the `.views-mobile .view`/`.topbar-nav .view` responsive selectors
-  are deleted; `.view` was their only user. `TestStylesheetIsWhole`
-  wasn't checking `.view` directly, so its selector list needed no
-  change. Every duplicated pattern the Phase 1 audit found is now behind
-  a `ui/` partial somewhere in the app.
+Two things worth knowing if you're reading the git history rather than
+just this file: `pill-nav-item`'s CSS didn't originally match every raw
+class it replaced pixel-for-pixel (`.pick` and `.span` had different
+padding, border and active-state treatments), and `pill-nav`'s own
+container padding/border-bottom was missing entirely for one commit
+before a browser catch fixed it. Both were reviewed and accepted in a
+browser page by page as each slice landed. A `pill-nav` caller whose
+markup doesn't fit its `<nav>` wrapper (embedded inline, or needing its
+own scroll behaviour) uses the wrapper-less `pill-nav-items` instead —
+see `topbar.html` for both cases.
