@@ -1,5 +1,4 @@
 {{/* A status of the thing itself — 2FA on/off, recovery codes remaining —
-     as opposed to chip's "a tag on something else" (see ui/chip.html). Not
-     wired into any page yet — see internal/web/templates/README.md. Data:
-     {Label string; On bool}. */}}
+     as opposed to chip's "a tag on something else" (see ui/chip.html).
+     Data: {Label string; On bool}. */}}
 {{define "badge"}}<span class="badge{{if .On}} on{{end}}">{{.Label}}</span>{{end}}

@@ -1,7 +1,6 @@
-{{/* A filled track. Not wired into any page yet — see
-     internal/web/templates/README.md. Percent is a caller-computed number
-     (0-100); it goes through a CSS custom property rather than an inline
-     width so the only per-instance thing in style= is genuinely per-instance
-     data, not a design value. Data: {Percent float64; Win bool; Compact
-     bool} — Compact selects the smaller, table-row sizing. */}}
+{{/* A filled track. Percent is a caller-computed number (0-100); it goes
+     through a CSS custom property rather than an inline width so the only
+     per-instance thing in style= is genuinely per-instance data, not a
+     design value. Data: {Percent float64; Win bool; Compact bool} —
+     Compact selects the smaller, table-row sizing. */}}
 {{define "progress-bar"}}<span class="progress-bar{{if .Compact}} compact{{end}}"><span class="progress-bar-fill{{if .Win}} win{{end}}" style="--pct: {{.Percent}}"></span></span>{{end}}
