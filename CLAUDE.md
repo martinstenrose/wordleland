@@ -71,51 +71,32 @@ describes what the pages should look like, not how they are built.
 
 ## Design system
 
-`internal/web/static/app.css`'s tokens and `internal/web/templates/ui/*.html`
-are the design system: every color, spacing, radius and repeated visual
-pattern goes through one of them. Both directories carry their own README
-(`internal/web/static/README.md` for tokens, `internal/web/templates/README.md`
-for partials) documenting what exists and why — read those before adding
-either, not this file, which only holds the standing rules:
+This app's visual language (colors, spacing, typography, and shared UI
+patterns) is based on Claude Design's built-in Nocturne system, extended
+with a light mode and other small adjustments, maintained as a house
+design system in Claude Design. It is not imported or linked here —
+this repo's `app.css` tokens and `templates/ui/` partials are a
+hand-derived implementation of it.
 
-- **No hardcoded visual values in a page template or a new component.** A
-  color, a spacing number, a radius, a `style="width:NN%"` — if it isn't
-  already a token or a `--pct`-style computed property, it's the kind of
-  thing the Phase 1 audit of this branch spent a release finding and
-  removing. A new value earns a token; a one-off literal does not.
-- **A new token needs a one-line rationale in `static/README.md`** — its
-  role, and, if it doesn't match Claude Design exactly, why not. A token
-  with no documented reason is indistinguishable from a mistake six months
-  later.
-- **A new shared visual pattern is a `ui/` or `app/` partial, in the right
-  one.** The test is in `templates/README.md`: needs `chrome`-shaped data
-  or a Wordleland concept → `app/`; would make sense unchanged in any
-  server-rendered `html/template` app → `ui/`. Getting this wrong is how
-  `base.html` grew to 232 lines of partials nobody could find.
-- **A partial's contract is for every caller, not the one in front of you.**
-  `pill-nav` needed splitting into a bare `pill-nav-items` and a wrapped
-  `pill-nav` when a third caller's markup didn't fit the existing wrapper —
-  extend the shape rather than bending a caller to match it, or duplicating
-  the markup back out into the page.
-- **Migrating a page to a partial should not change what renders.** Diff
-  the CSS the old class and the partial's class produce, not just their
-  names, before assuming a swap is safe — `pill-nav-item`'s font size,
-  padding and active-state color didn't match every raw class it replaced,
-  and the container padding it was missing shipped once before a browser
-  caught it. When a swap does change the visual (a genuine consolidation,
-  not a bug), say so plainly rather than implying parity.
+- Use existing tokens and `ui/` partials — don't invent new colors,
+  spacing, or type values locally.
+- If a new visual pattern or token is genuinely needed, flag it in the
+  PR rather than improvising a one-off value. Design changes are
+  reviewed by me, not decided ad hoc per-PR.
+- Existing tokens are documented in `internal/web/static/README.md`.
 
-**The visual design is produced in Claude Design, not here** (see Sources
-of truth, above) — this repository's `ui/` library is downstream of it, not
-the other way around. `/design-sync` pushes the current `ui/` partials and
-tokens to a Claude Design design-system project as previews, so a design
-pass there is working from what's actually built rather than a stale
-export. Run it after a `ui/`- or token-level change lands, not per page
-migration — it's a sync point, not a build step. It only pushes; a design
-change made in Claude Design comes back the way any export does (see
-Sources of truth): as a visual reference to redo by hand in `app.css`/
-`ui/`, never imported wholesale, and never bringing real names or scores
-with it (see Personal data, below).
+Design changes flow one-directionally from Claude Design into this repo,
+by hand — never the reverse, and never automated. To ground a design
+pass in what's actually built, attach `app.css` and
+`internal/web/templates/ui/` directly in the Claude Design chat rather
+than describing them from memory; that's a manual re-derivation, not a
+sync — nothing pushes automatically, and there's no live link back to
+this repository, since this app has no compiled component build for a
+sync tool to push. Whatever comes back is a visual reference only,
+exactly like any Claude Design export (see Sources of truth): re-derive
+layout, spacing, type and colour by hand into `app.css`/`ui/`, never
+import wholesale, and never bring real names or scores with it (see
+Personal data, below).
 
 ## Personal data
 
