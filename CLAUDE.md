@@ -57,46 +57,6 @@ rate limiting, the two-step login — are commented where they happen.
   project is built, why it is built that way, and the standing constraints.
 - Neither is a place for who the owner is or what else they run. A rule that
   reads as being about one person belongs in neither.
-- The visual design is produced in Claude Design and is **not in this
-  repository** — it is being redone. The previous export, and a brief
-  recording where the build departs from it on purpose, are kept on the
-  `design/export` branch.
-
-When an export is imported again, it is a **visual reference only** — layout,
-spacing, type, colour, chart form — and the code wins wherever they conflict.
-It carries hardcoded sample data, a fixed roster and placeholder copy, none
-of which are requirements. Never port a literal player list, a literal roster
-count, or gendered pronouns from it. It is also a JavaScript artifact; it
-describes what the pages should look like, not how they are built.
-
-## Design system
-
-This app's visual language (colors, spacing, typography, and shared UI
-patterns) is based on Claude Design's built-in Nocturne system, extended
-with a light mode and other small adjustments, maintained as a house
-design system in Claude Design. It is not imported or linked here —
-this repo's `app.css` tokens and `templates/ui/` partials are a
-hand-derived implementation of it.
-
-- Use existing tokens and `ui/` partials — don't invent new colors,
-  spacing, or type values locally.
-- If a new visual pattern or token is genuinely needed, flag it in the
-  PR rather than improvising a one-off value. Design changes are
-  reviewed by me, not decided ad hoc per-PR.
-- Existing tokens are documented in `internal/web/static/README.md`.
-
-Design changes flow one-directionally from Claude Design into this repo,
-by hand — never the reverse, and never automated. To ground a design
-pass in what's actually built, attach `app.css` and
-`internal/web/templates/ui/` directly in the Claude Design chat rather
-than describing them from memory; that's a manual re-derivation, not a
-sync — nothing pushes automatically, and there's no live link back to
-this repository, since this app has no compiled component build for a
-sync tool to push. Whatever comes back is a visual reference only,
-exactly like any Claude Design export (see Sources of truth): re-derive
-layout, spacing, type and colour by hand into `app.css`/`ui/`, never
-import wholesale, and never bring real names or scores with it (see
-Personal data, below).
 
 ## Personal data
 
@@ -104,10 +64,6 @@ Never commit personal data about anyone other than the repo owner. That
 includes real names, Signal display names, account UUIDs, phone numbers,
 email addresses, and real scores belonging to identifiable people. Use
 "Martin" or synthetic names in examples, docs, fixtures and test data.
-
-This applies to imported material too: the Claude Design export was built
-on the real roster and contains other people's names and scores. Replace
-them with synthetic data before committing it, or don't commit the file.
 
 **Nor does the repository describe where or how any particular copy of it is
 run.** No hostnames, no domains, no orchestration or hosting products, no
