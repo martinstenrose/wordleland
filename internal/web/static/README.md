@@ -5,50 +5,27 @@ bundler and this reorganisation doesn't add one. Everything in it is built
 from the custom properties defined at the top (`:root`, the
 `[data-theme="light"]` override, and the `prefers-color-scheme` copy of it
 that covers `"system"`). This file documents every token: what it's for,
-and — where it isn't a plain match — why its value is what it is.
-
-## Where the tokens come from
-
-Wordleland's visual design is produced separately in Claude Design and
-isn't in this repository (see `CLAUDE.md`). The one export that has been
-brought in lives on the never-merged `design/export` branch, under
-`docs/design/_ds/nocturne-.../styles.css` — a **frozen, one-time snapshot**
-of a Claude Design "Nocturne" design-system project, not a live dependency.
-It ships no light theme and no locale awareness, and there is nothing to
-`@import` or version against; the file itself says so:
-
-> Nocturne — design-system tokens and component classes. This file is the
-> source of truth for the system's look; retune it here.
-
-That's Nocturne's own docstring, about Nocturne, on claude.ai — not about
-this file. Here, it is a reference to align values against once, not a
-dependency to track. Where a Wordleland token's role overlaps something
-Nocturne defines, this file matches Nocturne's value. Everywhere else —
-the entire light theme, the alpha-ramp approach to color, anything
-Nocturne's dark-only, JS-canvas export never needed — is a deliberate
-extension, noted below.
+and — where the reason isn't obvious — why its value is what it is.
 
 ## Colors
 
-| Token | Role | Nocturne match? |
-|---|---|---|
-| `--color-canvas` | Page background, behind every card | value differs from Nocturne (which has no separate canvas/surface split — see below) |
-| `--color-surface` | Card and panel background | exact — equals Nocturne's `--color-bg` |
-| `--color-surface-raised` | A second, lighter level used for insets: form fields, dividers, the sign-in aside, sticky grid headers | exact — equals Nocturne's `--color-surface` |
-| `--color-text` | Body text | exact |
-| `--color-accent` | Links, the brand accent, focus rings | exact |
-| `--color-accent-strong` | Hover/active emphasis on accent-colored elements | lands on Nocturne's accent-400 ramp step |
-| `--color-text-NN` | One color at NN% opacity, used for borders, dividers, muted text, and faint hover fills. There is no separate token per role because there was never a consistent one before this reorganisation — "border", "muted text" and "faint hover" already meant "text color at some opacity" | extension: Nocturne's neutral ramp is 9 fixed hex steps on its own lightness scale; this is a single-hue alpha ramp instead, which is what an interface built mostly from translucent borders and hover states actually needed |
-| `--color-accent-NN` | Same idea, over the accent hue — used for the "on" state of pickers, focus rings, hover fills | extension, same reasoning |
-| `--score-1` … `--score-4`, `--score-3-border`, `--score-4-border` | The guess-count fill/border ramp (`.cell.t1`–`.t7`, `.cal.t1`–`.t7`), ported from the artboard's own CELL map | domain-specific, not in Nocturne |
-| `--score-ink`, `--score-ink-alt` | The text color that stays legible on a score fill. They differ because a tier-1/2 fill and a tier-3 fill need different contrast — in dark mode `--score-ink` happens to equal `--color-surface` exactly, so it references it instead of repeating the hex | domain-specific |
+| Token | Role |
+|---|---|
+| `--color-canvas` | Page background, behind every card |
+| `--color-surface` | Card and panel background |
+| `--color-surface-raised` | A second, lighter level used for insets: form fields, dividers, the sign-in aside, sticky grid headers |
+| `--color-text` | Body text |
+| `--color-accent` | Links, the brand accent, focus rings |
+| `--color-accent-strong` | Hover/active emphasis on accent-colored elements |
+| `--color-text-NN` | One color at NN% opacity, used for borders, dividers, muted text, and faint hover fills. There is no separate token per role because there was never a consistent one before this reorganisation — "border", "muted text" and "faint hover" already meant "text color at some opacity" |
+| `--color-accent-NN` | Same idea, over the accent hue — used for the "on" state of pickers, focus rings, hover fills |
+| `--score-1` … `--score-4`, `--score-3-border`, `--score-4-border` | The guess-count fill/border ramp (`.cell.t1`–`.t7`, `.cal.t1`–`.t7`) |
+| `--score-ink`, `--score-ink-alt` | The text color that stays legible on a score fill. They differ because a tier-1/2 fill and a tier-3 fill need different contrast — in dark mode `--score-ink` happens to equal `--color-surface` exactly, so it references it instead of repeating the hex |
 
-**Why `--color-canvas` and `--color-surface` are two tokens where Nocturne
-has one:** Nocturne's exported snippet is a single card floating on one
-flat background — it never needed a second, receding layer behind it.
-Wordleland's pages are full layouts of cards on a page, so the extra level
-is a real extension, not drift — but it means `--color-canvas`'s own value
-doesn't match anything in Nocturne (there's nothing to match against).
+**Why `--color-canvas` and `--color-surface` are two tokens:** every page is
+a full layout of cards on a page background, so the card itself needs a
+level distinct from what sits behind it — one token for each rather than
+one token doing both jobs.
 
 **Alpha steps and their opacities are listed in `app.css` itself**, not
 duplicated here — the token block is the inventory. Every step defined is
@@ -64,24 +41,20 @@ are fixed here: dead steps dropped, missing ones added to the base
 
 ## Shadow
 
-`--shadow-elevated` matches Nocturne's `--shadow-lg` blur radius and spread
-(`0 16px 40px`) and alpha (`.65`) exactly in dark mode. Nocturne's version
-also bakes in a `0 0 0 1px` hairline ring — that's left out here because
-every consumer of this token already draws its own explicit `1px solid`
-border; adding the ring too would double it, not match Nocturne. Light
-mode has no Nocturne equivalent to align to (Nocturne is dark-only) and
-keeps its existing value.
+`--shadow-elevated` is `0 16px 40px` at `.65` alpha in dark mode. It
+deliberately carries no extra hairline ring: every consumer of this token
+already draws its own explicit `1px solid` border, and adding a ring on top
+would double it rather than sharpen it. Light mode keeps its own, separately
+tuned value.
 
 ## Border radius
 
-`--radius-md` (8px) and `--radius-lg` (14px) match Nocturne's own
-`--radius-md`/`--radius-lg` exactly — no change needed, they already lined
-up. `--radius-xs` (3px), `--radius-sm` (6px), `--radius-pill` (999px) and
-`--radius-circle` (50%) are extensions: Nocturne's exported snippet has no
-avatars, badges or pill-shaped controls, so it never defined an
-equivalent. `--radius-xs` and `--radius-sm` also absorb a cluster of
-near-identical values (2px/2.5px/3px, and 4px/5px/6px/7px/10px
-respectively) that had accumulated with no visible reason to differ.
+`--radius-md` (8px) and `--radius-lg` (14px) are the card and panel corner
+radii. `--radius-xs` (3px), `--radius-sm` (6px), `--radius-pill` (999px)
+and `--radius-circle` (50%) cover avatars, badges and pill-shaped controls.
+`--radius-xs` and `--radius-sm` absorb a cluster of near-identical values
+(2px/2.5px/3px, and 4px/5px/6px/7px/10px respectively) that had accumulated
+with no visible reason to differ.
 
 ## Type scale
 
@@ -100,9 +73,7 @@ token for every size in the file was out of scope for this pass.
 ## Spacing
 
 `--space-card` is the horizontal gutter every card's direct children
-inherit (`.card > *`). Its value was `22px`; Nocturne's equivalent
-(`--space-8`) is `22.4px`, which this file now matches — the original
-value looks like a hand-copy rounding of it. About two dozen rules had
+inherit (`.card > *`); its value is `22.4px`. About two dozen rules had
 hardcoded `22px` directly instead of using the token where they clearly
 meant the same card gutter; those now reference `--space-card` too.
 

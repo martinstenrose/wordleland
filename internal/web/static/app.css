@@ -1,12 +1,8 @@
-/* Design tokens. Colours: ported from the Claude Design "Nocturne" export
-   (design/export branch) where a role overlaps what it defines; extended
-   with a light theme and the extra alpha steps Nocturne's single dark-only
-   export never needed. See internal/web/static/README.md for the
-   rationale on every value that isn't a straight Nocturne match, and for
-   why the alpha ramp is expressed as steps rather than named roles. */
+/* Design tokens. See internal/web/static/README.md for the rationale
+   behind every value, and for why the alpha ramp is expressed as steps
+   rather than named roles. */
 :root {
-  /* Surfaces, darkest to lightest. --color-surface matches Nocturne's
-     --color-bg; --color-surface-raised matches its --color-surface. */
+  /* Surfaces, darkest to lightest. */
   --color-canvas: #0f111c;
   --color-surface: #161826;
   --color-surface-raised: #232532;
@@ -64,21 +60,16 @@
   --score-ink: var(--color-surface);
   --score-ink-alt: #f5f4ff;
 
-  /* Elevation. Blur radius and spread match Nocturne's --shadow-lg
-     exactly; its hairline ring is left out because every consumer here
-     already draws its own 1px border, and adding a second ring on top of
-     that would double it rather than match it. */
+  /* Elevation. No extra hairline ring: every consumer here already draws
+     its own 1px border, and adding a second ring on top of that would
+     double it rather than sharpen it. */
   --shadow-elevated: 0 16px 40px rgba(0,0,0,.65);
 
   --font-body: "Inter", system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Border radius: --radius-md and --radius-lg match Nocturne's
-     --radius-md/--radius-lg exactly. --radius-xs/-sm/-pill/-circle are
-     extensions Nocturne's exported snippet never needed (it has no
-     avatars, pills or badge-sized controls), consolidated from a handful
-     of near-identical values that had no reason to differ — see the
-     README. */
+  /* Border radius. --radius-xs/-sm are consolidated from a handful of
+     near-identical values that had no reason to differ — see the README. */
   --radius-xs: 3px;
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -86,9 +77,8 @@
   --radius-pill: 999px;
   --radius-circle: 50%;
 
-  /* Type scale. --text-2xs is Nocturne-adjacent (its own kicker/label use
-     is close to this); the rest are consolidated from clusters of
-     near-identical sizes that had no reason to differ (see the README). */
+  /* Type scale, consolidated from clusters of near-identical sizes that
+     had no reason to differ (see the README). */
   --text-2xs: .62rem;
   --text-xs: .68rem;
   --text-sm: .74rem;
@@ -98,8 +88,7 @@
   --transition-fast: .12s ease;
 
   /* The card gutter. Table cells and the full-bleed panels carry it
-     themselves; everything else inherits it from the rule below. Matches
-     Nocturne's --space-8 (was 22px, a hand-copy rounding of it). */
+     themselves; everything else inherits it from the rule below. */
   --space-card: 22.4px;
 }
 
