@@ -20,7 +20,13 @@ func TestPrivacyPageForAStranger(t *testing.T) {
 	if strings.Contains(body, `class="views-mobile"`) || strings.Contains(body, `class="pill`) {
 		t.Error("an anonymous visitor is offered a view pill that needs a session")
 	}
-	if !strings.Contains(body, `href="/">`) {
+	if strings.Contains(body, `href="/today"`) {
+		t.Error("an anonymous visitor is linked to Today, which requires a session")
+	}
+	if !strings.Contains(body, `<a class="brand" href="/">`) {
+		t.Error("the anonymous brand link does not lead directly to sign-in")
+	}
+	if !strings.Contains(body, `<a class="btn-primary" href="/">`) {
 		t.Error("no sign-in button for an anonymous visitor")
 	}
 	if strings.Contains(body, "account-menu") {
@@ -39,6 +45,9 @@ func TestPrivacyPageForASignedInReader(t *testing.T) {
 	body := fetchAs(t, srv, "/privacy", signIn(t, srv, admin.ID)).Body.String()
 	if !strings.Contains(body, `href="/today"`) {
 		t.Error("a signed-in reader lost the view pills")
+	}
+	if !strings.Contains(body, `<a class="brand" href="/today">`) {
+		t.Error("the signed-in brand link does not lead to Today")
 	}
 	if !strings.Contains(body, "account-menu") {
 		t.Error("a signed-in reader has no account menu")
