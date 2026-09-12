@@ -1198,3 +1198,77 @@ func TestMonthsKickerStatesTheScoringRule(t *testing.T) {
 		t.Errorf("the kicker still says %q with X not counted as 7", clause)
 	}
 }
+
+func TestTodayShowsFourBanterHeadlinesInBothLanguages(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	ctx := context.Background()
+	admin, _ := store.UserByEmail(ctx, srv.db, "admin@example.tld")
+	p, err := store.CreatePlayer(ctx, srv.db, store.AdminActor(admin.ID), "Banter", "banter")
+	if err != nil {
+		t.Fatal(err)
+	}
+	current := currentPuzzle()
+	seedResult(t, srv, p.ID, current-3, 1, false)
+	seedResult(t, srv, p.ID, current-2, 2, true)
+	seedResult(t, srv, p.ID, current-1, 6, false)
+	seedResult(t, srv, p.ID, current, 0, false)
+	slug, _, _ := store.EnsureShareSlug(ctx, srv.db)
+	for _, locale := range []string{"en", "sv"} {
+		for _, surface := range []struct {
+			path   string
+			cookie *http.Cookie
+		}{
+			{"/today", signIn(t, srv, admin.ID)},
+			{"/share/" + slug + "/today", nil},
+		} {
+			body := fetchAs(t, srv, surface.path+"?lang="+locale, surface.cookie).Body.String()
+			if got := strings.Count(body, `class="callout"`); got != 4 {
+				t.Errorf("%s (%s): got %d banter headlines, want four", surface.path, locale, got)
+			}
+			if got := strings.Count(body, `class="callout-meta"`); got != 4 {
+				t.Errorf("%s (%s): got %d detail lines, want four", surface.path, locale, got)
+			}
+			if strings.Contains(body, "callout.") || strings.Contains(body, "%!") {
+				t.Errorf("%s (%s): untranslated or malformed banter", surface.path, locale)
+			}
+		}
+	}
+}
+
+func TestEveryBanterHasDetails(t *testing.T) {
+	srv := testServer(t)
+	for _, locale := range []string{"en", "sv"} {
+		tr := translator{locale: locale, strings: srv.catalogues[locale], fallback: srv.catalogues["en"]}
+		for _, kind := range []string{
+			stats.CalloutUnbroken, stats.CalloutOneAndDone, stats.CalloutOnForm,
+			stats.CalloutOffForm, stats.CalloutMissing, stats.CalloutQuickSolves,
+			stats.CalloutCloseShaves, stats.CalloutStumped, stats.CalloutHardMode,
+		} {
+			for _, count := range []int{1, 2} {
+				c := stats.Callout{Kind: kind, Name: "Banter", Count: count, PuzzleNo: 1890}
+				if count == 1 {
+					c.Slug = "banter"
+				}
+				view := srv.calloutFor(c, "", tr)
+				if view.Meta == "" || strings.Contains(view.Meta, "callout.") || strings.Contains(view.Meta, "%!") {
+					t.Errorf("%s (%s, count %d): missing or malformed details %q", kind, locale, count, view.Meta)
+				}
+				if kind == stats.CalloutOneAndDone {
+					date, _ := wordle.DateForPuzzle(1890)
+					want := "Wordle #" + tr.Integer(1890) + " · " + date.Format(time.DateOnly)
+					if count > 1 {
+						prefix := "Latest: "
+						if locale == "sv" {
+							prefix = "Senaste: "
+						}
+						want = prefix + want
+					}
+					if view.Meta != want {
+						t.Errorf("%s, count %d: details = %q, want %q", locale, count, view.Meta, want)
+					}
+				}
+			}
+		}
+	}
+}
