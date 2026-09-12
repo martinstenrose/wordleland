@@ -194,7 +194,7 @@ func TestAccountMenuOnlyForSignedInUsers(t *testing.T) {
 
 // The menu opens with no JavaScript at all, which is the reason it is a
 // <details> rather than a button. Its markup carries no inline handler
-// either — app.js reaches popups only, through a delegated listener, never
+// either — app.js uses delegated listeners, never
 // through anything written on an element itself.
 func TestAccountMenuNeedsNoScript(t *testing.T) {
 	srv := testServer(t)
@@ -210,9 +210,9 @@ func TestAccountMenuNeedsNoScript(t *testing.T) {
 	}
 }
 
-// app.js is the one script in the project, and it only repositions a popup
-// that has already opened on its own — see its header comment. This checks
-// it is wired up, present once per page, and scoped to name="popup" rather
+// app.js repositions popups and dismisses topbar menus on outside clicks.
+// This checks it is wired up once per page and its positioning listener
+// is scoped to name="popup" rather
 // than the topbar menus, which anchor themselves in CSS instead.
 func TestPopupPositioningScriptIsWiredUpAndScoped(t *testing.T) {
 	srv := testServer(t)
@@ -236,7 +236,7 @@ func TestPopupPositioningScriptIsWiredUpAndScoped(t *testing.T) {
 		t.Error("the script does not scope itself to name=\"popup\"")
 	}
 	if strings.Contains(script, `getAttribute("name") === "topbar-menu"`) {
-		t.Error("the script also reaches into the topbar menus, which anchor themselves in CSS instead")
+		t.Error("the positioning listener also reaches into the topbar menus, which anchor themselves in CSS instead")
 	}
 }
 

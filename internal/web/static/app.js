@@ -1,12 +1,19 @@
-// Keeps a popup on screen. Nothing here opens or closes a popup, or makes
-// one exclusive with another — that is all native <details name="popup">
-// behaviour (see base.html) and works with this file absent, disabled, or
-// failing to load. All this does is notice, once a popup has opened where
-// CSS put it, that there was no room there, and nudge it back into view. A
-// topbar menu (name="topbar-menu") is not covered: it has one fixed spot
-// and anchors itself by hand in app.css.
+// Progressive enhancements for native <details> controls: dismiss topbar
+// menus on outside clicks and nudge informational popups back on screen.
+// Opening, summary-click closing and exclusivity still work without JS.
+// Topbar menus keep their fixed CSS positioning.
 (function () {
   "use strict";
+
+  // Keep clicks on menu links and summaries native. Other disclosures,
+  // such as result details and admin diagnostics, are not dismissible menus.
+  document.addEventListener("click", function (event) {
+    document.querySelectorAll('details[name="topbar-menu"][open]').forEach(function (menu) {
+      if (!menu.contains(event.target)) {
+        menu.open = false;
+      }
+    });
+  });
 
   // Matches the gap app.css opens a popup with (top: calc(100% + 6px)), so
   // flipping above lands the same distance from the cell.
