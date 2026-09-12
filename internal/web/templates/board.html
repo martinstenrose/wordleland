@@ -84,29 +84,7 @@
             {{end}}
           </td>
           <td class="right">
-            <ol class="last-five" aria-hidden="true">
-              {{range .LastFive}}
-                <li>
-                  {{if .Played}}
-                    {{/* Same treatment as the grid and the player page's own
-                         recent strip: the label already carries the guess
-                         count and hard mode's trailing *, so the popup adds
-                         only what the box cannot show — which puzzle, and
-                         when — behind a tap rather than a hover that never
-                         worked on a phone. Joins the shared name="popup"
-                         group (see base.html). */}}
-                    <span class="cell t{{.Tone}} tiny">
-                      <details class="cell-pop" name="popup">
-                        <summary>{{.Label}}</summary>
-                        <p class="cell-popup popup-panel">{{.PuzzleDate}}</p>
-                      </details>
-                    </span>
-                  {{else}}
-                    <span class="cell gap tiny">-</span>
-                  {{end}}
-                </li>
-              {{end}}
-            </ol>
+            {{template "last-five" .LastFive}}
           </td>
           <td class="right num">{{.StreakText}}</td>
           <td class="right num">{{$.T.Integer .Games}}</td>

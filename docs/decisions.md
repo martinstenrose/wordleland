@@ -211,10 +211,17 @@ left the group. A player with 176 games would carry a reason that is untrue.
 under the current filter are left out rather than shown as unranked. The
 header says how many are excluded, so the omission is visible.
 
-**Form needs ten games in the window.** Below that it is undefined and renders
-as `—` rather than a number computed from four games. The window is counted in
-puzzles, not days — Wordle issues one a day, so they coincide, and the puzzle
-number needs no clock.
+**Form needs ten played games in the last 30 puzzles.** Below that it
+renders as `—`. Today's table is numbered by form rank, while the top-three
+cards show overall board rank. Equal form scores share a form rank, and
+missing form has no form rank.
+Board ranks, eligibility and banter retain their normal rules. Today counts
+completed missed days as 7, including gaps after the last submitted result.
+An unplayed today stays open until the day ends, and days before a player's
+first game are not absences. The minimum counts actual games, so missed-day
+penalties cannot qualify a player. Hard-mode filtering cannot turn an
+ordinary game into a miss. Windows count puzzles, not timestamps — Wordle
+issues one a day.
 
 ## Identity and ingest
 

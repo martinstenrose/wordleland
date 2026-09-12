@@ -278,7 +278,10 @@ main { max-width: 1160px; margin: 0 auto; }
   border: 1px solid var(--color-text-10);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-elevated);
-  overflow: hidden;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
 /* Every block in a card lines up on the same gutter. Without this a section
    added later sits flush against the card edge, which is how the today and
@@ -800,6 +803,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 /* ---- Today ------------------------------------------------------------ */
 
+.today { display: grid; gap: 20px; }
 .today-head { padding-top: 22px; padding-bottom: 20px; border-bottom: 1px solid var(--color-text-10); }
 .today .kicker .accent { color: var(--color-accent); letter-spacing: .14em; text-transform: uppercase; }
 .today-hero { display: flex; gap: 30px; align-items: flex-end; flex-wrap: wrap; margin-top: 16px; }
@@ -814,7 +818,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .chips { display: flex; flex-wrap: wrap; gap: 5px; list-style: none; margin: 6px 0 0; padding: 0; }
 .chip.dashed { border: 1px dashed var(--color-text-20); background: transparent; color: var(--color-text-50); }
 
-.today-filed { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 20px 0 0; padding: 0; }
+.today-filed { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 20px 0 0; padding: 0 var(--space-card); }
 .today-filed li { display: flex; align-items: center; gap: 7px; font-size: var(--text-md); }
 .today-filed a { color: var(--color-text-80); text-decoration: none; }
 .today-filed a:hover { color: var(--color-text); }
@@ -828,11 +832,13 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   border-bottom: 1px solid var(--color-text-10);
 }
 .callout { background: var(--color-surface); padding: 18px var(--space-card); }
+.callout, .podium-card, .bench-card { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
 .callout .accent { color: var(--color-accent); }
 .callout-text { font-size: 1rem; line-height: 1.35; letter-spacing: -.01em; margin: 6px 0 0; }
 .callout-meta { margin: 9px 0 0; font-size: var(--text-xs); color: var(--color-text-40); font-variant-numeric: tabular-nums; }
 
-.today-form { padding-top: 22px; padding-bottom: 26px; }
+.today-form { padding-top: 22px; }
+.today-form > .card-foot { margin-top: 16px; border-top: 1px solid var(--color-text-10); }
 .podium { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
 .podium-card {
   flex: 1;
@@ -846,10 +852,11 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .podium-figure { font-size: 1.9rem; font-weight: 500; margin: 0; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .podium-figure .delta { font-size: var(--text-sm); margin-left: 6px; }
 
-.form-rows { list-style: none; margin: 18px 0 0; padding: 0; }
-.form-rows li {
+.form-table-scroll { overflow-x: auto; }
+.form-rows { min-width: 680px; list-style: none; margin: 18px 0 0; padding: 0; }
+.form-rows > li {
   display: grid;
-  grid-template-columns: 1.5rem minmax(0, 1fr) 6rem 4rem 7.5rem;
+  grid-template-columns: 1.5rem minmax(8rem, 1fr) 6rem 7.5rem 8.5rem 4rem;
   align-items: center;
   gap: 14px;
   padding: 9px 2px;
@@ -866,27 +873,14 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .form-head .right { text-align: right; }
 .form-rows .num { text-align: right; font-variant-numeric: tabular-nums; }
 
-/* The sparkline fills its own column and no more. The shared .spark-col
-   rule sets a fixed 160px, which is wider than the column here, so the
-   chart spilled over the count beside it. */
-.form-rows .spark-col { width: auto; justify-self: stretch; overflow: hidden; }
-.form-rows .spark-col svg { display: block; width: 100%; height: 24px; }
-.form-rows svg .player { fill: none; stroke: var(--color-accent-80); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.podium-last-five { margin-top: 12px; }
+.form-last-five { justify-self: end; }
+.form-chart { min-width: 0; }
+.form-chart svg { display: block; width: 100%; height: 24px; }
+.form-chart .player { fill: none; stroke: var(--color-accent-80); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.podium-spark { display: block; width: 100%; height: 34px; margin-top: 10px; overflow: visible; }
+.podium-spark .player { fill: none; stroke: var(--color-accent-80); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 
-.podium-spark {
-  display: block;
-  width: 100%;
-  height: 34px;
-  margin-top: 10px;
-  overflow: visible;
-}
-.podium-spark .player {
-  fill: none;
-  stroke: var(--color-accent-80);
-  stroke-width: 2;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
 
 /* The explanation opens on tap and sits over the page rather than pushing
    the row apart. */
@@ -1011,8 +1005,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   .today-hero { gap: 18px; }
   .today-out { padding-left: 0; border-left: 0; }
   .callouts { margin: 0; grid-template-columns: minmax(0, 1fr); }
-  .form-rows li { grid-template-columns: 1.5rem minmax(0, 1fr) 5rem 3.5rem; }
-  .form-rows .spark-col { display: none; }
   .months-table .bar-cell { display: none; }
 }
 
@@ -1956,10 +1948,8 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 .progress-bar-fill.win { background: var(--color-accent); }
 
 .stat-list { margin: 0; }
-/* flex:none keeps the figures from being squeezed by their sibling, but on a
-   narrow viewport the row itself can be wider than the card. Rather than let
-   .card's overflow:hidden clip the trailing figures, the row scrolls on its
-   own axis so all of them stay reachable. */
+/* flex:none keeps the figures from being squeezed by their sibling. The
+   row scrolls independently, keeping the rest of the card in place. */
 .stat-list-figure { display: flex; gap: 26px; flex: none; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
 .stat-list-figure > div { flex: none; }
 .stat-list-figure dt {
