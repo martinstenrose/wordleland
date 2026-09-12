@@ -643,9 +643,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
    The artboard floats this as a fixed chip; here it sits in the topbar,
    which is where the home link already was. */
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--color-text); }
-/* .brand-lg keeps its hover: on the sign-in pages the wordmark is still a
-   link, because there is no view row there to go home by. */
-.brand-lg:hover .mark { border-color: var(--color-accent-60); }
+.brand:hover .mark { border-color: var(--color-accent-60); }
 
 .mark {
   display: grid;

@@ -17,7 +17,7 @@ func TestPrivacyPageForAStranger(t *testing.T) {
 	seedBoard(t, srv)
 
 	body := fetchAs(t, srv, "/privacy", nil).Body.String()
-	if strings.Contains(body, `href="/today"`) {
+	if strings.Contains(body, `class="views-mobile"`) || strings.Contains(body, `class="pill`) {
 		t.Error("an anonymous visitor is offered a view pill that needs a session")
 	}
 	if !strings.Contains(body, `href="/">`) {

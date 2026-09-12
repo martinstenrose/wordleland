@@ -62,6 +62,9 @@ type chrome struct {
 	// leads nowhere is worse than an absent one.
 	Nav []chromeOpt
 
+	// TodayHref keeps the brand link on the current signed-in or shared surface.
+	TodayHref string
+
 	// Tabs is the same list for the narrow layout, with Today restored.
 	Tabs []chromeOpt
 
@@ -116,10 +119,11 @@ func (c chrome) AdminTabs() []chromeOpt {
 func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view string, readOnly bool) chrome {
 	t := s.translatorFor(w, r)
 	c := chrome{
-		T:        t,
-		Lang:     t.locale,
-		Theme:    s.themeFor(w, r),
-		ReadOnly: readOnly,
+		TodayHref: viewPath(prefix, viewToday),
+		T:         t,
+		Lang:      t.locale,
+		Theme:     s.themeFor(w, r),
+		ReadOnly:  readOnly,
 	}
 
 	// The views are built whatever page this is, with none marked current
