@@ -187,17 +187,31 @@ func (s *Server) calloutFor(c stats.Callout, prefix string, t translator) callou
 		view.Args = []any{c.Name, c.Count}
 		view.Meta = t.T("callout.meta.streak", c.Count)
 	case stats.CalloutOneAndDone:
-		// One solve names its holder; more than one cannot, so the copy
-		// differs rather than claiming "the only" when it was not.
+		// A single holder can be named, even with several first-guess solves.
+		// Otherwise the headline reports the group count.
 		if c.Slug == "" {
 			view.Key = "callout.oneAndDone.several"
 			view.Args = []any{c.Count}
 		} else {
 			view.Args = []any{c.Name}
 		}
+		if date, err := wordle.DateForPuzzle(c.PuzzleNo); err == nil {
+			key := "callout.meta.puzzle"
+			if c.Count > 1 {
+				key = "callout.meta.latestPuzzle"
+			}
+			view.Meta = t.T(key, c.PuzzleNo, date.Format(time.DateOnly))
+		}
 	case stats.CalloutOnForm, stats.CalloutOffForm:
 		view.Args = []any{c.Name, c.Value}
 		view.Meta = t.T("callout.meta.window", stats.FormWindow)
+	case stats.CalloutQuickSolves, stats.CalloutCloseShaves, stats.CalloutStumped, stats.CalloutHardMode:
+		view.Key += ".other"
+		if c.Count == 1 {
+			view.Key = "callout." + c.Kind + ".one"
+		}
+		view.Args = []any{c.Count}
+		view.Meta = t.T("callout.meta.recent", stats.FormWindow)
 	case stats.CalloutMissing:
 		view.Args = []any{c.Name, c.Count}
 		view.Meta = t.T("callout.meta.lastPlayed", c.Since.Format(time.DateOnly))

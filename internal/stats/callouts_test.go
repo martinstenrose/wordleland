@@ -186,3 +186,83 @@ func TestMissingOnlyFiresForARegular(t *testing.T) {
 		t.Errorf("missing names %q, want the player with a real history", c.Slug)
 	}
 }
+
+func TestRecentBanterCountsOnlyResultsInTheWindow(t *testing.T) {
+	board := Board{CurrentPuzzle: 1900}
+	results := []store.BoardResult{
+		{PuzzleNo: 1871, Solved: true, Guesses: 2},
+		{PuzzleNo: 1900, Solved: true, Guesses: 3, HardMode: true},
+		{PuzzleNo: 1899, Solved: true, Guesses: 6},
+		{PuzzleNo: 1900, Solved: false, HardMode: true},
+		// First-guess solves have their own story; ordinary fours do not.
+		{PuzzleNo: 1900, Solved: true, Guesses: 1},
+		{PuzzleNo: 1900, Solved: true, Guesses: 4},
+	}
+	// Neither old nor future results should inflate any of the counts.
+	for _, puzzle := range []int{1870, 1901} {
+		results = append(results,
+			store.BoardResult{PuzzleNo: puzzle, Solved: true, Guesses: 2, HardMode: true},
+			store.BoardResult{PuzzleNo: puzzle, Solved: true, Guesses: 6},
+			store.BoardResult{PuzzleNo: puzzle, Solved: false},
+		)
+	}
+	cs := recentCallouts(board, results)
+	for kind, want := range map[string]int{
+		CalloutQuickSolves: 2, CalloutCloseShaves: 1, CalloutStumped: 1, CalloutHardMode: 1,
+	} {
+		c, ok := calloutOf(cs, kind)
+		if !ok || c.Count != want {
+			t.Errorf("%s count = %d (present %v), want %d", kind, c.Count, ok, want)
+		}
+	}
+	if cs := recentCallouts(board, nil); len(cs) != 0 {
+		t.Errorf("empty history generated banter: %+v", cs)
+	}
+	if cs := recentCallouts(board, []store.BoardResult{{PuzzleNo: 1900, Solved: true, Guesses: 4}}); len(cs) != 0 {
+		t.Errorf("ordinary four generated banter: %+v", cs)
+	}
+}
+
+func TestCalloutsFillFourSlotsAndKeepPersonalStoriesFirst(t *testing.T) {
+	board := Board{CurrentPuzzle: 1900}
+	results := []store.BoardResult{
+		{PuzzleNo: 1900, Solved: true, Guesses: 2, HardMode: true},
+		{PuzzleNo: 1900, Solved: true, Guesses: 6},
+		{PuzzleNo: 1900, Solved: false},
+	}
+	cs := ComputeCallouts(board, results, today(t))
+	if len(cs) != 4 {
+		t.Fatalf("got %d headlines, want four: %+v", len(cs), cs)
+	}
+	board.Ranked = []Player{{CurrentStreak: 30, LongestStreak: 30}}
+	cs = ComputeCallouts(board, results, today(t))
+	if len(cs) != 4 || cs[0].Kind != CalloutUnbroken {
+		t.Errorf("want four headlines with the personal story first, got %+v", cs)
+	}
+}
+
+func TestOneAndDoneIdentifiesLatestQualifyingPuzzle(t *testing.T) {
+	board := Board{CurrentPuzzle: 1900}
+	for _, results := range [][]store.BoardResult{
+		{result(1, 1890, 1, false)},
+		{
+			result(1, 1890, 1, false),
+			result(1, 1880, 1, false), // older, despite coming later in the input
+			result(1, 1900, 2, false), // newer, but not a first-guess solve
+			result(1, 1901, 1, false), // future
+			result(1, 1870, 1, false), // before the window
+		},
+	} {
+		c, ok := oneAndDone(board, results, 1871)
+		if !ok || c.PuzzleNo != 1890 {
+			t.Errorf("latest qualifying puzzle = %+v, want 1890", c)
+		}
+		wantCount := 1
+		if len(results) > 1 {
+			wantCount = 2
+		}
+		if c.Count != wantCount {
+			t.Errorf("count = %d, want %d", c.Count, wantCount)
+		}
+	}
+}

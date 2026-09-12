@@ -16,14 +16,21 @@ const Significance = 0.25
 // AbsentDays is how long a regular has to be gone before it is worth saying.
 const AbsentDays = 7
 
+// MaxCallouts fills two rows of two on Today.
+const MaxCallouts = 4
+
 // Callout kinds. The view maps these to localised copy; nothing in this
 // package produces a sentence.
 const (
-	CalloutUnbroken   = "unbroken"
-	CalloutOneAndDone = "oneAndDone"
-	CalloutOnForm     = "onForm"
-	CalloutOffForm    = "offForm"
-	CalloutMissing    = "missing"
+	CalloutUnbroken    = "unbroken"
+	CalloutOneAndDone  = "oneAndDone"
+	CalloutOnForm      = "onForm"
+	CalloutOffForm     = "offForm"
+	CalloutMissing     = "missing"
+	CalloutQuickSolves = "quickSolves"
+	CalloutCloseShaves = "closeShaves"
+	CalloutStumped     = "stumped"
+	CalloutHardMode    = "hardMode"
 )
 
 // Callout is one generated observation, as data rather than prose.
@@ -38,11 +45,14 @@ type Callout struct {
 	Value float64
 	Count int
 
+	// PuzzleNo identifies the most recent first-guess solve.
+	PuzzleNo int
+
 	// Since is set where the callout refers to a date.
 	Since time.Time
 }
 
-// ComputeCallouts generates the observations that clear their thresholds.
+// ComputeCallouts selects up to four observations that clear their thresholds.
 //
 // It returns only what is true. An empty result is a valid answer and the
 // view omits the card rather than padding it: a quiet week should look
@@ -64,6 +74,46 @@ func ComputeCallouts(board Board, results []store.BoardResult, now time.Time) []
 	}
 	if c, ok := missing(board, now); ok {
 		out = append(out, c)
+	}
+	// Keep the individual stories first, then fill spare places with recent
+	// group results. Zero counts are omitted, so sparse histories stay quiet.
+	out = append(out, recentCallouts(board, results)...)
+	if len(out) > MaxCallouts {
+		out = out[:MaxCallouts]
+	}
+	return out
+}
+
+func recentCallouts(board Board, results []store.BoardResult) []Callout {
+	var quick, close, failed, hard int
+	for _, r := range results {
+		if r.PuzzleNo < board.CurrentPuzzle-FormWindow+1 || r.PuzzleNo > board.CurrentPuzzle {
+			continue
+		}
+		if r.Solved {
+			if r.Guesses == 2 || r.Guesses == 3 {
+				quick++
+			}
+			if r.Guesses == 6 {
+				close++
+			}
+			if r.HardMode {
+				hard++
+			}
+		} else {
+			failed++
+		}
+	}
+	var out []Callout
+	for _, c := range []Callout{
+		{Kind: CalloutQuickSolves, Count: quick},
+		{Kind: CalloutCloseShaves, Count: close},
+		{Kind: CalloutStumped, Count: failed},
+		{Kind: CalloutHardMode, Count: hard},
+	} {
+		if c.Count > 0 {
+			out = append(out, c)
+		}
 	}
 	return out
 }
@@ -112,11 +162,15 @@ func oneAndDone(board Board, results []store.BoardResult, windowStart int) (Call
 	var holders []Player
 	seen := make(map[int64]bool)
 	total := 0
+	latestPuzzle := 0
 	for _, r := range results {
-		if !r.Solved || r.Guesses != 1 || r.PuzzleNo < windowStart {
+		if !r.Solved || r.Guesses != 1 || r.PuzzleNo < windowStart || r.PuzzleNo > board.CurrentPuzzle {
 			continue
 		}
 		total++
+		if r.PuzzleNo > latestPuzzle {
+			latestPuzzle = r.PuzzleNo
+		}
 		if p, ok := names[r.PlayerID]; ok && !seen[p.ID] {
 			seen[p.ID] = true
 			holders = append(holders, p)
@@ -127,7 +181,7 @@ func oneAndDone(board Board, results []store.BoardResult, windowStart int) (Call
 	}
 	sort.Slice(holders, func(i, j int) bool { return holders[i].Name < holders[j].Name })
 
-	c := Callout{Kind: CalloutOneAndDone, Count: total}
+	c := Callout{Kind: CalloutOneAndDone, Count: total, PuzzleNo: latestPuzzle}
 	if len(holders) == 1 {
 		c.Name, c.Slug = holders[0].Name, holders[0].Slug
 	}
