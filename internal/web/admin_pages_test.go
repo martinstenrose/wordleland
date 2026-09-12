@@ -243,8 +243,9 @@ func TestActivityLogFormatsEveryLine(t *testing.T) {
 	if !strings.Contains(results, player.Slug) {
 		t.Errorf("a result row does not name the player %q", player.Slug)
 	}
-	// Scoped to the log's own text: the page also carries hex colours in
-	// its flag icons, which look like ids to a bare pattern.
+	// Scoped to the log's own text rather than the whole page: this is a
+	// claim about how one row reads, and the rest of the document is full
+	// of markup a bare pattern would misread.
 	rowText := regexp.MustCompile(`(?s)<span class="activity-text">(.*?)</span>`)
 	for _, m := range rowText.FindAllStringSubmatch(results, -1) {
 		if regexp.MustCompile(`#\d+`).MatchString(m[1]) {

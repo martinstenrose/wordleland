@@ -28,7 +28,7 @@ read fields on a struct.
 
 | Partial | What it is |
 |---|---|
-| `theme-icon`, `chevron` | Small inline SVG icons — `icons.html`. No app data. |
+| `theme-icon`, `chevron`, `globe` | Small inline SVG icons — `icons.html`. No app data. |
 | `pill-nav` | One active choice among several, as a row of pills. |
 | `progress-bar` | A filled track, with a `compact` size and a `win` fill modifier. |
 | `stat-list` | A label/value `<dl>`, in three visual variants (`figure`, `row`, `admin`). |
@@ -87,7 +87,7 @@ plain CSS-class convention: wrap a scrolling table in
 
 | File | Partials | Why `app/` |
 |---|---|---|
-| `topbar.html` | `mark`, `flag`, `theme-picker`, `language-picker`, `topbar` | The brand mark, the app's exact two-locale flag set, and every reader of `chrome` (nav items, account state, admin flag). |
+| `topbar.html` | `mark`, `theme-picker`, `language-picker`, `topbar` | The brand mark and every reader of `chrome` (nav items, account state, admin flag). The language control's globe icon is generic and lives in `ui/icons.html` instead. |
 | `trait.html` | `trait` | A Wordle result trait and its explanation. |
 | `admin.html` | `admin-warning`, `admin-tabs` | Admin-only chrome. |
 

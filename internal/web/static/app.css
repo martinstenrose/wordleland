@@ -1240,7 +1240,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .menu-row.on { background: var(--color-accent-14); color: var(--color-text); }
 .menu-row > span:nth-of-type(1) { flex: 1; }
 .menu-check { color: var(--color-accent-strong); font-size: var(--text-sm); }
-.menu-row svg { display: block; flex: none; border-radius: var(--radius-xs); }
+.menu-row svg { display: block; flex: none; }
 
 /* ---- Admin: tabs, activity log, pending results ------------------------ */
 

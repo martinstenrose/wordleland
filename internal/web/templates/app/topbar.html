@@ -22,27 +22,6 @@
      open at once is not. A new one joins whichever group it actually is,
      rather than a third name of its own. */}}
 
-{{/* Flags are drawn rather than fetched: an emoji flag does not render on
-     every platform, and an image would be a request to somewhere. Only the
-     two locales Wordleland supports are here — a generic "any flag" icon
-     set belongs in ui/, this hardcoded pair does not. */}}
-{{define "flag"}}
-  {{if eq . "sv"}}
-    <svg width="16" height="11" viewBox="0 0 16 10" aria-hidden="true">
-      <rect width="16" height="10" fill="#005293"/>
-      <rect x="5" width="2" height="10" fill="#fecb00"/>
-      <rect y="4" width="16" height="2" fill="#fecb00"/>
-    </svg>
-  {{else}}
-    <svg width="16" height="11" viewBox="0 0 16 10" aria-hidden="true">
-      <rect width="16" height="10" fill="#012169"/>
-      <path d="M0 0l16 10M16 0L0 10" stroke="#fff" stroke-width="2"/>
-      <path d="M8 0v10M0 5h16" stroke="#fff" stroke-width="3.4"/>
-      <path d="M8 0v10M0 5h16" stroke="#c8102e" stroke-width="2"/>
-    </svg>
-  {{end}}
-{{end}}
-
 {{define "theme-picker"}}
 <details class="menu" name="topbar-menu">
   <summary class="menu-btn" aria-label="{{.ThemeLabel}}" title="{{.ThemeLabel}}">
@@ -61,16 +40,19 @@
 </details>
 {{end}}
 
+{{/* The rows carry no icon, where the theme picker's do. A theme icon
+     differs per row and is the fastest way to read which row is which; one
+     globe repeated down the list distinguishes nothing, and each row
+     already names its language in that language. */}}
 {{define "language-picker"}}
 <details class="menu" name="topbar-menu">
   <summary class="menu-btn" aria-label="{{.LangLabel}}" title="{{.LangLabel}}">
-    {{template "flag" .Lang}}{{template "chevron" .}}
+    {{template "globe" .}}{{template "chevron" .}}
   </summary>
   <div class="menu-panel">
     <p class="kicker">{{.T.T "lang.label"}}</p>
     {{range .Languages}}
       <a class="menu-row{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>
-        {{template "flag" .Code}}
         <span>{{.Label}}</span>
         <span class="menu-check" aria-hidden="true">{{if .On}}✓{{end}}</span>
       </a>

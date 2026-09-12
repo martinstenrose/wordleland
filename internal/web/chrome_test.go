@@ -394,6 +394,61 @@ func TestPickersPreserveTheRestOfTheQuery(t *testing.T) {
 	}
 }
 
+// The language control is a globe, not a flag. A flag names a country and a
+// locale names a language: "en" was flying a British flag at readers who
+// have no connection to the place, and no flag stands for a language
+// anyway. One icon, stroked in the bar's own colour like every other
+// control there.
+func TestLanguagePickerIsAGlobe(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	session := signIn(t, srv, admin.ID)
+
+	// The top bar and the sign-in page render one partial between them, so
+	// both are checked here: the partial is what makes them agree, and a
+	// second copy appearing on either surface is the thing that would break
+	// that.
+	for _, page := range []struct {
+		where string
+		body  string
+	}{
+		{"the top bar", fetchAs(t, srv, "/leaderboard", session).Body.String()},
+		{"the sign-in page", fetchAs(t, srv, "/", nil).Body.String()},
+	} {
+		picker := languagePicker(t, page.body)
+
+		if !strings.Contains(picker, `stroke="currentColor"`) {
+			t.Errorf("%s: the language control draws nothing in the bar's own colour", page.where)
+		}
+		if strings.Contains(picker, `fill="#`) {
+			t.Errorf("%s: the language control still paints a flag's colours", page.where)
+		}
+		// Two icons and no more: the globe on the button and the chevron
+		// beside it. A third would be the flags back on the rows, where one
+		// repeated icon tells you nothing the labels do not.
+		if got := strings.Count(picker, "<svg"); got != 2 {
+			t.Errorf("%s: %d icons in the language picker, want the globe and its chevron", page.where, got)
+		}
+	}
+}
+
+// languagePicker returns the language menu's markup from a rendered page,
+// from the button's label to the end of the menu it opens.
+func languagePicker(t *testing.T, body string) string {
+	t.Helper()
+
+	start := strings.Index(body, `aria-label="Language: English"`)
+	if start < 0 {
+		t.Fatal("no language picker on the page")
+	}
+	end := strings.Index(body[start:], "</details>")
+	if end < 0 {
+		t.Fatal("the language picker is never closed")
+	}
+	return body[start : start+end]
+}
+
 // The language picker is its own menu in the bar, on every surface. What
 // it changes for a signed-in reader is their account, not just this
 // browser — see TestSettingsLanguagePersistsToTheAccount.
