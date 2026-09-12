@@ -924,7 +924,7 @@ func TestSeasonMarksReadAtAGlance(t *testing.T) {
 	}
 }
 
-// The form pane: a header so the columns are readable, a chart in both the
+// The form pane: a compact rank column, charts and Last Five in both the
 // cards and the rows, and games reported only where it is labelled.
 func TestFormPaneIsConsistent(t *testing.T) {
 	srv := testServer(t)
@@ -937,15 +937,15 @@ func TestFormPaneIsConsistent(t *testing.T) {
 	if !strings.Contains(pane, "form-head") {
 		t.Error("the form table has no header")
 	}
-	for _, col := range []string{"30d form", "Streak", "Last 30 days"} {
+	for _, col := range []string{"30d form", "Streak", "Last 30 days", "Last five"} {
 		if !strings.Contains(pane, col) {
 			t.Errorf("the header is missing %q", col)
 		}
 	}
 
-	// The cards carry a chart, as the rows do.
-	if !strings.Contains(pane, "podium-spark") {
-		t.Error("the podium cards have no chart")
+	// The cards carry Last Five cells, as the rows do.
+	if !strings.Contains(pane, "podium-last-five") {
+		t.Error("the podium cards have no Last Five cells")
 	}
 
 	// Every figure in a row sits under a heading that names it. The rows
@@ -957,16 +957,17 @@ func TestFormPaneIsConsistent(t *testing.T) {
 	}
 	head := rows[:strings.Index(rows, "</li>")]
 	body_ := rows[strings.Index(rows, "</li>"):]
-	if got, want := strings.Count(head, "<span"), 5; got != want {
+	if got, want := strings.Count(head, "<span"), 6; got != want {
 		t.Errorf("the header has %d cells, want %d", got, want)
 	}
 	firstRow := body_[strings.Index(body_, "<li>"):]
-	firstRow = firstRow[:strings.Index(firstRow, "</li>")]
-	// The delta and the chart nest inside cells, so count only the cells
+	lastFiveEnd := strings.Index(firstRow, "</ol>") + len("</ol>")
+	firstRow = firstRow[:lastFiveEnd+strings.Index(firstRow[lastFiveEnd:], "</li>")]
+	// The delta and Last Five nest inside cells, so count only the cells
 	// the grid lays out: the direct children of the row.
 	if got := strings.Count(firstRow, `<span class="num`) + strings.Count(firstRow, `<span class="row-name"`) +
-		strings.Count(firstRow, `<span class="spark-col"`); got != 5 {
-		t.Errorf("a row lays out %d cells against a 5-column header", got)
+		strings.Count(firstRow, `<div class="form-last-five"`) + strings.Count(firstRow, `<span class="form-chart"`); got != 6 {
+		t.Errorf("a row lays out %d cells against a 6-column header", got)
 	}
 }
 

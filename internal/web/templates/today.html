@@ -2,8 +2,8 @@
 {{define "content"}}
 {{template "topbar" .}}
 
-<section class="card today">
-  <div class="today-head">
+<div class="today">
+  <section class="card today-head">
     <p class="kicker">
       <span class="accent">{{.T.T "player.puzzle" .PuzzleNo}}</span>
       <span class="muted">{{.DateLong}}</span>
@@ -38,10 +38,10 @@
         {{end}}
       </ul>
     {{end}}
-  </div>
+  </section>
 
   {{if .Callouts}}
-    <div class="callouts">
+    <section class="card callouts">
       {{$t := .T}}
       {{range .Callouts}}
         <div class="callout">
@@ -50,13 +50,12 @@
           {{if .Meta}}<p class="callout-meta">{{.Meta}}</p>{{end}}
         </div>
       {{end}}
-    </div>
+    </section>
   {{end}}
 
   {{if .Leaders}}
-    <div class="today-form">
+    <section class="card today-form">
       <p class="kicker">{{.T.T "today.formTable"}}</p>
-      <p class="hint">{{.T.T "today.formNote"}}</p>
       <div class="podium">
         {{range .Leaders}}
           <div class="podium-card">
@@ -72,6 +71,10 @@
                 <path class="player" d="{{.SparkPath}}"/>
               </svg>
             {{end}}
+            <div class="podium-last-five">
+              <p class="kicker">{{$.T.T "board.column.lastFive"}}</p>
+              {{template "last-five" .LastFive}}
+            </div>
             <p class="muted small">
               {{if .Trait}}{{template "trait" .}} · {{end}}{{$.T.TN "today.formGames" .FormGames}}
             </p>
@@ -80,38 +83,40 @@
       </div>
 
       {{if .Rest}}
-        <ul class="form-rows">
-          {{/* A header, so the columns are not a guessing game. */}}
-          <li class="form-head">
-            {{/* The rank column carries no label: the figures are self-
-                 evident and a heading over them only adds noise. */}}
-            <span></span>
-            <span>{{.T.T "board.column.player"}}</span>
-            <span class="right">{{.T.T "board.column.form"}}</span>
-            <span class="right">{{.T.T "board.column.streak"}}</span>
-            <span class="right spark-col">{{.T.T "board.column.last30"}}</span>
-          </li>
-          {{range .Rest}}
-            <li>
-              <span class="num muted" title="{{$.T.T "today.boardRank"}}">{{$.T.Integer .Rank}}</span>
-              <span class="row-name">
-                <a class="player" href="{{.Href}}">{{.Name}}</a>
-                {{if .Trait}}{{template "trait" .}}{{end}}
-              </span>
-              <span class="num">{{.FormText}}
-                {{if .DeltaText}}<span class="delta {{.DeltaDirection}}">{{.DeltaText}}</span>{{end}}
-              </span>
-              <span class="num muted">{{.StreakText}}</span>
-              <span class="spark-col">
-                {{if .HasSpark}}
-                  <svg viewBox="0 0 140 30" preserveAspectRatio="none" aria-hidden="true">
-                    <path class="player" d="{{.SparkPath}}"/>
-                  </svg>
-                {{end}}
-              </span>
+        <div class="form-table-scroll">
+          <ul class="form-rows">
+            {{/* A header, so the columns are not a guessing game. */}}
+            <li class="form-head">
+              <span></span>
+              <span>{{.T.T "board.column.player"}}</span>
+              <span class="right">{{.T.T "board.column.form"}}</span>
+              <span class="right">{{.T.T "board.column.last30"}}</span>
+              <span class="right">{{.T.T "board.column.lastFive"}}</span>
+              <span class="right">{{.T.T "board.column.streak"}}</span>
             </li>
-          {{end}}
-        </ul>
+            {{range .Rest}}
+              <li>
+                <span class="num muted" title="{{$.T.T "today.formRank"}}">{{if .FormRank}}{{$.T.Integer .FormRank}}{{else}}—{{end}}</span>
+                <span class="row-name">
+                  <a class="player" href="{{.Href}}">{{.Name}}</a>
+                  {{if .Trait}}{{template "trait" .}}{{end}}
+                </span>
+                <span class="num">{{.FormText}}
+                  {{if .DeltaText}}<span class="delta {{.DeltaDirection}}">{{.DeltaText}}</span>{{end}}
+                </span>
+                <span class="form-chart">
+                  {{if .HasSpark}}
+                    <svg viewBox="0 0 140 30" preserveAspectRatio="none" aria-hidden="true">
+                      <path class="player" d="{{.SparkPath}}"/>
+                    </svg>
+                  {{end}}
+                </span>
+                <div class="form-last-five">{{template "last-five" .LastFive}}</div>
+                <span class="num muted">{{.StreakText}}</span>
+              </li>
+            {{end}}
+          </ul>
+        </div>
       {{end}}
 
       {{if .BenchedCount}}
@@ -134,9 +139,12 @@
           {{end}}
         </div>
       {{end}}
-    </div>
+      <footer class="card-foot">
+        <span>{{.T.T "today.formNote"}}</span>
+      </footer>
+    </section>
   {{else}}
-    <p class="empty">{{.T.T "board.empty"}}</p>
+    <section class="card"><p class="empty">{{.T.T "board.empty"}}</p></section>
   {{end}}
-</section>
+</div>
 {{end}}

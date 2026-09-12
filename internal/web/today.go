@@ -1,11 +1,13 @@
 package web
 
 import (
+	"html/template"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/martinstenrose/wordleland/internal/stats"
+	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
@@ -58,8 +60,8 @@ type todayPage struct {
 
 	// Leaders is the top of the board, and Rest the remainder, so the front
 	// page can give the first three the space the design gives them.
-	Leaders []boardRow
-	Rest    []boardRow
+	Leaders []todayFormRow
+	Rest    []todayFormRow
 
 	// Benched is everyone the board does not rank, with the reason. Shown
 	// on request rather than by default: the front page is about who is
@@ -69,6 +71,12 @@ type todayPage struct {
 	ShowBenched  bool
 	BenchedHref  string
 	BenchedCount int
+}
+
+// todayFormRow distinguishes position by form from the all-time board rank.
+type todayFormRow struct {
+	boardRow
+	FormRank int
 }
 
 // handleToday renders the front page: the current puzzle, the generated
@@ -137,22 +145,44 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 
 	traits := stats.NewTraiter(board)
 
-	// Ordered by form, not by the board's own ranking. The section is headed
-	// "form, last 30 days" and prints the form figure, so ordering it by
-	// all-time average put a 3.90 above a 3.59 and made the heading a lie.
-	// The board's rank is still shown against each name, which is now a
-	// second piece of information rather than a restatement of the order.
+	// Sort 30-day form while keeping the board rank beside
+	// each name. The toggle changes this table, not eligibility or banter.
+	byPlayer := make(map[int64][]store.BoardResult)
+	for _, result := range results {
+		byPlayer[result.PlayerID] = append(byPlayer[result.PlayerID], result)
+	}
 	var rows []boardRow
 	for _, p := range board.Ranked {
-		rows = append(rows, s.newBoardRow(p, prefix, ch.T, traits, results, board.CurrentPuzzle))
+		row := s.newBoardRow(p, prefix, ch.T, traits, results, board.CurrentPuzzle)
+		form := stats.ComputeTodayForm(byPlayer[p.ID], board.Options)
+		row.Form, row.FormGames, row.Series = form.Average, form.Games, form.Series
+		row.Delta = nil
+		if row.Form != nil && row.Average != nil {
+			delta := *row.Form - *row.Average
+			row.Delta = &delta
+		}
+		row.FormText = formatScore(ch.T, row.Form)
+		row.DeltaText, row.DeltaDirection = formatDelta(ch.T, row.Delta)
+		row.SparkPath = template.HTML(sparkPath(row.Series, sparkWidth, sparkHeight))
+		row.HasSpark = hasSparkline(row.Series)
+		rows = append(rows, row)
 	}
 	sortRows(rows, boardSort{Column: sortForm})
 
+	formRank := 0
 	for i, row := range rows {
+		view := todayFormRow{boardRow: row}
+		if row.Form != nil {
+			// Equal form scores share a rank; missing form is unranked.
+			if i == 0 || rows[i-1].Form == nil || *row.Form != *rows[i-1].Form {
+				formRank = i + 1
+			}
+			view.FormRank = formRank
+		}
 		if i < 3 {
-			page.Leaders = append(page.Leaders, row)
+			page.Leaders = append(page.Leaders, view)
 		} else {
-			page.Rest = append(page.Rest, row)
+			page.Rest = append(page.Rest, view)
 		}
 	}
 
