@@ -96,6 +96,31 @@
   </nav>
 
   <div class="topbar-controls">
+    {{if .SignedIn}}
+      {{/* A plain link to /search — every part of search works from this
+           alone, with no script at all. app.js additionally binds ⌘K to
+           open the overlay below instead of navigating; see its header
+           comment. Gated on .SignedIn rather than .Nav: the read-only
+           share view has .Nav too (its pills point at the share-prefixed
+           board), but /search needs a real session, so it needs the
+           stricter check the account menu already uses. */}}
+      <a class="menu-btn search-btn" href="/search" aria-haspopup="dialog" aria-expanded="false" aria-controls="search-overlay">
+        {{template "search-icon" .}}
+        <span class="search-label">{{.T.T "search.title"}}</span>
+        <span class="search-shortcut js-only" aria-hidden="true">⌘K</span>
+      </a>
+      {{/* Hidden until app.js opens it; see the script for why this exists
+           at all rather than only as a fetch target. Absent, disabled, or
+           failing to load, this markup is inert and the link above still
+           goes to a working page. */}}
+      <div id="search-overlay" class="search-overlay" hidden>
+        <div class="search-overlay-box" role="dialog" aria-modal="true" aria-label="{{.T.T "search.title"}}">
+          <input type="search" class="search-overlay-input" placeholder="{{.T.T "search.placeholder"}}" aria-label="{{.T.T "search.title"}}">
+          <div class="search-overlay-results"></div>
+        </div>
+      </div>
+    {{end}}
+
     {{/* Both in the bar. Theme is per-device; language belongs to the
          account and is written there when a signed-in reader picks one, so
          it follows them to another device and decides what language their

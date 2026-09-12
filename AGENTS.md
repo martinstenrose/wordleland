@@ -14,10 +14,31 @@ Standard library first. A dependency needs a reason — the point of this stack
 is a small footprint and a small attack surface. No npm, no SPA framework, no
 client-side rendering by default. Charts are server-generated SVG.
 
-`internal/web/static/app.js` is the one exception, and a narrow one: vanilla,
-no build step, no dependency, purely a progressive enhancement (see its
-header comment). Whether and how to use JavaScript more broadly is an open
-question, not yet decided — do not treat this file as having settled it.
+`internal/web/static/app.js` carries the JavaScript this app ships, and the
+rule for what belongs there is a narrow one, decided deliberately rather
+than left to whether a given feature "adds value": **JS is for what cannot
+exist without it** — a keyboard shortcut, an overlay with no page behind it
+— not for making an already-working feature nicer. Concretely:
+
+- Everything JS adds must degrade to a working, server-rendered path. A
+  feature is the server-rendered route first; script only adds a shortcut
+  or an inline affordance on top of it. The search box (`GET /search`,
+  `internal/web/search.go`) is the model: the route works with zero
+  script, and the `⌘K` overlay is `app.js` fetching that same route's
+  markup, not a second implementation of search.
+- Vanilla, no build step, no npm dependency — unchanged. Needing more than
+  that is a sign to have this conversation again, not a reason to reach
+  for a bundler or a framework quietly.
+- New client behaviour gets a header comment stating what it does and
+  what still works with it absent, disabled, or failing to load — the
+  convention `app.js`'s existing popup-positioning code already follows.
+- Where a Go test can pin the server-rendered fallback, it does; where the
+  behaviour is JS-only with nothing to fall back to (arrow-key navigation
+  inside an open overlay, say), that gap is stated rather than papered
+  over with a test that doesn't actually exercise a browser.
+
+This was an open question for a while — do not read an old comment or PR
+elsewhere as having settled it any other way than what's written here.
 
 **Layout:** one Go module, one binary.
 

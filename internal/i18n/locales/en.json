@@ -603,5 +603,10 @@
   "privacy.cookies.heading": "Cookies",
   "privacy.cookies.body": "Signing in, and remembering a theme or language choice, uses a few cookies. None of them are used for tracking, advertising, or shared with anyone outside this installation.",
   "privacy.removal.heading": "Leaving the group",
-  "privacy.removal.body": "Leaving disables an account rather than deleting it, so past corrections keep their trail. Ask whoever runs this installation if you want your data handled differently."
+  "privacy.removal.body": "Leaving disables an account rather than deleting it, so past corrections keep their trail. Ask whoever runs this installation if you want your data handled differently.",
+  "search.title": "Search",
+  "search.placeholder": "Search players and pages",
+  "search.players": "Players",
+  "search.pages": "Pages",
+  "search.noResults": "No matches for that search."
 }
