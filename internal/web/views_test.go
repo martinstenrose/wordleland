@@ -35,8 +35,7 @@ func TestNavLinksAllResolve(t *testing.T) {
 		t.Run(board.name, func(t *testing.T) {
 			body := fetchAs(t, srv, board.path, board.cookie).Body.String()
 
-			// Today is not a tab: the mark is the way home, and home is the
-			// front page. It still has to resolve.
+			// The brand and Today pill both lead to the front page.
 			home := hrefOfClass(t, body, "brand")
 			if rec := fetchAs(t, srv, home, board.cookie); rec.Code != http.StatusOK {
 				t.Errorf("the mark links to %s = %d, want 200", home, rec.Code)
@@ -510,8 +509,7 @@ func TestMobileNavCoversEveryView(t *testing.T) {
 			t.Errorf("the mobile view row is missing %q", label)
 		}
 	}
-	// The same list at both widths, Today included: the wordmark is not a
-	// link, so a missing Today pill would leave the front page unreachable.
+	// Keep the same list at both widths, Today included.
 	top := body[:at]
 	if !strings.Contains(top, ">Today<") {
 		t.Error("Today is missing from the top bar")

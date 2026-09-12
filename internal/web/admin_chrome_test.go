@@ -209,9 +209,8 @@ func TestTopBarSubtitleIsNotShownSignedOut(t *testing.T) {
 	}
 }
 
-// One nav, shown the same way at both widths, and the wordmark is not a
-// second way to reach the front page.
-func TestNavIsOneListAndTheWordmarkIsNotALink(t *testing.T) {
+// One nav, shown the same way at both widths, with a brand link to Today.
+func TestNavIsOneListAndTheWordmarkLinksToToday(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -225,11 +224,8 @@ func TestNavIsOneListAndTheWordmarkIsNotALink(t *testing.T) {
 		}
 	}
 
-	// The wordmark carries no href, so there is one control per destination.
-	brand := header[strings.Index(header, `class="brand"`):]
-	brand = brand[:strings.Index(brand, "</span>")]
-	if strings.Contains(brand, "href=") {
-		t.Error("the wordmark still links somewhere; Today is already a pill")
+	if !strings.Contains(header, `<a class="brand" href="/today">`) {
+		t.Error("the wordmark does not link to Today")
 	}
 
 	// And the desktop row and the narrow row are the same list.

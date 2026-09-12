@@ -83,14 +83,12 @@
 {{define "topbar"}}
 <header class="topbar">
   <nav class="topbar-nav" aria-label="{{.T.T "nav.views"}}">
-    {{/* Not a link: Today is a view in the row beside it, and two controls
-         going to the same place is one of them being redundant. */}}
-    <span class="brand">{{template "mark" .}}
+    <a class="brand" href="{{.TodayHref}}">{{template "mark" .}}
       <span class="brand-id">
         <span>{{.T.T "app.name"}}</span>
         {{if .Subtitle}}<span class="brand-sub">{{.Subtitle}}</span>{{end}}
       </span>
-    </span>
+    </a>
     {{if .Nav}}
       <span class="topbar-divider" aria-hidden="true"></span>
       {{template "pill-nav-items" .Nav}}
