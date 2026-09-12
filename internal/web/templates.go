@@ -97,6 +97,15 @@ func parseTemplates() (templates, error) {
 // render writes a page, buffering first so a template error mid-execution
 // cannot emit a half-written page under a 200 status.
 func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, name string, data any) {
+	s.renderBlock(w, r, status, name, "base", data)
+}
+
+// renderBlock executes one named block of a page's template rather than the
+// whole "base" layout — the command palette's overlay is the one caller
+// that wants this: it fetches the exact same page's results block, so the
+// overlay is never a second copy of what a query matches, only a smaller
+// render of it. See search.go's handleSearchPage.
+func (s *Server) renderBlock(w http.ResponseWriter, r *http.Request, status int, name, block string, data any) {
 	// r.URL.Path is logged below at every branch; see docs/decisions.md,
 	// "CI and security scanning", for why that's safe.
 	t, ok := s.templates[name]
@@ -107,8 +116,8 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, name
 	}
 
 	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, "base", data); err != nil {
-		s.logger.Error("render template", "template", name, "path", r.URL.Path, "error", err)
+	if err := t.ExecuteTemplate(&buf, block, data); err != nil {
+		s.logger.Error("render template", "template", name, "block", block, "path", r.URL.Path, "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}

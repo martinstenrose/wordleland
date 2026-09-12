@@ -1,0 +1,37 @@
+{{define "title"}}{{.T.T "search.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{template "topbar" .}}
+
+<section class="card narrow search-page">
+  <h1>{{.T.T "search.title"}}</h1>
+  {{/* A plain GET form: typing a query and pressing enter (or the browser's
+       own search-field affordances) works with no script at all. app.js
+       reuses this exact route for the ⌘K overlay instead of inventing a
+       second search — see search.go. */}}
+  <form method="get" action="/search" class="search-form" role="search">
+    <input type="search" name="q" value="{{.Query}}" placeholder="{{.T.T "search.placeholder"}}" autofocus>
+  </form>
+  {{template "search-results" .}}
+</section>
+{{end}}
+
+{{/* Its own block, not folded into "content": the ⌘K overlay renders this
+     alone, through renderBlock, so a query typed there matches the exact
+     same markup the full page would have shown for it. */}}
+{{define "search-results"}}
+<div class="search-results">
+  {{if .Results.Players}}
+    <p class="kicker">{{.T.T "search.players"}}</p>
+    <ul class="search-hits">
+      {{range .Results.Players}}<li><a class="search-hit" href="{{.Href}}">{{.Label}}</a></li>{{end}}
+    </ul>
+  {{end}}
+  {{if .Results.Pages}}
+    <p class="kicker">{{.T.T "search.pages"}}</p>
+    <ul class="search-hits">
+      {{range .Results.Pages}}<li><a class="search-hit" href="{{.Href}}">{{.Label}}</a></li>{{end}}
+    </ul>
+  {{end}}
+  {{if .Results.Empty}}<p class="muted">{{.T.T "search.noResults"}}</p>{{end}}
+</div>
+{{end}}

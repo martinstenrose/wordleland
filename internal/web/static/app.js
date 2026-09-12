@@ -1,3 +1,10 @@
+// Independent, self-contained enhancements, each an IIFE with its own
+// header comment. Every rule from AGENTS.md's JavaScript section applies
+// to all of them: vanilla, no build step, no dependency, and each is
+// strictly additive — the feature it touches has a working, server-
+// rendered form already, and this file only adds a shortcut or a nicety on
+// top of it.
+
 // Progressive enhancements for native <details> controls: dismiss topbar
 // menus on outside clicks and nudge informational popups back on screen.
 // Opening, summary-click closing and exclusivity still work without JS.
@@ -104,4 +111,105 @@
     },
     true
   );
+})();
+
+// The ⌘K command palette. It exists only because opening an overlay on a
+// keystroke, and moving a selection through it with arrow keys, cannot be
+// done from HTML and CSS alone — everything else about search does not
+// need this file. The topbar's search link (see topbar.html) already goes
+// to a working /search page with no script at all; all this does is fetch
+// that same route's results — "?partial=1" asks the server for just the
+// list, not a second page — into an overlay instead of navigating to it,
+// and let the arrow keys and Enter move through what comes back. Absent,
+// disabled, or failing to load, the link still works exactly as before.
+(function () {
+  "use strict";
+
+  var overlay = document.getElementById("search-overlay");
+  if (!overlay) return; // No search on this page — signed out, or read-only.
+
+  var button = document.querySelector(".search-btn");
+  var input = overlay.querySelector(".search-overlay-input");
+  var results = overlay.querySelector(".search-overlay-results");
+
+  // Guards against a slow request for an earlier keystroke landing after a
+  // faster one for a later keystroke — without this, typing quickly can
+  // show results for a query that is no longer in the box.
+  var requestID = 0;
+
+  function fetchResults(query) {
+    var thisRequest = ++requestID;
+    fetch("/search?partial=1&q=" + encodeURIComponent(query))
+      .then(function (response) { return response.ok ? response.text() : ""; })
+      .then(function (html) {
+        if (thisRequest === requestID) results.innerHTML = html;
+      })
+      .catch(function () {
+        // Pure enhancement: leave whatever results are already showing
+        // rather than replacing them with an error.
+      });
+  }
+
+  function open() {
+    button.setAttribute("aria-expanded", "true");
+    overlay.hidden = false;
+    input.value = "";
+    fetchResults("");
+    input.focus();
+  }
+
+  function close() {
+    overlay.hidden = true;
+    button.setAttribute("aria-expanded", "false");
+    button.focus();
+  }
+
+  var debounce;
+  input.addEventListener("input", function () {
+    var query = input.value;
+    clearTimeout(debounce);
+    debounce = setTimeout(function () { fetchResults(query); }, 120);
+  });
+
+  button.addEventListener("click", function (event) {
+    event.preventDefault(); // The link still has a real href; only override it once script has run.
+    open();
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      overlay.hidden ? open() : close();
+      return;
+    }
+    if (!overlay.hidden && event.key === "Escape") close();
+  });
+
+  overlay.addEventListener("click", function (event) {
+    if (event.target === overlay) close(); // The backdrop, not the box inside it.
+  });
+
+  // Arrow keys move a .current marker among the rendered result links;
+  // Enter follows whichever one currently carries it, or the first result
+  // when nothing has been highlighted yet.
+  input.addEventListener("keydown", function (event) {
+    var links = results.querySelectorAll("a");
+    if (!links.length) return;
+
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Enter") return;
+    event.preventDefault();
+
+    var current = results.querySelector("a.current");
+    var index = current ? Array.prototype.indexOf.call(links, current) : -1;
+
+    if (event.key === "Enter") {
+      (current || links[0]).click();
+      return;
+    }
+
+    index = event.key === "ArrowDown" ? (index + 1) % links.length : (index - 1 + links.length) % links.length;
+    if (current) current.classList.remove("current");
+    links[index].classList.add("current");
+    links[index].scrollIntoView({ block: "nearest" });
+  });
 })();

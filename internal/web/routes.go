@@ -31,6 +31,12 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /grid", s.requireAuth(s.handleGridPage))
 	mux.HandleFunc("GET /players", s.requireAuth(s.handlePlayersPage))
 
+	// The topbar's search box and the ⌘K palette both land here — see
+	// search.go. "?partial=1" is the palette asking for just the results,
+	// not a second route: there is one place that decides what a query
+	// matches.
+	mux.HandleFunc("GET /search", s.requireAuth(s.handleSearchPage))
+
 	// A reader's own account. Each section posts on its own, so a rejected
 	// password does not throw away a name they also typed.
 	mux.HandleFunc("GET /settings", s.requireAuth(s.handleSettings))

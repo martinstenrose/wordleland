@@ -603,5 +603,10 @@
   "privacy.cookies.heading": "Kakor",
   "privacy.cookies.body": "Inloggning, och att komma ihåg ett tema- eller språkval, använder några kakor. Ingen av dem används för spårning, reklam, eller delas med någon utanför den här installationen.",
   "privacy.removal.heading": "Att lämna gruppen",
-  "privacy.removal.body": "Att lämna gruppen inaktiverar ett konto i stället för att radera det, så tidigare rättelser behåller sitt spår. Fråga den som driver den här installationen om du vill att dina uppgifter hanteras annorlunda."
+  "privacy.removal.body": "Att lämna gruppen inaktiverar ett konto i stället för att radera det, så tidigare rättelser behåller sitt spår. Fråga den som driver den här installationen om du vill att dina uppgifter hanteras annorlunda.",
+  "search.title": "Sök",
+  "search.placeholder": "Sök spelare och sidor",
+  "search.players": "Spelare",
+  "search.pages": "Sidor",
+  "search.noResults": "Inga träffar för den sökningen."
 }
