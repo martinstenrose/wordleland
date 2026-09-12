@@ -87,7 +87,7 @@ plain CSS-class convention: wrap a scrolling table in
 
 | File | Partials | Why `app/` |
 |---|---|---|
-| `topbar.html` | `mark`, `theme-picker`, `language-picker`, `topbar` | The brand mark and every reader of `chrome` (nav items, account state, admin flag). The language control's globe icon is generic and lives in `ui/icons.html` instead. |
+| `topbar.html` | `mark`, `flag`, `theme-picker`, `language-picker`, `topbar` | The brand mark, the app's exact two-locale flag set, and every reader of `chrome` (nav items, account state, admin flag). The language menu's button uses the generic globe icon from `ui/icons.html` instead — see `language-picker` for why the button and its rows disagree. |
 | `trait.html` | `trait` | A Wordle result trait and its explanation. |
 | `admin.html` | `admin-warning`, `admin-tabs` | Admin-only chrome. |
 

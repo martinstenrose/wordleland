@@ -394,12 +394,13 @@ func TestPickersPreserveTheRestOfTheQuery(t *testing.T) {
 	}
 }
 
-// The language control is a globe, not a flag. A flag names a country and a
-// locale names a language: "en" was flying a British flag at readers who
-// have no connection to the place, and no flag stands for a language
-// anyway. One icon, stroked in the bar's own colour like every other
-// control there.
-func TestLanguagePickerIsAGlobe(t *testing.T) {
+// The language menu's button is a globe, not a flag: it opens the menu
+// before a language is picked, and a flag would claim one before the
+// reader has chosen. Its rows disagree on purpose — each names a specific
+// language, and a flag is the fastest way to find the right one — so they
+// keep the British and Swedish flags. See the comment on language-picker
+// in app/topbar.html for the reasoning both ways.
+func TestLanguagePickerButtonIsAGlobeItsRowsAreFlags(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
@@ -416,37 +417,81 @@ func TestLanguagePickerIsAGlobe(t *testing.T) {
 		{"the top bar", fetchAs(t, srv, "/leaderboard", session).Body.String()},
 		{"the sign-in page", fetchAs(t, srv, "/", nil).Body.String()},
 	} {
-		picker := languagePicker(t, page.body)
+		button, rows := languagePickerParts(t, page.body)
 
-		if !strings.Contains(picker, `stroke="currentColor"`) {
-			t.Errorf("%s: the language control draws nothing in the bar's own colour", page.where)
+		if !strings.Contains(button, `stroke="currentColor"`) {
+			t.Errorf("%s: the language button draws nothing in the bar's own colour", page.where)
 		}
-		if strings.Contains(picker, `fill="#`) {
-			t.Errorf("%s: the language control still paints a flag's colours", page.where)
+		if strings.Contains(button, `fill="#`) {
+			t.Errorf("%s: the language button still paints a flag's colours", page.where)
 		}
-		// Two icons and no more: the globe on the button and the chevron
-		// beside it. A third would be the flags back on the rows, where one
-		// repeated icon tells you nothing the labels do not.
-		if got := strings.Count(picker, "<svg"); got != 2 {
-			t.Errorf("%s: %d icons in the language picker, want the globe and its chevron", page.where, got)
+		// Two icons and no more: the globe and the chevron beside it. A
+		// third would be a flag creeping back onto the button itself.
+		if got := strings.Count(button, "<svg"); got != 2 {
+			t.Errorf("%s: %d icons on the language button, want the globe and its chevron", page.where, got)
+		}
+
+		// The English row draws the Union Jack's navy, the Swedish row its
+		// blue — not the same icon repeated, which is what a bare svg count
+		// could not tell apart.
+		englishRow := languageMenuRow(t, rows, "English")
+		if !strings.Contains(englishRow, `fill="#012169"`) {
+			t.Errorf("%s: the English row is not the British flag", page.where)
+		}
+		swedishRow := languageMenuRow(t, rows, "Svenska")
+		if !strings.Contains(swedishRow, `fill="#005293"`) {
+			t.Errorf("%s: the Swedish row is not the Swedish flag", page.where)
 		}
 	}
 }
 
-// languagePicker returns the language menu's markup from a rendered page,
-// from the button's label to the end of the menu it opens.
-func languagePicker(t *testing.T, body string) string {
+// languagePickerParts splits a rendered page's language menu into the
+// button (the label through its closing </summary>) and the menu it opens
+// (through the closing </details>), so a flag belonging to one is not
+// mistaken for a flag belonging to the other.
+func languagePickerParts(t *testing.T, body string) (button, rows string) {
 	t.Helper()
 
 	start := strings.Index(body, `aria-label="Language: English"`)
 	if start < 0 {
 		t.Fatal("no language picker on the page")
 	}
-	end := strings.Index(body[start:], "</details>")
-	if end < 0 {
+	summaryEnd := strings.Index(body[start:], "</summary>")
+	if summaryEnd < 0 {
+		t.Fatal("the language button is never closed")
+	}
+	summaryEnd += start + len("</summary>")
+
+	detailsEnd := strings.Index(body[summaryEnd:], "</details>")
+	if detailsEnd < 0 {
 		t.Fatal("the language picker is never closed")
 	}
-	return body[start : start+end]
+	return body[start:summaryEnd], body[summaryEnd : summaryEnd+detailsEnd]
+}
+
+// languageMenuRow returns one row's markup from a language menu's rows,
+// identified by the language name it displays.
+func languageMenuRow(t *testing.T, rows, language string) string {
+	t.Helper()
+
+	start := strings.Index(rows, `<a class="menu-row`)
+	for start >= 0 {
+		end := strings.Index(rows[start:], "</a>")
+		if end < 0 {
+			t.Fatalf("a menu row is never closed, looking for %q", language)
+		}
+		end += start + len("</a>")
+		if row := rows[start:end]; strings.Contains(row, language) {
+			return row
+		}
+		next := strings.Index(rows[end:], `<a class="menu-row`)
+		if next < 0 {
+			break
+		}
+		start = end + next
+	}
+	t.Fatalf("no %q row in the language menu", language)
+	return ""
 }
 
 // The language picker is its own menu in the bar, on every surface. What

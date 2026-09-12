@@ -25,18 +25,15 @@
 
 {{define "chevron"}}<svg class="chevron" width="9" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>{{end}}
 
-{{/* One globe for the language control, not a flag per language. A flag
-     names a country and a locale names a language, and the two do not
-     line up: "en" was flying a British flag at readers who have never
-     been near the place. The globe says "language" without claiming any
-     of them belongs somewhere.
+{{/* The language menu's button, where app/topbar.html's flag partial is
+     its rows — see the comment on language-picker there for why the two
+     differ. This one is generic (no locale it doesn't know how to draw),
+     so it lives here rather than with that hardcoded pair.
 
-     Drawn rather than fetched, for the same reasons the old flags were:
-     an emoji globe does not render the same on every platform, and an
-     image would be a request to somewhere. Stroked in currentColor at
-     the theme icon's weight, so the two buttons in the bar match. It has
-     no knowledge of which locales the app supports, unlike the flag set
-     it replaces, so it belongs here rather than in app/topbar.html. */}}
+     Drawn rather than fetched, for the same reason the flags are: an
+     emoji does not render the same on every platform, and an image would
+     be a request to somewhere. Stroked in currentColor at the theme
+     icon's weight, so the two buttons in the bar match. */}}
 {{define "globe"}}
   <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
     <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
