@@ -1,9 +1,10 @@
 {{define "mark"}}<span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>{{end}}
 
 {{/* The switchers are links, and the account menu is a <details>. Nothing
-     here needs JavaScript for opening, closing or exclusivity — those work
+     here needs JavaScript for opening, summary-click closing or exclusivity — those work
      from HTML and CSS alone, which is the point: a control that only works
      once a script has run is a control that sometimes does not work.
+     app.js also closes topbar menus when a click lands outside them.
 
      Two kinds of disclosure share this pattern, each exclusive within
      itself but not with the other — a plain <details> with a name= the
