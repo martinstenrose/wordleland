@@ -62,7 +62,8 @@ type chrome struct {
 	// leads nowhere is worse than an absent one.
 	Nav []chromeOpt
 
-	// TodayHref keeps the brand link on the current signed-in or shared surface.
+	// TodayHref is the brand destination: Today for signed-in and shared
+	// views, or sign-in for an anonymous visitor to the privacy page.
 	TodayHref string
 
 	// Tabs is the same list for the narrow layout, with Today restored.
@@ -263,8 +264,7 @@ func (s *Server) signedOutChrome(w http.ResponseWriter, r *http.Request, token s
 	return c
 }
 
-// The views the nav offers. The design lists a player index too, which is
-// not built; linking to it would be linking to nothing.
+// The views the nav offers.
 const (
 	viewToday   = "today"
 	viewBoard   = "board"
@@ -273,11 +273,8 @@ const (
 	viewPlayers = "players"
 )
 
-// Today is one of the views rather than something the wordmark stands in
-// for. The wordmark used to be the way home, which meant the front page was
-// reachable by a control that looked nothing like the others and was absent
-// on a narrow screen, where a Today tab appeared instead. One list, shown
-// the same way at both widths.
+// Both widths use the same view list, including Today. The brand also
+// links to Today, so it remains reachable through either control.
 var navViews = []string{viewToday, viewBoard, viewMonths, viewGrid, viewPlayers}
 
 // landingPath is where a signed-in reader arrives, and what the bare share

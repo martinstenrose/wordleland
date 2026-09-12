@@ -21,6 +21,8 @@ func (s *Server) handlePrivacy(w http.ResponseWriter, r *http.Request) {
 		// at "/today" and friends, which redirect a stranger straight to
 		// login. signedOutChrome drops them for the same reason.
 		ch.Nav, ch.Tabs = nil, nil
+		// The brand stays clickable without a detour through requireAuth.
+		ch.TodayHref = "/"
 	}
 	s.render(w, r, http.StatusOK, "privacy.html", privacyPage{chrome: ch})
 }
