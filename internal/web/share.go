@@ -65,6 +65,11 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request) {
 		s.handlePlayers(w, r, prefix, viewPath(prefix, viewPlayers), true)
 	case strings.HasPrefix(rest, "p/") && store.ValidSlug(strings.TrimPrefix(rest, "p/")):
 		s.handlePlayer(w, r, strings.TrimPrefix(rest, "p/"), prefix, viewPath(prefix, viewPlayers), true)
+	case rest == "search":
+		// Settings and the admin screens drop out of what a query can
+		// find here — see searchDestinations — since neither exists for
+		// an anonymous reader.
+		s.handleSearch(w, r, prefix, true)
 	default:
 		s.renderError(w, r, http.StatusNotFound)
 	}

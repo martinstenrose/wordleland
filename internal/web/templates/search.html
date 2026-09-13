@@ -8,7 +8,7 @@
        own search-field affordances) works with no script at all. app.js
        reuses this exact route for the ⌘K overlay instead of inventing a
        second search — see search.go. */}}
-  <form method="get" action="/search" class="search-form" role="search">
+  <form method="get" action="{{.SearchPath}}" class="search-form" role="search">
     <input type="search" name="q" value="{{.Query}}" placeholder="{{.T.T "search.placeholder"}}" autofocus>
   </form>
   {{template "search-results" .}}
@@ -23,13 +23,13 @@
   {{if .Results.Players}}
     <p class="kicker">{{.T.T "search.players"}}</p>
     <ul class="search-hits">
-      {{range .Results.Players}}<li><a class="search-hit" href="{{.Href}}">{{.Label}}</a></li>{{end}}
+      {{range .Results.Players}}<li><a class="search-hit" href="{{.Href}}">{{template "search-hit-icon" .Kind}}<span>{{.Label}}</span></a></li>{{end}}
     </ul>
   {{end}}
   {{if .Results.Pages}}
     <p class="kicker">{{.T.T "search.pages"}}</p>
     <ul class="search-hits">
-      {{range .Results.Pages}}<li><a class="search-hit" href="{{.Href}}">{{.Label}}</a></li>{{end}}
+      {{range .Results.Pages}}<li><a class="search-hit" href="{{.Href}}">{{template "search-hit-icon" .Kind}}<span>{{.Label}}</span></a></li>{{end}}
     </ul>
   {{end}}
   {{if .Results.Empty}}<p class="muted">{{.T.T "search.noResults"}}</p>{{end}}
