@@ -134,7 +134,7 @@ func TestContentSecurityPolicyAllowsOnlyUsedSources(t *testing.T) {
 		"script-src 'self'",
 		"style-src 'self' 'unsafe-inline'",
 		"img-src 'self' data:",
-		"connect-src 'none'",
+		"connect-src 'self'",
 		"object-src 'none'",
 		"base-uri 'none'",
 		"frame-ancestors 'none'",
@@ -147,6 +147,13 @@ func TestContentSecurityPolicyAllowsOnlyUsedSources(t *testing.T) {
 	if strings.Contains(contentSecurityPolicy, "script-src 'self' 'unsafe-inline'") ||
 		strings.Contains(contentSecurityPolicy, "script-src *") {
 		t.Errorf("policy permits untrusted scripts: %q", contentSecurityPolicy)
+	}
+	// connect-src widened from 'none' for the search overlay's fetch calls
+	// (see the constant's comment), but only as far as this origin — it
+	// must never grow to allow an off-origin fetch target.
+	if strings.Contains(contentSecurityPolicy, "connect-src *") ||
+		strings.Contains(contentSecurityPolicy, "connect-src 'self' http") {
+		t.Errorf("policy permits off-origin connections: %q", contentSecurityPolicy)
 	}
 }
 
