@@ -1285,6 +1285,10 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .search-hit svg { flex: none; color: var(--color-text-45); }
 .search-hit:hover, .search-hit.current { background: var(--color-text-06); color: var(--color-text); }
 .search-hit:hover svg, .search-hit.current svg { color: var(--color-text-70); }
+/* <mark> for what it means — the part of the label the query matched —
+   not for its default yellow-highlight look, which would fight the
+   theme in dark mode as much as it clashes with it in light. */
+.search-hit mark { background: none; color: inherit; font-weight: 700; }
 
 /* Fixed and centred rather than anchored to the button, unlike the
    picker menus: it opens on a keystroke from anywhere on the page, not
