@@ -1268,15 +1268,23 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 }
 .search-form input[type="search"]:focus { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
 
-.search-hits { display: grid; gap: 2px; margin: 4px 0 14px; }
+/* list-style: none because these are <li>s for the semantics — a screen
+   reader announcing "list, 6 items" — not because the row reads as a
+   list visually; the icon on each hit is what a bullet was standing in
+   for before. */
+.search-hits { display: grid; gap: 2px; margin: 4px 0 14px; list-style: none; padding: 0; }
 .search-hit {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 8px 10px;
   border-radius: var(--radius-sm);
   color: var(--color-text-80);
   text-decoration: none;
 }
+.search-hit svg { flex: none; color: var(--color-text-45); }
 .search-hit:hover, .search-hit.current { background: var(--color-text-06); color: var(--color-text); }
+.search-hit:hover svg, .search-hit.current svg { color: var(--color-text-70); }
 
 /* Fixed and centred rather than anchored to the button, unlike the
    picker menus: it opens on a keystroke from anywhere on the page, not

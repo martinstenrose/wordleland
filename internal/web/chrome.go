@@ -90,6 +90,16 @@ type chrome struct {
 	// the area rather than only on the page that computes it. A page nobody
 	// opens is not a signal.
 	AdminWarning string
+
+	// SearchPath is where the topbar's search control points, and doubles
+	// as whether it renders at all: set for a signed-in reader and for the
+	// genuine read-only share view, empty everywhere else. That "everywhere
+	// else" matters — renderError builds its chrome with readOnly:true for
+	// any visitor, signed in or not, so gating on ReadOnly alone would put
+	// a search box on a stranger's 404. Checking prefix rules that out: an
+	// error page has none, and only the share view's readOnly is paired
+	// with one.
+	SearchPath string
 }
 
 // SignedIn reports whether the account menu should render.
@@ -179,6 +189,12 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 		c.User = &user
 		c.Initials = initialsFor(user.Email)
 	}
+
+	// See the field comment: a real session, or a real share prefix, gets
+	// the search control; a bare readOnly (an error page) gets neither.
+	if c.User != nil || (readOnly && prefix != "") {
+		c.SearchPath = viewPath(prefix, "search")
+	}
 	return c
 }
 
@@ -261,6 +277,11 @@ func (s *Server) signedOutChrome(w http.ResponseWriter, r *http.Request, token s
 	// The account menu has nothing to show yet, and on the two-factor step
 	// there is a session that is deliberately not yet an identity.
 	c.User = nil
+	// newChrome may have set this from a session that is fully valid but
+	// simply landed here (a bookmark to /forgot-password, say): clear it
+	// alongside User rather than leaving a search box for a chrome that is
+	// otherwise entirely signed-out.
+	c.SearchPath = ""
 	return c
 }
 

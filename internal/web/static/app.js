@@ -117,20 +117,24 @@
 // keystroke, and moving a selection through it with arrow keys, cannot be
 // done from HTML and CSS alone — everything else about search does not
 // need this file. The topbar's search link (see topbar.html) already goes
-// to a working /search page with no script at all; all this does is fetch
-// that same route's results — "?partial=1" asks the server for just the
-// list, not a second page — into an overlay instead of navigating to it,
-// and let the arrow keys and Enter move through what comes back. Absent,
-// disabled, or failing to load, the link still works exactly as before.
+// to a working search page with no script at all — /search signed in,
+// /share/<slug>/search on the read-only view; all this does is fetch that
+// same route's results — "?partial=1" asks the server for just the list,
+// not a second page — into an overlay instead of navigating to it, and let
+// the arrow keys and Enter move through what comes back. Absent, disabled,
+// or failing to load, the link still works exactly as before.
 (function () {
   "use strict";
 
   var overlay = document.getElementById("search-overlay");
-  if (!overlay) return; // No search on this page — signed out, or read-only.
+  if (!overlay) return; // No search on this page — signed out only.
 
   var button = document.querySelector(".search-btn");
   var input = overlay.querySelector(".search-overlay-input");
   var results = overlay.querySelector(".search-overlay-results");
+  // Set from chrome's SearchPath — "/search" signed in, "/share/<slug>/search"
+  // on the read-only view — so this file never hardcodes which one applies.
+  var searchPath = overlay.dataset.searchPath;
 
   // Guards against a slow request for an earlier keystroke landing after a
   // faster one for a later keystroke — without this, typing quickly can
@@ -139,7 +143,7 @@
 
   function fetchResults(query) {
     var thisRequest = ++requestID;
-    fetch("/search?partial=1&q=" + encodeURIComponent(query))
+    fetch(searchPath + "?partial=1&q=" + encodeURIComponent(query))
       .then(function (response) { return response.ok ? response.text() : ""; })
       .then(function (html) {
         if (thisRequest === requestID) results.innerHTML = html;

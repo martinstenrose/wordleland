@@ -33,3 +33,46 @@
     </g>
   </svg>
 {{end}}
+
+{{/* One icon per search-hit kind, so a result reads at a glance rather
+     than after opening it: a person for a player, a page for an ordinary
+     view, a gear for Settings, a shield for an admin screen. Kind is a
+     plain string dispatch rather than four separate partials — the same
+     pattern theme-icon already uses for its three variants. */}}
+{{define "search-hit-icon"}}
+  {{if eq . "player"}}
+    <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="3.6"/>
+        <path d="M5 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5"/>
+      </g>
+    </svg>
+  {{else if eq . "settings"}}
+    {{/* Sliders, not a gear: a gear built from radiating lines around a
+         circle is indistinguishable at this size from the theme picker's
+         light-mode sun, two controls away in the same bar. */}}
+    <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+        <path d="M4 7h3M11 7h9"/>
+        <circle cx="7.5" cy="7" r="2"/>
+        <path d="M4 12h9M17 12h3"/>
+        <circle cx="14.5" cy="12" r="2"/>
+        <path d="M4 17h3M11 17h9"/>
+        <circle cx="7.5" cy="17" r="2"/>
+      </g>
+    </svg>
+  {{else if eq . "admin"}}
+    <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6l7-3z"
+            fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    </svg>
+  {{else}}
+    <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M6.5 3.5h8l3 3v14h-11z"/>
+        <path d="M14.5 3.5v3h3"/>
+        <path d="M9 12h6M9 15.5h6"/>
+      </g>
+    </svg>
+  {{end}}
+{{end}}

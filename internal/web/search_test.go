@@ -127,13 +127,20 @@ func TestTopbarSearchLinkMatchesWhoCanUseTheRoute(t *testing.T) {
 	}
 
 	loggedOut := fetchAs(t, srv, "/", nil).Body.String()
-	if strings.Contains(loggedOut, `href="/search"`) {
+	if strings.Contains(loggedOut, `search-btn`) {
 		t.Error("the sign-in page offers a search link nobody can use yet")
 	}
 
+	// The read-only share view gets its own search, under the share
+	// prefix — the bare /search route would just redirect an anonymous
+	// visitor to sign-in.
 	shared := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
+	wantSharedHref := `href="/share/` + slug + `/search"`
+	if !strings.Contains(shared, wantSharedHref) {
+		t.Errorf("the read-only share view has no search link at %q", wantSharedHref)
+	}
 	if strings.Contains(shared, `href="/search"`) {
-		t.Error("the read-only share view offers a search link the route would reject")
+		t.Error("the read-only share view's search link points at the authenticated route")
 	}
 }
 
@@ -179,18 +186,94 @@ func TestSearchOverlayScriptIsWiredUpAndScoped(t *testing.T) {
 	if strings.Count(body, `id="search-overlay"`) != 1 {
 		t.Error("expected exactly one search overlay in the page")
 	}
-	if !strings.Contains(body, `<div id="search-overlay" class="search-overlay" hidden>`) {
-		t.Error("the overlay is not hidden by default")
+	if !strings.Contains(body, `<div id="search-overlay" class="search-overlay" hidden data-search-path="/search">`) {
+		t.Error("the overlay is not hidden by default, or carries the wrong search path")
 	}
 
 	script := fetchAs(t, srv, "/static/app.js", nil).Body.String()
 	if !strings.Contains(script, `getElementById("search-overlay")`) {
 		t.Error("the script does not reach the search overlay")
 	}
-	if !strings.Contains(script, `"/search?partial=1&q="`) {
+	// The path comes from the overlay's own data attribute rather than
+	// being hardcoded, so the same script works under the share prefix —
+	// see TestSharedSearchWorksUnderThePrefix.
+	if !strings.Contains(script, `overlay.dataset.searchPath`) {
+		t.Error("the script does not read the overlay's search path")
+	}
+	if !strings.Contains(script, `"?partial=1&q="`) {
 		t.Error("the overlay does not fetch the partial results route")
 	}
 	if strings.Contains(script, `getAttribute("name") === "topbar-menu"`) {
 		t.Error("the search script reaches into the topbar-menu group, which is a separate concern")
+	}
+}
+
+// The read-only share view gets search too, under its own prefix, but
+// without Settings or the admin screens — neither exists for an anonymous
+// reader, and the bare labels ("players", "settings") could otherwise
+// coincidentally match a player named after one.
+func TestSharedSearchWorksUnderThePrefix(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	body := fetchAs(t, srv, "/share/"+slug+"/search?q=hard", nil).Body.String()
+	if fetchAs(t, srv, "/share/"+slug+"/search?q=hard", nil).Code != http.StatusOK {
+		t.Fatal("the shared search route is not reachable without a session")
+	}
+	for _, want := range []string{"Harda", "Hardb"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("shared search q=hard: missing %q", want)
+		}
+	}
+	// Player links stay under the share prefix, the same as every other
+	// link on this view — see TestShareBoardMirrorsTheAuthenticatedOne.
+	if !strings.Contains(body, `href="/share/`+slug+`/p/harda"`) {
+		t.Error("a shared search result does not link back into the share prefix")
+	}
+
+	months := fetchAs(t, srv, "/share/"+slug+"/search?q=month", nil).Body.String()
+	if !strings.Contains(months, `href="/share/`+slug+`/months"`) {
+		t.Error("shared search q=month did not find the Months view under the share prefix")
+	}
+
+	for _, query := range []string{"settings", "diagnostics", "activity", "pending"} {
+		body := fetchAs(t, srv, "/share/"+slug+"/search?q="+query, nil).Body.String()
+		if !strings.Contains(body, "No matches for that search.") {
+			t.Errorf("shared search q=%s found something an anonymous reader cannot use", query)
+		}
+	}
+}
+
+// A result's icon is what a bullet point used to be, and it must actually
+// say something: a player's row draws the person icon, not whichever one a
+// nearby page or admin row happens to use.
+func TestSearchHitsCarryTheirKindsIcon(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	body := fetchAs(t, srv, "/search?q=hard", session).Body.String()
+	if i := strings.Index(body, "Harda"); i < 0 || !strings.Contains(body[:i], `<circle cx="12" cy="8" r="3.6"/>`) {
+		t.Error("a player row does not draw the person icon before its label")
+	}
+
+	months := fetchAs(t, srv, "/search?q=month", session).Body.String()
+	if !strings.Contains(months, `<path d="M6.5 3.5h8l3 3v14h-11z"/>`) {
+		t.Error("a page row does not draw the page icon")
+	}
+
+	settings := fetchAs(t, srv, "/search?q=settings", session).Body.String()
+	if !strings.Contains(settings, `<circle cx="7.5" cy="7" r="2"/>`) {
+		t.Error("the Settings row does not draw the sliders icon")
+	}
+
+	admin := fetchAs(t, srv, "/search?q=diagnostics", session).Body.String()
+	if !strings.Contains(admin, `M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6l7-3z`) {
+		t.Error("an admin row does not draw the shield icon")
+	}
+
+	if strings.Contains(body, `<li><a class="search-hit" href="/p/harda">Harda</a></li>`) {
+		t.Error("a result row is still the old bullet-point markup with no icon")
 	}
 }

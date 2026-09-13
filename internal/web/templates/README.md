@@ -28,7 +28,7 @@ read fields on a struct.
 
 | Partial | What it is |
 |---|---|
-| `theme-icon`, `chevron`, `search-icon` | Small inline SVG icons — `icons.html`. No app data. |
+| `theme-icon`, `chevron`, `search-icon`, `search-hit-icon` | Small inline SVG icons — `icons.html`. No app data — `search-hit-icon` takes a plain kind string ("player", "settings", "admin", or the default "page"), not a Wordleland type. |
 | `pill-nav` | One active choice among several, as a row of pills. |
 | `progress-bar` | A filled track, with a `compact` size and a `win` fill modifier. |
 | `stat-list` | A label/value `<dl>`, in three visual variants (`figure`, `row`, `admin`). |
