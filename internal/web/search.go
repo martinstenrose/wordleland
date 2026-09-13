@@ -11,10 +11,33 @@ import (
 // searchHit is one result: a name to show, where it goes, and which icon
 // marks it. Kind is one of "player", "page", "settings" or "admin" — see
 // ui/icons.html's search-hit-icon, which is what actually reads it.
+//
+// Label is split into Before/Match/After around the query that found it,
+// rather than carried whole, so the template can mark the matched part
+// without re-running the search itself — see highlightLabel. Match is
+// empty, and Before holds the whole label, when there is nothing to
+// highlight: no query typed yet, or (a player found by slug rather than
+// name) no match within the label actually shown.
 type searchHit struct {
-	Kind  string
-	Label string
-	Href  string
+	Kind                 string
+	Label                string
+	Before, Match, After string
+	Href                 string
+}
+
+// highlightLabel splits label around the first case-insensitive occurrence
+// of needle. Matching case-insensitively but slicing the original label is
+// why Before/Match/After preserve "Harda"'s capital H rather than whatever
+// case the reader typed.
+func highlightLabel(label, needle string) (before, match, after string) {
+	if needle == "" {
+		return label, "", ""
+	}
+	i := strings.Index(strings.ToLower(label), strings.ToLower(needle))
+	if i < 0 {
+		return label, "", ""
+	}
+	return label[:i], label[i : i+len(needle)], label[i+len(needle):]
 }
 
 // searchResults groups hits the way the page shows them. A page with only
@@ -103,15 +126,20 @@ func (s *Server) search(ctx context.Context, query, prefix string, readOnly, isA
 		if len(results.Players) >= searchResultCap {
 			break
 		}
-		if strings.Contains(strings.ToLower(p.Name), needle) || strings.Contains(strings.ToLower(p.Slug), needle) {
-			results.Players = append(results.Players, searchHit{Kind: "player", Label: p.Name, Href: prefix + "/p/" + p.Slug})
+		if !strings.Contains(strings.ToLower(p.Name), needle) && !strings.Contains(strings.ToLower(p.Slug), needle) {
+			continue
 		}
+		hit := searchHit{Kind: "player", Label: p.Name, Href: prefix + "/p/" + p.Slug}
+		hit.Before, hit.Match, hit.After = highlightLabel(hit.Label, needle)
+		results.Players = append(results.Players, hit)
 	}
 
 	for _, d := range s.searchDestinations(prefix, readOnly, isAdmin, t) {
-		if strings.Contains(strings.ToLower(d.Label), needle) {
-			results.Pages = append(results.Pages, d)
+		if !strings.Contains(strings.ToLower(d.Label), needle) {
+			continue
 		}
+		d.Before, d.Match, d.After = highlightLabel(d.Label, needle)
+		results.Pages = append(results.Pages, d)
 	}
 
 	return results, nil

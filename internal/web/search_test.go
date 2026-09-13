@@ -17,8 +17,11 @@ func TestSearchFindsPlayersByNameOrSlug(t *testing.T) {
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
 
+	// "Hard" rather than the full names: each label is bolded only where
+	// the query actually matched, so the literal names are never
+	// contiguous in the markup — see TestSearchHitsMarkTheMatchedText.
 	body := fetchAs(t, srv, "/search?q=hard", session).Body.String()
-	for _, want := range []string{"Harda", "Hardb"} {
+	for _, want := range []string{"<mark>Hard</mark>a", "<mark>Hard</mark>b"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("q=hard: missing %q", want)
 		}
@@ -28,9 +31,10 @@ func TestSearchFindsPlayersByNameOrSlug(t *testing.T) {
 	}
 
 	// "lapsed" only matches on the slug — Lapsed the name still contains
-	// it, so this also exercises the case-insensitive compare.
+	// it, so this also exercises the case-insensitive compare. The whole
+	// name matches here, so it stays contiguous inside one <mark>.
 	bySlug := fetchAs(t, srv, "/search?q=LAPSED", session).Body.String()
-	if !strings.Contains(bySlug, "Lapsed") {
+	if !strings.Contains(bySlug, "<mark>Lapsed</mark>") {
 		t.Error("an uppercase query did not match the lowercase slug")
 	}
 }
@@ -89,7 +93,7 @@ func TestSearchPartialRendersOnlyTheResultsBlock(t *testing.T) {
 	if strings.Contains(partialBody, "<html") || strings.Contains(partialBody, "topbar") {
 		t.Error("the partial rendered the page layout around the results")
 	}
-	if !strings.Contains(partialBody, "Harda") {
+	if !strings.Contains(partialBody, "<mark>Hard</mark>a") {
 		t.Error("the partial dropped the actual match")
 	}
 }
@@ -221,7 +225,7 @@ func TestSharedSearchWorksUnderThePrefix(t *testing.T) {
 	if fetchAs(t, srv, "/share/"+slug+"/search?q=hard", nil).Code != http.StatusOK {
 		t.Fatal("the shared search route is not reachable without a session")
 	}
-	for _, want := range []string{"Harda", "Hardb"} {
+	for _, want := range []string{"<mark>Hard</mark>a", "<mark>Hard</mark>b"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("shared search q=hard: missing %q", want)
 		}
@@ -253,8 +257,11 @@ func TestSearchHitsCarryTheirKindsIcon(t *testing.T) {
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
 
-	body := fetchAs(t, srv, "/search?q=hard", session).Body.String()
-	if i := strings.Index(body, "Harda"); i < 0 || !strings.Contains(body[:i], `<circle cx="12" cy="8" r="3.6"/>`) {
+	// The full name, so it matches whole and "Harda" stays one contiguous
+	// <mark>Harda</mark> to search for — q=hard would split it across a
+	// tag boundary (see TestSearchHitsMarkTheMatchedText).
+	body := fetchAs(t, srv, "/search?q=harda", session).Body.String()
+	if i := strings.Index(body, "<mark>Harda</mark>"); i < 0 || !strings.Contains(body[:i], `<circle cx="12" cy="8" r="3.6"/>`) {
 		t.Error("a player row does not draw the person icon before its label")
 	}
 
@@ -275,5 +282,33 @@ func TestSearchHitsCarryTheirKindsIcon(t *testing.T) {
 
 	if strings.Contains(body, `<li><a class="search-hit" href="/p/harda">Harda</a></li>`) {
 		t.Error("a result row is still the old bullet-point markup with no icon")
+	}
+}
+
+// A result marks only the part of its label the query actually matched,
+// case-insensitively, preserving the label's own casing rather than the
+// query's — so typing "oda" finds "T<mark>oda</mark>y", not a re-cased
+// "T<mark>ODA</mark>y" or "T<mark>Toda</mark>y".
+func TestSearchHitsMarkTheMatchedText(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	body := fetchAs(t, srv, "/search?q=oda", session).Body.String()
+	if !strings.Contains(body, "T<mark>oda</mark>y") {
+		t.Error("q=oda did not mark the matched substring inside Today")
+	}
+
+	// The query's own case must not leak into the mark: the label keeps
+	// its own capitalisation.
+	upper := fetchAs(t, srv, "/search?q=ODA", session).Body.String()
+	if !strings.Contains(upper, "T<mark>oda</mark>y") {
+		t.Error("an uppercase query re-cased the label instead of matching it as-is")
+	}
+
+	// An empty query — the overlay's opening state — marks nothing at all.
+	empty := fetchAs(t, srv, "/search", session).Body.String()
+	if strings.Contains(empty, "<mark>") {
+		t.Error("an empty query marked something anyway")
 	}
 }
