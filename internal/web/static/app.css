@@ -297,7 +297,8 @@ main { max-width: 1160px; margin: 0 auto; }
 .card > .month-chips,
 .card > .panels,
 .card > .admin-split,
-.card > .grid-wrap {
+.card > .grid-wrap,
+.card > .season {
   padding-left: 0;
   padding-right: 0;
 }
@@ -807,7 +808,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 /* ---- Today ------------------------------------------------------------ */
 
-.today, .months { display: grid; gap: 20px; }
+.today { display: grid; gap: 20px; }
 .today-head { padding-top: 22px; padding-bottom: 20px; border-bottom: 1px solid var(--color-text-10); }
 .today .kicker .accent { color: var(--color-accent); letter-spacing: .14em; text-transform: uppercase; }
 .today-hero { display: flex; gap: 30px; align-items: flex-end; flex-wrap: wrap; margin-top: 16px; }
@@ -1575,7 +1576,10 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 
 /* ---- Season standing --------------------------------------------------- */
 
-.season { padding-top: 22px; }
+/* The hairline before it is the same separator the panels grid uses
+   between its own sections (.panels, above), just drawn as a border
+   instead of a background gap, since this is a single block, not a grid. */
+.season { border-top: 1px solid var(--color-text-10); padding-top: 20px; padding-bottom: 4px; }
 .season-table .mark-col { width: 34px; }
 .mark-cell {
   display: inline-grid;
@@ -1866,6 +1870,9 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 }
 .inline-field button:hover { border-color: var(--color-accent-60); color: var(--color-text); }
 
+/* .season opts out of the card's shared gutter (like table-scroll does)
+   so its table can bleed to the card edges the same as the one above it;
+   the heading carries its own gutter padding to compensate. */
 .season-head {
   display: flex;
   align-items: baseline;
@@ -1873,6 +1880,8 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   gap: 12px;
   flex-wrap: wrap;
   margin-bottom: 10px;
+  padding-left: var(--space-card);
+  padding-right: var(--space-card);
   font-size: var(--text-2xs);
   letter-spacing: .08em;
   text-transform: uppercase;
