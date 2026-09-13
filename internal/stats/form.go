@@ -33,10 +33,12 @@ func ComputeTodayForm(results []store.BoardResult, opts Options) TodayForm {
 		counted = filterHardMode(results)
 	}
 	values, games, series := windowValues(counted, opts, start, current)
-	for puzzle := max(start, first); puzzle < current; puzzle++ {
-		if !played[puzzle] {
-			values = append(values, failedAsSeven)
-			series[puzzle-start] = failedAsSeven
+	if opts.CountXAsSeven {
+		for puzzle := max(start, first); puzzle < current; puzzle++ {
+			if !played[puzzle] {
+				values = append(values, failedAsSeven)
+				series[puzzle-start] = failedAsSeven
+			}
 		}
 	}
 	form := TodayForm{Games: games, Series: series}
@@ -44,4 +46,19 @@ func ComputeTodayForm(results []store.BoardResult, opts Options) TodayForm {
 		form.Average = mean(values)
 	}
 	return form
+}
+
+// TodayBaseline is the figure Form is measured against: a lifetime average
+// under the same missed-as-seven rule ComputeTodayForm applies, bounded to
+// the player's own active window. It ignores opts.CountMissed on purpose —
+// Form always counts a 30-day gap as a miss, so comparing it to a baseline
+// that only sometimes does would make Delta compare different rules.
+func TodayBaseline(results []store.BoardResult, opts Options) *float64 {
+	counted := results
+	if opts.HardModeOnly {
+		counted = filterHardMode(results)
+	}
+	baseline := opts
+	baseline.CountMissed = true
+	return mean(countedValues(counted, results, baseline))
 }

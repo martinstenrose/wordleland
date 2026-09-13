@@ -157,8 +157,8 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 		form := stats.ComputeTodayForm(byPlayer[p.ID], board.Options)
 		row.Form, row.FormGames, row.Series = form.Average, form.Games, form.Series
 		row.Delta = nil
-		if row.Form != nil && row.Average != nil {
-			delta := *row.Form - *row.Average
+		if baseline := stats.TodayBaseline(byPlayer[p.ID], board.Options); row.Form != nil && baseline != nil {
+			delta := *row.Form - *baseline
 			row.Delta = &delta
 		}
 		row.FormText = formatScore(ch.T, row.Form)
