@@ -803,7 +803,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 /* ---- Today ------------------------------------------------------------ */
 
-.today { display: grid; gap: 20px; }
+.today, .months { display: grid; gap: 20px; }
 .today-head { padding-top: 22px; padding-bottom: 20px; border-bottom: 1px solid var(--color-text-10); }
 .today .kicker .accent { color: var(--color-accent); letter-spacing: .14em; text-transform: uppercase; }
 .today-hero { display: flex; gap: 30px; align-items: flex-end; flex-wrap: wrap; margin-top: 16px; }
@@ -1571,7 +1571,7 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 
 /* ---- Season standing --------------------------------------------------- */
 
-.season { padding-top: 20px; padding-bottom: 4px; }
+.season { padding-top: 22px; }
 .season-table .mark-col { width: 34px; }
 .mark-cell {
   display: inline-grid;
