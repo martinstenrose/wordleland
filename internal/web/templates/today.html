@@ -33,7 +33,7 @@
       <ul class="today-filed">
         {{range .Filed}}
           <li><a href="{{.Href}}">{{.Name}}</a>
-            <span class="cell t{{.Tone}}{{if .HardMode}} hard{{end}}">{{.Label}}</span>
+            <span class="cell t{{.Tone}}">{{.Label}}</span>
           </li>
         {{end}}
       </ul>

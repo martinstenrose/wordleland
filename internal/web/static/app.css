@@ -539,7 +539,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   color: var(--color-text-75);
 }
 .cell.gap { color: var(--color-text-25); background: transparent; border-color: var(--color-text-06); }
-.cell.hard { box-shadow: inset 0 0 0 1.5px var(--color-accent-50); }
 .cell.t1 { background: var(--score-1); color: var(--score-ink); border-color: var(--score-1); }
 .cell.t2 { background: var(--score-2); color: var(--score-ink); border-color: var(--score-2); }
 .cell.t3 { background: var(--score-3); color: var(--score-ink-alt); border-color: var(--score-3-border); }
