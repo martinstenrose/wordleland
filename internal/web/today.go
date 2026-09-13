@@ -25,13 +25,13 @@ type calloutView struct {
 	Href string
 }
 
-// todayEntryView is one filed result.
+// todayEntryView is one filed result. A trailing * on Label marks hard
+// mode, matching the convention used by the player's recent-games strip.
 type todayEntryView struct {
-	Name     string
-	Href     string
-	Label    string
-	Tone     int
-	HardMode bool
+	Name  string
+	Href  string
+	Label string
+	Tone  int
 }
 
 type todayPage struct {
@@ -108,11 +108,14 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 
 	for _, e := range today.Filed {
 		view := todayEntryView{
-			Name: e.Name, Href: prefix + "/p/" + e.Slug, HardMode: e.HardMode,
+			Name: e.Name, Href: prefix + "/p/" + e.Slug,
 			Label: "X", Tone: 7,
 		}
 		if e.Solved {
 			view.Label, view.Tone = strconv.Itoa(e.Guesses), e.Guesses
+		}
+		if e.HardMode {
+			view.Label += "*"
 		}
 		page.Filed = append(page.Filed, view)
 	}
