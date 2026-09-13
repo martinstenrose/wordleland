@@ -68,6 +68,7 @@
             </p>
             {{if .HasSpark}}
               <svg class="podium-spark" viewBox="0 0 140 30" preserveAspectRatio="none" aria-hidden="true">
+                {{template "spark-grid"}}
                 <path class="player" d="{{.SparkPath}}"/>
               </svg>
             {{end}}
@@ -110,6 +111,7 @@
                   <td class="right spark-col">
                     {{if .HasSpark}}
                       <svg width="140" height="30" viewBox="0 0 140 30" aria-hidden="true">
+                        {{template "spark-grid"}}
                         <path class="player" d="{{.SparkPath}}"/>
                       </svg>
                     {{end}}

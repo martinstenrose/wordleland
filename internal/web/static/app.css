@@ -380,6 +380,7 @@ tr.unranked { opacity: .55; }
 .spark-col { width: 160px; }
 svg .group { fill: none; stroke: var(--color-text-45); stroke-width: 1.5; stroke-dasharray: 5 3; stroke-linecap: round; }
 svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; stroke-linejoin: round; }
+.spark-grid line { stroke: var(--color-text-10); stroke-width: 1; vector-effect: non-scaling-stroke; }
 
 .card-foot {
   display: flex; gap: 20px; flex-wrap: wrap;

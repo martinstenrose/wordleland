@@ -75,6 +75,7 @@
             {{if .Ranked}}
               {{if .HasSpark}}
               <svg width="140" height="30" viewBox="0 0 140 30" aria-hidden="true">
+                {{template "spark-grid"}}
                 {{if $group}}<path class="group" d="{{$group}}"/>{{end}}
                 <path class="player" d="{{.SparkPath}}"/>
               </svg>
