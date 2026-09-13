@@ -461,6 +461,44 @@ func TestSharedBarOffersSignIn(t *testing.T) {
 	}
 }
 
+// The search button is the one topbar control with more than an icon in
+// it (icon, a word, a shortcut chip), and that is what earns it a border:
+// the theme and language pickers stay borderless icon buttons, same as
+// before, and only .search-btn's own rule adds one on top of .menu-btn's
+// still-transparent placeholder.
+func TestOnlyTheSearchButtonHasAVisibleBorder(t *testing.T) {
+	srv := testServer(t)
+
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+
+	menuBtn := cssRule(t, css, ".menu-btn {")
+	if !strings.Contains(menuBtn, "border: 1px solid transparent") {
+		t.Error(".menu-btn's border is no longer transparent — the theme and language pickers would grow one too")
+	}
+
+	searchBtn := cssRule(t, css, ".search-btn {")
+	if !strings.Contains(searchBtn, "border-color: var(--color-text-12)") {
+		t.Error(".search-btn does not override the border to something visible")
+	}
+}
+
+// cssRule returns the body of the first rule in css whose selector opens
+// with prefix (e.g. ".menu-btn {"), for a test that wants to inspect one
+// rule's declarations without matching a substring anywhere else in the
+// file.
+func cssRule(t *testing.T, css, prefix string) string {
+	t.Helper()
+	start := strings.Index(css, prefix)
+	if start < 0 {
+		t.Fatalf("no rule opening with %q found", prefix)
+	}
+	end := strings.Index(css[start:], "}")
+	if end < 0 {
+		t.Fatalf("rule opening with %q is never closed", prefix)
+	}
+	return css[start : start+end]
+}
+
 // On a narrow screen the sign-in button drops its text and keeps just the
 // icon, matching the search button's own label-hiding rule at the same
 // breakpoint — aria-label is what carries the accessible name once the
@@ -484,3 +522,35 @@ func TestSignInButtonDropsItsLabelOnMobile(t *testing.T) {
 	}
 }
 
+// The search button's word is there, but quiet: the icon already says
+// "search", so the label is a muted hint rather than a second copy of the
+// same information at full strength. aria-label backs it up regardless,
+// since the label hides outright on a narrow screen.
+func TestSearchButtonLabelIsPresentButFaded(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	body := fetchAs(t, srv, "/leaderboard", session).Body.String()
+	start := strings.Index(body, `class="menu-btn search-btn"`)
+	if start < 0 {
+		t.Fatal("no search button on the page")
+	}
+	end := strings.Index(body[start:], "</a>")
+	if end < 0 {
+		t.Fatal("the search button is never closed")
+	}
+	tag := body[start : start+end]
+
+	if !strings.Contains(tag, `>Search<`) {
+		t.Error("the search button lost its visible label")
+	}
+	if !strings.Contains(tag, `aria-label="Search"`) {
+		t.Error("the search button has no accessible name for when the label hides on a narrow screen")
+	}
+
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+	if !strings.Contains(css, ".search-label { color: var(--color-text-45); }") {
+		t.Error("the search label is not styled as faded")
+	}
+}

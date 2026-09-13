@@ -104,7 +104,11 @@
            read-only share view, and empty everywhere else — see its field
            comment in chrome.go — so checking it is both the href and the
            gate. */}}
-      <a class="menu-btn search-btn" href="{{.SearchPath}}" aria-haspopup="dialog" aria-expanded="false" aria-controls="search-overlay">
+      {{/* aria-label duplicates the visible label deliberately: the label
+           hides on a narrow screen (see the media query in app.css) and
+           the icon alone would otherwise have no accessible name once
+           it does. */}}
+      <a class="menu-btn search-btn" href="{{.SearchPath}}" aria-label="{{.T.T "search.title"}}" aria-haspopup="dialog" aria-expanded="false" aria-controls="search-overlay">
         {{template "search-icon" .}}
         <span class="search-label">{{.T.T "search.title"}}</span>
         <span class="search-shortcut js-only" aria-hidden="true">⌘K</span>

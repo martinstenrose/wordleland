@@ -1246,8 +1246,22 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 /* A plain link styled like the picker buttons beside it, not a <details>
    summary, so its focus outline is set directly rather than through the
    `.menu > summary:focus-visible` rule those use. */
-.search-btn { width: auto; gap: 8px; text-decoration: none; }
+.search-btn {
+  width: auto;
+  gap: 8px;
+  text-decoration: none;
+  /* The one topbar button with more than an icon in it — icon, a word,
+     a shortcut chip — reads as three loose parts without a border to
+     say they are one control. The theme and language pickers stay
+     borderless: each is just an icon, which .menu-btn's own hover
+     background already sets off clearly enough on its own. */
+  border-color: var(--color-text-12);
+}
 .search-btn:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
+/* Present, but quiet: the icon already says "search", so the word is a
+   hint for anyone who wants it rather than a second copy of the same
+   information at full strength. */
+.search-label { color: var(--color-text-45); }
 .search-shortcut {
   padding: 1px 6px;
   border-radius: var(--radius-xs);
