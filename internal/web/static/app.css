@@ -301,6 +301,11 @@ main { max-width: 1160px; margin: 0 auto; }
   padding-left: 0;
   padding-right: 0;
 }
+/* The scroll box has a fixed max-height, so mid-scroll rows sit right at
+   its edge; this gap keeps that edge off the card's own border. */
+.card > .grid-wrap {
+  padding-bottom: 18px;
+}
 
 .card-head {
   display: flex; align-items: flex-end; justify-content: space-between;
