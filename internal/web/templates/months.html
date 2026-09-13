@@ -2,7 +2,6 @@
 {{define "content"}}
 {{template "topbar" .}}
 
-<div class="months">
 <section class="card">
   <div class="card-head">
     <div>
@@ -80,6 +79,49 @@
   </table>
   </div>
 
+  {{if .Season}}
+    <div class="season">
+      <div class="season-head">
+        <span>{{.T.T "months.season"}}</span>
+        <span class="muted small">{{.T.TN "months.seasonSpan" .SeasonDays}}</span>
+      </div>
+      <div class="table-scroll">
+      <table class="board season-table">
+        <thead>
+          <tr>
+            <th>{{.T.T "board.column.player"}}</th>
+            <th class="right">{{.T.T "months.wins"}}</th>
+            <th class="right">{{.T.T "months.topThree"}}</th>
+            <th class="right">{{.T.T "months.bestMonth"}}</th>
+            {{range .SeasonMonths}}<th class="right mark-col">{{.}}</th>{{end}}
+          </tr>
+        </thead>
+        <tbody>
+          {{range .Season}}
+            <tr>
+              <td>
+                <span class="admin-name">
+                  <a class="player" href="{{.Href}}">{{.Name}}</a>
+                  {{if .Trait}}{{template "trait" .}}{{end}}
+                </span>
+              </td>
+              <td class="right num strong">{{$.T.Integer .Wins}}</td>
+              <td class="right num muted">{{$.T.Integer .Podiums}}</td>
+              <td class="right num muted">{{.Best}}</td>
+              {{range .Marks}}
+                <td class="right mark-col">
+                  <span class="mark-cell{{if .Won}} won{{end}}{{if .Podium}} podium{{end}}{{if .Running}} running{{end}}" title="{{.Title}}">{{.Label}}</span>
+                </td>
+              {{end}}
+            </tr>
+          {{end}}
+        </tbody>
+      </table>
+      </div>
+      <p class="card-foot"><span>{{.T.T "months.seasonNote"}}</span></p>
+    </div>
+  {{end}}
+
   {{if .Thin}}
     <div class="month-thin">
       <p class="kicker">{{.T.T "months.playedNotRanked"}}</p>
@@ -93,48 +135,4 @@
 
   {{end}}
 </section>
-
-{{if .Season}}
-  <section class="card season">
-    <div class="season-head">
-      <span>{{.T.T "months.season"}}</span>
-      <span class="muted small">{{.T.TN "months.seasonSpan" .SeasonDays}}</span>
-    </div>
-    <div class="table-scroll">
-    <table class="board season-table">
-      <thead>
-        <tr>
-          <th>{{.T.T "board.column.player"}}</th>
-          <th class="right">{{.T.T "months.wins"}}</th>
-          <th class="right">{{.T.T "months.topThree"}}</th>
-          <th class="right">{{.T.T "months.bestMonth"}}</th>
-          {{range .SeasonMonths}}<th class="right mark-col">{{.}}</th>{{end}}
-        </tr>
-      </thead>
-      <tbody>
-        {{range .Season}}
-          <tr>
-            <td>
-              <span class="admin-name">
-                <a class="player" href="{{.Href}}">{{.Name}}</a>
-                {{if .Trait}}{{template "trait" .}}{{end}}
-              </span>
-            </td>
-            <td class="right num strong">{{$.T.Integer .Wins}}</td>
-            <td class="right num muted">{{$.T.Integer .Podiums}}</td>
-            <td class="right num muted">{{.Best}}</td>
-            {{range .Marks}}
-              <td class="right mark-col">
-                <span class="mark-cell{{if .Won}} won{{end}}{{if .Podium}} podium{{end}}{{if .Running}} running{{end}}" title="{{.Title}}">{{.Label}}</span>
-              </td>
-            {{end}}
-          </tr>
-        {{end}}
-      </tbody>
-    </table>
-    </div>
-    <p class="card-foot"><span>{{.T.T "months.seasonNote"}}</span></p>
-  </section>
-{{end}}
-</div>
 {{end}}
