@@ -62,7 +62,7 @@ func TestTodayShowsCompactFormRanksChartsAndLeaderboardLastFive(t *testing.T) {
 			t.Fatal("no Today form table")
 		}
 		pane := body[at:]
-		if !strings.Contains(pane, "Form · last 30 days") || strings.Contains(pane, "7 days") || strings.Contains(pane, "form-periods") || !strings.Contains(pane, "podium-spark") || !strings.Contains(pane, "form-chart") {
+		if !strings.Contains(pane, "Form · last 30 days") || strings.Contains(pane, "7 days") || strings.Contains(pane, "form-periods") || !strings.Contains(pane, "podium-spark") || !strings.Contains(pane, "spark-col") {
 			t.Error("Today is not fixed to 30-day form with charts and Last Five")
 		}
 		if !strings.Contains(pane, `class="podium-figure">3.23`) {
@@ -76,13 +76,13 @@ func TestTodayShowsCompactFormRanksChartsAndLeaderboardLastFive(t *testing.T) {
 		if levelB < 0 || !strings.Contains(pane[levelB:levelB+180], `title="Overall rank">#3</span>`) {
 			t.Error("the top card does not retain overall rank")
 		}
-		headerAt := strings.Index(pane, `class="form-head"`)
+		headerAt := strings.Index(pane, "<thead>")
 		header := pane[headerAt:]
-		header = header[:strings.Index(header, "</li>")]
+		header = header[:strings.Index(header, "</tr>")]
 		if strings.Contains(header, "Form rank") || strings.Contains(header, "Overall rank") {
 			t.Error("rank column headers should be blank")
 		}
-		rowRanks := regexp.MustCompile(`(?s)<li>\s*<span class="num muted" title="Form rank">([^<]+)</span>\s*<span class="row-name">\s*<a class="player" href="[^"]+">([^<]+)</a>`)
+		rowRanks := regexp.MustCompile(`(?s)<tr>\s*<td class="num" title="Form rank">([^<]+)</td>\s*<td><a class="player" href="[^"]+">([^<]+)</a>`)
 		matches := rowRanks.FindAllStringSubmatch(pane, -1)
 		if len(matches) != 2 || matches[0][1] != "4" || matches[0][2] != "Sprinter" || matches[1][1] != "—" || matches[1][2] != "Sparse" {
 			t.Errorf("wrong table form ranks: %v", matches)

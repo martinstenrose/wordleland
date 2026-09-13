@@ -83,39 +83,42 @@
       </div>
 
       {{if .Rest}}
-        <div class="form-table-scroll">
-          <ul class="form-rows">
-            {{/* A header, so the columns are not a guessing game. */}}
-            <li class="form-head">
-              <span></span>
-              <span>{{.T.T "board.column.player"}}</span>
-              <span class="right">{{.T.T "board.column.form"}}</span>
-              <span class="right">{{.T.T "board.column.last30"}}</span>
-              <span class="right">{{.T.T "board.column.lastFive"}}</span>
-              <span class="right">{{.T.T "board.column.streak"}}</span>
-            </li>
-            {{range .Rest}}
-              <li>
-                <span class="num muted" title="{{$.T.T "today.formRank"}}">{{if .FormRank}}{{$.T.Integer .FormRank}}{{else}}—{{end}}</span>
-                <span class="row-name">
-                  <a class="player" href="{{.Href}}">{{.Name}}</a>
-                  {{if .Trait}}{{template "trait" .}}{{end}}
-                </span>
-                <span class="num">{{.FormText}}
-                  {{if .DeltaText}}<span class="delta {{.DeltaDirection}}">{{.DeltaText}}</span>{{end}}
-                </span>
-                <span class="form-chart">
-                  {{if .HasSpark}}
-                    <svg viewBox="0 0 140 30" preserveAspectRatio="none" aria-hidden="true">
-                      <path class="player" d="{{.SparkPath}}"/>
-                    </svg>
-                  {{end}}
-                </span>
-                <div class="form-last-five">{{template "last-five" .LastFive}}</div>
-                <span class="num muted">{{.StreakText}}</span>
-              </li>
-            {{end}}
-          </ul>
+        {{/* Same table shell as the Leaderboard (board.html): a real
+             table sizes the player column to its content and stretches
+             to the card's full width, instead of a column fighting the
+             others for space. */}}
+        <div class="table-scroll">
+          <table class="board">
+            <thead>
+              <tr>
+                <th></th>
+                <th>{{.T.T "board.column.player"}}</th>
+                <th class="right">{{.T.T "board.column.form"}}</th>
+                <th class="right spark-col">{{.T.T "board.column.last30"}}</th>
+                <th class="right">{{.T.T "board.column.lastFive"}}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{range .Rest}}
+                <tr>
+                  <td class="num" title="{{$.T.T "today.formRank"}}">{{if .FormRank}}{{$.T.Integer .FormRank}}{{else}}—{{end}}</td>
+                  <td><a class="player" href="{{.Href}}">{{.Name}}</a></td>
+                  <td class="right num">
+                    {{.FormText}}
+                    {{if .DeltaText}}<span class="delta {{.DeltaDirection}}">{{.DeltaText}}</span>{{end}}
+                  </td>
+                  <td class="right spark-col">
+                    {{if .HasSpark}}
+                      <svg width="140" height="30" viewBox="0 0 140 30" aria-hidden="true">
+                        <path class="player" d="{{.SparkPath}}"/>
+                      </svg>
+                    {{end}}
+                  </td>
+                  <td class="right">{{template "last-five" .LastFive}}</td>
+                </tr>
+              {{end}}
+            </tbody>
+          </table>
         </div>
       {{end}}
 
