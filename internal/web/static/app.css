@@ -394,6 +394,8 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   body { padding: 16px 12px 30px; }
   .board th, .board td { padding: 9px 12px; }
   .spark-col { display: none; }
+  .window-col { display: none; }
+  .overall-col { display: none; }
   .board-trait { display: none; }
 }
 
@@ -1007,7 +1009,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .board thead th.sorted { color: var(--color-text-80); }
 .board thead th.left a { justify-content: flex-start; }
 .board thead th.right a { justify-content: flex-end; }
-.sort-mark { font-size: .7em; width: .7em; color: var(--color-accent); }
+.sort-mark { font-size: 13px; line-height: 1; color: var(--color-accent); }
 
 /* ---- The grid ---------------------------------------------------------- */
 

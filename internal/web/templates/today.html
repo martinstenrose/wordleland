@@ -92,10 +92,12 @@
           <table class="board">
             <thead>
               <tr>
-                <th></th>
+                <th title="{{.T.T "today.formRank"}}">{{.T.T "board.column.rank"}}</th>
+                <th class="right overall-col">{{.T.T "today.boardRank"}}</th>
                 <th>{{.T.T "board.column.player"}}</th>
                 <th class="right">{{.T.T "board.column.form"}}</th>
                 <th class="right spark-col">{{.T.T "board.column.last30"}}</th>
+                <th class="right window-col" title="{{.T.T "board.column.windowGamesTitle"}}">{{.T.T "board.column.windowGames"}}</th>
                 <th class="right">{{.T.T "board.column.lastFive"}}</th>
               </tr>
             </thead>
@@ -103,6 +105,7 @@
               {{range .Rest}}
                 <tr>
                   <td class="num" title="{{$.T.T "today.formRank"}}">{{if .FormRank}}{{$.T.Integer .FormRank}}{{else}}—{{end}}</td>
+                  <td class="right num overall-col" title="{{$.T.T "today.boardRank"}}">{{if .Rank}}{{$.T.Integer .Rank}}{{else}}—{{end}}</td>
                   <td><a class="player" href="{{.Href}}">{{.Name}}</a>
                     {{if .Trait}}<span class="board-trait">{{template "trait" .}}</span>{{end}}
                   </td>
@@ -118,6 +121,7 @@
                       </svg>
                     {{end}}
                   </td>
+                  <td class="right num window-col">{{$.T.Integer .FormGames}}</td>
                   <td class="right">{{template "last-five" .LastFive}}</td>
                 </tr>
               {{end}}
