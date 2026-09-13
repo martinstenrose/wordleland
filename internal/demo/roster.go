@@ -52,8 +52,18 @@ const (
 // given name every run, from PersonaFor, so a player's behaviour stays
 // consistent across invocations without any of this being stored.
 type Persona struct {
+	// Name is the invented full name ("Erik Andersson"). It exists to
+	// produce a realistic-looking DisplayName and to keep the roster's
+	// invented identities from repeating within one call; it is never
+	// stored or shown. A pending sender has no player record to key off,
+	// so it is also what that sender's DisplayHint shows in place of a
+	// name it never actually posted under.
 	Name string
-	Role Role
+	// DisplayName is the name a player is created and shown under —
+	// production convention is first name only ("Erik"), the Signal name
+	// a player posts under is usually their full name.
+	DisplayName string
+	Role        Role
 
 	// HardModeRate is the per-game probability of playing in hard mode. It
 	// is either zero or high: docs/decisions.md found hard mode splits by
@@ -97,18 +107,22 @@ func NewRoster(seed int64, n int) ([]Persona, error) {
 	roster := make([]Persona, n)
 	for i := 0; i < n; i++ {
 		idx := combos[i]
-		name := firstNames[idx/len(lastNames)] + " " + lastNames[idx%len(lastNames)]
+		first := firstNames[idx/len(lastNames)]
+		name := first + " " + lastNames[idx%len(lastNames)]
 
 		role := RoleOrdinary
 		if i < len(roles) {
 			role = roles[i]
 		}
 
-		// Rates come from PersonaFor, keyed on the name rather than rolled
-		// here, so a player's hard-mode and miss rates are the same
-		// whether they are being freshly backfilled or, days later,
-		// reconstructed by tick from nothing but their name.
+		// Rates come from PersonaFor, keyed on the full name, so a pending
+		// sender's traits are set here and never revisited. A player who
+		// gets a real record has its traits recomputed once its slug
+		// exists (see cmd/wordleland/demo.go), since that — not this
+		// invented full name, which is never stored — is what tick has to
+		// reconstruct them from later.
 		p := PersonaFor(name)
+		p.DisplayName = first
 		p.Role = role
 		roster[i] = p
 	}
