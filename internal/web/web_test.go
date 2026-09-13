@@ -465,7 +465,7 @@ func TestTableHeadersAlignWithTheirRows(t *testing.T) {
 
 	// Columns a media query hides. Both the header and the cells have to
 	// carry the class, or they disappear separately.
-	hidden := []string{"spark-col", "bar-cell", "mark-col"}
+	hidden := []string{"spark-col", "window-col", "overall-col", "bar-cell", "mark-col"}
 
 	for _, path := range []string{
 		"/share/" + slug + "/board",

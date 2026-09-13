@@ -13,6 +13,8 @@
   "board.column.form": "30 d form",
   "board.column.streak": "Svit",
   "board.column.last30": "Senaste 30 dagarna",
+  "board.column.windowGames": "Pussel",
+  "board.column.windowGamesTitle": "Pussel i perioden",
   "board.column.lastFive": "Senaste fem",
   "board.column.games": "Pussel",
   "board.column.lastGame": "Senaste pussel",

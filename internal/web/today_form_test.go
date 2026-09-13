@@ -79,10 +79,10 @@ func TestTodayShowsCompactFormRanksChartsAndLeaderboardLastFive(t *testing.T) {
 		headerAt := strings.Index(pane, "<thead>")
 		header := pane[headerAt:]
 		header = header[:strings.Index(header, "</tr>")]
-		if strings.Contains(header, "Form rank") || strings.Contains(header, "Overall rank") {
-			t.Error("rank column headers should be blank")
+		if !strings.Contains(header, `>#<`) || !strings.Contains(header, "Overall rank") {
+			t.Error("the table should label its two rank columns \"#\" and \"Overall rank\"")
 		}
-		rowRanks := regexp.MustCompile(`(?s)<tr>\s*<td class="num" title="Form rank">([^<]+)</td>\s*<td><a class="player" href="[^"]+">([^<]+)</a>`)
+		rowRanks := regexp.MustCompile(`(?s)<tr>\s*<td class="num" title="Form rank">([^<]+)</td>\s*<td[^>]*>[^<]*</td>\s*<td><a class="player" href="[^"]+">([^<]+)</a>`)
 		matches := rowRanks.FindAllStringSubmatch(pane, -1)
 		if len(matches) != 2 || matches[0][1] != "4" || matches[0][2] != "Sprinter" || matches[1][1] != "—" || matches[1][2] != "Sparse" {
 			t.Errorf("wrong table form ranks: %v", matches)

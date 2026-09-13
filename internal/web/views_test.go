@@ -937,7 +937,7 @@ func TestFormPaneIsConsistent(t *testing.T) {
 	if !strings.Contains(pane, "<thead>") {
 		t.Error("the form table has no header")
 	}
-	for _, col := range []string{"30d form", "Last 30 days", "Last five"} {
+	for _, col := range []string{"30d form", "Last 30 days", "Puzzles", "Last five", "Overall"} {
 		if !strings.Contains(pane, col) {
 			t.Errorf("the header is missing %q", col)
 		}
@@ -960,14 +960,14 @@ func TestFormPaneIsConsistent(t *testing.T) {
 		t.Fatal("the table slice overlaps the cards")
 	}
 	head := table[:strings.Index(table, "</tr>")]
-	if got, want := strings.Count(head, "<th>")+strings.Count(head, "<th "), 5; got != want {
+	if got, want := strings.Count(head, "<th>")+strings.Count(head, "<th "), 7; got != want {
 		t.Errorf("the header has %d cells, want %d", got, want)
 	}
 	body_ := table[strings.Index(table, "<tbody>"):]
 	firstRow := body_[strings.Index(body_, "<tr>"):]
 	firstRow = firstRow[:strings.Index(firstRow, "</tr>")]
-	if got := strings.Count(firstRow, "<td"); got != 5 {
-		t.Errorf("a row lays out %d cells against a 5-column header", got)
+	if got := strings.Count(firstRow, "<td"); got != 7 {
+		t.Errorf("a row lays out %d cells against a 7-column header", got)
 	}
 }
 

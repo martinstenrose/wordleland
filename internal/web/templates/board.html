@@ -48,6 +48,7 @@
                are emitted here rather than being columns in the list. */}}
           {{if eq .Column "form"}}
             <th class="right spark-col">{{$.T.T "board.column.last30"}}</th>
+            <th class="right window-col" title="{{$.T.T "board.column.windowGamesTitle"}}">{{$.T.T "board.column.windowGames"}}</th>
             <th class="right">{{$.T.T "board.column.lastFive"}}</th>
           {{end}}
           {{if eq .Column "games"}}<th class="right">{{$.T.T "board.column.lastGame"}}</th>{{end}}
@@ -59,7 +60,7 @@
       {{range .Rows}}
         {{if and (not .Ranked) (not $seen)}}
           {{$seen = true}}
-          <tr class="divider"><td colspan="9">{{$t.T "board.notRanked"}}</td></tr>
+          <tr class="divider"><td colspan="10">{{$t.T "board.notRanked"}}</td></tr>
         {{end}}
         <tr{{if not .Ranked}} class="unranked"{{end}}>
           <td class="num">{{if .Ranked}}{{$.T.Integer .Rank}}{{else}}—{{end}}</td>
@@ -85,6 +86,7 @@
               <span class="muted small">{{.LastSeenText}}</span>
             {{end}}
           </td>
+          <td class="right num window-col">{{if .Ranked}}{{$.T.Integer .FormGames}}{{end}}</td>
           <td class="right">
             {{template "last-five" .LastFive}}
           </td>

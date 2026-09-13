@@ -13,6 +13,8 @@
   "board.column.form": "30d form",
   "board.column.streak": "Streak",
   "board.column.last30": "Last 30 days",
+  "board.column.windowGames": "Puzzles",
+  "board.column.windowGamesTitle": "Puzzles in the window",
   "board.column.lastFive": "Last five",
   "board.column.games": "Puzzles",
   "board.column.lastGame": "Last puzzle",
