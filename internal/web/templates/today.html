@@ -103,14 +103,16 @@
               {{range .Rest}}
                 <tr>
                   <td class="num" title="{{$.T.T "today.formRank"}}">{{if .FormRank}}{{$.T.Integer .FormRank}}{{else}}—{{end}}</td>
-                  <td><a class="player" href="{{.Href}}">{{.Name}}</a></td>
+                  <td><a class="player" href="{{.Href}}">{{.Name}}</a>
+                    {{if .Trait}}<span class="board-trait">{{template "trait" .}}</span>{{end}}
+                  </td>
                   <td class="right num">
                     {{.FormText}}
                     {{if .DeltaText}}<span class="delta {{.DeltaDirection}}">{{.DeltaText}}</span>{{end}}
                   </td>
                   <td class="right spark-col">
                     {{if .HasSpark}}
-                      <svg width="140" height="30" viewBox="0 0 140 30" aria-hidden="true">
+                      <svg viewBox="0 0 140 30" preserveAspectRatio="none" aria-hidden="true">
                         {{template "spark-grid"}}
                         <path class="player" d="{{.SparkPath}}"/>
                       </svg>

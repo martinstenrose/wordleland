@@ -64,6 +64,7 @@
         <tr{{if not .Ranked}} class="unranked"{{end}}>
           <td class="num">{{if .Ranked}}{{$.T.Integer .Rank}}{{else}}—{{end}}</td>
           <td><a class="player" href="{{.Href}}">{{.Name}}</a>
+            {{if and .Trait (not .ReasonKey)}}<span class="board-trait">{{template "trait" .}}</span>{{end}}
             {{if .ReasonKey}}{{template "chip" (dict "Label" ($t.T .ReasonKey))}}{{end}}
           </td>
           <td class="right num strong">{{.AverageText}}</td>
@@ -74,7 +75,7 @@
           <td class="right spark-col">
             {{if .Ranked}}
               {{if .HasSpark}}
-              <svg width="140" height="30" viewBox="0 0 140 30" aria-hidden="true">
+              <svg viewBox="0 0 140 30" preserveAspectRatio="none" aria-hidden="true">
                 {{template "spark-grid"}}
                 {{if $group}}<path class="group" d="{{$group}}"/>{{end}}
                 <path class="player" d="{{.SparkPath}}"/>

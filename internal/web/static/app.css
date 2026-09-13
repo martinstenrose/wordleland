@@ -377,10 +377,13 @@ tr.divider td {
 }
 tr.unranked { opacity: .55; }
 
-.spark-col { width: 160px; }
-svg .group { fill: none; stroke: var(--color-text-45); stroke-width: 1.5; stroke-dasharray: 5 3; stroke-linecap: round; }
-svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; stroke-linejoin: round; }
+.spark-col { width: 30%; min-width: 160px; }
+.spark-col svg { display: block; width: 100%; height: 30px; }
+svg .group { fill: none; stroke: var(--color-text-45); stroke-width: 1.5; stroke-dasharray: 5 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .spark-grid line { stroke: var(--color-text-10); stroke-width: 1; vector-effect: non-scaling-stroke; }
+
+.board-trait { margin-left: 6px; }
 
 .card-foot {
   display: flex; gap: 20px; flex-wrap: wrap;
@@ -391,6 +394,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   body { padding: 16px 12px 30px; }
   .board th, .board td { padding: 9px 12px; }
   .spark-col { display: none; }
+  .board-trait { display: none; }
 }
 
 /* ---- Player detail ---------------------------------------------------- */
@@ -1541,7 +1545,7 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   vertical-align: middle;
   cursor: help;
 }
-.months-table .trait, .season-table .trait, .admin-row .trait {
+.months-table .trait, .season-table .trait, .admin-row .trait, .board-trait .trait {
   font-size: var(--text-xs);
   padding: 1px 6px;
   border-color: transparent;
