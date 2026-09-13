@@ -1,0 +1,13 @@
+{{/* Fixed reference lines behind a form sparkline (svg.go's 140x30 box,
+     scored 1 best to 7 worst): one per possible guess count, evenly
+     spaced, so a reader can count lines up to the path instead of
+     needing a printed number. */}}
+{{define "spark-grid"}}<g class="spark-grid" aria-hidden="true">
+  <line x1="0" y1="0" x2="140" y2="0"/>
+  <line x1="0" y1="5" x2="140" y2="5"/>
+  <line x1="0" y1="10" x2="140" y2="10"/>
+  <line x1="0" y1="15" x2="140" y2="15"/>
+  <line x1="0" y1="20" x2="140" y2="20"/>
+  <line x1="0" y1="25" x2="140" y2="25"/>
+  <line x1="0" y1="30" x2="140" y2="30"/>
+</g>{{end}}
