@@ -1285,11 +1285,18 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   position: fixed;
   inset: 0;
   z-index: 80;
-  display: flex;
   justify-content: center;
   padding-top: 14vh;
   background: rgba(0, 0, 0, .5);
 }
+/* display lives here, not on the bare selector above: an author rule and
+   the UA stylesheet's [hidden]{display:none} tie on specificity, and the
+   author rule wins that tie regardless of which comes later in the
+   cascade — so a bare `display: flex` above showed the overlay on every
+   page load and left app.js's `hidden = true` unable to hide it again.
+   Scoping the flex to :not([hidden]) leaves the browser's own default in
+   charge whenever the attribute is present. */
+.search-overlay:not([hidden]) { display: flex; }
 .search-overlay-box {
   width: min(560px, calc(100vw - 32px));
   max-height: 70vh;

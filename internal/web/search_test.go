@@ -137,6 +137,35 @@ func TestTopbarSearchLinkMatchesWhoCanUseTheRoute(t *testing.T) {
 	}
 }
 
+// The overlay must default to hidden across a browser's own cascade, not
+// just in the markup: an author rule and the UA stylesheet's
+// [hidden]{display:none} tie on specificity, and the author rule wins that
+// tie regardless of source order — so a bare ".search-overlay { display:
+// flex }" showed the overlay on every page load and left app.js's `hidden
+// = true` unable to hide it again. This pins the fix: the flex declaration
+// must live on a :not([hidden]) rule, and the bare selector must not
+// declare display at all.
+func TestSearchOverlayDisplayYieldsToTheHiddenAttribute(t *testing.T) {
+	srv := testServer(t)
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+
+	if !strings.Contains(css, ".search-overlay:not([hidden])") {
+		t.Fatal("no .search-overlay:not([hidden]) rule — the overlay's display is not scoped away from [hidden]")
+	}
+
+	start := strings.Index(css, ".search-overlay {")
+	if start < 0 {
+		t.Fatal("no bare .search-overlay rule found")
+	}
+	end := strings.Index(css[start:], "}")
+	if end < 0 {
+		t.Fatal("the bare .search-overlay rule is never closed")
+	}
+	if bare := css[start : start+end]; strings.Contains(bare, "display") {
+		t.Errorf("the bare .search-overlay rule sets display itself, which beats [hidden] on a specificity tie: %q", bare)
+	}
+}
+
 // app.js's search block is the only thing that can open an overlay on a
 // keystroke; this checks it is wired to the right elements and does not
 // reach into the picker menus, which are a separate concern (see
