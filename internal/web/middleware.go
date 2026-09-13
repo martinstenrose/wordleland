@@ -13,12 +13,16 @@ import (
 // actually uses. Inline styles are limited to presentation: the months and
 // player views render data-driven bar widths as style attributes. Scripts
 // remain same-origin only, and TOTP enrolment is the reason images allow data:
-// in addition to same-origin files.
+// in addition to same-origin files. connect-src was 'none' until app.js's
+// search overlay started fetching /search itself — fetch is subject to
+// connect-src regardless of same-origin, so 'none' silently discarded every
+// request rather than sending it; 'self' allows exactly that route and
+// nothing off-origin.
 const contentSecurityPolicy = "default-src 'self'; " +
 	"script-src 'self'; " +
 	"style-src 'self' 'unsafe-inline'; " +
 	"img-src 'self' data:; " +
-	"connect-src 'none'; " +
+	"connect-src 'self'; " +
 	"object-src 'none'; " +
 	"base-uri 'none'; " +
 	"frame-ancestors 'none'; " +
