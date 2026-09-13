@@ -1336,6 +1336,13 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 @media (max-width: 720px) {
   .search-label, .search-shortcut { display: none; }
+  /* Icon only: the label repeats what the icon already says, and this is
+     exactly the width where the bar is already tight — see the two
+     rules above it. aria-label on the anchor carries the accessible
+     name once the visible text is gone. Padding tightens to match: the
+     full padding was sized for an icon next to text, not an icon alone. */
+  .btn-primary-label { display: none; }
+  .btn-primary { padding: 0 9px; }
 }
 
 /* ---- Admin: tabs, activity log, pending results ------------------------ */
