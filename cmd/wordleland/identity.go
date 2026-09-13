@@ -15,6 +15,8 @@ func runIdentity(e *env, args []string) error {
 		{"claim", "map a held sender to a player and replay their results", identityClaim},
 		{"discard", "drop a sender's held results without creating a player", identityDiscard},
 		{"add", "map a sender to a player directly", identityAdd},
+		{"list", "list claimed identities", identityList},
+		{"reassign", "repoint a claimed identity to a different player", identityReassign},
 	}, args)
 }
 
@@ -164,5 +166,103 @@ func identityDiscard(e *env, args []string) error {
 
 	fmt.Fprintf(e.out, "Discarded %d held result(s) for %s/%s. No player was created.\n",
 		discarded, *source, *externalID)
+	return nil
+}
+
+func identityList(e *env, args []string) error {
+	fs := flagSet(e, "identity list")
+	playerSlug := fs.String("player", "", "slug of the player to scope the list to")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	var playerID *int64
+	if *playerSlug != "" {
+		player, err := e.lookupPlayer(*playerSlug)
+		if err != nil {
+			return err
+		}
+		playerID = &player.ID
+	}
+
+	claimed, err := store.ListClaimedIdentities(e.ctx, e.db, playerID)
+	if err != nil {
+		return err
+	}
+	if len(claimed) == 0 {
+		fmt.Fprintln(e.out, "No claimed identities.")
+		return nil
+	}
+
+	w := tabwriter.NewWriter(e.out, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "SOURCE\tEXTERNAL ID\tSEEN AS\tPLAYER")
+	for _, c := range claimed {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", c.Source, c.ExternalID, orDash(c.DisplayHint), c.PlayerSlug)
+	}
+	return w.Flush()
+}
+
+func identityReassign(e *env, args []string) error {
+	fs := flagSet(e, "identity reassign")
+	player := fs.String("player", "", "slug of the player to reassign the identity to")
+	source := fs.String("source", "signal", "identity source")
+	externalID := fs.String("external-id", "", "the sender's stable id")
+	moveResults := fs.Bool("move-results", false,
+		"also move results this identity wrote to the new player, where the new player has no result for that puzzle")
+	dryRun := fs.Bool("dry-run", false, "report what would happen without writing")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := requireFlag(*player, "player"); err != nil {
+		return err
+	}
+	if err := requireFlag(*externalID, "external-id"); err != nil {
+		return err
+	}
+
+	actor, err := e.actor()
+	if err != nil {
+		return err
+	}
+	target, err := e.lookupPlayer(*player)
+	if err != nil {
+		return err
+	}
+
+	summary, err := store.ReassignIdentity(e.ctx, e.db, actor, *source, *externalID, target.ID, *moveResults, *dryRun)
+	if errors.Is(err, store.ErrIdentityNotFound) {
+		return fmt.Errorf("nothing claimed for %s/%s.\n"+
+			"Run 'wordleland identity list' to see current mappings, or "+
+			"'identity claim'/'identity add' to create one", *source, *externalID)
+	}
+	if err != nil {
+		return err
+	}
+
+	prefix := ""
+	if *dryRun {
+		prefix = "Would have "
+	}
+	fmt.Fprintf(e.out, "%sreassigned %s/%s from %s to %s.\n",
+		prefix, *source, *externalID, summary.OldPlayerSlug, summary.NewPlayerSlug)
+
+	if *moveResults {
+		verb := "moved"
+		if *dryRun {
+			verb = "would be moved"
+		}
+		fmt.Fprintf(e.out, "  %d result(s) %s, %d left with %s (already recorded there).\n",
+			summary.Moved, verb, summary.Left, summary.OldPlayerSlug)
+		if summary.Untracked > 0 {
+			fmt.Fprintf(e.out, "  %d more automated result(s) for %s predate identity tracking "+
+				"(or came from some other automated path) and were left alone, since which of them "+
+				"belong to this identity can't be known. Check them, and move any that do with:\n"+
+				"    wordleland --as <you> results set --player %s --puzzle <n> --guesses <n>\n",
+				summary.Untracked, summary.OldPlayerSlug, summary.NewPlayerSlug)
+		}
+	}
+	if *dryRun {
+		fmt.Fprintln(e.out, "\nNothing was written. Re-run without --dry-run to apply.")
+	}
 	return nil
 }

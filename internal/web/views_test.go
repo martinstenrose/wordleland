@@ -1061,7 +1061,7 @@ func TestGridRanksOverTheSelectedWindow(t *testing.T) {
 			date, _ := wordle.DateForPuzzle(n)
 			if _, _, err := store.UpsertResult(ctx, srv.db, store.Result{
 				PuzzleNo: n, Date: date, PlayerID: p.ID, Guesses: &g, Solved: true,
-			}, nil); err != nil {
+			}, nil, nil); err != nil {
 				t.Fatalf("UpsertResult: %v", err)
 			}
 		}
@@ -1120,7 +1120,7 @@ func TestGridColumnsStayInNameOrder(t *testing.T) {
 			}
 			d, _ := wordle.DateForPuzzle(n)
 			store.UpsertResult(ctx, srv.db, store.Result{
-				PuzzleNo: n, Date: d, PlayerID: pl.ID, Guesses: &g, Solved: true}, nil)
+				PuzzleNo: n, Date: d, PlayerID: pl.ID, Guesses: &g, Solved: true}, nil, nil)
 		}
 	}
 

@@ -468,6 +468,7 @@
   "activity.action.player.linked": "Login linked",
   "activity.action.player.unlinked": "Login unlinked",
   "activity.action.identity.added": "Chat identity attached",
+  "activity.action.identity.reassigned": "Chat identity reassigned",
   "activity.action.user.created": "Account created",
   "activity.action.user.disabled": "Account disabled",
   "activity.action.user.enabled": "Account restored",

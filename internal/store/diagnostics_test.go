@@ -39,7 +39,7 @@ func TestFreshnessReadsArrivalNotPuzzleDate(t *testing.T) {
 	}
 	guesses := 4
 	r := Result{PuzzleNo: 1500, Date: old, PlayerID: playerID, Guesses: &guesses, Solved: true}
-	if _, _, err := UpsertResult(ctx, db, r, nil); err != nil {
+	if _, _, err := UpsertResult(ctx, db, r, nil, nil); err != nil {
 		t.Fatalf("UpsertResult: %v", err)
 	}
 	if err := LogResultActivity(ctx, db, actor, ActionResultCreated, playerID, r, nil); err != nil {

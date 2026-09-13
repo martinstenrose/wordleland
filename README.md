@@ -441,6 +441,11 @@ docker compose exec app /wordleland identity pending
 docker compose exec app /wordleland identity claim \
   --player martin --source signal --external-id <uuid> --dry-run
 
+# Claimed identities, and fixing one mapped to the wrong player.
+docker compose exec app /wordleland identity list
+docker compose exec app /wordleland identity reassign \
+  --source signal --external-id <uuid> --player other-player --move-results --dry-run
+
 # Corrections. A hand-entered value wins over anything the Signal bridge sends.
 docker compose exec app /wordleland results set --player martin --puzzle 1893 --guesses 4 --hard-mode
 docker compose exec app /wordleland results unset --player martin --puzzle 1893
@@ -471,6 +476,14 @@ So a new player is claimed rather than guessed:
 
 Until claimed, their results wait rather than being lost. Claiming with
 `--dry-run` first shows what would be replayed.
+
+If a sender was ever claimed to the wrong player, `identity reassign` repoints
+the mapping. With `--move-results`, it also moves the results that specific
+identity wrote — never a different identity's, and never anything entered by
+hand — to the new player, skipping (and reporting) any puzzle the new player
+already has a result for. Automated results that predate identity tracking
+altogether are reported as untracked rather than guessed at; move any that
+belong by hand with `results set`.
 
 ## Importing history
 

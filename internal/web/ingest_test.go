@@ -141,7 +141,7 @@ func TestIngestResponseMatrix(t *testing.T) {
 	if _, _, err := store.UpsertResult(ctx, srv.db, store.Result{
 		PuzzleNo: 1891, Date: mustDate(t, 1891), PlayerID: player.ID,
 		Guesses: intPtr(2), Solved: true,
-	}, &adminID); err != nil {
+	}, &adminID, nil); err != nil {
 		t.Fatalf("human write failed: %v", err)
 	}
 	rec, body = postIngest(t, srv, token, senderBody(1891, 5))

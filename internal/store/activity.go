@@ -58,9 +58,10 @@ const (
 	ActionResultUpdated = "result.updated"
 	ActionResultDeleted = "result.deleted"
 
-	ActionIdentityAdded     = "identity.added"
-	ActionIdentityClaimed   = "identity.claimed"
-	ActionIdentityDiscarded = "identity.discarded"
+	ActionIdentityAdded      = "identity.added"
+	ActionIdentityClaimed    = "identity.claimed"
+	ActionIdentityDiscarded  = "identity.discarded"
+	ActionIdentityReassigned = "identity.reassigned"
 
 	ActionSlugGenerated = "settings.slug_generated"
 	ActionSlugRotated   = "settings.slug_rotated"
@@ -171,13 +172,14 @@ var activityKinds = map[string]string{
 	ActionResultUpdated: ActivityResults,
 	ActionResultDeleted: ActivityResults,
 
-	ActionPlayerCreated:     ActivityPlayers,
-	ActionPlayerUpdated:     ActivityPlayers,
-	ActionPlayerRetired:     ActivityPlayers,
-	ActionPlayerReactivated: ActivityPlayers,
-	ActionPlayerLinked:      ActivityPlayers,
-	ActionPlayerUnlinked:    ActivityPlayers,
-	ActionIdentityAdded:     ActivityPlayers,
+	ActionPlayerCreated:      ActivityPlayers,
+	ActionPlayerUpdated:      ActivityPlayers,
+	ActionPlayerRetired:      ActivityPlayers,
+	ActionPlayerReactivated:  ActivityPlayers,
+	ActionPlayerLinked:       ActivityPlayers,
+	ActionPlayerUnlinked:     ActivityPlayers,
+	ActionIdentityAdded:      ActivityPlayers,
+	ActionIdentityReassigned: ActivityPlayers,
 
 	ActionUserCreated:         ActivityUsers,
 	ActionUserDisabled:        ActivityUsers,
@@ -197,6 +199,17 @@ var activityKinds = map[string]string{
 
 // ActivityKind reports which category an action belongs to, or "".
 func ActivityKind(action string) string { return activityKinds[action] }
+
+// TrackedActivityActions lists every action the activity page can render —
+// the keys of activityKinds — so a test can check each one has a
+// translation without the two lists drifting apart.
+func TrackedActivityActions() []string {
+	actions := make([]string, 0, len(activityKinds))
+	for action := range activityKinds {
+		actions = append(actions, action)
+	}
+	return actions
+}
 
 // ListActivity reads the most recent events, optionally of one category.
 //

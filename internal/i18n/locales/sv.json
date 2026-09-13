@@ -468,6 +468,7 @@
   "activity.action.player.linked": "Inloggning kopplad",
   "activity.action.player.unlinked": "Inloggning frånkopplad",
   "activity.action.identity.added": "Chattidentitet kopplad",
+  "activity.action.identity.reassigned": "Chattidentitet omkopplad",
   "activity.action.user.created": "Konto skapat",
   "activity.action.user.disabled": "Konto avstängt",
   "activity.action.user.enabled": "Konto återställt",

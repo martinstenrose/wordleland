@@ -344,7 +344,7 @@ func TestActivityDetailShowsAResultChange(t *testing.T) {
 			PuzzleNo: 1500, Date: date, PlayerID: player.ID,
 			Guesses: &n, Solved: true, EnteredBy: &admin.ID,
 		}
-		outcome, previous, err := store.UpsertResult(ctx, srv.db, r, &admin.ID)
+		outcome, previous, err := store.UpsertResult(ctx, srv.db, r, &admin.ID, nil)
 		if err != nil {
 			t.Fatalf("UpsertResult: %v", err)
 		}
@@ -443,7 +443,7 @@ func TestActivityNamesTheTokenThatWrote(t *testing.T) {
 	date, _ := wordle.DateForPuzzle(1501)
 	guesses := 3
 	r := store.Result{PuzzleNo: 1501, Date: date, PlayerID: player.ID, Guesses: &guesses, Solved: true}
-	if _, _, err := store.UpsertResult(ctx, srv.db, r, nil); err != nil {
+	if _, _, err := store.UpsertResult(ctx, srv.db, r, nil, nil); err != nil {
 		t.Fatalf("UpsertResult: %v", err)
 	}
 	if err := store.LogResultActivity(ctx, srv.db, store.TokenActor(token.ID),
@@ -476,7 +476,7 @@ func TestActivityNamesTheBridge(t *testing.T) {
 	date, _ := wordle.DateForPuzzle(1502)
 	guesses := 4
 	r := store.Result{PuzzleNo: 1502, Date: date, PlayerID: player.ID, Guesses: &guesses, Solved: true}
-	if _, _, err := store.UpsertResult(ctx, srv.db, r, nil); err != nil {
+	if _, _, err := store.UpsertResult(ctx, srv.db, r, nil, nil); err != nil {
 		t.Fatalf("UpsertResult: %v", err)
 	}
 	if err := store.LogResultActivityVia(ctx, srv.db, store.SystemActor(),
