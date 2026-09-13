@@ -435,7 +435,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   text-transform: uppercase;
   color: var(--color-text-42);
 }
-.panel .hint { margin: 12px 0 0; }
+.panel .hint { margin: 12px 0 0; font-size: 10.5px; color: var(--color-text-35); }
 .legend-lines { display: flex; gap: 12px; align-items: center; text-transform: none; letter-spacing: 0; }
 .legend-lines svg { color: var(--color-text-30); vertical-align: middle; }
 
