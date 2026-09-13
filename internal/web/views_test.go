@@ -934,10 +934,10 @@ func TestFormPaneIsConsistent(t *testing.T) {
 	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
 	pane := body[strings.Index(body, "today-form"):strings.Index(body, "bench-toggle")]
 
-	if !strings.Contains(pane, "form-head") {
+	if !strings.Contains(pane, "<thead>") {
 		t.Error("the form table has no header")
 	}
-	for _, col := range []string{"30d form", "Streak", "Last 30 days", "Last five"} {
+	for _, col := range []string{"30d form", "Last 30 days", "Last five"} {
 		if !strings.Contains(pane, col) {
 			t.Errorf("the header is missing %q", col)
 		}
@@ -951,23 +951,23 @@ func TestFormPaneIsConsistent(t *testing.T) {
 	// Every figure in a row sits under a heading that names it. The rows
 	// once printed an unlabelled number that read as a game count in the
 	// cards and a streak in the table, which is what the header fixes.
-	rows := pane[strings.Index(pane, "form-rows"):]
-	if strings.Count(rows, "podium") > 0 {
-		t.Fatal("the row slice overlaps the cards")
+	tableAt := strings.Index(pane, `<table class="board">`)
+	if tableAt < 0 {
+		t.Fatal("no form table")
 	}
-	head := rows[:strings.Index(rows, "</li>")]
-	body_ := rows[strings.Index(rows, "</li>"):]
-	if got, want := strings.Count(head, "<span"), 6; got != want {
+	table := pane[tableAt:]
+	if strings.Count(table, "podium") > 0 {
+		t.Fatal("the table slice overlaps the cards")
+	}
+	head := table[:strings.Index(table, "</tr>")]
+	if got, want := strings.Count(head, "<th>")+strings.Count(head, "<th "), 5; got != want {
 		t.Errorf("the header has %d cells, want %d", got, want)
 	}
-	firstRow := body_[strings.Index(body_, "<li>"):]
-	lastFiveEnd := strings.Index(firstRow, "</ol>") + len("</ol>")
-	firstRow = firstRow[:lastFiveEnd+strings.Index(firstRow[lastFiveEnd:], "</li>")]
-	// The delta and Last Five nest inside cells, so count only the cells
-	// the grid lays out: the direct children of the row.
-	if got := strings.Count(firstRow, `<span class="num`) + strings.Count(firstRow, `<span class="row-name"`) +
-		strings.Count(firstRow, `<div class="form-last-five"`) + strings.Count(firstRow, `<span class="form-chart"`); got != 6 {
-		t.Errorf("a row lays out %d cells against a 6-column header", got)
+	body_ := table[strings.Index(table, "<tbody>"):]
+	firstRow := body_[strings.Index(body_, "<tr>"):]
+	firstRow = firstRow[:strings.Index(firstRow, "</tr>")]
+	if got := strings.Count(firstRow, "<td"); got != 5 {
+		t.Errorf("a row lays out %d cells against a 5-column header", got)
 	}
 }
 
