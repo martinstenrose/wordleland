@@ -13,6 +13,25 @@ import (
 	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
+// The chart note, calendar legend, and recent-strip legend all use .hint
+// inside a .panel; that rule should match the Leaderboard's footer-note
+// styling so explanatory copy reads consistently across pages.
+func TestPlayerPanelHintMatchesLeaderboardFootNote(t *testing.T) {
+	srv := testServer(t)
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+	at := strings.Index(css, ".panel .hint")
+	if at < 0 {
+		t.Fatal("nothing styles the player panel's hint text")
+	}
+	rule := css[at:]
+	rule = rule[:strings.Index(rule, "}")]
+	for _, want := range []string{"font-size: 10.5px", "color: var(--color-text-35)"} {
+		if !strings.Contains(rule, want) {
+			t.Errorf("the panel hint rule does not set %q", want)
+		}
+	}
+}
+
 func TestPlayerPageShowsTheSameFiguresAsTheBoard(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
