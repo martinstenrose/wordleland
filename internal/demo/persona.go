@@ -8,25 +8,23 @@ import (
 	"github.com/martinstenrose/wordleland/internal/stats"
 )
 
-// PersonaFor derives a persona's stable traits from their name alone.
+// PersonaFor derives a persona's stable traits from a key alone.
 //
 // tick has to reproduce the same behaviour for an existing player run after
 // run, without knowing the seed the roster was originally generated with
 // and without persisting any new state to derive it from later. Hashing the
-// name into a seed makes the traits a pure function of it.
-//
-// Deriving from the name assumes it identifies the persona uniquely. A
-// second `demo seed` run on top of an uncleared roster can produce a player
-// sharing a name with an existing one — see docs/decisions.md's "Staging
-// and demo data" — at which point the two become indistinguishable here.
-// Nothing in this package resolves that; keeping the roster free of
-// duplicate names is the caller's job.
-func PersonaFor(name string) Persona {
+// key into a seed makes the traits a pure function of it. For a player with
+// a real record, the key is its slug — the one thing tick can read back
+// that is guaranteed unique and never changes, unlike the invented display
+// name it is created under. A pending sender has no slug, so its own
+// invented full name serves as the key instead; that traits are never
+// reconstructed for one is what makes reusing it safe.
+func PersonaFor(key string) Persona {
 	h := fnv.New64a()
-	_, _ = h.Write([]byte(name))
+	_, _ = h.Write([]byte(key))
 	rng := rand.New(rand.NewSource(int64(h.Sum64())))
 
-	p := Persona{Name: name}
+	p := Persona{Name: key}
 
 	// A third of the roster plays hard mode almost exclusively; the rest
 	// never do. Matches the split docs/decisions.md found in the real
@@ -47,16 +45,16 @@ func PersonaFor(name string) Persona {
 // tick must be safe to run more than once for the same puzzle — a cron
 // misfire, a manual retry — and reproduce not just an already-filed result
 // (ResultFor's job) but also an earlier decision to sit the day out, which
-// leaves no row to check against. Keying the source on the player's name and
+// leaves no row to check against. Keying the source on the player's slug and
 // the puzzle number, rather than the time the command happened to run,
 // makes that decision a pure function of the two things that actually
 // identify it: nothing changes unless one of them does. seed is a salt for
 // tests that need a different simulated day without waiting for the puzzle
 // number to change; leaving it at zero is what makes two ordinary
 // invocations for the same puzzle agree.
-func DailyRNG(name string, puzzleNo int, seed int64) *rand.Rand {
+func DailyRNG(key string, puzzleNo int, seed int64) *rand.Rand {
 	h := fnv.New64a()
-	_, _ = h.Write([]byte(name))
+	_, _ = h.Write([]byte(key))
 	var buf [16]byte
 	binary.LittleEndian.PutUint64(buf[:8], uint64(puzzleNo))
 	binary.LittleEndian.PutUint64(buf[8:], uint64(seed))

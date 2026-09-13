@@ -92,6 +92,15 @@ func TestDemoSeedCreatesPlayersAndHistory(t *testing.T) {
 			t.Errorf("player %q (slug %q) carries a demo- style prefix, want an ordinary-looking name", p.Name, p.Slug)
 		}
 	}
+
+	// Production convention shows a player under their first name alone —
+	// the invented full name is only ever used, unstored, to pick that
+	// first name and a slug for it.
+	for _, p := range players {
+		if strings.Contains(p.Name, " ") {
+			t.Errorf("player name %q contains a space, want first name only", p.Name)
+		}
+	}
 }
 
 // TestDemoSeedIsReproducibleForSameSeed is the CLI-level half of --seed:

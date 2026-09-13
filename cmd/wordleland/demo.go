@@ -87,16 +87,23 @@ func demoSeed(e *env, args []string) error {
 	var resultsFiled int
 	var retiredSlug string
 	for _, persona := range playerPersonas {
-		player, err := store.CreatePlayer(e.ctx, e.db, actor, persona.Name, "")
+		player, err := store.CreatePlayer(e.ctx, e.db, actor, persona.DisplayName, "")
 		if err != nil {
-			return fmt.Errorf("create %s: %w", persona.Name, err)
+			return fmt.Errorf("create %s: %w", persona.DisplayName, err)
 		}
 
+		// Recomputed from the slug rather than kept from the roster: the
+		// invented full name above is never stored, so the slug is the
+		// only thing tick can read back later to reconstruct these same
+		// rates. Role isn't part of that reconstruction (tick never calls
+		// Played), but Played needs it here during backfill.
+		traits := demo.PersonaFor(player.Slug)
+		traits.Role = persona.Role
 		for day := 0; day < *days; day++ {
-			if !persona.Played(rng, day, *days) {
+			if !traits.Played(rng, day, *days) {
 				continue
 			}
-			outcome := persona.Play(rng)
+			outcome := traits.Play(rng)
 			result, err := ingest.Apply(e.ctx, e.db, actor, submissionFor(player.Slug, oldest+day, outcome), false)
 			if err != nil {
 				return fmt.Errorf("file result for %s, puzzle %d: %w", player.Slug, oldest+day, err)
@@ -204,13 +211,15 @@ func demoTick(e *env, args []string) error {
 			return err
 		}
 
-		// Seeded from the player and the puzzle, not the time tick happens
-		// to run: sitting a day out leaves no row to check against, so a
-		// second invocation for the same puzzle must reroll to exactly the
-		// same decision rather than a fresh one, or a retry could go from
-		// "sat out" to "played" on nothing but bad timing.
-		persona := demo.PersonaFor(player.Name)
-		rng := demo.DailyRNG(player.Name, today, *seed)
+		// Seeded from the player's slug and the puzzle, not the time tick
+		// happens to run: sitting a day out leaves no row to check
+		// against, so a second invocation for the same puzzle must reroll
+		// to exactly the same decision rather than a fresh one, or a retry
+		// could go from "sat out" to "played" on nothing but bad timing.
+		// The slug, not the display name, is what demoSeed derived these
+		// same rates from — see the comment there.
+		persona := demo.PersonaFor(player.Slug)
+		rng := demo.DailyRNG(player.Slug, today, *seed)
 		if rng.Float64() < persona.MissRate {
 			satOut++
 			continue
