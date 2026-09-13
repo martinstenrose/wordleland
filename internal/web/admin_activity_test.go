@@ -4,7 +4,34 @@ import (
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/martinstenrose/wordleland/internal/store"
 )
+
+// Every action the activity page can render must have a translation in
+// every shipped locale, or the page shows the raw "activity.action.foo" key
+// (T's deliberate behavior for a genuinely missing key, but a locale simply
+// never having been given the string is a bug, not something to render
+// silently).
+func TestActivityActionsAreTranslatedInEveryLocale(t *testing.T) {
+	cats, err := loadCatalogues()
+	if err != nil {
+		t.Fatalf("loadCatalogues() failed: %v", err)
+	}
+
+	for _, action := range store.TrackedActivityActions() {
+		key := "activity.action." + action
+		for _, locale := range []string{"en", "sv"} {
+			cat, ok := cats[locale]
+			if !ok {
+				t.Fatalf("locale %q not loaded", locale)
+			}
+			if _, ok := cat[key]; !ok {
+				t.Errorf("%s: missing translation for %s", locale, key)
+			}
+		}
+	}
+}
 
 // A clock time alone doesn't say which zone it's in, and the admin reading
 // Diagnostics may not be on the server's clock. sinceText needs to carry the

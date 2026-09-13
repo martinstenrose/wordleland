@@ -140,7 +140,7 @@ func (e *env) writeResult(actor store.Actor, playerID int64, r store.Result) (st
 			err      error
 		)
 		userID := actor.UserID
-		outcome, previous, err = store.UpsertResult(e.ctx, tx, r, userID)
+		outcome, previous, err = store.UpsertResult(e.ctx, tx, r, userID, nil)
 		if err != nil {
 			return err
 		}

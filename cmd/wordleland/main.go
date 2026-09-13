@@ -65,7 +65,7 @@ Commands:
 Nouns:
   user      create, reset-password, reset-2fa, disable, enable
   player    add, update, link, unlink, list
-  identity  pending, claim, discard, add
+  identity  pending, claim, discard, add, list, reassign
   results   set, unset
   token     create, list, revoke
   backfill  import history from the spreadsheet

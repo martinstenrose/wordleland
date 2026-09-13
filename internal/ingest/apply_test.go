@@ -109,6 +109,43 @@ func TestApplyHoldsAnUnclaimedSender(t *testing.T) {
 	}
 }
 
+// write() must resolve a sender-named submission inside its own transaction
+// rather than trust a player resolved earlier: an `identity reassign` could
+// commit in the window between that earlier resolution and this write, and a
+// write that trusted it would land on whoever the sender used to map to.
+// Simulated here by calling write() directly with a's Player value — the one
+// applyFromSender would have resolved before the reassignment below — for a
+// submission that now maps to b.
+func TestWriteResolvesSenderInsideItsOwnTransaction(t *testing.T) {
+	db, actor := applyDB(t)
+	ctx := context.Background()
+
+	a := mustPlayer(t, db, actor, "Alice", "alice")
+	b := mustPlayer(t, db, actor, "Bob", "bob")
+	if _, err := store.LinkIdentity(ctx, db, actor, a.ID, "signal", "uuid-1", "claim", false); err != nil {
+		t.Fatalf("LinkIdentity: %v", err)
+	}
+	if _, err := store.ReassignIdentity(ctx, db, actor, "signal", "uuid-1", b.ID, false, false); err != nil {
+		t.Fatalf("ReassignIdentity: %v", err)
+	}
+
+	sub := Submission{Source: "signal", ExternalID: "uuid-1", PuzzleNo: 1500, Solved: true, Guesses: ptr(4)}
+	res, err := write(ctx, db, actor, a, sub, true)
+	if err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if res.PlayerID != b.ID {
+		t.Errorf("PlayerID = %d, want %d (b) — a stale pre-resolved player must not be trusted", res.PlayerID, b.ID)
+	}
+
+	if _, err := store.ResultFor(ctx, db, 1500, a.ID); !errors.Is(err, store.ErrResultNotFound) {
+		t.Error("the result landed on the stale, pre-reassignment player")
+	}
+	if _, err := store.ResultFor(ctx, db, 1500, b.ID); err != nil {
+		t.Errorf("the result did not land on the current player: %v", err)
+	}
+}
+
 // A human-entered value beats an automated one. The bridge must not be able
 // to undo a correction an admin typed.
 func TestApplyDoesNotOverwriteAHumanEntry(t *testing.T) {
@@ -124,7 +161,7 @@ func TestApplyDoesNotOverwriteAHumanEntry(t *testing.T) {
 		PuzzleNo: 1500, Date: date, PlayerID: player.ID,
 		Guesses: &guesses, Solved: true,
 	}
-	if _, _, err := store.UpsertResult(ctx, db, handEntered, entered); err != nil {
+	if _, _, err := store.UpsertResult(ctx, db, handEntered, entered, nil); err != nil {
 		t.Fatalf("UpsertResult: %v", err)
 	}
 

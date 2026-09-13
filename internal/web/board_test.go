@@ -46,7 +46,7 @@ func seedBoard(t *testing.T, srv *Server) {
 			if _, _, err := store.UpsertResult(ctx, srv.db, store.Result{
 				PuzzleNo: puzzle, Date: date, PlayerID: p.ID,
 				Guesses: &g, Solved: true, HardMode: hardMode,
-			}, nil); err != nil {
+			}, nil, nil); err != nil {
 				t.Fatalf("UpsertResult: %v", err)
 			}
 		}
@@ -552,7 +552,7 @@ func seedResult(t *testing.T, srv *Server, playerID int64, puzzle, guesses int, 
 	if _, _, err := store.UpsertResult(context.Background(), srv.db, store.Result{
 		PuzzleNo: puzzle, Date: date, PlayerID: playerID,
 		Guesses: g, Solved: guesses > 0, HardMode: hardMode,
-	}, nil); err != nil {
+	}, nil, nil); err != nil {
 		t.Fatalf("UpsertResult: %v", err)
 	}
 }

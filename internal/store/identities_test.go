@@ -26,7 +26,7 @@ func holdResult(t *testing.T, db *sql.DB, puzzle int, guesses int, hardMode bool
 func TestResolveIdentityNotFound(t *testing.T) {
 	db, _, _, _ := identityFixture(t)
 
-	_, err := ResolveIdentity(context.Background(), db, "signal", testUUID)
+	_, _, err := ResolveIdentity(context.Background(), db, "signal", testUUID)
 	if !errors.Is(err, ErrIdentityNotFound) {
 		t.Errorf("error = %v, want ErrIdentityNotFound", err)
 	}
@@ -111,7 +111,7 @@ func TestLinkIdentityRespectsPrecedence(t *testing.T) {
 	ctx := context.Background()
 
 	// A correction already exists for one of the puzzles.
-	if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1888, 2), &adminID); err != nil {
+	if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1888, 2), &adminID, nil); err != nil {
 		t.Fatalf("human write failed: %v", err)
 	}
 	holdResult(t, db, 1888, 4, false)
@@ -168,7 +168,7 @@ func TestLinkIdentityIsAtomic(t *testing.T) {
 		t.Fatal("LinkIdentity() succeeded despite an unusable held result")
 	}
 
-	if _, err := ResolveIdentity(ctx, db, "signal", testUUID); !errors.Is(err, ErrIdentityNotFound) {
+	if _, _, err := ResolveIdentity(ctx, db, "signal", testUUID); !errors.Is(err, ErrIdentityNotFound) {
 		t.Error("the identity row survived a failed claim")
 	}
 	var results, held int
@@ -190,7 +190,7 @@ func TestLinkIdentityDryRun(t *testing.T) {
 	db, playerID, adminID, actor := identityFixture(t)
 	ctx := context.Background()
 
-	if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1888, 2), &adminID); err != nil {
+	if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1888, 2), &adminID, nil); err != nil {
 		t.Fatalf("human write failed: %v", err)
 	}
 	holdResult(t, db, 1888, 4, false)
@@ -205,7 +205,7 @@ func TestLinkIdentityDryRun(t *testing.T) {
 	}
 
 	// Nothing was written.
-	if _, err := ResolveIdentity(ctx, db, "signal", testUUID); !errors.Is(err, ErrIdentityNotFound) {
+	if _, _, err := ResolveIdentity(ctx, db, "signal", testUUID); !errors.Is(err, ErrIdentityNotFound) {
 		t.Error("the dry run created an identity")
 	}
 	if _, err := ResultFor(ctx, db, 1889, playerID); !errors.Is(err, ErrResultNotFound) {
@@ -246,7 +246,7 @@ func TestLinkIdentityWithoutHeldResults(t *testing.T) {
 	if summary.Replayed != 0 {
 		t.Errorf("summary = %+v, want nothing replayed", summary)
 	}
-	if _, err := ResolveIdentity(ctx, db, "signal", testUUID); err != nil {
+	if _, _, err := ResolveIdentity(ctx, db, "signal", testUUID); err != nil {
 		t.Errorf("the identity was not created: %v", err)
 	}
 }
@@ -267,7 +267,7 @@ func TestDiscardPendingResults(t *testing.T) {
 	}
 
 	// No player, no identity, no results: just gone.
-	if _, err := ResolveIdentity(ctx, db, "signal", testUUID); !errors.Is(err, ErrIdentityNotFound) {
+	if _, _, err := ResolveIdentity(ctx, db, "signal", testUUID); !errors.Is(err, ErrIdentityNotFound) {
 		t.Error("discarding created an identity")
 	}
 	var results int
@@ -346,12 +346,288 @@ func TestRefreshDisplayHint(t *testing.T) {
 	}
 
 	// Still resolves to the same player.
-	player, err := ResolveIdentity(ctx, db, "signal", testUUID)
+	player, _, err := ResolveIdentity(ctx, db, "signal", testUUID)
 	if err != nil {
 		t.Fatalf("ResolveIdentity() failed: %v", err)
 	}
 	if player.ID != playerID {
 		t.Errorf("player = %d, want %d", player.ID, playerID)
+	}
+}
+
+func TestListClaimedIdentitiesEmpty(t *testing.T) {
+	db, _, _, _ := identityFixture(t)
+
+	claimed, err := ListClaimedIdentities(context.Background(), db, nil)
+	if err != nil {
+		t.Fatalf("ListClaimedIdentities() failed: %v", err)
+	}
+	if len(claimed) != 0 {
+		t.Errorf("claimed = %d, want 0", len(claimed))
+	}
+}
+
+func TestListClaimedIdentitiesScopesToPlayer(t *testing.T) {
+	db, playerID, _, actor := identityFixture(t)
+	ctx := context.Background()
+
+	other, err := CreatePlayer(ctx, db, actor, "Other", "other")
+	if err != nil {
+		t.Fatalf("CreatePlayer() failed: %v", err)
+	}
+
+	if _, err := LinkIdentity(ctx, db, actor, playerID, "signal", testUUID, ActionIdentityAdded, false); err != nil {
+		t.Fatalf("LinkIdentity() failed: %v", err)
+	}
+	if _, err := LinkIdentity(ctx, db, actor, other.ID, "signal", "22222222-3333-4444-5555-666666666666", ActionIdentityAdded, false); err != nil {
+		t.Fatalf("LinkIdentity() failed: %v", err)
+	}
+
+	all, err := ListClaimedIdentities(ctx, db, nil)
+	if err != nil {
+		t.Fatalf("ListClaimedIdentities() failed: %v", err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("all = %d, want 2", len(all))
+	}
+
+	scoped, err := ListClaimedIdentities(ctx, db, &playerID)
+	if err != nil {
+		t.Fatalf("ListClaimedIdentities(scoped) failed: %v", err)
+	}
+	if len(scoped) != 1 || scoped[0].ExternalID != testUUID {
+		t.Errorf("scoped = %+v, want only %s", scoped, testUUID)
+	}
+}
+
+// A player can have more than one claimed identity, each writing its own
+// results. Reassigning one must move only what it wrote, never results a
+// different identity produced for the same player.
+func TestReassignIdentityMovesOnlyItsOwnResults(t *testing.T) {
+	db, playerID, _, actor := identityFixture(t)
+	ctx := context.Background()
+
+	target, err := CreatePlayer(ctx, db, actor, "Target", "target")
+	if err != nil {
+		t.Fatalf("CreatePlayer() failed: %v", err)
+	}
+
+	const secondUUID = "22222222-3333-4444-5555-666666666666"
+	holdResult(t, db, 1888, 4, false)
+	if _, err := LinkIdentity(ctx, db, actor, playerID, "signal", testUUID, ActionIdentityAdded, false); err != nil {
+		t.Fatalf("LinkIdentity() failed: %v", err)
+	}
+	if err := HoldPendingResult(ctx, db, "signal", secondUUID, "", PendingResult{PuzzleNo: 1889, Solved: true, Guesses: ptr(3)}); err != nil {
+		t.Fatalf("HoldPendingResult() failed: %v", err)
+	}
+	if _, err := LinkIdentity(ctx, db, actor, playerID, "signal", secondUUID, ActionIdentityAdded, false); err != nil {
+		t.Fatalf("LinkIdentity() failed: %v", err)
+	}
+
+	summary, err := ReassignIdentity(ctx, db, actor, "signal", testUUID, target.ID, true, false)
+	if err != nil {
+		t.Fatalf("ReassignIdentity() failed: %v", err)
+	}
+	if summary.Moved != 1 || summary.Left != 0 {
+		t.Errorf("summary = %+v, want 1 moved and 0 left", summary)
+	}
+
+	if _, err := ResultFor(ctx, db, 1888, target.ID); err != nil {
+		t.Errorf("puzzle 1888 was not moved to the target: %v", err)
+	}
+	if _, err := ResultFor(ctx, db, 1889, playerID); err != nil {
+		t.Errorf("puzzle 1889 (a different identity's result) should have stayed with the old player: %v", err)
+	}
+	if _, err := ResultFor(ctx, db, 1889, target.ID); !errors.Is(err, ErrResultNotFound) {
+		t.Error("puzzle 1889 was moved to the target, but it belongs to a different identity")
+	}
+
+	newPlayer, _, err := ResolveIdentity(ctx, db, "signal", testUUID)
+	if err != nil {
+		t.Fatalf("ResolveIdentity() failed: %v", err)
+	}
+	if newPlayer.ID != target.ID {
+		t.Errorf("resolved player = %d, want the target %d", newPlayer.ID, target.ID)
+	}
+}
+
+// A result the target player already has for that puzzle always wins, so
+// the moved-from row must stay with the old player rather than being
+// dropped or overwriting a hand-entered value.
+func TestReassignIdentityLeavesConflictingResults(t *testing.T) {
+	db, playerID, adminID, actor := identityFixture(t)
+	ctx := context.Background()
+
+	target, err := CreatePlayer(ctx, db, actor, "Target", "target")
+	if err != nil {
+		t.Fatalf("CreatePlayer() failed: %v", err)
+	}
+	if _, _, err := UpsertResult(ctx, db, sampleResult(target.ID, 1888, 6), &adminID, nil); err != nil {
+		t.Fatalf("human write failed: %v", err)
+	}
+
+	holdResult(t, db, 1888, 4, false)
+	if _, err := LinkIdentity(ctx, db, actor, playerID, "signal", testUUID, ActionIdentityAdded, false); err != nil {
+		t.Fatalf("LinkIdentity() failed: %v", err)
+	}
+
+	summary, err := ReassignIdentity(ctx, db, actor, "signal", testUUID, target.ID, true, false)
+	if err != nil {
+		t.Fatalf("ReassignIdentity() failed: %v", err)
+	}
+	if summary.Moved != 0 || summary.Left != 1 {
+		t.Errorf("summary = %+v, want 0 moved and 1 left", summary)
+	}
+
+	stored, err := ResultFor(ctx, db, 1888, target.ID)
+	if err != nil {
+		t.Fatalf("ResultFor(target) failed: %v", err)
+	}
+	if *stored.Guesses != 6 {
+		t.Errorf("guesses = %d, want the target's hand-entered 6 to survive", *stored.Guesses)
+	}
+	if _, err := ResultFor(ctx, db, 1888, playerID); err != nil {
+		t.Errorf("the old player's result should have stayed, since it could not move: %v", err)
+	}
+}
+
+// The mapping still moves even when moveResults is false — only the
+// results stay behind.
+func TestReassignIdentityWithoutMovingResults(t *testing.T) {
+	db, playerID, _, actor := identityFixture(t)
+	ctx := context.Background()
+
+	target, err := CreatePlayer(ctx, db, actor, "Target", "target")
+	if err != nil {
+		t.Fatalf("CreatePlayer() failed: %v", err)
+	}
+	holdResult(t, db, 1888, 4, false)
+	if _, err := LinkIdentity(ctx, db, actor, playerID, "signal", testUUID, ActionIdentityAdded, false); err != nil {
+		t.Fatalf("LinkIdentity() failed: %v", err)
+	}
+
+	summary, err := ReassignIdentity(ctx, db, actor, "signal", testUUID, target.ID, false, false)
+	if err != nil {
+		t.Fatalf("ReassignIdentity() failed: %v", err)
+	}
+	if summary.Moved != 0 || summary.Left != 0 {
+		t.Errorf("summary = %+v, want no result accounting when moveResults is false", summary)
+	}
+
+	newPlayer, _, err := ResolveIdentity(ctx, db, "signal", testUUID)
+	if err != nil {
+		t.Fatalf("ResolveIdentity() failed: %v", err)
+	}
+	if newPlayer.ID != target.ID {
+		t.Errorf("resolved player = %d, want the target %d", newPlayer.ID, target.ID)
+	}
+	if _, err := ResultFor(ctx, db, 1888, playerID); err != nil {
+		t.Errorf("the result should have stayed with the old player: %v", err)
+	}
+}
+
+// A result written before results.identity_id existed (or by some other
+// automated path that never set it) cannot be safely attributed to this
+// identity, so it must be reported rather than silently left behind
+// unmentioned or, worse, guessed at and moved.
+func TestReassignIdentityReportsUntrackedResults(t *testing.T) {
+	db, playerID, _, actor := identityFixture(t)
+	ctx := context.Background()
+
+	target, err := CreatePlayer(ctx, db, actor, "Target", "target")
+	if err != nil {
+		t.Fatalf("CreatePlayer() failed: %v", err)
+	}
+
+	// An automated result with no identity_id at all: pre-migration history,
+	// or any other automated write that predates attribution.
+	if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1700, 5), nil, nil); err != nil {
+		t.Fatalf("untracked automated write failed: %v", err)
+	}
+
+	holdResult(t, db, 1888, 4, false)
+	if _, err := LinkIdentity(ctx, db, actor, playerID, "signal", testUUID, ActionIdentityAdded, false); err != nil {
+		t.Fatalf("LinkIdentity() failed: %v", err)
+	}
+
+	summary, err := ReassignIdentity(ctx, db, actor, "signal", testUUID, target.ID, true, false)
+	if err != nil {
+		t.Fatalf("ReassignIdentity() failed: %v", err)
+	}
+	if summary.Moved != 1 {
+		t.Errorf("summary = %+v, want the identity's own result moved", summary)
+	}
+	if summary.Untracked != 1 {
+		t.Errorf("summary = %+v, want the pre-existing untracked result counted", summary)
+	}
+
+	// Untracked means untouched, not moved on a guess.
+	if _, err := ResultFor(ctx, db, 1700, playerID); err != nil {
+		t.Errorf("the untracked result should have stayed with the old player: %v", err)
+	}
+	if _, err := ResultFor(ctx, db, 1700, target.ID); !errors.Is(err, ErrResultNotFound) {
+		t.Error("the untracked result was moved despite no identity to attribute it to")
+	}
+}
+
+func TestReassignIdentityDryRun(t *testing.T) {
+	db, playerID, _, actor := identityFixture(t)
+	ctx := context.Background()
+
+	target, err := CreatePlayer(ctx, db, actor, "Target", "target")
+	if err != nil {
+		t.Fatalf("CreatePlayer() failed: %v", err)
+	}
+	holdResult(t, db, 1888, 4, false)
+	if _, err := LinkIdentity(ctx, db, actor, playerID, "signal", testUUID, ActionIdentityAdded, false); err != nil {
+		t.Fatalf("LinkIdentity() failed: %v", err)
+	}
+
+	summary, err := ReassignIdentity(ctx, db, actor, "signal", testUUID, target.ID, true, true)
+	if err != nil {
+		t.Fatalf("dry run failed: %v", err)
+	}
+	if summary.Moved != 1 {
+		t.Errorf("summary = %+v, want 1 (would be) moved", summary)
+	}
+
+	// Nothing was actually written.
+	unchanged, _, err := ResolveIdentity(ctx, db, "signal", testUUID)
+	if err != nil {
+		t.Fatalf("ResolveIdentity() failed: %v", err)
+	}
+	if unchanged.ID != playerID {
+		t.Errorf("player = %d, want the dry run to have left it at %d", unchanged.ID, playerID)
+	}
+	if _, err := ResultFor(ctx, db, 1888, target.ID); !errors.Is(err, ErrResultNotFound) {
+		t.Error("the dry run moved a result")
+	}
+}
+
+func TestReassignIdentityRejectsUnclaimed(t *testing.T) {
+	db, _, _, actor := identityFixture(t)
+	ctx := context.Background()
+
+	target, err := CreatePlayer(ctx, db, actor, "Target", "target")
+	if err != nil {
+		t.Fatalf("CreatePlayer() failed: %v", err)
+	}
+
+	if _, err := ReassignIdentity(ctx, db, actor, "signal", testUUID, target.ID, false, false); !errors.Is(err, ErrIdentityNotFound) {
+		t.Errorf("error = %v, want ErrIdentityNotFound", err)
+	}
+}
+
+func TestReassignIdentityRejectsSamePlayer(t *testing.T) {
+	db, playerID, _, actor := identityFixture(t)
+	ctx := context.Background()
+
+	if _, err := LinkIdentity(ctx, db, actor, playerID, "signal", testUUID, ActionIdentityAdded, false); err != nil {
+		t.Fatalf("LinkIdentity() failed: %v", err)
+	}
+
+	if _, err := ReassignIdentity(ctx, db, actor, "signal", testUUID, playerID, false, false); err == nil {
+		t.Error("reassigning to the same player should fail")
 	}
 }
 

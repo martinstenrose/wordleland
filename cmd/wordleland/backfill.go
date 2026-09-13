@@ -395,7 +395,7 @@ func applyBackfill(e *env, actor store.Actor, mappings map[string]mapping, cells
 			// hand-curated and contains corrections; left NULL, replaying old
 			// Signal history through the ingest API would silently revert
 			// every one of them.
-			if _, _, err := store.UpsertResult(e.ctx, tx, result, actor.UserID); err != nil {
+			if _, _, err := store.UpsertResult(e.ctx, tx, result, actor.UserID, nil); err != nil {
 				return err
 			}
 		}

@@ -174,7 +174,14 @@ func Apply(ctx context.Context, db *sql.DB, actor store.Actor, sub Submission, m
 func applyFromSender(ctx context.Context, db *sql.DB, actor store.Actor,
 	sub Submission, mayReactivate bool) (Result, error) {
 
-	player, err := store.ResolveIdentity(ctx, db, sub.Source, sub.ExternalID)
+	// This check only decides whether to hold the result as pending or go on
+	// to write(): it is not the resolution that decides which player a write
+	// lands on. That happens again inside write()'s own transaction, because
+	// an `identity reassign` could commit between this check and that
+	// transaction — resolving only here would let the result land on
+	// whoever the sender mapped to a moment ago rather than whoever it maps
+	// to now.
+	_, _, err := store.ResolveIdentity(ctx, db, sub.Source, sub.ExternalID)
 	if errors.Is(err, store.ErrIdentityNotFound) {
 		held := store.PendingResult{
 			PuzzleNo: sub.PuzzleNo, Solved: sub.Solved,
@@ -196,7 +203,7 @@ func applyFromSender(ctx context.Context, db *sql.DB, actor store.Actor,
 		_ = err
 	}
 
-	return write(ctx, db, actor, player, sub, mayReactivate)
+	return write(ctx, db, actor, store.Player{}, sub, mayReactivate)
 }
 
 func write(ctx context.Context, db *sql.DB, actor store.Actor,
@@ -207,17 +214,37 @@ func write(ctx context.Context, db *sql.DB, actor store.Actor,
 		return Result{}, &ValidationError{err: err}
 	}
 
-	result := store.Result{
-		PuzzleNo: sub.PuzzleNo,
-		Date:     date,
-		PlayerID: player.ID,
-		Guesses:  sub.Guesses,
-		Solved:   sub.Solved,
-		HardMode: sub.HardMode,
-	}
+	// A sender-named submission carries no player yet: it is resolved below,
+	// inside the transaction, rather than trusted from an earlier call. The
+	// caller's player is otherwise trusted as-is (it named one directly).
+	fromSender := sub.Source != ""
 
 	var outcome store.Outcome
 	err = store.InTx(ctx, db, func(tx *sql.Tx) error {
+		var identityID *int64
+		if fromSender {
+			var id int64
+			var err error
+			player, id, err = store.ResolveIdentity(ctx, tx, sub.Source, sub.ExternalID)
+			if err != nil {
+				// Not found here despite resolving moments ago would mean the
+				// identity was removed in between — nothing does that today,
+				// so this is unreached rather than a real branch to recover
+				// from a la StatusPending.
+				return err
+			}
+			identityID = &id
+		}
+
+		result := store.Result{
+			PuzzleNo: sub.PuzzleNo,
+			Date:     date,
+			PlayerID: player.ID,
+			Guesses:  sub.Guesses,
+			Solved:   sub.Solved,
+			HardMode: sub.HardMode,
+		}
+
 		if mayReactivate && !player.Active {
 			if err := store.ReactivatePlayer(ctx, tx, actor, player.ID); err != nil {
 				return err
@@ -225,7 +252,7 @@ func write(ctx context.Context, db *sql.DB, actor store.Actor,
 		}
 
 		var previous *store.Result
-		outcome, previous, err = store.UpsertResult(ctx, tx, result, nil)
+		outcome, previous, err = store.UpsertResult(ctx, tx, result, nil, identityID)
 		if err != nil {
 			return err
 		}

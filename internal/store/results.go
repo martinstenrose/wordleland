@@ -24,13 +24,14 @@ const (
 
 // Result is one player's outcome for one puzzle.
 type Result struct {
-	PuzzleNo  int
-	Date      time.Time
-	PlayerID  int64
-	Guesses   *int
-	Solved    bool
-	HardMode  bool
-	EnteredBy *int64
+	PuzzleNo   int
+	Date       time.Time
+	PlayerID   int64
+	Guesses    *int
+	Solved     bool
+	HardMode   bool
+	EnteredBy  *int64
+	IdentityID *int64
 }
 
 // ErrResultNotFound is returned when no row matches.
@@ -46,7 +47,13 @@ var ErrResultNotFound = errors.New("result not found")
 //
 // enteredBy nil marks the write as automated. A human write passes the acting
 // user and is never refused.
-func UpsertResult(ctx context.Context, q Querier, r Result, enteredBy *int64) (Outcome, *Result, error) {
+//
+// identityID names which claimed identity produced an automated write, so a
+// later `identity reassign --move-results` can move exactly the results one
+// identity wrote. It is nil for a human write and for automated writes with
+// no identity to attribute (there are none today, but the parameter mirrors
+// enteredBy's convention regardless).
+func UpsertResult(ctx context.Context, q Querier, r Result, enteredBy, identityID *int64) (Outcome, *Result, error) {
 	previous, err := resultFor(ctx, q, r.PuzzleNo, r.PlayerID)
 	switch {
 	case errors.Is(err, ErrResultNotFound):
@@ -63,10 +70,10 @@ func UpsertResult(ctx context.Context, q Querier, r Result, enteredBy *int64) (O
 
 	if previous == nil {
 		if _, err := q.ExecContext(ctx, `
-			INSERT INTO results (puzzle_no, date, player_id, guesses, solved, hard_mode, entered_by)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			INSERT INTO results (puzzle_no, date, player_id, guesses, solved, hard_mode, entered_by, identity_id)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			r.PuzzleNo, r.Date.Format(time.DateOnly), r.PlayerID,
-			r.Guesses, r.Solved, r.HardMode, enteredBy,
+			r.Guesses, r.Solved, r.HardMode, enteredBy, identityID,
 		); err != nil {
 			return "", nil, fmt.Errorf("insert result: %w", err)
 		}
@@ -75,9 +82,9 @@ func UpsertResult(ctx context.Context, q Querier, r Result, enteredBy *int64) (O
 
 	if _, err := q.ExecContext(ctx, `
 		UPDATE results
-		SET date = ?, guesses = ?, solved = ?, hard_mode = ?, entered_by = ?
+		SET date = ?, guesses = ?, solved = ?, hard_mode = ?, entered_by = ?, identity_id = ?
 		WHERE puzzle_no = ? AND player_id = ?`,
-		r.Date.Format(time.DateOnly), r.Guesses, r.Solved, r.HardMode, enteredBy,
+		r.Date.Format(time.DateOnly), r.Guesses, r.Solved, r.HardMode, enteredBy, identityID,
 		r.PuzzleNo, r.PlayerID,
 	); err != nil {
 		return "", nil, fmt.Errorf("update result: %w", err)
@@ -95,9 +102,9 @@ func resultFor(ctx context.Context, q Querier, puzzleNo int, playerID int64) (*R
 		date time.Time
 	)
 	err := q.QueryRowContext(ctx, `
-		SELECT puzzle_no, date, player_id, guesses, solved, hard_mode, entered_by
+		SELECT puzzle_no, date, player_id, guesses, solved, hard_mode, entered_by, identity_id
 		FROM results WHERE puzzle_no = ? AND player_id = ?`, puzzleNo, playerID,
-	).Scan(&r.PuzzleNo, &date, &r.PlayerID, &r.Guesses, &r.Solved, &r.HardMode, &r.EnteredBy)
+	).Scan(&r.PuzzleNo, &date, &r.PlayerID, &r.Guesses, &r.Solved, &r.HardMode, &r.EnteredBy, &r.IdentityID)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrResultNotFound

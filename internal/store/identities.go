@@ -38,23 +38,28 @@ type PendingResult struct {
 	HardMode bool
 }
 
-// ResolveIdentity maps a sender to a player.
-func ResolveIdentity(ctx context.Context, q Querier, source, externalID string) (Player, error) {
-	var p Player
+// ResolveIdentity maps a sender to a player, also returning the identity
+// row's own id (distinct from the player's), so a caller that writes an
+// automated result can attribute it to this specific identity.
+func ResolveIdentity(ctx context.Context, q Querier, source, externalID string) (Player, int64, error) {
+	var (
+		p          Player
+		identityID int64
+	)
 	err := q.QueryRowContext(ctx, `
-		SELECT p.id, p.slug, p.name, p.user_id, p.active
+		SELECT p.id, p.slug, p.name, p.user_id, p.active, i.id
 		FROM player_identities i
 		JOIN players p ON p.id = i.player_id
 		WHERE i.source = ? AND i.external_id = ?`, source, externalID,
-	).Scan(&p.ID, &p.Slug, &p.Name, &p.UserID, &p.Active)
+	).Scan(&p.ID, &p.Slug, &p.Name, &p.UserID, &p.Active, &identityID)
 
 	if errors.Is(err, sql.ErrNoRows) {
-		return Player{}, ErrIdentityNotFound
+		return Player{}, 0, ErrIdentityNotFound
 	}
 	if err != nil {
-		return Player{}, fmt.Errorf("resolve identity: %w", err)
+		return Player{}, 0, fmt.Errorf("resolve identity: %w", err)
 	}
-	return p, nil
+	return p, identityID, nil
 }
 
 // RefreshDisplayHint updates the human-readable label for an identity.
@@ -187,7 +192,7 @@ func LinkIdentity(ctx context.Context, db *sql.DB, actor Actor, playerID int64,
 
 	var summary ReplaySummary
 	err := InTx(ctx, db, func(tx *sql.Tx) error {
-		if _, err := ResolveIdentity(ctx, tx, source, externalID); err == nil {
+		if _, _, err := ResolveIdentity(ctx, tx, source, externalID); err == nil {
 			return ErrIdentityTaken
 		} else if !errors.Is(err, ErrIdentityNotFound) {
 			return err
@@ -198,14 +203,23 @@ func LinkIdentity(ctx context.Context, db *sql.DB, actor Actor, playerID int64,
 			return err
 		}
 
+		// identityID attributes replayed results to this identity, so a later
+		// `identity reassign --move-results` can move exactly these. Left zero
+		// under dryRun, where nothing is inserted and no result write happens
+		// through UpsertResult anyway (see the dryRun branch below).
+		var identityID int64
 		if !dryRun {
-			if _, err := tx.ExecContext(ctx, `
+			res, err := tx.ExecContext(ctx, `
 				INSERT INTO player_identities (player_id, source, external_id, display_hint)
-				VALUES (?, ?, ?, ?)`, playerID, source, externalID, nullIfEmpty(hint)); err != nil {
+				VALUES (?, ?, ?, ?)`, playerID, source, externalID, nullIfEmpty(hint))
+			if err != nil {
 				if isUniqueViolation(err) {
 					return ErrIdentityTaken
 				}
 				return fmt.Errorf("create identity: %w", err)
+			}
+			if identityID, err = res.LastInsertId(); err != nil {
+				return fmt.Errorf("read new identity id: %w", err)
 			}
 		}
 
@@ -240,7 +254,7 @@ func LinkIdentity(ctx context.Context, db *sql.DB, actor Actor, playerID int64,
 
 			// entered_by nil: these came from a token originally, and
 			// pretending otherwise would lock them against future corrections.
-			outcome, previous, err := UpsertResult(ctx, tx, result, nil)
+			outcome, previous, err := UpsertResult(ctx, tx, result, nil, &identityID)
 			if err != nil {
 				return err
 			}
@@ -283,6 +297,183 @@ func LinkIdentity(ctx context.Context, db *sql.DB, actor Actor, playerID int64,
 		return LogActivity(ctx, tx, actor, action, SubjectIdentity, &playerID, map[string]any{
 			"source": source, "external_id": externalID,
 			"replayed": summary.Replayed, "updated": summary.Updated, "skipped": summary.Skipped,
+		})
+	})
+	return summary, err
+}
+
+// ClaimedIdentity is one player_identities row, joined to the player it maps
+// to, which is what `identity list` shows.
+type ClaimedIdentity struct {
+	Source      string
+	ExternalID  string
+	DisplayHint string
+	PlayerSlug  string
+	PlayerName  string
+}
+
+// ListClaimedIdentities returns every claimed identity, or only those mapped
+// to playerID when it is non-nil.
+func ListClaimedIdentities(ctx context.Context, q Querier, playerID *int64) ([]ClaimedIdentity, error) {
+	query := `
+		SELECT i.source, i.external_id, COALESCE(i.display_hint, ''), p.slug, p.name
+		FROM player_identities i
+		JOIN players p ON p.id = i.player_id`
+	args := []any{}
+	if playerID != nil {
+		query += " WHERE i.player_id = ?"
+		args = append(args, *playerID)
+	}
+	query += " ORDER BY p.slug, i.source, i.external_id"
+
+	rows, err := q.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list claimed identities: %w", err)
+	}
+	defer rows.Close()
+
+	var claimed []ClaimedIdentity
+	for rows.Next() {
+		var c ClaimedIdentity
+		if err := rows.Scan(&c.Source, &c.ExternalID, &c.DisplayHint, &c.PlayerSlug, &c.PlayerName); err != nil {
+			return nil, fmt.Errorf("scan claimed identity: %w", err)
+		}
+		claimed = append(claimed, c)
+	}
+	return claimed, rows.Err()
+}
+
+// ReassignSummary reports what reassigning an identity did with its
+// previously-written results.
+type ReassignSummary struct {
+	OldPlayerSlug string
+	NewPlayerSlug string
+	// Moved counts results moved to the new player.
+	Moved int
+	// Left counts results that stayed with the old player because the new
+	// player already had a result for that puzzle — either hand-entered
+	// (which always wins) or written by some other automated source (which
+	// cannot be merged: only one result exists per puzzle and player).
+	Left int
+	// Untracked counts the old player's automated results with no
+	// identity_id at all — written before this column existed, or by some
+	// other automated path that never set it. Never guessed at and never
+	// moved: attributing one to this identity could just as easily be wrong
+	// as right. Surfaced so an operator knows to check them and move any
+	// that belong here by hand, with `results set`.
+	Untracked int
+}
+
+// ReassignIdentity repoints a claimed identity to a different player.
+//
+// When moveResults is true, every result this specific identity wrote (found
+// via results.identity_id, set by UpsertResult when a result comes from an
+// identity) is moved to the new player, except where the new player already
+// has a result for that puzzle — that existing row is left untouched and the
+// moved-from row stays with the old player, so no result is ever silently
+// dropped. Results the old player has from a different identity, or entered
+// by hand, are never touched: identity_id scopes the move to this identity
+// alone.
+//
+// The old player may also have automated results with no identity_id at
+// all — written before that column existed (see migration 0010), or by some
+// other automated path that never set it. These are never guessed at or
+// moved; ReassignSummary.Untracked counts them so an operator knows history
+// may remain behind that needs checking by hand, with `results set`.
+//
+// dryRun reports without writing.
+func ReassignIdentity(ctx context.Context, db *sql.DB, actor Actor,
+	source, externalID string, newPlayerID int64, moveResults, dryRun bool) (ReassignSummary, error) {
+
+	var summary ReassignSummary
+	err := InTx(ctx, db, func(tx *sql.Tx) error {
+		oldPlayer, identityID, err := ResolveIdentity(ctx, tx, source, externalID)
+		if err != nil {
+			return err
+		}
+		if oldPlayer.ID == newPlayerID {
+			return fmt.Errorf("%s/%s is already mapped to that player", source, externalID)
+		}
+
+		newPlayer, err := PlayerByID(ctx, tx, newPlayerID)
+		if err != nil {
+			return err
+		}
+		summary.OldPlayerSlug = oldPlayer.Slug
+		summary.NewPlayerSlug = newPlayer.Slug
+
+		if moveResults {
+			rows, err := tx.QueryContext(ctx, `
+				SELECT id, puzzle_no FROM results WHERE identity_id = ? AND player_id = ?`,
+				identityID, oldPlayer.ID)
+			if err != nil {
+				return fmt.Errorf("read identity's results: %w", err)
+			}
+			type row struct {
+				id, puzzleNo int64
+			}
+			var toMove []row
+			for rows.Next() {
+				var r row
+				if err := rows.Scan(&r.id, &r.puzzleNo); err != nil {
+					rows.Close()
+					return fmt.Errorf("scan result row: %w", err)
+				}
+				toMove = append(toMove, r)
+			}
+			if err := rows.Err(); err != nil {
+				return err
+			}
+			rows.Close()
+
+			for _, r := range toMove {
+				_, err := resultFor(ctx, tx, int(r.puzzleNo), newPlayerID)
+				switch {
+				case errors.Is(err, ErrResultNotFound):
+					// No conflict: falls through to the move below.
+				case err != nil:
+					return err
+				default:
+					// The new player already has a result for this puzzle,
+					// hand-entered or from another identity. Either way it
+					// wins, and the moved-from row stays with the old player
+					// rather than being dropped.
+					summary.Left++
+					continue
+				}
+
+				if !dryRun {
+					if _, err := tx.ExecContext(ctx,
+						`UPDATE results SET player_id = ? WHERE id = ?`, newPlayerID, r.id); err != nil {
+						return fmt.Errorf("move result: %w", err)
+					}
+				}
+				summary.Moved++
+			}
+
+			if err := tx.QueryRowContext(ctx, `
+				SELECT COUNT(*) FROM results
+				WHERE player_id = ? AND entered_by IS NULL AND identity_id IS NULL`,
+				oldPlayer.ID).Scan(&summary.Untracked); err != nil {
+				return fmt.Errorf("count untracked results: %w", err)
+			}
+		}
+
+		if !dryRun {
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE player_identities SET player_id = ? WHERE id = ?`, newPlayerID, identityID); err != nil {
+				return fmt.Errorf("reassign identity: %w", err)
+			}
+		}
+
+		if dryRun {
+			return nil
+		}
+
+		return LogActivity(ctx, tx, actor, ActionIdentityReassigned, SubjectIdentity, &newPlayerID, map[string]any{
+			"source": source, "external_id": externalID,
+			"old_player_id": oldPlayer.ID, "new_player_id": newPlayerID,
+			"moved": summary.Moved, "left": summary.Left,
 		})
 	})
 	return summary, err

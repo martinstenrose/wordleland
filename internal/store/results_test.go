@@ -35,9 +35,9 @@ func TestUpsertResultCreates(t *testing.T) {
 	db, playerID, _, _ := resultsFixture(t)
 	ctx := context.Background()
 
-	outcome, previous, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 4), nil)
+	outcome, previous, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 4), nil, nil)
 	if err != nil {
-		t.Fatalf("UpsertResult() failed: %v", err)
+		t.Fatalf("UpsertResult(, nil) failed: %v", err)
 	}
 	if outcome != OutcomeCreated {
 		t.Errorf("outcome = %q, want %q", outcome, OutcomeCreated)
@@ -53,10 +53,10 @@ func TestTokenWriteOverwritesTokenWrite(t *testing.T) {
 	db, playerID, _, _ := resultsFixture(t)
 	ctx := context.Background()
 
-	if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 5), nil); err != nil {
+	if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 5), nil, nil); err != nil {
 		t.Fatalf("first write failed: %v", err)
 	}
-	outcome, previous, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 3), nil)
+	outcome, previous, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 3), nil, nil)
 	if err != nil {
 		t.Fatalf("second write failed: %v", err)
 	}
@@ -83,11 +83,11 @@ func TestTokenWriteCannotOverwriteHumanEntry(t *testing.T) {
 	db, playerID, adminID, _ := resultsFixture(t)
 	ctx := context.Background()
 
-	if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 3), &adminID); err != nil {
+	if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 3), &adminID, nil); err != nil {
 		t.Fatalf("human write failed: %v", err)
 	}
 
-	outcome, previous, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 6), nil)
+	outcome, previous, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 6), nil, nil)
 	if err != nil {
 		t.Fatalf("token write failed: %v", err)
 	}
@@ -117,10 +117,10 @@ func TestHumanWriteOverwritesAnything(t *testing.T) {
 	ctx := context.Background()
 
 	for _, existing := range []*int64{nil, &adminID} {
-		if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 5), existing); err != nil {
+		if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 5), existing, nil); err != nil {
 			t.Fatalf("seed write failed: %v", err)
 		}
-		outcome, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 2), &adminID)
+		outcome, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 2), &adminID, nil)
 		if err != nil {
 			t.Fatalf("human write failed: %v", err)
 		}
@@ -138,8 +138,8 @@ func TestUpsertResultStoresFailure(t *testing.T) {
 	failed.Solved = false
 	failed.Guesses = nil
 
-	if _, _, err := UpsertResult(ctx, db, failed, nil); err != nil {
-		t.Fatalf("UpsertResult() failed: %v", err)
+	if _, _, err := UpsertResult(ctx, db, failed, nil, nil); err != nil {
+		t.Fatalf("UpsertResult(, nil) failed: %v", err)
 	}
 	stored, err := ResultFor(ctx, db, 1890, playerID)
 	if err != nil {
@@ -156,8 +156,8 @@ func TestUpsertResultCarriesHardMode(t *testing.T) {
 
 	hard := sampleResult(playerID, 1890, 4)
 	hard.HardMode = true
-	if _, _, err := UpsertResult(ctx, db, hard, nil); err != nil {
-		t.Fatalf("UpsertResult() failed: %v", err)
+	if _, _, err := UpsertResult(ctx, db, hard, nil, nil); err != nil {
+		t.Fatalf("UpsertResult(, nil) failed: %v", err)
 	}
 
 	stored, err := ResultFor(ctx, db, 1890, playerID)
@@ -175,7 +175,7 @@ func TestDeleteResult(t *testing.T) {
 	db, playerID, adminID, actor := resultsFixture(t)
 	ctx := context.Background()
 
-	if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 4), &adminID); err != nil {
+	if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 4), &adminID, nil); err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
 	if err := DeleteResult(ctx, db, actor, playerID, 1890); err != nil {
@@ -202,10 +202,10 @@ func TestDeleteResultFreesThePrecedenceLock(t *testing.T) {
 	db, playerID, adminID, actor := resultsFixture(t)
 	ctx := context.Background()
 
-	if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 3), &adminID); err != nil {
+	if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 3), &adminID, nil); err != nil {
 		t.Fatalf("human write failed: %v", err)
 	}
-	if outcome, _, _ := UpsertResult(ctx, db, sampleResult(playerID, 1890, 6), nil); outcome != OutcomeIgnored {
+	if outcome, _, _ := UpsertResult(ctx, db, sampleResult(playerID, 1890, 6), nil, nil); outcome != OutcomeIgnored {
 		t.Fatalf("outcome = %q before deletion, want %q", outcome, OutcomeIgnored)
 	}
 
@@ -213,7 +213,7 @@ func TestDeleteResultFreesThePrecedenceLock(t *testing.T) {
 		t.Fatalf("DeleteResult() failed: %v", err)
 	}
 
-	outcome, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 6), nil)
+	outcome, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 6), nil, nil)
 	if err != nil {
 		t.Fatalf("token write failed: %v", err)
 	}
