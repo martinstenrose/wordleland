@@ -460,3 +460,27 @@ func TestSharedBarOffersSignIn(t *testing.T) {
 		t.Error("a signed-in reader is offered a sign-in button")
 	}
 }
+
+// On a narrow screen the sign-in button drops its text and keeps just the
+// icon, matching the search button's own label-hiding rule at the same
+// breakpoint — aria-label is what carries the accessible name once the
+// visible text is display:none.
+func TestSignInButtonDropsItsLabelOnMobile(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
+	if !strings.Contains(body, `aria-label="Sign in"`) {
+		t.Fatal("the sign-in button has no accessible name to fall back on")
+	}
+	if !strings.Contains(body, `<span class="btn-primary-label">Sign in</span>`) {
+		t.Fatal("the sign-in button's label is not its own element to hide")
+	}
+
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+	if !strings.Contains(css, ".btn-primary-label { display: none; }") {
+		t.Error("no rule hides the sign-in label on a narrow screen")
+	}
+}
+

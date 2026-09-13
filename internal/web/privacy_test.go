@@ -26,7 +26,7 @@ func TestPrivacyPageForAStranger(t *testing.T) {
 	if !strings.Contains(body, `<a class="brand" href="/">`) {
 		t.Error("the anonymous brand link does not lead directly to sign-in")
 	}
-	if !strings.Contains(body, `<a class="btn-primary" href="/">`) {
+	if !strings.Contains(body, `<a class="btn-primary" href="/" aria-label="Sign in">`) {
 		t.Error("no sign-in button for an anonymous visitor")
 	}
 	if strings.Contains(body, "account-menu") {
