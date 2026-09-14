@@ -228,9 +228,11 @@ func TestLapsedPlayerIsNotCalledThin(t *testing.T) {
 	if !strings.Contains(page, "No puzzles in the last 30 days") {
 		t.Error("the page does not say why the chart is missing")
 	}
-	// And the reason chip still matches the board's.
-	if !strings.Contains(page, "no recent puzzles") {
-		t.Error("the page does not carry the board's reason")
+	// The reason chip itself is not shown on the player page at all: the
+	// heading already carries the trait, and the copy above says why the
+	// chart is missing.
+	if strings.Contains(page, "no recent puzzles") {
+		t.Error("the reason chip should not show on the player page")
 	}
 }
 
