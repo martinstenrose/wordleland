@@ -160,7 +160,6 @@
         <div class="bench-card">
           <div class="bench-head">
             <a class="player" href="{{.Href}}">{{.Name}}</a>
-            {{if .ReasonKey}}{{template "chip" (dict "Label" ($t.T .ReasonKey))}}{{end}}
           </div>
           <p class="muted small">{{$t.TN "today.benchedGames" .Games}}{{if .LastSeenText}} · {{.LastSeenText}}{{end}}</p>
         </div>

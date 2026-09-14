@@ -10,7 +10,6 @@
       <h1>{{.Player.Name}}
         {{if .Trait}}{{template "trait" .}}{{end}}
         {{if not .Player.Active}}{{template "chip" (dict "Label" (.T.T "player.retired"))}}{{end}}
-        {{if .ReasonKey}}{{template "chip" (dict "Label" (.T.T .ReasonKey))}}{{end}}
       </h1>
       <p class="muted">
         {{if .Player.Ranked}}{{.T.T "player.rank" .Player.Rank}}{{else}}{{.T.T "player.notRanked"}}{{end}}
