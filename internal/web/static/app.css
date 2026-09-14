@@ -375,7 +375,18 @@ tr.divider td {
   font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
   color: var(--color-text-35);
 }
-tr.unranked { opacity: .55; }
+/* Muted via color, not opacity: opacity on the row would create a
+   compositing group that also dims any popup nested inside it (the
+   reason chip, a last-five cell, the last-game date) even though those
+   popups render on top of the page, not as part of the faded row — they
+   set their own solid background/border/color (see .popup-panel) and
+   only need to escape an ancestor's *inherited* color, which this does
+   not force on them. */
+tr.unranked { color: var(--color-text-45); }
+tr.unranked td.num { color: var(--color-text-35); }
+tr.unranked td.strong { color: var(--color-text-45); }
+tr.unranked .muted { color: var(--color-text-30); }
+tr.unranked .chip-pop > summary { color: var(--color-text-35); border-color: var(--color-text-10); }
 
 .spark-col { width: 30%; min-width: 160px; }
 .spark-col svg { display: block; width: 100%; height: 30px; }
@@ -401,6 +412,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   .window-col { display: none; }
   .overall-col { display: none; }
   .board-trait { display: none; }
+  .board td.name .chip-pop { display: none; }
 }
 
 /* ---- Player detail ---------------------------------------------------- */
@@ -848,7 +860,16 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   border-bottom: 1px solid var(--color-text-10);
 }
 .callout { background: var(--color-surface); padding: 18px var(--space-card); }
-.callout, .podium-card, .bench-card { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+/* .bench-card carries nothing that needs to scroll (a name, a chip, one
+   line of muted text — both wrap instead), unlike .podium-card's
+   sparkline/last-five row. Giving it the same overflow-x: auto would also
+   clip overflow-y (the two can't be split — setting one axis forces the
+   other off "visible"), which meant the reason chip's popup was clipped
+   flush against this tiny card with nowhere to reposition to. The outer
+   .card still clips and still gets the app.js nudge, same as any other
+   popup on the page — this only removes the extra, needless clip right
+   around the popup itself. */
+.callout, .podium-card { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
 .callout .accent { color: var(--color-accent); }
 .callout-text { font-size: 1rem; line-height: 1.35; letter-spacing: -.01em; margin: 6px 0 0; }
 .callout-meta { margin: 9px 0 0; font-size: var(--text-xs); color: var(--color-text-40); font-variant-numeric: tabular-nums; }
@@ -898,6 +919,22 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   color: var(--color-text-75);
 }
 .trait-why {
+  width: max-content;
+  max-width: 15rem;
+  padding: 8px 10px;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: normal;
+}
+
+/* Same shape as .trait-pop/.trait-why, but for the board/Today reason
+   chip: its explanation opens on tap instead of not existing at all. */
+.chip-pop { position: relative; display: inline-block; }
+.chip-pop > summary { list-style: none; cursor: help; }
+.chip-pop > summary::-webkit-details-marker { display: none; }
+.chip-why {
   width: max-content;
   max-width: 15rem;
   padding: 8px 10px;
@@ -1173,6 +1210,13 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 }
 .bench-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .bench-card p { margin: 6px 0 0; }
+
+/* Desktop only, same as the board's reason chip (app.css, ~720px
+   breakpoint near .board-trait): there isn't room for the full-text
+   reason next to a name at phone width. */
+@media (max-width: 720px) {
+  .bench-head .chip-pop { display: none; }
+}
 
 /* ---- Theme and language menus ------------------------------------------ */
 

@@ -1,0 +1,8 @@
+{{/* The board/Today's reason chip, with its explanation opening on tap —
+     exactly the same details/popup-panel convention as a trait (see
+     app/trait.html), just chip-styled rather than trait-styled. Why comes
+     for free: an unranked player's reason maps 1:1 onto a trait key
+     (inactive/noRecentGames/lowData → ghost/lapsed/newcomer, see
+     stats/traits.go's trait()), so boardRow.Why is already populated
+     alongside ReasonKey. Data: {Label string; Why string}. */}}
+{{define "reason"}}<details class="chip-pop" name="popup"><summary class="chip" title="{{.Why}}">{{.Label}}</summary><span class="chip-why popup-panel">{{.Why}}</span></details>{{end}}

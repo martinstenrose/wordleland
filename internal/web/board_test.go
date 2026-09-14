@@ -195,6 +195,30 @@ func TestUnrankedPlayersAreSeparatedWithAReason(t *testing.T) {
 	}
 }
 
+// The reason chip's explanation opens on tap, the same convention a trait
+// popup uses (see TestTraitExplanationIsReachableWithoutHover) — there is
+// no hover on a phone.
+func TestReasonChipExplanationIsReachableWithoutHover(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+	body := fetch(t, srv, "/share/"+slug+"/board").Body.String()
+
+	if !strings.Contains(body, "chip-pop") {
+		t.Fatal("no reason chip on the board")
+	}
+	if !strings.Contains(body, `<details class="chip-pop" name="popup"><summary`) {
+		t.Error("the reason chip does not open on tap")
+	}
+	if !strings.Contains(body, `class="chip-why popup-panel"`) {
+		t.Error("the reason chip carries no readable explanation")
+	}
+	if !strings.Contains(body, `title="`) {
+		t.Error("the reason chip lost its hover text")
+	}
+}
+
 // Last five shows the last five calendar days, including today: a day the
 // player didn't reach is a gap, not a score.
 func TestLastFiveShowsGapsForUnplayedDays(t *testing.T) {
