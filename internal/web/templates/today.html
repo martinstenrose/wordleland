@@ -130,32 +130,42 @@
         </div>
       {{end}}
 
-      {{if .BenchedCount}}
-        <p class="bench-toggle">
-          <a class="toggle{{if .ShowBenched}} on{{end}}" href="{{.BenchedHref}}">{{.T.TN "today.benched" .BenchedCount}}</a>
-        </p>
-      {{end}}
-
-      {{if .Benched}}
-        <div class="bench">
-          {{$t := .T}}
-          {{range .Benched}}
-            <div class="bench-card">
-              <div class="bench-head">
-                <a class="player" href="{{.Href}}">{{.Name}}</a>
-                {{if .ReasonKey}}{{template "chip" (dict "Label" ($t.T .ReasonKey))}}{{end}}
-              </div>
-              <p class="muted small">{{$t.TN "today.benchedGames" .Games}}{{if .LastSeenText}} · {{.LastSeenText}}{{end}}</p>
-            </div>
-          {{end}}
-        </div>
-      {{end}}
+      {{template "bench-section" .}}
       <footer class="card-foot">
         <span>{{.T.T "today.formNote"}}</span>
       </footer>
     </section>
   {{else}}
     <section class="card"><p class="empty">{{.T.T "board.empty"}}</p></section>
+  {{end}}
+</div>
+{{end}}
+
+{{/* Its own block, not folded into "content": app.js fetches this alone
+     through renderBlock (see today.go's "?partial=1") so clicking the
+     toggle swaps benched players in without reloading the page. The plain
+     link underneath still works with no script at all. */}}
+{{define "bench-section"}}
+<div class="bench-section">
+  {{if .BenchedCount}}
+    <p class="bench-toggle">
+      <a class="toggle{{if .ShowBenched}} on{{end}}" href="{{.BenchedHref}}">{{.T.TN "today.benched" .BenchedCount}}</a>
+    </p>
+  {{end}}
+
+  {{if .Benched}}
+    <div class="bench">
+      {{$t := .T}}
+      {{range .Benched}}
+        <div class="bench-card">
+          <div class="bench-head">
+            <a class="player" href="{{.Href}}">{{.Name}}</a>
+            {{if .ReasonKey}}{{template "chip" (dict "Label" ($t.T .ReasonKey))}}{{end}}
+          </div>
+          <p class="muted small">{{$t.TN "today.benchedGames" .Games}}{{if .LastSeenText}} · {{.LastSeenText}}{{end}}</p>
+        </div>
+      {{end}}
+    </div>
   {{end}}
 </div>
 {{end}}

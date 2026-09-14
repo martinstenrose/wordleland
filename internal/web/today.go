@@ -205,6 +205,15 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 			return
 		}
 	}
+
+	// "?partial=1" asks for just the bench section, the same way search.go's
+	// overlay reuses the search page — see app.js — so the toggle can swap
+	// benched players in without a full reload while still working from a
+	// plain link when script is absent.
+	if r.URL.Query().Get("partial") == "1" {
+		s.renderBlock(w, r, http.StatusOK, "today.html", "bench-section", page)
+		return
+	}
 	s.render(w, r, http.StatusOK, "today.html", page)
 }
 
