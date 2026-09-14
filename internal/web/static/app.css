@@ -383,6 +383,10 @@ svg .group { fill: none; stroke: var(--color-text-45); stroke-width: 1.5; stroke
 svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .spark-grid line { stroke: var(--color-text-10); stroke-width: 1; vector-effect: non-scaling-stroke; }
 
+/* The name cell never wraps: the table already scrolls horizontally when a
+   row is wider than the viewport (see .table-scroll), so a long trait chip
+   should push that scroll rather than break the name onto a second line. */
+.board td.name { white-space: nowrap; }
 .board-trait { margin-left: 6px; }
 
 .card-foot {

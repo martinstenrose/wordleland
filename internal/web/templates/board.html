@@ -64,7 +64,7 @@
         {{end}}
         <tr{{if not .Ranked}} class="unranked"{{end}}>
           <td class="num">{{if .Ranked}}{{$.T.Integer .Rank}}{{else}}—{{end}}</td>
-          <td><a class="player" href="{{.Href}}">{{.Name}}</a>
+          <td class="name"><a class="player" href="{{.Href}}">{{.Name}}</a>
             {{if and .Trait (not .ReasonKey)}}<span class="board-trait">{{template "trait" .}}</span>{{end}}
             {{if .ReasonKey}}{{template "chip" (dict "Label" ($t.T .ReasonKey))}}{{end}}
           </td>
