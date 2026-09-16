@@ -61,7 +61,7 @@
           <div class="podium-card">
             <div class="podium-head">
               <a class="player" href="{{.Href}}">{{.Name}}</a>
-              <span class="muted small" title="{{$.T.T "today.boardRank"}}">#{{$.T.Integer .Rank}}</span>
+              {{template "rank-pop" (dict "Row" . "Class" "muted small" "Prefix" "#" "T" $.T)}}
             </div>
             <p class="podium-figure">{{.FormText}}
               {{if .DeltaText}}<span class="delta {{.DeltaDirection}}">{{.DeltaText}}</span>{{end}}
@@ -92,8 +92,7 @@
           <table class="board">
             <thead>
               <tr>
-                <th title="{{.T.T "today.formRank"}}">{{.T.T "board.column.rank"}}</th>
-                <th class="right overall-col">{{.T.T "today.boardRank"}}</th>
+                <th title="{{.T.T "today.rankColumn"}}">{{.T.T "board.column.rank"}}</th>
                 <th>{{.T.T "board.column.player"}}</th>
                 <th class="right">{{.T.T "board.column.form"}}</th>
                 <th class="right spark-col">{{.T.T "board.column.last30"}}</th>
@@ -104,8 +103,7 @@
             <tbody>
               {{range .Rest}}
                 <tr>
-                  <td class="num" title="{{$.T.T "today.formRank"}}">{{if .FormRank}}{{$.T.Integer .FormRank}}{{else}}—{{end}}</td>
-                  <td class="right num overall-col" title="{{$.T.T "today.boardRank"}}">{{if .Rank}}{{$.T.Integer .Rank}}{{else}}—{{end}}</td>
+                  <td class="num">{{template "rank-pop" (dict "Row" . "T" $.T)}}</td>
                   <td><a class="player" href="{{.Href}}">{{.Name}}</a>
                     {{if .Trait}}<span class="board-trait">{{template "trait" .}}</span>{{end}}
                   </td>
@@ -139,6 +137,26 @@
     <section class="card"><p class="empty">{{.T.T "board.empty"}}</p></section>
   {{end}}
 </div>
+{{end}}
+
+{{/* Form rank, with overall rank in parentheses: two number columns side
+     by side cost more width than the second number is worth, and on a
+     phone the second one was hidden outright. Shared between the table
+     rows and the podium cards' top three, so both read the same figure
+     the same way. The popup names both — joining the shared name="popup"
+     group (see base.html) — so the parentheses need no guessing. No
+     title=: a hover tooltip repeating the popup is one of them spare, and
+     the popup works on a phone. Data: {Row todayFormRow; T translator;
+     Class string (optional, e.g. the podium's "muted small"); Prefix
+     string (optional — the podium's leading "#", absent in the table
+     where the column header already carries it)}. */}}
+{{define "rank-pop"}}
+<details class="rank-pop{{with .Class}} {{.}}{{end}}" name="popup">
+  <summary>{{.Prefix}}{{.Row.FormRankText}} <span class="rank-overall">({{.T.Integer .Row.Rank}})</span></summary>
+  <div class="rank-detail popup-panel">
+    {{template "stat-list" (dict "Variant" "row" "Items" .Row.RankDetail)}}
+  </div>
+</details>
 {{end}}
 
 {{/* Its own block, not folded into "content": app.js fetches this alone

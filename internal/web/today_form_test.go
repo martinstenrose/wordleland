@@ -71,21 +71,41 @@ func TestTodayShowsCompactFormRanksChartsAndLeaderboardLastFive(t *testing.T) {
 		if got := strings.Count(pane, `class="last-five"`); got != 5 {
 			t.Errorf("got %d Last Five displays, want one for each player", got)
 		}
-		// Level B is tied at form rank 2, but its card keeps overall rank 3.
+		// Level B is tied at form rank 2, but its card keeps overall rank 3
+		// alongside it — the same "2 (3)" the table cells show, prefixed
+		// with "#" since the card has no column header to carry it.
 		levelB := strings.Index(pane, `>Level B</a>`)
-		if levelB < 0 || !strings.Contains(pane[levelB:levelB+180], `title="Overall rank">#3</span>`) {
-			t.Error("the top card does not retain overall rank")
+		if levelB < 0 || !strings.Contains(pane[levelB:levelB+220], `<summary>#2 <span class="rank-overall">(3)</span></summary>`) {
+			t.Error("the top card does not show form rank with overall rank alongside it")
 		}
 		headerAt := strings.Index(pane, "<thead>")
 		header := pane[headerAt:]
 		header = header[:strings.Index(header, "</tr>")]
-		if !strings.Contains(header, `>#<`) || !strings.Contains(header, "Overall rank") {
-			t.Error("the table should label its two rank columns \"#\" and \"Overall rank\"")
+		if !strings.Contains(header, `>#<`) || strings.Contains(header, ">Overall rank<") {
+			t.Error("the table should carry one rank column, headed \"#\"")
 		}
-		rowRanks := regexp.MustCompile(`(?s)<tr>\s*<td class="num" title="Form rank">([^<]+)</td>\s*<td[^>]*>[^<]*</td>\s*<td><a class="player" href="[^"]+">([^<]+)</a>`)
+		// One cell per row now: the form rank, then the overall rank in
+		// parentheses. Sprinter's recent run puts it fourth on form while
+		// its old sixes leave it last overall, so the two numbers differ.
+		rowRanks := regexp.MustCompile(`(?s)<tr>\s*<td class="num">.*?<summary>([^<]*?)\s*<span class="rank-overall">\(([^)]+)\)</span></summary>.*?<td><a class="player" href="[^"]+">([^<]+)</a>`)
 		matches := rowRanks.FindAllStringSubmatch(pane, -1)
-		if len(matches) != 2 || matches[0][1] != "4" || matches[0][2] != "Sprinter" || matches[1][1] != "—" || matches[1][2] != "Sparse" {
-			t.Errorf("wrong table form ranks: %v", matches)
+		want := [][3]string{{"4", "5", "Sprinter"}, {"—", "4", "Sparse"}}
+		if len(matches) != len(want) {
+			t.Fatalf("got %d rank cells, want %d: %v", len(matches), len(want), matches)
+		}
+		for i, w := range want {
+			if matches[i][1] != w[0] || matches[i][2] != w[1] || matches[i][3] != w[2] {
+				t.Errorf("row %d: got form rank %q, overall rank %q for %q; want %q, %q, %q",
+					i, matches[i][1], matches[i][2], matches[i][3], w[0], w[1], w[2])
+			}
+		}
+		// The popup is what says which number is which.
+		popup := pane[strings.Index(pane, `class="rank-detail`):]
+		popup = popup[:strings.Index(popup, "</dl>")]
+		for _, label := range []string{"Form rank", "Overall rank"} {
+			if !strings.Contains(popup, label) {
+				t.Errorf("the rank popup does not spell out %q: %s", label, popup)
+			}
 		}
 		board := fetchAs(t, srv, surface.board, surface.cookie).Body.String()
 		for _, player := range []string{"steady", "sprinter", "sparse"} {

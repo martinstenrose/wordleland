@@ -77,6 +77,21 @@ type todayPage struct {
 type todayFormRow struct {
 	boardRow
 	FormRank int
+	// FormRankText is FormRank as the table prints it, an em dash when
+	// there is no form score, so the cell and its popup cannot disagree
+	// about what an unranked player shows.
+	FormRankText string
+	// RankDetail is what the rank's popup spells out — see rankDetail.
+	RankDetail []playerStat
+}
+
+// rankDetail names the two numbers in a rank cell's "1 (5)": the figure
+// that explains the number in parentheses.
+func rankDetail(t translator, row todayFormRow) []playerStat {
+	return []playerStat{
+		{Label: t.T("today.formRank"), Value: row.FormRankText},
+		{Label: t.T("today.boardRank"), Value: t.Integer(row.Rank)},
+	}
 }
 
 // handleToday renders the front page: the current puzzle, the generated
@@ -174,14 +189,16 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 
 	formRank := 0
 	for i, row := range rows {
-		view := todayFormRow{boardRow: row}
+		view := todayFormRow{boardRow: row, FormRankText: "\u2014"}
 		if row.Form != nil {
 			// Equal form scores share a rank; missing form is unranked.
 			if i == 0 || rows[i-1].Form == nil || *row.Form != *rows[i-1].Form {
 				formRank = i + 1
 			}
 			view.FormRank = formRank
+			view.FormRankText = ch.T.Integer(formRank)
 		}
+		view.RankDetail = rankDetail(ch.T, view)
 		if i < 3 {
 			page.Leaders = append(page.Leaders, view)
 		} else {
