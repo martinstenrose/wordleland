@@ -17,6 +17,7 @@ and — where the reason isn't obvious — why its value is what it is.
 | `--color-text` | Body text |
 | `--color-accent` | Links, the brand accent, focus rings |
 | `--color-accent-strong` | Hover/active emphasis on accent-colored elements |
+| `--color-better`, `--color-worse` | The only non-accent hues in the palette: a form delta trending down (green) or up (red). The accent ramp is one hue at varying strength, which cannot say "down" as against "up" — so trend gets its own pair. The ▼/▲ printed beside them repeats the same meaning, so the colour is never the only carrier |
 | `--color-text-NN` | One color at NN% opacity, used for borders, dividers, muted text, and faint hover fills. There is no separate token per role because there was never a consistent one before this reorganisation — "border", "muted text" and "faint hover" already meant "text color at some opacity" |
 | `--color-accent-NN` | Same idea, over the accent hue — used for the "on" state of pickers, focus rings, hover fills |
 | `--score-1` … `--score-4`, `--score-3-border`, `--score-4-border` | The guess-count fill/border ramp (`.cell.t1`–`.t7`, `.cal.t1`–`.t7`) |

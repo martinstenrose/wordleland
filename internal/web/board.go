@@ -321,8 +321,12 @@ func puzzleDate(t translator, puzzleNo int, date string) string {
 // callouts.
 const deltaDeadZone = 0.04
 
-// formatDelta renders the gap between form and average, signed, using a
-// true minus rather than a hyphen.
+// formatDelta renders the gap between form and average as an arrow and a
+// figure. The arrow follows the score, not the standing: a Wordle average
+// is better the lower it is, so form pulling away downwards is ▼ and
+// green, and drifting upwards is ▲ and red. A signed number said the
+// same thing, but the sign that means "improving" there is the minus, and
+// that is the one readers took the other way round.
 func formatDelta(t translator, delta *float64) (text, direction string) {
 	if delta == nil {
 		return "", "level"
@@ -331,15 +335,15 @@ func formatDelta(t translator, delta *float64) (text, direction string) {
 
 	// A delta inside the dead zone is still a delta: printing nothing left
 	// a gap where every other row has a figure, which reads as missing data
-	// rather than as "no change". It shows as ±0.00 in the muted tone.
+	// rather than as "no change". It shows as ±0.00 in the muted tone —
+	// no arrow, because there is no direction to point in.
 	if d > -deltaDeadZone && d < deltaDeadZone {
-		return "+" + t.Decimal(0, 2), "level"
+		return "±" + t.Decimal(0, 2), "level"
 	}
 	if d < 0 {
-		// A true minus rather than a hyphen.
-		return "−" + t.Decimal(-d, 2), "better"
+		return "▼ " + t.Decimal(-d, 2), "better"
 	}
-	return "+" + t.Decimal(d, 2), "worse"
+	return "▲ " + t.Decimal(d, 2), "worse"
 }
 
 // reasonKey maps a reason to its localised key, so the copy lives in the
