@@ -410,7 +410,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   .board th, .board td { padding: 9px 12px; }
   .spark-col { display: none; }
   .window-col { display: none; }
-  .overall-col { display: none; }
   .board-trait { display: none; }
   .board td.name .chip-pop { display: none; }
 }
@@ -1080,6 +1079,15 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   font-size: var(--text-sm);
   white-space: nowrap;
 }
+
+/* Today's rank cell: the form rank, the overall rank in parentheses, and a
+   popup naming both. .popup-panel (base.html) supplies the floating shell;
+   this only sizes the summary and the content, as .lastgame-detail does. */
+.rank-pop { position: relative; display: inline-block; }
+.rank-pop > summary { list-style: none; cursor: pointer; font-variant-numeric: tabular-nums; }
+.rank-pop > summary::-webkit-details-marker { display: none; }
+.rank-overall { color: var(--color-text-40); }
+.rank-detail { width: max-content; padding: 9px 11px; }
 
 .grid-wrap { display: flex; align-items: stretch; min-width: 0; }
 .grid-rail {
