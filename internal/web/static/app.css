@@ -11,6 +11,13 @@
   --color-accent: #9184d9;
   --color-accent-strong: #b5abfc;
 
+  /* Trend, the one place in the palette that is not the accent hue: a form
+     delta says which way a player is going, and the accent ramp has no way
+     to say "down" from "up". Green and red carry it, and the arrow beside
+     them carries it again for anyone who cannot tell the two apart. */
+  --color-better: #5fd39b;
+  --color-worse: #f2818a;
+
   /* Text-alpha overlays: borders, dividers, muted text and hover fills all
      draw from one colour at varying opacity rather than a named token per
      role, since that is what "border", "muted text" and "faint hover"
@@ -99,6 +106,8 @@
   --color-text: #292b31;
   --color-accent: #5d5294;
   --color-accent-strong: #5d5294;
+  --color-better: #1c7a53;
+  --color-worse: #b3283c;
   --shadow-elevated: 0 10px 28px rgba(41,43,49,.14);
   --score-1: #5d5294;
   --score-2: rgba(93,82,148,.85);
@@ -150,6 +159,8 @@
     --color-text: #292b31;
     --color-accent: #5d5294;
     --color-accent-strong: #5d5294;
+    --color-better: #1c7a53;
+    --color-worse: #b3283c;
     --shadow-elevated: 0 10px 28px rgba(41,43,49,.14);
     --score-1: #5d5294;
     --score-2: rgba(93,82,148,.85);
@@ -354,7 +365,11 @@ main { max-width: 1160px; margin: 0 auto; }
 .board td { padding: 11px var(--space-card); border-bottom: 1px solid var(--color-text-06); }
 .board .right { text-align: right; }
 .num { font-variant-numeric: tabular-nums; }
-.board td.num { color: var(--color-text-60); font-size: var(--text-md); }
+/* white-space: nowrap, not just on .delta: the score and its delta sit in
+   the same cell with a space between them in the markup, and that space
+   is a break point too — a narrow Form column wrapped the whole cell
+   between the score and the arrow, not just inside the delta. */
+.board td.num { color: var(--color-text-60); font-size: var(--text-md); white-space: nowrap; }
 .board td.strong { color: var(--color-text); font-size: 17px; font-weight: 500; }
 
 .player { color: inherit; text-decoration: none; font-size: 15px; font-weight: 500; }
@@ -365,9 +380,15 @@ main { max-width: 1160px; margin: 0 auto; }
   border: 1px solid var(--color-text-16); color: var(--color-text-55);
 }
 
+/* ▼/▲ and the colour say the same thing twice on purpose: the arrow is
+   what survives a red/green reader, a greyscale screenshot and the muted
+   ±0.00 that has no direction at all. white-space: nowrap on .delta's own
+   text (the arrow and its figure) is inherited from its container — see
+   .board td.num and .podium-figure, which also keep the score itself from
+   wrapping away from the delta beside it. */
 .delta { margin-left: 6px; font-size: 11px; }
-.delta.better { color: var(--color-accent-strong); }
-.delta.worse { color: var(--color-text-40); }
+.delta.better { color: var(--color-better); }
+.delta.worse { color: var(--color-worse); }
 .delta.level { color: var(--color-text-30); }
 
 tr.divider td {
@@ -885,7 +906,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   border: 1px solid var(--color-text-08);
 }
 .podium-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
-.podium-figure { font-size: 1.9rem; font-weight: 500; margin: 0; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.podium-figure { font-size: 1.9rem; font-weight: 500; margin: 0; font-variant-numeric: tabular-nums; letter-spacing: -.02em; white-space: nowrap; }
 .podium-figure .delta { font-size: var(--text-sm); margin-left: 6px; }
 
 .podium-last-five { margin-top: 12px; }

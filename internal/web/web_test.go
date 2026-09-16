@@ -445,6 +445,16 @@ func TestStylesheetIsWhole(t *testing.T) {
 	if strings.Count(css, "--color-canvas: #cfd3e5") != 2 && strings.Count(css, "--color-canvas:#cfd3e5") != 2 {
 		t.Error("the light ground is not defined in both light blocks")
 	}
+
+	// Once, six alpha steps were defined only in the light blocks and the
+	// rules that used them rendered colourless in dark mode (see
+	// static/README.md). The trend pair belongs to all three blocks for the
+	// same reason: a form delta with no colour reads as no delta.
+	for _, token := range []string{"--color-better", "--color-worse"} {
+		if got := strings.Count(css, token+":"); got != 3 {
+			t.Errorf("%s is defined %d times, want once per theme block", token, got)
+		}
+	}
 }
 
 // Every table must have as many header cells as its rows have cells, and

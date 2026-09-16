@@ -580,3 +580,29 @@ func seedResult(t *testing.T, srv *Server, playerID int64, puzzle, guesses int, 
 		t.Fatalf("UpsertResult: %v", err)
 	}
 }
+
+// A Wordle average is better the lower it is, so the arrow follows the
+// score rather than the standing: down and green when form pulls away
+// below the average, up and red when it drifts above. The signed number
+// this replaced put the minus on the good news, which is the half readers
+// took the wrong way round.
+func TestFormDeltaPointsTheWayTheScoreMoves(t *testing.T) {
+	tr := translator{locale: "en", strings: catalogue{}, fallback: catalogue{}}
+	of := func(v float64) *float64 { return &v }
+
+	for _, tc := range []struct {
+		name            string
+		delta           *float64
+		text, direction string
+	}{
+		{"improving", of(-0.3), "▼ 0.30", "better"},
+		{"slipping", of(0.3), "▲ 0.30", "worse"},
+		{"inside the dead zone", of(0.01), "±0.00", "level"},
+		{"no average to compare against", nil, "", "level"},
+	} {
+		text, direction := formatDelta(tr, tc.delta)
+		if text != tc.text || direction != tc.direction {
+			t.Errorf("%s: got %q/%q, want %q/%q", tc.name, text, direction, tc.text, tc.direction)
+		}
+	}
+}
