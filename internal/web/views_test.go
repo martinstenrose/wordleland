@@ -762,9 +762,11 @@ func TestMonthWinnerPaneShowsTheStats(t *testing.T) {
 	}
 }
 
-// A chip is two lines and shows whole words. Cutting a name with an
-// ellipsis was the wrong fix for a crowded row; the row scrolls instead.
-func TestMonthChipsShowWholeWords(t *testing.T) {
+// A chip is two small lines: an abbreviated month and who won it. Cutting a
+// name with an ellipsis was the wrong fix for a crowded row — the row scrolls
+// instead — and so was widening every chip to fit a month and a year, which
+// is what the detail directly beneath the row is for.
+func TestMonthChipsAreSmallAndTheMonthIsNamedInFullBelow(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -773,15 +775,32 @@ func TestMonthChipsShowWholeWords(t *testing.T) {
 	chips := body[strings.Index(body, "month-chips"):]
 	chips = chips[:strings.Index(chips, "</ol>")]
 
-	// The full month name, not three letters of it. Derive the fixture's
-	// current month so the assertion does not expire at the next rollover.
+	// The abbreviated month, and no year: the chips are a row of small boxes,
+	// and one wide enough for "September 2026" spends the row on what the
+	// line beneath it already says. Derive the fixture's current month so the
+	// assertion does not expire at the next rollover.
 	now := time.Now()
-	fullMonth := now.Month().String() + " " + strconv.Itoa(now.Year())
-	if !strings.Contains(chips, fullMonth) {
-		t.Error("a chip does not carry the full month name")
+	short := now.Month().String()[:3]
+	head, ok := sectionOf(chips, `<span class="month-chip-head">`, "</span>")
+	if !ok {
+		t.Fatal("a chip has no head line")
+	}
+	if !strings.Contains(head, short+" ·") {
+		t.Errorf("the chip head %q does not open with the abbreviated month %q", head, short)
+	}
+	// The year lives in the href, which is why this looks at the head alone.
+	if strings.Contains(head, strconv.Itoa(now.Year())) {
+		t.Errorf("the chip head %q carries the year, which the detail beneath it names", head)
 	}
 	if !strings.Contains(body, "month-chip-head") || !strings.Contains(body, "month-winner") {
 		t.Error("the chip is missing its two lines")
+	}
+
+	// Which is only safe because the month chosen is still named in full,
+	// directly under the row.
+	full := now.Month().String() + " " + strconv.Itoa(now.Year())
+	if !strings.Contains(strings.ToUpper(body), strings.ToUpper(full)) {
+		t.Errorf("the page never names %q in full", full)
 	}
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()

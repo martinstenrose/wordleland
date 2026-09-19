@@ -345,10 +345,12 @@ func shortMonthName(t translator, m time.Month) string {
 	return name
 }
 
-// monthShort names a chip. The full month, not an abbreviation: the chips
-// scroll rather than shrink, so there is room for the word.
+// monthShort names a chip: the abbreviated month, and no year. The chips are
+// a row of small boxes and the one chosen is named in full directly beneath
+// them, so a chip wide enough for "September 2026" spends the row's width on
+// what the next line already says.
 func monthShort(t translator, m stats.Month) string {
-	return monthLabel(t, m)
+	return t.T("month.short." + strconv.Itoa(int(m.Month)))
 }
 
 func monthLabel(t translator, m stats.Month) string {

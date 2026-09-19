@@ -1281,13 +1281,17 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   scroll-snap-type: x proximity;
   scrollbar-width: thin;
 }
+/* Sized by what is in them, with a floor — a row of small boxes, as the
+   design draws it. They were a quarter of the row each, which on a wide card
+   made four boxes the width of the table under them. */
 .month-chips li {
-  flex: 0 0 max(11rem, calc(25% - 6px));
+  flex: none;
   scroll-snap-align: start;
 }
 .month-chip {
   display: block;
-  padding: 10px 14px 11px;
+  min-width: 128px;
+  padding: 9px 13px;
   background: var(--color-surface);
   border: 1px solid var(--color-text-12);
   border-radius: var(--radius-md);
@@ -1297,14 +1301,14 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 }
 .month-chip:hover { background: var(--color-text-04); }
 .month-chip.on { background: var(--color-accent-14); border-color: var(--color-accent-50); }
+.month-chip.on .month-chip-head,
+.month-chip.on .month-winner { color: var(--color-accent-strong); }
 /* Two lines, and only two: an abbreviated month keeps the head on one line
    and the name is clipped rather than wrapped, so a long winner or a tie
    cannot push the row of chips to three times its height. */
 .month-chip-head {
   display: block;
   font-size: var(--text-xs);
-  letter-spacing: .08em;
-  text-transform: uppercase;
   color: var(--color-text-45);
   white-space: nowrap;
 }
@@ -1312,12 +1316,12 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 4px;
   min-width: 0;
 }
 .month-winner {
-  font-size: 1.05rem;
-  font-weight: 500;
+  font-size: var(--text-sm);
+  font-weight: 600;
   letter-spacing: -.015em;
   white-space: nowrap;
 }
