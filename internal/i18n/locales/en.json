@@ -98,6 +98,7 @@
   "admin.saved": "Saved.",
   "admin.save": "Save",
   "admin.cancel": "Cancel",
+  "action.close": "Close",
   "admin.field.name": "Display name",
   "admin.field.slug": "Slug",
   "admin.field.slugHint": "Lowercase letters, digits and hyphens. Changing it changes this player's URL.",

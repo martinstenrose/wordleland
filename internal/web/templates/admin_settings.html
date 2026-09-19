@@ -7,7 +7,7 @@
     <h1>{{.T.T "admin.settings.title"}}</h1>
   </div>
 
-  {{if .Notice}}<p class="note" role="status">{{.Notice}}</p>{{end}}
+  {{if .Notice}}<p class="note" role="status" data-raise="{{.T.T "action.close"}}">{{.Notice}}</p>{{end}}
   {{if .Error}}<p class="note error" role="alert">{{.Error}}</p>{{end}}
 
   <div class="settings-section">

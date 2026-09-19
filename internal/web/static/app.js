@@ -313,3 +313,74 @@
     if (applied) fetch(applied, { method: "HEAD", credentials: "same-origin" }).catch(function () {});
   });
 })();
+
+// Raising an outcome to the middle of the screen.
+//
+// A change that lands somewhere else — a confirmation mailed to an address
+// you are not reading, a password that just signed you out everywhere — is
+// worth more than a line at the top of a page you were not looking at. The
+// design asks for that as a centred panel, and this is it.
+//
+// The whole of the feature is already on the page without this file: the
+// action posts, the server redirects, and the outcome renders as a note where
+// notes go. Absent, disabled, or failing to load, that note is what a reader
+// gets, and it says the same thing. Only the outcome of something done is
+// raised — a rejected form's message stays beside the field it is about,
+// which is where it can actually be acted on.
+//
+// Esc, the backdrop and the button all close it. It is marked up as a dialog
+// here rather than in the template because only here is it one: focus moves
+// into it, and comes back to where it was when it closes.
+(function () {
+  "use strict";
+
+  var note = document.querySelector("[data-raise]");
+  if (!note) return;
+
+  var returnTo = document.activeElement;
+
+  var backdrop = document.createElement("div");
+  backdrop.className = "raised-backdrop";
+
+  var panel = document.createElement("div");
+  panel.className = "raised-panel";
+  panel.setAttribute("role", "dialog");
+  panel.setAttribute("aria-modal", "true");
+
+  var body = document.createElement("p");
+  body.className = "raised-body";
+  body.textContent = note.textContent.trim();
+
+  var close = document.createElement("button");
+  close.type = "button";
+  close.className = "raised-close";
+  // The template carries the word, so this file holds no copy of its own and
+  // needs no knowledge of which language the page is in.
+  close.textContent = note.dataset.raise;
+
+  panel.appendChild(body);
+  panel.appendChild(close);
+  backdrop.appendChild(panel);
+
+  // The note goes, rather than staying behind the panel saying the same thing
+  // twice to a screen reader.
+  note.remove();
+  document.body.appendChild(backdrop);
+  close.focus();
+
+  function dismiss() {
+    backdrop.remove();
+    document.removeEventListener("keydown", onKey);
+    if (returnTo && document.contains(returnTo) && returnTo.focus) returnTo.focus();
+  }
+
+  function onKey(event) {
+    if (event.key === "Escape") dismiss();
+  }
+
+  close.addEventListener("click", dismiss);
+  backdrop.addEventListener("click", function (event) {
+    if (event.target === backdrop) dismiss();
+  });
+  document.addEventListener("keydown", onKey);
+})();

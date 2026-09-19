@@ -403,6 +403,46 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 }
 .about-link:hover { background: var(--color-text-06); }
 .about-link svg { flex: none; }
+
+/* An outcome raised to the middle of the screen. Built by app.js from the
+   note the server rendered, so nothing here has a no-script counterpart to
+   keep in step: with the script absent the note stays a note and these rules
+   match nothing at all. */
+.raised-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: oklch(0 0 0 / .4);
+}
+.raised-panel {
+  width: min(380px, 100%);
+  padding: 20px 22px;
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  border: 1px solid var(--color-text-10);
+  box-shadow: var(--shadow-elevated);
+}
+.raised-body { margin: 0 0 18px; font-size: var(--text-sm); color: var(--color-text-55); line-height: 1.6; }
+.raised-close {
+  display: block;
+  margin-left: auto;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  height: 34px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  cursor: pointer;
+}
+.raised-close:hover { background: var(--color-accent-strong); }
+.raised-close:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 2px; }
 /* The control says what pressing it will do, so the half that describes the
    width already in force is the half to hide. Keyed off <html> rather than
    rendered by the server, so app.js flipping that attribute is enough to

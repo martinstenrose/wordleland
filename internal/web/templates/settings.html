@@ -23,7 +23,11 @@
 
     <div class="settings-panel">
       {{if .Notice}}
-        <p class="note" role="status">
+        {{/* data-raise asks app.js to lift this into the centred panel the
+             design draws, carrying the word for its button so the script
+             holds no copy of its own. Without the script it is a note where
+             notes go, saying the same thing. */}}
+        <p class="note" role="status" data-raise="{{.T.T "action.close"}}">
           {{if eq .Notice "name"}}{{.T.T "settings.saved.name"}}
           {{else if eq .Notice "email"}}{{.T.T "settings.saved.email"}}
           {{else}}{{.T.T "admin.saved"}}{{end}}

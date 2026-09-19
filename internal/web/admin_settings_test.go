@@ -175,3 +175,29 @@ func TestTheAdminAreaOpensOnSettings(t *testing.T) {
 		t.Errorf("the rail's Admin row goes to %q, want /admin/settings", got)
 	}
 }
+
+// The outcome is on the page as a note, with no script involved. app.js
+// raises it into the centred panel the design draws, and carries the word for
+// that panel's button in the markup so the script holds no copy of its own.
+func TestAnOutcomeIsRenderedBeforeAnyScriptRunsIt(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	body := fetchAs(t, srv, "/admin/settings?notice=rotated", session).Body.String()
+	if !strings.Contains(body, `class="note" role="status"`) {
+		t.Error("the outcome is not rendered as a note")
+	}
+	if !strings.Contains(body, `data-raise="Close"`) {
+		t.Error("the outcome carries no hook, or no word for the panel's button")
+	}
+	// An error is not raised: it belongs beside the thing that has to be
+	// fixed, which is where it can be acted on.
+	bad := fetchAs(t, srv, "/admin/settings?error=failed", session).Body.String()
+	if !strings.Contains(bad, `role="alert"`) {
+		t.Fatal("the error is not rendered")
+	}
+	if strings.Contains(bad, "data-raise") {
+		t.Error("an error was marked to be raised into a panel")
+	}
+}
