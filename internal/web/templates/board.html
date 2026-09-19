@@ -56,7 +56,7 @@
     <thead>
       <tr>
         {{range .Headers}}
-          <th class="{{if or (eq .Column "player") (eq .Column "rank")}}left{{else}}right{{end}}{{if .Active}} sorted{{end}}"
+          <th class="{{if eq .Column "rank"}}rank-col{{else if eq .Column "player"}}left{{else}}right{{end}}{{if .Active}} sorted{{end}}"
               aria-sort="{{.Aria}}">
             <a href="{{.Href}}">{{.Label}}<span class="sort-mark" aria-hidden="true">{{if .Active}}{{if .Desc}}▾{{else}}▴{{end}}{{end}}</span></a>
           </th>
@@ -79,7 +79,7 @@
           <tr class="divider"><td colspan="10">{{$t.T "board.notRanked"}}</td></tr>
         {{end}}
         <tr{{if not .Ranked}} class="unranked"{{end}}>
-          <td class="num">{{if .Ranked}}{{$.T.Integer .Rank}}{{else}}—{{end}}</td>
+          <td class="rank-col num">{{if .Ranked}}{{$.T.Integer .Rank}}{{else}}—{{end}}</td>
           {{/* The name, and the reason an unranked player is unranked. No
                trait: a trait is a reading of a whole history and this column
                is a name, and the board already carries eight columns of the

@@ -75,10 +75,12 @@ func TestTodayShowsTheCurrentPuzzleAndWhoIsOut(t *testing.T) {
 	}
 	body := rec.Body.String()
 
-	if !strings.Contains(body, "Still out") {
-		t.Error("the today band does not say who has not filed")
+	if !strings.Contains(body, "still to submit") {
+		t.Error("the today band does not say how many have not filed")
 	}
 	// seedBoard gives lapsed no recent games, so they are still out today.
+	// The names are behind a disclosure, but they are in the markup either
+	// way — that is the point of a disclosure rather than a round trip.
 	if !strings.Contains(body, "Lapsed") {
 		t.Error("a player with no result today is not listed as out")
 	}
@@ -660,7 +662,7 @@ func TestTodayIsTheFrontPage(t *testing.T) {
 	if root.Code != http.StatusOK {
 		t.Fatalf("the bare share URL = %d", root.Code)
 	}
-	if !strings.Contains(root.Body.String(), "Still out") {
+	if !strings.Contains(root.Body.String(), `class="today-head"`) {
 		t.Error("the bare share URL does not show the front page")
 	}
 
@@ -838,34 +840,24 @@ func TestFrontPageFormTableIsOrderedByForm(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	table := body[strings.Index(body, "today-form"):]
+	list := body[strings.Index(body, "today-form"):]
 
-	// Read the form figures in the order they are printed.
+	// Read the form figures in the order they are printed. The bench rows
+	// print a game count in the same cell, so the list stops at the
+	// disclosure they live behind.
+	if at := strings.Index(list, `class="today-bench"`); at > 0 {
+		list = list[:at]
+	}
 	var figures []float64
-	rest := table
-	for {
-		i := strings.Index(rest, `class="podium-figure">`)
-		j := strings.Index(rest, `<span class="num">`)
-		if i < 0 && j < 0 {
-			break
-		}
-		var at, skip int
-		switch {
-		case i >= 0 && (j < 0 || i < j):
-			at, skip = i, len(`class="podium-figure">`)
-		default:
-			at, skip = j, len(`<span class="num">`)
-		}
-		rest = rest[at+skip:]
-		field := strings.TrimSpace(rest[:min(24, len(rest))])
+	for _, m := range regexp.MustCompile(`class="form-avg num">([^<]+)<`).FindAllStringSubmatch(list, -1) {
 		var v float64
-		if _, err := fmt.Sscanf(field, "%f", &v); err == nil {
+		if _, err := fmt.Sscanf(strings.TrimSpace(m[1]), "%f", &v); err == nil {
 			figures = append(figures, v)
 		}
 	}
 
 	if len(figures) < 3 {
-		t.Fatalf("only read %d form figures from the table", len(figures))
+		t.Fatalf("only read %d form figures from the list", len(figures))
 	}
 	for i := 1; i < len(figures); i++ {
 		if figures[i] < figures[i-1] {
@@ -985,50 +977,57 @@ func TestSeasonMarksReadAtAGlance(t *testing.T) {
 	}
 }
 
-// The form pane: a compact rank column, charts and Last Five in both the
-// cards and the rows, and games reported only where it is labelled.
+// The form list: one shape for everybody, and no figure in a row that
+// nothing names.
+//
+// It used to be three cards and a six-column table, and the number beside a
+// name read as a game count in the cards and a streak in the table. One row
+// shape settles that by construction — every cell in it is either the rank
+// (whose popup names both numbers), the form average the section heading
+// names, or the delta against it — so this pins the shape rather than the
+// headings that used to carry the explanation.
 func TestFormPaneIsConsistent(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	pane := body[strings.Index(body, "today-form"):strings.Index(body, "bench-toggle")]
+	pane := body[strings.Index(body, "today-form"):]
+	pane = pane[:strings.Index(pane, "card-foot")]
 
-	if !strings.Contains(pane, "<thead>") {
-		t.Error("the form table has no header")
+	if !strings.Contains(pane, "Form · last 30 days") {
+		t.Error("the form list has no heading naming the window")
 	}
-	for _, col := range []string{"30d form", "Last 30 days", "Puzzles", "Last five"} {
-		if !strings.Contains(pane, col) {
-			t.Errorf("the header is missing %q", col)
+
+	rows := regexp.MustCompile(`(?s)<li class="form-row">(.*?)</li>`).FindAllStringSubmatch(pane, -1)
+	if len(rows) == 0 {
+		t.Fatal("the form list has no rows")
+	}
+	ranked, benched := 0, 0
+	for _, row := range rows {
+		cell := row[1]
+		if strings.Contains(cell, `class="rank-pop form-rank"`) {
+			ranked++
+			for _, part := range []string{`player form-name"`, `class="form-spark"`, `class="form-avg num"`, `class="form-delta`} {
+				if !strings.Contains(cell, part) {
+					t.Errorf("a form row is missing %s", part)
+				}
+			}
+			continue
 		}
+		benched++
+	}
+	if ranked == 0 {
+		t.Error("no ranked rows in the form list")
 	}
 
-	// The cards carry Last Five cells, as the rows do.
-	if !strings.Contains(pane, "podium-last-five") {
-		t.Error("the podium cards have no Last Five cells")
-	}
-
-	// Every figure in a row sits under a heading that names it. The rows
-	// once printed an unlabelled number that read as a game count in the
-	// cards and a streak in the table, which is what the header fixes.
-	tableAt := strings.Index(pane, `<table class="board">`)
-	if tableAt < 0 {
-		t.Fatal("no form table")
-	}
-	table := pane[tableAt:]
-	if strings.Count(table, "podium") > 0 {
-		t.Fatal("the table slice overlaps the cards")
-	}
-	head := table[:strings.Index(table, "</tr>")]
-	if got, want := strings.Count(head, "<th>")+strings.Count(head, "<th "), 6; got != want {
-		t.Errorf("the header has %d cells, want %d", got, want)
-	}
-	body_ := table[strings.Index(table, "<tbody>"):]
-	firstRow := body_[strings.Index(body_, "<tr>"):]
-	firstRow = firstRow[:strings.Index(firstRow, "</tr>")]
-	if got := strings.Count(firstRow, "<td"); got != 6 {
-		t.Errorf("a row lays out %d cells against a 6-column header", got)
+	// The unranked are in the markup, behind a disclosure rather than behind
+	// a round trip — and never mixed in with the ranked rows.
+	if benched > 0 {
+		bench := pane[strings.Index(pane, `class="today-bench"`):]
+		if strings.Count(bench, `<li class="form-row">`) != benched {
+			t.Error("an unranked row is outside the disclosure it belongs in")
+		}
 	}
 }
 
@@ -1337,27 +1336,27 @@ func TestEveryBanterHasDetails(t *testing.T) {
 
 // Traits are a reading of a player's whole history. Months is about one month
 // at a time, so a badge saying "Late finisher" beside a September average
-// claims a relation that is not there; and the leaderboard already carries
-// eight columns of the same reading in numbers, where the name column is for
-// the name. Both dropped them.
+// claims a relation that is not there; the leaderboard already carries eight
+// columns of the same reading in numbers; and Today's form list is a row of
+// figures about the last thirty days. In all three the name column is for the
+// name.
 func TestTraitBadgesAreOnlyWhereTheyMeanSomething(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 	session := signIn(t, srv, admin.ID)
 
-	for _, path := range []string{"/months", "/leaderboard"} {
+	for _, path := range []string{"/months", "/leaderboard", "/today"} {
 		if strings.Contains(fetchAs(t, srv, path, session).Body.String(), `class="trait"`) {
 			t.Errorf("%s carries a trait badge", path)
 		}
 	}
 
 	// Still where they belong, so this cannot pass by the badge having been
-	// deleted everywhere: a player's own page, and Today's form table.
-	for _, path := range []string{"/p/harda", "/today"} {
-		if !strings.Contains(fetchAs(t, srv, path, session).Body.String(), `class="trait"`) {
-			t.Errorf("%s lost its trait badges too", path)
-		}
+	// deleted everywhere: a player's own page, where the reading is of that
+	// player and of nothing else.
+	if !strings.Contains(fetchAs(t, srv, "/p/harda", session).Body.String(), `class="trait"`) {
+		t.Error("a player's own page lost its trait badge too")
 	}
 }
 
@@ -1417,5 +1416,67 @@ func TestASeasonMarkIsNotAlignedOnTheTextBaseline(t *testing.T) {
 	col := cssRule(t, css, ".season-table .mark-col {")
 	if !strings.Contains(col, "vertical-align: middle") {
 		t.Error("the cell does not centre the mark down its own height")
+	}
+}
+
+// Four tables about the same people, indented the same.
+//
+// The board, Months' own table and the season table under it put the player
+// name in three different places: the board numbered its ranks from the
+// gutter, Months right-aligned its rank column and so pushed the name further
+// in, and the season table had no rank column at all and started at the
+// gutter. Three tables that do not line up read as three different tables.
+// One token holds the first cell's width and the indent the table without a
+// rank takes instead.
+func TestEveryRankedTableIndentsItsNamesTheSame(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	session := signIn(t, srv, admin.ID)
+
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+	if !strings.Contains(css, "--rank-col:") {
+		t.Fatal("there is no shared rank-column width")
+	}
+	if rule := cssRule(t, css, ".board .rank-col {"); !strings.Contains(rule, "var(--rank-col)") {
+		t.Errorf("the rank column does not take the shared width: %s", rule)
+	}
+	// The one without a rank takes the same width as an indent, so its names
+	// land where the others' do.
+	if rule := cssRule(t, css, ".season-table th:first-child,"); !strings.Contains(rule, "var(--rank-col)") {
+		t.Errorf("the season table does not take the shared indent: %s", rule)
+	}
+
+	// And the markup asks for it: both ranked tables mark their first column.
+	for _, path := range []string{"/leaderboard", "/months"} {
+		body := fetchAs(t, srv, path, session).Body.String()
+		table := body[strings.Index(body, `<table class="board`):]
+		head := table[:strings.Index(table, "</tr>")]
+		if !strings.Contains(head, "rank-col") {
+			t.Errorf("%s: the first column is not the shared rank column", path)
+		}
+	}
+}
+
+// Today's two lists are read side by side on a wide screen, so a row in one
+// has to sit level with the row beside it. They share one rule rather than
+// two that agree today.
+//
+// content-box is the load-bearing part: the page is border-box throughout, so
+// a min-height counts the padding and the rule, and a row with nothing tall
+// in it settles short of one carrying a 30px score tile.
+func TestTodaysTwoListsShareOneRowShape(t *testing.T) {
+	srv := testServer(t)
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+
+	rule := cssRule(t, css, ".result-row, .form-row {")
+	for _, want := range []string{"box-sizing: content-box", "min-height: 30px", "padding: 11px 0"} {
+		if !strings.Contains(rule, want) {
+			t.Errorf("the shared row rule is missing %q: %s", want, rule)
+		}
+	}
+	// Their headings too, or the rows start at different heights.
+	if !strings.Contains(css, ".result-row.head, .form-row.head {") {
+		t.Error("the two column-label rows are not styled as one")
 	}
 }

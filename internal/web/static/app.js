@@ -113,48 +113,6 @@
   );
 })();
 
-// Today's "N players not ranked" toggle. The link's href already flips
-// ?benched=0/1 and works with no script at all — see today.go and
-// today.html's "bench-section" block. This only swaps that section in
-// place instead of reloading the page, the same "?partial=1" trick app.js
-// already uses for the ⌘K search overlay.
-(function () {
-  "use strict";
-
-  document.addEventListener("click", function (event) {
-    var link = event.target.closest(".bench-toggle a.toggle");
-    if (!link) return;
-
-    var section = link.closest(".bench-section");
-    if (!section) return; // Markup changed underneath us; fall back to a real navigation.
-
-    event.preventDefault();
-    var url = link.href;
-
-    fetch(url + (url.indexOf("?") === -1 ? "?" : "&") + "partial=1")
-      .then(function (response) { return response.ok ? response.text() : null; })
-      .then(function (html) {
-        if (html === null) {
-          window.location.href = url;
-          return;
-        }
-        var wrapper = document.createElement("div");
-        wrapper.innerHTML = html;
-        var replacement = wrapper.querySelector(".bench-section");
-        if (!replacement) {
-          window.location.href = url;
-          return;
-        }
-        section.replaceWith(replacement);
-        history.replaceState(null, "", url);
-      })
-      .catch(function () {
-        // Pure enhancement: fall back to the link's real navigation.
-        window.location.href = url;
-      });
-  });
-})();
-
 // The ⌘K command palette. It exists only because opening an overlay on a
 // keystroke, and moving a selection through it with arrow keys, cannot be
 // done from HTML and CSS alone — everything else about search does not
@@ -526,8 +484,8 @@
 // disabled, or failing to load. What following one costs is a page load, and
 // with it the open menu — so setting two rules means opening the menu twice.
 //
-// This swaps the card in place instead, the same "?partial=1" trick the bench
-// toggle and the ⌘K overlay already use, and leaves the menu open on the row
+// This swaps the card in place instead, the same "?partial=1" trick the ⌘K
+// overlay and the roster already use, and leaves the menu open on the row
 // that was just pressed. Nothing is decided here that the server did not
 // decide: the replacement markup is the board the link pointed at, rendered
 // by the same template, so a rule applied this way and a rule applied by

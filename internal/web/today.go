@@ -11,9 +11,6 @@ import (
 	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
-// heroTiles is how many cells the day's result is drawn as: a Wordle row.
-const heroTiles = 6
-
 // calloutView is one generated observation, ready to render.
 type calloutView struct {
 	Kind string
@@ -25,13 +22,30 @@ type calloutView struct {
 	Href string
 }
 
-// todayEntryView is one filed result. A trailing * on Label marks hard
-// mode, matching the convention used by the player's recent-games strip.
-type todayEntryView struct {
-	Name  string
-	Href  string
+// todayResultRow is one filed result, as the day's own table shows it.
+//
+// The day used to be a wrapping strip of name-and-score pairs, which said who
+// had played and nothing else: not who was ahead, and not whether a 4 was a
+// good day for that person or a bad one. Both questions are answered by
+// figures the page already had.
+type todayResultRow struct {
+	// Pos is the standing so far, or an em dash for a player the board does
+	// not rank — they are in the day like everybody else, but a position
+	// among people who are ranked is not a thing they hold.
+	Pos  string
+	Name string
+	Href string
+	// Label is the guess count or "X", with a trailing * for hard mode,
+	// matching the convention the player's recent-games strip uses.
 	Label string
 	Tone  int
+
+	// DeltaText is today's score against this player's own average: the
+	// figure that turns a 4 into a good or a bad day for them. Direction is
+	// the shared "better"/"worse"/"level" vocabulary.
+	DeltaText      string
+	DeltaDirection string
+	AvgLabel       string
 }
 
 type todayPage struct {
@@ -44,32 +58,26 @@ type todayPage struct {
 	PuzzleNo int
 	DateLong string
 
-	Filed   []todayEntryView
+	Results []todayResultRow
 	Missing []string
-
-	// Hero is the day's best result drawn as a row of tiles, nil when
-	// nobody has solved it yet.
-	Hero []scoreCell
 
 	HeadlineKey  string
 	HeadlineArgs []any
 	FiledCount   int
 	Expected     int
+	// FiledPercent fills the track beside the count. It is how far through
+	// the day the group is, which is the one thing a glance at the top of
+	// this page should answer.
+	FiledPercent int
 
 	Callouts []calloutView
 
-	// Leaders is the top of the board, and Rest the remainder, so the front
-	// page can give the first three the space the design gives them.
-	Leaders []todayFormRow
-	Rest    []todayFormRow
+	Form []todayFormRow
 
-	// Benched is everyone the board does not rank, with the reason. Shown
-	// on request rather than by default: the front page is about who is
-	// playing, and the list would otherwise grow forever as people drift
-	// away.
+	// Benched is everyone the board does not rank, with the reason. Behind a
+	// disclosure rather than on the page: the front page is about who is
+	// playing, and the list grows forever as people drift away.
 	Benched      []boardRow
-	ShowBenched  bool
-	BenchedHref  string
 	BenchedCount int
 }
 
@@ -121,19 +129,10 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 		page.DateLong = longDate(ch.T, date)
 	}
 
-	for _, e := range today.Filed {
-		view := todayEntryView{
-			Name: e.Name, Href: prefix + "/p/" + e.Slug,
-			Label: "X", Tone: 7,
-		}
-		if e.Solved {
-			view.Label, view.Tone = strconv.Itoa(e.Guesses), e.Guesses
-		}
-		if e.HardMode {
-			view.Label += "*"
-		}
-		page.Filed = append(page.Filed, view)
+	if page.Expected > 0 {
+		page.FiledPercent = percent(page.FiledCount, page.Expected)
 	}
+	page.Results = todayResults(ch.T, today, board, prefix)
 	for _, p := range today.Missing {
 		page.Missing = append(page.Missing, p.Name)
 	}
@@ -144,11 +143,9 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 		// count they want is how many filed today.
 		page.HeadlineKey = "today.headline.shared"
 		page.HeadlineArgs = []any{today.BestShared, today.FiledCount(), today.Best.Guesses}
-		page.Hero = heroRow(today.Best.Guesses)
 	case today.Best != nil:
 		page.HeadlineKey = "today.headline.best"
 		page.HeadlineArgs = []any{today.Best.Name, today.Best.Guesses}
-		page.Hero = heroRow(today.Best.Guesses)
 	case page.FiledCount > 0:
 		// Everyone who has filed today failed it, which is a result in its
 		// own right rather than an absence of one.
@@ -199,22 +196,12 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 			view.FormRankText = ch.T.Integer(formRank)
 		}
 		view.RankDetail = rankDetail(ch.T, view)
-		if i < 3 {
-			page.Leaders = append(page.Leaders, view)
-		} else {
-			page.Rest = append(page.Rest, view)
-		}
+		page.Form = append(page.Form, view)
 	}
 
 	page.BenchedCount = len(board.Unranked)
-	page.ShowBenched = r.URL.Query().Get("benched") == "1"
-	if page.ShowBenched {
-		page.BenchedHref = urlWith(r, "benched", "0")
-		for _, p := range board.Unranked {
-			page.Benched = append(page.Benched, s.newBoardRow(p, prefix, ch.T, traits, results, board.CurrentPuzzle))
-		}
-	} else {
-		page.BenchedHref = urlWith(r, "benched", "1")
+	for _, p := range board.Unranked {
+		page.Benched = append(page.Benched, s.newBoardRow(p, prefix, ch.T, traits, results, board.CurrentPuzzle))
 	}
 
 	if !readOnly {
@@ -223,14 +210,6 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 		}
 	}
 
-	// "?partial=1" asks for just the bench section, the same way search.go's
-	// overlay reuses the search page — see app.js — so the toggle can swap
-	// benched players in without a full reload while still working from a
-	// plain link when script is absent.
-	if r.URL.Query().Get("partial") == "1" {
-		s.renderBlock(w, r, http.StatusOK, "today.html", "bench-section", page)
-		return
-	}
 	s.render(w, r, http.StatusOK, "today.html", page)
 }
 
@@ -278,15 +257,66 @@ func (s *Server) calloutFor(c stats.Callout, prefix string, t translator) callou
 	return view
 }
 
-// heroRow draws a solved result as a Wordle row: the guesses used, filled.
-func heroRow(guesses int) []scoreCell {
-	row := make([]scoreCell, 0, heroTiles)
-	for i := 1; i <= heroTiles; i++ {
-		cell := scoreCell{}
-		if i <= guesses {
-			cell.Played, cell.Solved, cell.Tone = true, true, guesses
-		}
-		row = append(row, cell)
+// todayResults turns the day into the rows the page lists, best first.
+//
+// The order is stats.ComputeToday's — best score first, ties broken by name
+// so the list is stable through the day rather than reshuffling as results
+// arrive. Positions are counted over the ranked players only: an unranked
+// player is in the day like everybody else, but a position among people who
+// are ranked is not a thing they hold, and numbering them would push
+// everyone below them down a place for the wrong reason.
+func todayResults(t translator, today stats.Today, board stats.Board, prefix string) []todayResultRow {
+	// Ranked is the board's own decision, not a property of the average: a
+	// player below the threshold has an average and it is withheld, here as
+	// everywhere else.
+	ranked := make(map[int64]stats.Player, len(board.Ranked))
+	games := make(map[int64]int, len(board.Ranked)+len(board.Unranked))
+	for _, p := range board.Ranked {
+		ranked[p.ID] = p
 	}
-	return row
+	for _, group := range [][]stats.Player{board.Ranked, board.Unranked} {
+		for _, p := range group {
+			games[p.ID] = p.Games
+		}
+	}
+
+	out := make([]todayResultRow, 0, len(today.Filed))
+	pos := 0
+	for _, e := range today.Filed {
+		row := todayResultRow{
+			Name:  e.Name,
+			Href:  prefix + "/p/" + e.Slug,
+			Label: "X",
+			Tone:  7,
+		}
+		if e.Solved {
+			row.Label, row.Tone = strconv.Itoa(e.Guesses), e.Guesses
+		}
+		if e.HardMode {
+			row.Label += "*"
+		}
+
+		p, isRanked := ranked[e.ID]
+		if !isRanked {
+			row.Pos, row.DeltaDirection = "\u2014", "level"
+			row.AvgLabel = t.TN("today.benchedGames", games[e.ID])
+			out = append(out, row)
+			continue
+		}
+
+		pos++
+		row.Pos = t.Integer(pos)
+		row.AvgLabel = t.T("today.avgShort", formatScore(t, p.Average))
+		switch {
+		case !e.Solved:
+			// A miss has no distance from an average: it is off the scale
+			// the average is measured on, and "▲ 2.61" would invent one.
+			row.DeltaText, row.DeltaDirection = t.T("today.missed"), "worse"
+		case p.Average != nil:
+			delta := float64(e.Guesses) - *p.Average
+			row.DeltaText, row.DeltaDirection = formatDelta(t, &delta)
+		}
+		out = append(out, row)
+	}
+	return out
 }

@@ -41,7 +41,7 @@
   <table class="board months-table">
     <thead>
       <tr>
-        <th class="right">{{.T.T "board.column.rank"}}</th>
+        <th class="rank-col">{{.T.T "board.column.rank"}}</th>
         <th>{{.T.T "board.column.player"}}</th>
         {{/* Carries the same class as its cells: the mobile rule hides
              this column, and a header without the class would stay while
@@ -57,7 +57,7 @@
     <tbody>
       {{range .Rows}}
         <tr>
-          <td class="right num muted">{{$.T.Integer .Rank}}</td>
+          <td class="rank-col num muted">{{$.T.Integer .Rank}}</td>
           <td>
             {{/* The chip names the place in words, at every width. The class
                  separates a win from a second place so the two can be told

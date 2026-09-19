@@ -73,11 +73,11 @@ func TestSortingDoesNotRenumberRanks(t *testing.T) {
 		out := map[string]string{}
 		for _, slug := range playerOrder(body) {
 			row := rowFor(t, body, slug)
-			start := strings.Index(row, `<td class="num">`)
+			start := strings.Index(row, `<td class="rank-col num">`)
 			if start < 0 {
 				continue
 			}
-			cell := row[start+len(`<td class="num">`):]
+			cell := row[start+len(`<td class="rank-col num">`):]
 			out[slug] = strings.TrimSpace(cell[:strings.Index(cell, "</td>")])
 		}
 		return out

@@ -158,6 +158,17 @@
   /* The card gutter. Table cells and the full-bleed panels carry it
      themselves; everything else inherits it from the rule below. */
   --space-card: 22px;
+
+  /* The whole first cell of a ranked table, the card gutter included, so
+     that the name column starts in the same place on every table about the
+     same people: the board, Months, the season table under it, and Today's
+     two lists. Three tables that do not line up read as three different
+     tables. The season table has no rank to print and takes this as a left
+     indent instead of carrying an empty column nobody can read. */
+  --rank-col: 56px;
+  /* The narrow gutter every table cell carries, as distinct from the card's
+     own. See .board th. */
+  --cell-gutter: 6px;
 }
 
 :root[data-theme="light"] {
@@ -806,13 +817,17 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
    the card gutter on every cell the board lost its last three columns off
    the edge of a laptop. */
 .board th {
-  padding: 9px 6px; text-align: left;
+  padding: 9px var(--cell-gutter); text-align: left;
   font-size: var(--text-xs); font-weight: 600; text-transform: uppercase;
   letter-spacing: .07em; color: var(--color-text-40);
   border-bottom: 1px solid var(--color-text-10);
 }
-.board td { padding: 11px 6px; border-bottom: 1px solid var(--color-text-06); }
+.board td { padding: 11px var(--cell-gutter); border-bottom: 1px solid var(--color-text-06); }
 .board th:first-child, .board td:first-child { padding-left: var(--space-card); }
+/* Left, not right: the board numbers ranks from the gutter, and Months read
+   as an indented copy of it while its own rank column was right-aligned. */
+.board .rank-col { width: var(--rank-col); text-align: left; }
+.board td.rank-col { color: var(--color-text-60); font-size: var(--text-sm); }
 .board th:last-child, .board td:last-child { padding-right: var(--space-card); }
 .board .right { text-align: right; }
 .num { font-variant-numeric: tabular-nums; }
@@ -836,7 +851,7 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
    what survives a red/green reader, a greyscale screenshot and the muted
    ±0.00 that has no direction at all. white-space: nowrap on .delta's own
    text (the arrow and its figure) is inherited from its container — see
-   .board td.num and .podium-figure, which also keep the score itself from
+   .board td.num and .form-avg, which also keep the score itself from
    wrapping away from the delta beside it. */
 .delta { margin-left: 6px; font-size: 11px; }
 .delta.better { color: var(--color-better); }
@@ -1419,26 +1434,100 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 /* ---- Today ------------------------------------------------------------ */
 
-.today-head { padding-top: 22px; padding-bottom: 20px; border-bottom: 1px solid var(--color-text-10); }
+/* Four blocks in one card. On a phone they stack in the order the markup
+   has them: what the day is, what happened, what it means, who is in form —
+   today's scores before the commentary, because the scores are what the
+   page is opened for.
+
+   On a wide screen the same four are a grid (see the two-column rule below),
+   which is why every block here is styled as a box in its own right rather
+   than as a step down a column. */
+
+.today-head { padding-top: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--color-text-10); }
 .today .kicker .accent { color: var(--color-accent); letter-spacing: .14em; text-transform: uppercase; }
-.today-hero { display: flex; gap: 30px; align-items: flex-end; flex-wrap: wrap; margin-top: 16px; }
-.today-line { flex: 1; min-width: 260px; }
-.today h1 { font-size: 2rem; line-height: var(--line-tight); letter-spacing: -.02em; margin: 0; max-width: 18ch; }
-.today-sub { margin: 10px 0 0; font-size: var(--text-sm); color: var(--color-text-55); }
+.today h1 { font-size: var(--text-2xl); line-height: var(--line-tight); letter-spacing: -.02em; margin: 8px 0 0; max-width: 18ch; }
+.today-headline { min-width: 0; }
+.today-status { min-width: 0; }
 
-.hero-row { display: flex; gap: 5px; list-style: none; margin: 0; padding: 0; }
-.hero-row .cell { width: 40px; height: 48px; border-radius: var(--radius-sm); }
+/* How far through the day the group is. The track takes the slack so the
+   count sits at a fixed right edge however wide the card gets. */
+.today-progress { display: flex; align-items: center; gap: 10px; margin-top: 14px; max-width: 420px; }
+.today-track { flex: 1; min-width: 0; }
+.today-track .progress-bar { height: 6px; }
+.today-count { flex: none; font-size: var(--text-xs); font-weight: 700; color: var(--color-text-50); }
 
-.today-out { flex: 0 0 auto; padding-left: var(--space-card); border-left: 1px solid var(--color-text-10); max-width: 260px; }
-.chips { display: flex; flex-wrap: wrap; gap: 5px; list-style: none; margin: 6px 0 0; padding: 0; }
+/* Who has not filed: a count all day, names when somebody asks. */
+.today-out { margin-top: 10px; }
+.today-out > summary {
+  display: inline-flex; align-items: center; gap: 5px;
+  list-style: none; cursor: pointer;
+  font-size: var(--text-xs); font-weight: 600; color: var(--color-text-50);
+}
+.today-out > summary::-webkit-details-marker { display: none; }
+.today-out > summary:hover { color: var(--color-text-75); }
+.today-out[open] > summary .chevron { transform: rotate(180deg); }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; list-style: none; margin: 8px 0 0; padding: 0; }
 .chip.dashed { border: 1px dashed var(--color-text-20); background: transparent; color: var(--color-text-50); }
 
-.today-filed { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 20px 0 0; padding: 0; }
-.today-filed li { display: flex; align-items: center; gap: 7px; font-size: var(--text-sm); }
-.today-filed a { color: var(--color-text-80); text-decoration: none; }
-.today-filed a:hover { color: var(--color-text); }
-.today-filed .cell { width: 24px; height: 24px; border-radius: var(--radius-sm); font-size: var(--text-sm); }
+/* The day itself: who is where, what it cost them, and whether that is a
+   good day for them. The strip this replaces gave the first of those three
+   and left a 4 meaning nothing without knowing whose 4 it was. */
+.today-results { padding-top: 16px; border-bottom: 1px solid var(--color-text-10); }
 
+/* Both lists are laid out on the tables' rhythm — a heading, a row of column
+   labels ruled underneath, .board's own 11px vertical padding, and its type —
+   so that Today, the board and Months read as one set of tables rather than
+   three. The two lists share every measurement, which is what makes their
+   rows line up with each other when they stand side by side.
+
+   On a phone there is no room for a row of labels, so the heading carries a
+   hint naming the right-hand figures instead, and the labels are hidden. */
+.today-list-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 9px 0 7px;
+  border-bottom: 1px solid var(--color-text-10);
+}
+.today-list-head .kicker { margin: 0; }
+.today-list-hint { font-size: 11px; color: var(--color-text-35); }
+
+.result-row.head, .form-row.head { display: none; }
+.result-row.head > *, .form-row.head > * {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--color-text-40);
+  /* A label that wraps makes its row taller than the other list's, and the
+     two stop lining up. Clipped instead — the columns are sized for the
+     longest label in any of the five languages. */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.result-rows, .form-rows { list-style: none; margin: 0; padding: 0; }
+.result-row, .form-row {
+  display: flex; align-items: center; gap: 11px;
+  /* The score tile's own height, so a row carrying one and a row that does
+     not come out the same — which is what lets the two lists line up with
+     each other row for row when they stand side by side.
+
+     content-box, against the page's own border-box default: min-height
+     otherwise counts the 22px of padding and the rule below, and a row with
+     nothing tall in it settles 5px short of one with a tile in it. */
+  box-sizing: content-box;
+  min-height: 30px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--color-text-06);
+}
+.result-pos, .form-rank {
+  flex: none; width: 26px;
+  font-size: var(--text-sm); color: var(--color-text-60);
+}
+.result-name, .form-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.result-score { flex: none; width: 30px; height: 30px; font-size: var(--text-md); font-weight: 700; }
+.result-figures { flex: none; display: flex; align-items: baseline; gap: 7px; }
+.result-delta { margin: 0; font-size: 11px; font-weight: 700; }
+.result-avg { font-size: var(--text-xs); color: var(--color-text-35); font-variant-numeric: tabular-nums; }
+
+/* A low-weight strip rather than four boxes: the commentary is worth seeing
+   without a scroll and is not worth the weight of the figures around it. */
 .callouts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1446,47 +1535,53 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   background: var(--color-text-10);
   border-bottom: 1px solid var(--color-text-10);
 }
-.callout { background: var(--color-surface); padding: 18px var(--space-card); }
-/* .bench-card carries nothing that needs to scroll (a name, a chip, one
-   line of muted text — both wrap instead), unlike .podium-card's
-   sparkline/last-five row. Giving it the same overflow-x: auto would also
-   clip overflow-y (the two can't be split — setting one axis forces the
-   other off "visible"), which meant the reason chip's popup was clipped
-   flush against this tiny card with nowhere to reposition to. The outer
-   .card still clips and still gets the app.js nudge, same as any other
-   popup on the page — this only removes the extra, needless clip right
-   around the popup itself. */
-.callout, .podium-card { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.callout { background: var(--color-surface-raised); padding: 12px var(--space-card); }
+/* .callout carries a reason chip whose popup would be clipped by an overflow
+   box of its own; the outer .card still clips and still gets the app.js
+   nudge, same as any other popup on the page. */
+.callout { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
 .callout .accent { color: var(--color-accent); }
-.callout-text { font-size: var(--text-md); line-height: 1.35; letter-spacing: -.01em; margin: 6px 0 0; }
-.callout-meta { margin: 9px 0 0; font-size: var(--text-xs); color: var(--color-text-40); font-variant-numeric: tabular-nums; }
+.callout .kicker { font-size: 11px; letter-spacing: .07em; }
+.callout-text { font-size: var(--text-xs); line-height: 1.45; margin: 3px 0 0; }
+.callout-meta { margin: 5px 0 0; font-size: 11px; color: var(--color-text-35); font-variant-numeric: tabular-nums; }
 
-/* Full-bleed, so the table inside it reaches the card's edges the way every
-   other table on the site does — its cells carry the gutter. The blocks
-   beside the table take the gutter themselves. */
-.today-form { padding-top: 22px; border-top: 1px solid var(--color-text-10); }
-.card > .today-form { padding-left: 0; padding-right: 0; }
-.today-form > .kicker,
-.today-form > .podium,
-.today-form > .bench-section { padding-left: var(--space-card); padding-right: var(--space-card); }
-.today-form > .card-foot { margin-top: 16px; border-top: 1px solid var(--color-text-10); }
-.podium { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
-.podium-card {
-  flex: 1;
-  min-width: 200px;
-  padding: 16px 18px;
-  border-radius: var(--radius-md);
-  background: var(--color-text-04);
-  border: 1px solid var(--color-text-08);
+/* Form, as rows rather than three cards and a six-column table. The cards
+   gave three people a paragraph each and everyone else a line, which made
+   the table below them look like an afterthought; one shape for everybody
+   is both shorter and easier to read down. */
+.today-form { padding-top: 16px; padding-bottom: 0; }
+/* The shared prose-link treatment, sized to sit beside a kicker: without a
+   colour of its own an <a> falls back to the browser's blue, which in the
+   dark theme is a link nobody can read. */
+.today-list-head .link { font-size: var(--text-xs); font-weight: 600; text-decoration: none; }
+.form-rank { width: auto; min-width: 26px; }
+.form-spark { flex: none; width: 60px; height: 20px; }
+.form-spark svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.form-spark .player { fill: none; stroke: var(--color-accent-80); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+/* The board prints an average this way; so does Months. Fixed and right
+   aligned, because the column's label is wider than any figure under it and
+   an auto-width cell would put the two in different places. */
+.form-avg { flex: none; width: 52px; text-align: right; font-size: var(--text-md); font-weight: 700; }
+.form-delta { flex: none; width: 56px; margin: 0; text-align: right; font-size: 11px; font-weight: 700; }
+
+/* Everyone the board does not rank. Behind a disclosure because the front
+   page is about who is playing, and this list grows forever as people drift
+   away — but in the markup either way, which is one round trip and one
+   script fewer than asking the server for it. */
+.today-bench { margin-top: 12px; }
+.today-bench > summary {
+  display: inline-flex; align-items: center; gap: 5px;
+  list-style: none; cursor: pointer;
+  font-size: var(--text-xs); font-weight: 600; color: var(--color-text-50);
 }
-.podium-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
-.podium-figure { font-size: 1.9rem; font-weight: 500; margin: 0; font-variant-numeric: tabular-nums; letter-spacing: -.02em; white-space: nowrap; }
-.podium-figure .delta { font-size: var(--text-sm); margin-left: 6px; }
+.today-bench > summary::-webkit-details-marker { display: none; }
+.today-bench > summary:hover { color: var(--color-text-75); }
+.today-bench[open] > summary .chevron { transform: rotate(180deg); }
+.bench-rows .form-name { font-weight: 500; color: var(--color-text-55); }
+.bench-rows .form-avg { font-size: var(--text-xs); font-weight: 600; color: var(--color-text-40); }
 
-.podium-last-five { margin-top: 12px; }
-.podium-spark { display: block; width: 100%; height: 34px; margin-top: 10px; overflow: visible; }
-.podium-spark .player { fill: none; stroke: var(--color-accent-80); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-
+.today-form > .card-foot { margin-top: 14px; border-top: 1px solid var(--color-text-10); }
+.card > .today-form > .card-foot { margin-left: calc(var(--space-card) * -1); margin-right: calc(var(--space-card) * -1); }
 
 /* The explanation opens on tap and sits over the page rather than pushing
    the row apart. */
@@ -1641,11 +1736,71 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .month-thin { padding-top: 16px; padding-bottom: 20px; }
 
 @media (max-width: 720px) {
-  .today-hero { gap: 18px; }
-  .today-out { padding-left: 0; border-left: 0; }
-  .callouts { margin: 0; grid-template-columns: minmax(0, 1fr); }
   .months-table .bar-cell { display: none; }
+}
 
+/* Two columns, and the callouts as one strip between the header and both of
+   them. The results answer what happened and the form answers what it means;
+   side by side they are read together instead of one after a scroll.
+   1000px rather than the shell's own 860: at 860 with the rail out, the form
+   column loses the sparkline before it loses anything it could spare. */
+@media (min-width: 1000px) {
+  .today {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+    grid-template-areas:
+      "head     head"
+      "callouts callouts"
+      "results  form";
+  }
+  .today-head { grid-area: head; }
+  .today > .callouts { grid-area: callouts; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .today-results { grid-area: results; border-right: 1px solid var(--color-text-10); border-bottom: 0; }
+  .today-form { grid-area: form; }
+  .today > .empty { grid-area: form; }
+
+  /* The header's two groups, side by side: the day on the left, how far
+     through it the group is on the right. */
+  .today-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; }
+  .today-headline { flex: 1; }
+  .today-status { flex: none; width: 300px; }
+  .today-progress { margin-top: 0; max-width: none; }
+  .today-out .chips { justify-content: flex-end; }
+
+  .form-spark { width: 84px; }
+
+  /* The labels replace the phone's hint, and the heading loses its rule to
+     the row of labels under it. */
+  .today-list-head { border-bottom: 0; padding-bottom: 0; margin-bottom: 8px; }
+  .today-list-hint { display: none; }
+  .result-row.head, .form-row.head {
+    display: flex;
+    min-height: 0;
+    padding: 0 0 7px;
+    border-bottom: 1px solid var(--color-text-10);
+  }
+  /* The header cell for the score keeps the column's width and none of the
+     tile's drawing, which is why it never carries .cell. */
+  .result-row.head .result-score { height: auto; }
+  /* The trend column's label is a word, not a chart. */
+  .form-row.head .form-spark { height: auto; }
+
+  /* The design's own column spacing. */
+  .result-row { gap: 14px; }
+  .result-score { margin-right: 6px; }
+  .form-row { gap: 12px; }
+
+  /* Fixed columns for the figures, so they can be read down rather than each
+     being found first — and so each sits under the label that names it. The
+     widths are the longest label in any of the five languages, measured
+     rather than guessed. */
+  .result-figures { gap: 12px; }
+  .result-delta, .result-avg { width: 72px; text-align: right; }
+  .form-delta { width: 72px; }
+
+  /* The footnote is under the form column, which is half the card; without
+     this it would rule off half of it. */
+  .card > .today-form > .card-foot { margin-left: calc(var(--space-card) * -1); margin-right: calc(var(--space-card) * -1); }
 }
 
 /* ---- Sortable headers -------------------------------------------------- */
@@ -1660,7 +1815,8 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 }
 .board thead th a:hover { color: var(--color-text-80); }
 .board thead th.sorted { color: var(--color-text-80); }
-.board thead th.left a { justify-content: flex-start; }
+.board thead th.left a,
+.board thead th.rank-col a { justify-content: flex-start; }
 .board thead th.right a { justify-content: flex-end; }
 .sort-mark { font-size: 13px; line-height: 1; color: var(--color-accent); }
 
@@ -1831,22 +1987,11 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .rank-chart text { fill: var(--color-text-55); }
 .rank-chart .axis { fill: var(--color-text-35); }
 
-.bench-toggle { margin: 16px 0 0; }
-.bench { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
-.bench-card {
-  padding: 12px 16px;
-  border-radius: var(--radius-md);
-  border: 1px dashed var(--color-text-16);
-  min-width: 220px;
-}
-.bench-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.bench-card p { margin: 6px 0 0; }
-
-/* Desktop only, same as the board's reason chip (app.css, ~720px
-   breakpoint near .board-trait): there isn't room for the full-text
-   reason next to a name at phone width. */
+/* Desktop only, same as the board's reason chip (app.css, ~720px breakpoint
+   near .board-trait): there isn't room for the full-text reason next to a
+   name at phone width. */
 @media (max-width: 720px) {
-  .bench-head .chip-pop { display: none; }
+  .bench-rows .chip-pop { display: none; }
 }
 
 /* ---- Theme and language menus ------------------------------------------ */
@@ -2292,11 +2437,16 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 .season-table .mark-col {
   vertical-align: middle;
   width: 34px;
-  padding-left: 6px;
-  padding-right: 6px;
+  padding-left: var(--cell-gutter);
+  padding-right: var(--cell-gutter);
   text-align: center;
 }
 .season-table .mark-col:last-child { padding-right: var(--space-card); }
+/* No rank of its own — the season standings are ordered by wins, and wins
+   tie often enough that numbering them would claim an order that is not
+   there — so the column it does not have becomes the indent it shares. */
+.season-table th:first-child,
+.season-table td:first-child { padding-left: calc(var(--rank-col) + var(--cell-gutter)); }
 /* A block, not an inline box, and centred by its cell rather than by a line
    of text.
    It was inline-grid, which puts it on the text baseline — and a grid
