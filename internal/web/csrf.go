@@ -53,6 +53,14 @@ func (s *Server) issueCSRFToken(w http.ResponseWriter, r *http.Request) (string,
 		Secure:   s.secureCookies,
 		SameSite: http.SameSiteLaxMode,
 	})
+
+	// Remember it on the request too, so a second call while handling the
+	// same one returns this token rather than minting another. Two tokens in
+	// one response means two Set-Cookie headers, the browser keeps the last,
+	// and a form carrying the first is refused — which is what happened the
+	// moment the shell started issuing one for its sign-out form on pages
+	// whose handler already issued one for a form of their own.
+	r.AddCookie(&http.Cookie{Name: csrfCookieName, Value: token})
 	return token, nil
 }
 

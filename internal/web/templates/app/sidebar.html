@@ -28,11 +28,48 @@
 </a>
 {{end}}
 
+{{/* What this is, for someone who followed a link into it. A <details> like
+     every other disclosure here, so it opens with no script; the panel is
+     fixed and centred over the page, and the summary becomes the dim behind
+     it, which is what makes clicking away close it — see the same mechanic
+     on the drawer in topbar.html.
+
+     It carries the privacy notice and the source, which is where those two
+     links went when the page footer came off. name="about" rather than
+     "topbar-menu": the rail and the drawer each render one of these, so
+     only one can be open, but opening it from inside the drawer must not
+     close the drawer it lives in. */}}
+{{define "about"}}
+<details class="about" name="about">
+  <summary class="nav-row nav-about" title="{{.T.T "about.title"}}">
+    {{template "help-icon" .}}
+    <span class="nav-label">{{.T.T "nav.help"}}</span>
+  </summary>
+  <div class="about-panel" role="group" aria-label="{{.T.T "about.title"}}">
+    <h2 class="about-title">{{.T.T "about.title"}}</h2>
+    <p class="about-body">{{.T.T "about.body1"}}</p>
+    <p class="about-body">{{.T.T "about.body2"}}</p>
+    <div class="about-links">
+      <a class="about-link" href="/privacy">
+        {{template "shield-icon" .}}
+        {{.T.T "footer.privacy"}}
+      </a>
+      <a class="about-link" href="https://github.com/martinstenrose/wordleland">
+        {{template "github-icon" .}}
+        {{.T.T "footer.github"}}
+      </a>
+    </div>
+  </div>
+</details>
+{{end}}
+
 {{define "sidebar"}}
 <nav class="sidebar" aria-label="{{.T.T "nav.views"}}">
   {{/* No wordmark here: it sits in the bar above, where it stays put at every
        width. The rail is only ever navigation. */}}
   <div class="nav-rows">{{template "sidebar-rows" .}}</div>
+
+  {{template "about" .}}
 
   {{/* Pinned to the bottom. Absent from the drawer, where the rail is already
        at its full width and there is nothing to collapse — see the rule in

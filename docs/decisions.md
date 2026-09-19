@@ -704,3 +704,42 @@ application; signal-cli-rest-api's own container log already carries the
 full envelope for as long as that container lives, and that is the right
 place for it to exist, not a second copy with a different lifetime and a
 different set of hands with access to it.
+
+## The admin area's settings screen is read-only, and says so per row
+
+`internal/web/admin_settings.go` shows every environment variable the code
+reads, with what it came to — values in force rather than what was typed, so
+a default that is doing the work says so. It changes none of them, and it
+never will: these are read where the process is started, and a screen that
+let an admin type over one would be writing somewhere the next restart does
+not read. A lock icon trails each row rather than heading the table, because
+a row read on its own has to say so too.
+
+Secrets are reported, never shown: `config.Setting` carries a *kind* — unset,
+a value, a secret, on, off — and the words for those live in the catalogues,
+because this package has no translator and should not grow one.
+
+The two Signal identifiers are masked here and printed whole on Diagnostics.
+That is not a contradiction. Diagnostics exists to be compared by eye against
+what `signal-cli` reports, which is the failure it was built to catch; this
+screen exists to answer "what is configured", and a phone number left on a
+screen nobody is reading it for is personal data with no reason to be there.
+
+## The board's languages are files, not a list in code
+
+`internal/i18n` reads whatever is in `locales/`, and the picker puts English
+first and sorts the rest, so adding a language is adding a file. What was not
+free is number formatting: it was a Swedish special case — comma before the
+fraction, space between thousands — and German, Spanish and Italian all want
+a comma too, grouped with a full stop. That is a table of locale to
+separators now. English stays ungrouped, which predates all of this: the
+numbers it mostly formats are puzzle numbers, and `1918` reads better than
+`1,918`.
+
+Two tests in that package earn their place once there is more than one
+translation to keep in step. A key English has and a translation does not
+falls back silently — one English sentence in the middle of a Swedish page,
+nothing failing, nothing logged, noticed only by somebody reading that page
+in that language. And `fmt` verbs are positional, so a translation carrying a
+different set of them either drops an argument or prints `%!d(MISSING)` onto
+the page.

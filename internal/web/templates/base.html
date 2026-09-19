@@ -33,12 +33,16 @@
     {{template "sidebar" .}}
     <div class="shell-main">
       <main id="main">{{block "content" .}}{{end}}</main>
-      {{template "site-footer" .}}
     </div>
   </div>
 {{else}}
   {{/* No shell: an error page, which is chrome for a stranger. See the Shell
-       field's comment in chrome.go. */}}
+       field's comment in chrome.go.
+
+       The footer lives here and nowhere else. Every page inside the shell
+       carries these two links in the About panel at the foot of the rail;
+       this page has no rail, and leaving a stranger on a 404 with no way to
+       the privacy notice or the source is not a saving worth making. */}}
   <main id="main">{{template "content" .}}</main>
   {{template "site-footer" .}}
 {{end}}

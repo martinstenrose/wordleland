@@ -30,7 +30,7 @@ func postAdmin(t *testing.T, srv *Server, path string, form url.Values, session 
 	// The token comes from a page that renders a form, which is not always
 	// the path being posted to: an action like /invite is POST-only.
 	source := path
-	for _, action := range []string{"/invite", "/assign", "/discard"} {
+	for _, action := range []string{"/invite", "/assign", "/discard", "/slug"} {
 		if i := strings.Index(path, action); i > 0 {
 			source = path[:i]
 		}
@@ -46,7 +46,7 @@ func postAdmin(t *testing.T, srv *Server, path string, form url.Values, session 
 		}
 	}
 	if csrf == nil {
-		t.Fatalf("GET %s issued no CSRF cookie", path)
+		t.Fatalf("GET %s issued no CSRF cookie", source)
 	}
 	form.Set(csrfFieldName, csrf.Value)
 

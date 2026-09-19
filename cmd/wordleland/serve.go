@@ -223,6 +223,7 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 		return err
 	}
 	srv.SetBridge(supervisor)
+	srv.SetBridgeConfig(bridgeCfg)
 
 	httpSrv := &http.Server{
 		Addr:              addr,

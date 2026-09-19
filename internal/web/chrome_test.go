@@ -196,11 +196,11 @@ func TestAccountMenuOnlyForSignedInUsers(t *testing.T) {
 	if !strings.Contains(adminBody, "admin@example.tld") {
 		t.Error("the account menu does not show which account is signed in")
 	}
-	if !strings.Contains(adminBody, `href="/admin/players"`) {
+	if !strings.Contains(adminBody, `href="/admin/settings"`) {
 		t.Error("an admin has no link to the admin area")
 	}
 
-	if body := as(ordinary); strings.Contains(body, `href="/admin/players"`) {
+	if body := as(ordinary); strings.Contains(body, `href="/admin/settings"`) {
 		t.Error("a non-admin is offered the admin area")
 	}
 }
@@ -426,10 +426,11 @@ func TestPopupPositioningScriptIsWiredUpAndScoped(t *testing.T) {
 	}
 }
 
-// The link lives once in "base", so this is really a test that every page
-// renders through it — signed out, signed in, admin, and the read-only
-// share view alike — rather than a test of the link itself.
-func TestEveryPageHasTheGitHubFooterLink(t *testing.T) {
+// The two links live once each — in the About panel at the foot of the rail
+// for a page inside the shell, and in the footer for an error page, which has
+// no rail. So this is really a test that every page renders through one of
+// those — signed out, signed in, admin, and the read-only share view alike.
+func TestEveryPageReachesPrivacyAndTheSource(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -450,8 +451,59 @@ func TestEveryPageHasTheGitHubFooterLink(t *testing.T) {
 	} {
 		body := fetchAs(t, srv, p.path, p.cookie).Body.String()
 		if !strings.Contains(body, want) {
-			t.Errorf("%s: no GitHub footer link", p.path)
+			t.Errorf("%s: no link to the source", p.path)
 		}
+		if !strings.Contains(body, `href="/privacy"`) {
+			t.Errorf("%s: no link to the privacy notice", p.path)
+		}
+	}
+}
+
+// What this is, for someone who followed a link into it. It replaces the page
+// footer, so it has to be on every page inside the shell and to open without a
+// script — the same <details> the drawer and the menus are.
+func TestTheAboutPanelIsOnEveryShellPageAndNeedsNoScript(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	session := signIn(t, srv, admin.ID)
+
+	for _, p := range []struct {
+		path   string
+		cookie *http.Cookie
+	}{
+		{path: "/"},
+		{path: "/share/" + slug + "/"},
+		{path: "/leaderboard", cookie: session},
+		{path: "/admin/settings", cookie: session},
+	} {
+		body := fetchAs(t, srv, p.path, p.cookie).Body.String()
+		if !strings.Contains(body, `<details class="about" name="about">`) {
+			t.Errorf("%s: no About panel", p.path)
+			continue
+		}
+		if !strings.Contains(body, "About Wordleland") {
+			t.Errorf("%s: the About panel says nothing about what this is", p.path)
+		}
+		// The rail renders one and the drawer renders the other, sharing a
+		// name so only one can be open — and so that opening the drawer's
+		// does not close the drawer it lives in, which a shared group with
+		// the drawer would.
+		if got := strings.Count(body, `<details class="about" name="about">`); got != 2 {
+			t.Errorf("%s: %d About panels, want one in the rail and one in the drawer", p.path, got)
+		}
+	}
+
+	// And the footer it replaces is gone from inside the shell, so the two
+	// links are in one place rather than two.
+	shell := fetchAs(t, srv, "/leaderboard", session).Body.String()
+	if strings.Contains(shell, `class="site-footer"`) {
+		t.Error("the page footer is still rendered inside the shell")
+	}
+	// It stays on an error page, which has no rail to carry them.
+	if !strings.Contains(fetchAs(t, srv, "/no/such/page", nil).Body.String(), `class="site-footer"`) {
+		t.Error("an error page has neither a rail nor a footer, so it reaches nothing")
 	}
 }
 

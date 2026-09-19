@@ -37,6 +37,14 @@ type Server struct {
 	// page; it never drives it.
 	bridge Bridge
 
+	// bridgeCfg is what the environment asked the bridge to be, nil when
+	// none is configured. Separate from bridge because they answer
+	// different questions: bridge is what is running now, this is what was
+	// configured, and the admin area's settings page is about the second.
+	// Config belongs here rather than in Config itself because that is
+	// where it is loaded — see config.LoadBridge.
+	bridgeCfg *config.Bridge
+
 	// secureCookies marks cookies Secure.
 	//
 	// It is derived from APP_URL's scheme rather than being its own setting,
@@ -141,4 +149,11 @@ func (s *Server) SetBridge(b Bridge) {
 		return
 	}
 	s.bridge = b
+}
+
+// SetBridgeConfig attaches the bridge's configuration, for the admin area's
+// settings page. Passing nil, or not calling it, means no bridge is
+// configured — which is a valid deployment, not a fault.
+func (s *Server) SetBridgeConfig(cfg *config.Bridge) {
+	s.bridgeCfg = cfg
 }

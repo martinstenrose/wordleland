@@ -82,6 +82,12 @@
   --color-accent-22: oklch(.68 .14 155 / .22);
   --color-accent-14: oklch(.68 .14 155 / .14);
 
+  /* Two steps of the danger hue, for the one place a warning needs a
+     ground of its own rather than red ink on the page's: the question
+     asked before something that cannot be undone. */
+  --color-danger-40: oklch(.65 .15 25 / .4);
+  --color-danger-08: oklch(.65 .15 25 / .08);
+
   /* Score ramp: the fill behind a guess count, one step per guess, plus
      --score-x for a miss. The design system draws it light-first and opaque,
      stepping one hue from a solved-in-1 down to a near-canvas tint; this is
@@ -197,6 +203,8 @@
   --color-accent-45: oklch(.55 .13 155 / .45);
   --color-accent-22: oklch(.55 .13 155 / .22);
   --color-accent-14: oklch(.55 .13 155 / .14);
+  --color-danger-40: oklch(.55 .15 25 / .4);
+  --color-danger-08: oklch(.55 .15 25 / .08);
 }
 
 /* "system" is a stored choice, not the absence of one, so the attribute on
@@ -253,6 +261,8 @@
     --color-accent-45: oklch(.55 .13 155 / .45);
     --color-accent-22: oklch(.55 .13 155 / .22);
     --color-accent-14: oklch(.55 .13 155 / .14);
+    --color-danger-40: oklch(.55 .15 25 / .4);
+    --color-danger-08: oklch(.55 .15 25 / .08);
   }
 }
 
@@ -329,14 +339,110 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   border-radius: var(--radius-md);
   color: var(--color-text-60);
   text-decoration: none;
-  font-size: var(--text-sm);
+  /* The body size, as the design has it. A step down read as a caption
+     rather than as the application's navigation, and on a phone — where the
+     drawer is the only navigation there is — as small. */
+  font-size: var(--text-base);
   font-weight: 500;
   white-space: nowrap;
 }
 .nav-row:hover { background: var(--color-text-06); color: var(--color-text); }
 .nav-row.on { background: var(--color-accent-14); color: var(--color-accent-strong); font-weight: 600; }
 .nav-row .nav-icon { flex: none; }
-.nav-collapse { margin-top: auto; color: var(--color-text-45); }
+/* Help sits above Collapse, both pushed to the foot of the rail. The margin
+   is on this one now: it is the first of the pair. */
+.about { margin-top: auto; }
+.about > summary { list-style: none; cursor: pointer; }
+.about > summary::-webkit-details-marker { display: none; }
+.nav-about { color: var(--color-text-45); }
+.nav-collapse { color: var(--color-text-45); }
+
+/* Open, the summary becomes the dim behind the panel, so clicking away is
+   clicking the control again — the same mechanic the drawer uses, and for
+   the same reason: no script, and no second close control to keep in step
+   with the first. Esc does not close a <details>, which is the honest cost
+   of that and the reason this is not marked up as a dialog. */
+.about[open] > summary::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 420;
+  background: oklch(0 0 0 / .4);
+}
+.about-panel {
+  position: fixed;
+  z-index: 430;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 22px 24px;
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  border: 1px solid var(--color-text-10);
+  box-shadow: var(--shadow-elevated);
+  white-space: normal;
+}
+.about-title { margin: 0 0 8px; font-size: var(--text-lg); font-weight: 700; letter-spacing: -.01em; }
+.about-body { margin: 0 0 10px; font-size: var(--text-sm); color: var(--color-text-55); line-height: 1.6; }
+.about-links { display: flex; gap: 8px; margin-top: 18px; }
+.about-link {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-text-12);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  text-decoration: none;
+}
+.about-link:hover { background: var(--color-text-06); }
+.about-link svg { flex: none; }
+
+/* An outcome raised to the middle of the screen. Built by app.js from the
+   note the server rendered, so nothing here has a no-script counterpart to
+   keep in step: with the script absent the note stays a note and these rules
+   match nothing at all. */
+.raised-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: oklch(0 0 0 / .4);
+}
+.raised-panel {
+  width: min(380px, 100%);
+  padding: 20px 22px;
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  border: 1px solid var(--color-text-10);
+  box-shadow: var(--shadow-elevated);
+}
+.raised-body { margin: 0 0 18px; font-size: var(--text-sm); color: var(--color-text-55); line-height: 1.6; }
+.raised-close {
+  display: block;
+  margin-left: auto;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  height: 34px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  cursor: pointer;
+}
+.raised-close:hover { background: var(--color-accent-strong); }
+.raised-close:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 2px; }
 /* The control says what pressing it will do, so the half that describes the
    width already in force is the half to hide. Keyed off <html> rather than
    rendered by the server, so app.js flipping that attribute is enough to
@@ -554,8 +660,10 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
     width: min(260px, 78vw);
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 12px 14px;
+    /* More room than the rail's: the drawer is a panel of its own with
+       nothing else in it, where the rail shares its column with the mark. */
+    gap: 4px;
+    padding: 20px 16px;
     background: var(--color-surface);
     border-right: 1px solid var(--color-text-10);
     overflow-y: auto;
@@ -563,6 +671,11 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   /* The drawer is already at its full width, so there is nothing here to
      collapse. */
   .drawer-panel .nav-collapse { display: none; }
+  /* The drawer's Help row sits at its foot, above nothing. Its panel is
+     fixed and centred like the rail's, so the drawer stays open behind the
+     dim — which is what the reader expects to come back to. */
+  .drawer-panel .about { margin-top: auto; }
+  .drawer-panel .about[open] > summary::after { top: 0; }
   /* Holds the page still behind an open drawer. Where :has() is not
      understood the page scrolls behind it, which is untidy and not broken. */
   body:has(.drawer[open]) { overflow: hidden; }
@@ -580,6 +693,12 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 }
 .muted { color: var(--color-text-50); }
 .small { font-size: 11px; }
+/* A note under the thing it is about. It had rules only inside a form, a
+   panel and a pending row, so the same class on a plain section — Settings'
+   "no player is linked" line among them — was drawn at body size in body ink
+   and read as content rather than as a note. The three narrower rules still
+   win where they apply. */
+.hint { margin: 0; font-size: var(--text-sm); color: var(--color-text-45); }
 
 .link {
   background: none; border: 0; padding: 0; cursor: pointer;
@@ -754,6 +873,17 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
      the whole shell, which on a phone left the bar floating in a margin with
      a rule down both sides of it instead of sitting across the top. */
   main { padding: 16px 12px 30px; }
+  /* The mode picker takes the whole row, so the two toggles land on the next
+     one together. They are a pair — the second only means anything while the
+     first is on — and wrapping between them read as one stray control. */
+  /* A grid rather than a wrapping flex row: where the wrap falls is the
+     whole point here, and flex decides that from the widths it is given. */
+  .controls {
+    display: grid;
+    grid-template-columns: max-content max-content;
+    justify-content: start;
+  }
+  .controls .seg { grid-column: 1 / -1; justify-self: start; }
   .board th, .board td { padding: 9px 12px; }
   .spark-col { display: none; }
   .window-col { display: none; }
@@ -770,6 +900,11 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   color: var(--color-text-50);
   font-weight: 600;
   margin: 28px 0 12px;
+}
+/* The first heading under a card's own head needs no space above it: the
+   head's rule is already the separation. */
+.section.flush {
+  margin-top: 0;
 }
 
 .player-head {
@@ -1330,6 +1465,11 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   padding: 0 var(--space-card);
   overflow-x: auto;
   scroll-snap-type: x proximity;
+  /* The gutter survives scrolling. Padding alone only holds the first box off
+     the card's edge while the strip is at rest: scroll it and whatever box
+     snaps to the start sits flush against the edge, which is the version of
+     this anyone who actually uses the strip sees. */
+  scroll-padding-inline: var(--space-card);
   scrollbar-width: thin;
 }
 /* Sized by what is in them, with a floor — a row of small boxes, as the
@@ -2063,10 +2203,98 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 }
 .avatar.big { width: 44px; height: 44px; font-size: 1rem; }
 .settings-name { font-size: var(--text-lg); font-weight: 600; letter-spacing: -.015em; }
+/* A column of tabs beside the panel, as the design has it. The card's own
+   gutter comes off here: the divider between the two has to reach the card's
+   edges, so each side carries its own padding instead. */
+.card > .settings-split {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  padding-left: 0;
+  padding-right: 0;
+}
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 12px;
+  border-right: 1px solid var(--color-text-08);
+}
+.settings-tab {
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--color-text-50);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.settings-tab:hover { background: var(--color-text-06); color: var(--color-text); }
+.settings-tab.on { background: var(--color-surface-raised); color: var(--color-text); font-weight: 600; }
+.settings-panel { padding: 22px var(--space-card); }
+/* The forms have a column of their own now, so the old width cap would
+   narrow them twice. */
+.settings-panel .form { max-width: 26rem; }
+/* A form that opens a tab, with no heading above it to space it off. */
+.settings-panel .form.flush { margin-top: 0; }
+
+@media (max-width: 860px) {
+  /* The column becomes a strip across the top: 190px of tabs beside a form
+     leaves neither enough room on a phone. */
+  .card > .settings-split { grid-template-columns: minmax(0, 1fr); }
+  .settings-nav {
+    flex-direction: row;
+    gap: 4px;
+    padding: 10px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-text-08);
+    overflow-x: auto;
+    scroll-padding-inline: 12px;
+    scrollbar-width: thin;
+  }
+  .settings-tab { flex: none; }
+}
+
 .settings-section { padding-top: 6px; padding-bottom: 22px; border-bottom: 1px solid var(--color-text-08); }
 .settings-section:last-child { border-bottom: 0; }
 .settings-section .form { max-width: 26rem; }
 .settings-state { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; }
+
+/* The admin area's settings screen.
+   The share link, with the origin sitting back so the slug reads as the
+   thing: the origin is the same on every installation's screen, the slug is
+   what this one has. */
+.slug-line {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 0 0 8px;
+  padding: 9px 11px;
+  border: 1px solid var(--color-text-10);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.slug-line code { font-weight: 600; }
+
+/* The question asked before a rotation, drawn as its own block so it is
+   plainly a step rather than another paragraph. Not a dialog: nothing is
+   trapped here and nothing is behind it — the page simply shows the
+   question until it is answered or left. */
+.confirm {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-danger-40);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-08);
+}
+.confirm-title { margin: 0 0 4px; font-size: var(--text-sm); font-weight: 600; }
+.confirm .actions { margin-top: 14px; }
+
+/* Values that cannot be typed over. The lock trails each one rather than
+   heading the table, so a row read on its own still says so. */
+.env-fields dd { display: flex; align-items: center; gap: 8px; }
+.env-value { min-width: 0; overflow-wrap: anywhere; }
+.env-lock { flex: none; display: flex; color: var(--color-text-35); }
 .badge.on {
   background: var(--color-accent-14);
   border-color: transparent;
@@ -2313,6 +2541,23 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 .invite-form { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--color-text-08); }
 .inline-field { display: flex; gap: 8px; }
 .inline-field input { flex: 1; min-width: 0; }
+/* A link that is an action. The rotate control is a link because its first
+   press only changes what the page shows — the question — and a form that
+   submitted nothing would be the wrong element for that. It has to look like
+   the button it stands beside all the same. */
+.actions a.secondary {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.actions button.danger {
+  color: var(--score-x-ink);
+  background: var(--color-danger);
+  border-color: transparent;
+}
+.actions button.danger:hover { background: var(--color-danger); filter: brightness(1.06); }
+
+.actions a.secondary,
 .actions button.secondary,
 .inline-field button {
   font: inherit;
