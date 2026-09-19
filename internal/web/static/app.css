@@ -387,8 +387,11 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
    would be a click spent on nothing. */
 .theme-track {
   display: inline-flex;
+  align-items: center;
   gap: 2px;
-  padding: 2px;
+  height: 32px;
+  box-sizing: border-box;
+  padding: 1px;
   border-radius: var(--radius-pill);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-text-12);
@@ -431,7 +434,7 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
    draws are a blue-and-yellow cross and a blue-and-red one, and at 16px
    telling them apart is a second look; the code is not. The flags stay in
    the menu below, where there is room to read them. */
-.lang-btn {
+.topbar-controls .lang-btn {
   height: 32px;
   gap: 6px;
   padding: 0 10px;
@@ -439,7 +442,7 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   background: var(--color-surface-raised);
   border-color: var(--color-text-12);
 }
-.lang-btn:hover { background: var(--color-text-08); }
+.topbar-controls .lang-btn:hover { background: var(--color-text-08); }
 .lang-code {
   font-size: var(--text-xs);
   font-weight: 600;
@@ -977,24 +980,15 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
    The artboard floats this as a fixed chip; here it sits in the topbar,
    which is where the home link already was. */
-.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--color-text); }
-.brand:hover .mark { border-color: var(--color-accent-60); }
+.brand { display: inline-flex; align-items: center; gap: 9px; text-decoration: none; color: var(--color-text); }
+.brand:hover .mark-plate { stroke: var(--color-accent-60); }
 
-.mark {
-  display: grid;
-  grid-template-columns: repeat(3, 8px);
-  grid-template-rows: repeat(3, 8px);
-  gap: 2.5px;
-  padding: 4px;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-text-08);
-  flex: none;
-}
-.mark i { border-radius: var(--radius-xs); background: var(--color-text-08); border: 1px solid var(--color-text-06); }
-.mark i:nth-child(1) { background: var(--score-3); border-color: transparent; }
-.mark i:nth-child(5) { background: var(--score-2); border-color: transparent; }
-.mark i:nth-child(9) { background: var(--score-1); border-color: transparent; }
+.mark { display: block; flex: none; }
+.mark-plate { fill: var(--color-surface-raised); stroke: var(--color-text-08); }
+.mark rect { fill: var(--color-text-08); }
+.mark .t3 { fill: var(--score-3); }
+.mark .t2 { fill: var(--score-2); }
+.mark .t1 { fill: var(--score-1); }
 
 /* ---- Chrome: switchers and the account menu --------------------------- */
 
@@ -1111,8 +1105,24 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 /* ---- View switcher ---------------------------------------------------- */
 
-.brand-id { display: flex; flex-direction: column; line-height: var(--line-tight); }
-.brand-sub { font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; color: var(--color-text-45); }
+/* The wordmark carries the weight the design gives it — extrabold over a
+   semibold line of small caps. It was one step of medium for both, which at
+   this size read as a label rather than as the name of the thing. */
+.brand-id { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.brand-id > span:first-child {
+  font-size: var(--text-md);
+  font-weight: 800;
+  letter-spacing: -.015em;
+  line-height: 1.15;
+}
+.brand-sub {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--color-text-45);
+  white-space: nowrap;
+}
 
 .views { display: contents; }
 
