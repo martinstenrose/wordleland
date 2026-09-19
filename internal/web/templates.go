@@ -152,19 +152,24 @@ type errorPage struct {
 // renderError shows a plain error page. Messages are deliberately generic:
 // nothing here should tell an unauthenticated visitor whether a given path,
 // slug or account exists.
+//
+// Three messages, not one per status: a bad request and a server fault both
+// say "something went wrong", because what a reader can do about either is
+// the same — nothing — and a title naming the fault would only be read by
+// somebody probing. The words come from the catalogue like every other
+// sentence on the site; this page had been the one that spoke English to
+// everybody, which four languages made a fault rather than a habit.
 func (s *Server) renderError(w http.ResponseWriter, r *http.Request, status int) {
-	title := http.StatusText(status)
-	if title == "" {
-		title = "Error"
-	}
-	msg := "Something went wrong."
+	kind := "generic"
 	switch status {
 	case http.StatusNotFound:
-		msg = "There is nothing at this address."
+		kind = "notFound"
 	case http.StatusForbidden:
-		msg = "You do not have access to this page."
+		kind = "forbidden"
 	}
 	ch := s.newChrome(w, r, "", "", true)
+	title := ch.T.T("error." + kind + ".title")
+	msg := ch.T.T("error." + kind + ".body")
 	// No frame at all. An error page is chrome for a stranger — renderError
 	// builds it with readOnly:true for any visitor, signed in or not — and
 	// wrapping "there is nothing at this address" in the whole navigation

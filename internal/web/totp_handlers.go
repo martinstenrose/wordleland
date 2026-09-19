@@ -206,7 +206,7 @@ func (s *Server) handleEnrolTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 	// just by editing a settings field.
 	if !s.limiter.Allow("totp:user:"+strconv.FormatInt(user.ID, 10), "totp:ip:"+auth.ClientIP(r, s.cfg.TrustedProxies)) {
 		s.renderEnrolError(w, r, http.StatusTooManyRequests,
-			s.translatorFor(w, r).T("settings.error.tooMany"))
+			s.translatorFor(w, r).T("enrol.error.tooMany"))
 		return
 	}
 
@@ -232,7 +232,7 @@ func (s *Server) handleEnrolTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 	step, err := auth.ValidateTOTP(string(secret), strings.TrimSpace(r.PostFormValue("code")), time.Now())
 	if err != nil {
 		s.renderEnrolError(w, r, http.StatusUnauthorized,
-			"That code is not right. Check your authenticator app and try again.")
+			s.translatorFor(w, r).T("enrol.error.wrong"))
 		return
 	}
 
@@ -317,7 +317,7 @@ func (s *Server) handleTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 	// brute-forceable in an afternoon.
 	if !s.limiter.Allow("totp:user:"+strconv.FormatInt(user.ID, 10), "totp:ip:"+auth.ClientIP(r, s.cfg.TrustedProxies)) {
 		s.renderTOTPError(w, r, http.StatusTooManyRequests,
-			s.translatorFor(w, r).T("settings.error.tooMany"))
+			s.translatorFor(w, r).T("totp.error.tooMany"))
 		return
 	}
 
@@ -338,7 +338,7 @@ func (s *Server) handleTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 
 	step, err := auth.ValidateTOTP(string(secret), strings.TrimSpace(r.PostFormValue("code")), time.Now())
 	if err != nil {
-		s.renderTOTPError(w, r, http.StatusUnauthorized, "That code is not right.")
+		s.renderTOTPError(w, r, http.StatusUnauthorized, s.translatorFor(w, r).T("totp.error.wrong"))
 		return
 	}
 
@@ -347,7 +347,7 @@ func (s *Server) handleTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 	if err := store.RecordTOTPStep(r.Context(), s.db, user.ID, step); err != nil {
 		if errors.Is(err, store.ErrCodeReplayed) {
 			s.renderTOTPError(w, r, http.StatusUnauthorized,
-				"That code has already been used. Wait for your app to show the next one.")
+				s.translatorFor(w, r).T("totp.error.reused"))
 			return
 		}
 		s.logger.Error("record totp step", "error", err)
@@ -455,7 +455,7 @@ func (s *Server) verifyEnrolPassword(w http.ResponseWriter, r *http.Request, use
 		"settings-password:ip:"+clientIP) {
 		s.logger.Warn("two-factor replacement rate limited", "ip", clientIP)
 		s.renderEnrolError(w, r, http.StatusTooManyRequests,
-			s.translatorFor(w, r).T("settings.error.tooMany"))
+			s.translatorFor(w, r).T("enrol.error.tooMany"))
 		return false
 	}
 

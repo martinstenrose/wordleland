@@ -113,7 +113,7 @@ func (s *Server) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
 	if !s.limiter.Allow("login:user:"+store.NormalizeEmail(email), "login:ip:"+clientIP) {
 		s.logger.Warn("login rate limited", "ip", clientIP)
 		s.renderLoginError(w, r, http.StatusTooManyRequests, email,
-			"Too many attempts. Please wait a few minutes and try again.")
+			s.translatorFor(w, r).T("signin.error.tooMany"))
 		return
 	}
 
@@ -126,7 +126,7 @@ func (s *Server) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
 			s.logger.Error("authenticate", "error", err)
 		}
 		s.renderLoginError(w, r, http.StatusUnauthorized, email,
-			"That email address and password do not match.")
+			s.translatorFor(w, r).T("signin.error.credentials"))
 		return
 	}
 

@@ -175,12 +175,12 @@ func (s *Server) handleResetPasswordSubmit(w http.ResponseWriter, r *http.Reques
 		return
 	case password != confirm:
 		s.renderReset(w, r, http.StatusBadRequest, resetPage{
-			Token: token, Error: "The two passwords do not match."})
+			Token: token, Error: s.translatorFor(w, r).T("reset.error.mismatch")})
 		return
 	case len([]rune(password)) < auth.MinPasswordLength:
 		s.renderReset(w, r, http.StatusBadRequest, resetPage{
 			Token: token,
-			Error: fmt.Sprintf("Please choose a password of at least %d characters.", auth.MinPasswordLength)})
+			Error: s.translatorFor(w, r).T("reset.error.short", auth.MinPasswordLength)})
 		return
 	}
 
