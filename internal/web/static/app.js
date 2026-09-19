@@ -651,7 +651,7 @@ var onPageChange = (function () {
     var items = focusables();
     // The close button is items[0] and is not what somebody came here to
     // use; the field after it is.
-    (items[1] || items[0] || card).focus();
+    (items[1] || items[0] || card).focus({ preventScroll: true });
     return true;
   }
 
@@ -854,7 +854,11 @@ var onPageChange = (function () {
     // tabindex only for as long as the focus lasts, so the region never
     // becomes a tab stop of its own.
     main.setAttribute("tabindex", "-1");
-    main.focus();
+    // preventScroll, or focusing the region scrolls it to the top of the
+    // window — and the bar above it is sticky, so every page switched in
+    // arrived with the bar already scrolled away and the reader 56px down a
+    // page they had not touched.
+    main.focus({ preventScroll: true });
     main.addEventListener("blur", function () { main.removeAttribute("tabindex"); }, { once: true });
   }
 
@@ -874,7 +878,7 @@ var onPageChange = (function () {
         if (!menu) return false;
         menu.open = true;
         var row = menu.querySelectorAll(".ranking-panel a")[index];
-        if (row) row.focus();
+        if (row) row.focus({ preventScroll: true });
         return true;
       };
     }
@@ -885,7 +889,7 @@ var onPageChange = (function () {
       return function () {
         var bar = document.querySelector("details.switcher > summary");
         if (!bar) return false;
-        bar.focus();
+        bar.focus({ preventScroll: true });
         return true;
       };
     }
@@ -900,7 +904,7 @@ var onPageChange = (function () {
         var rows = document.querySelectorAll(".sidebar a[href], .drawer a[href]");
         for (var i = 0; i < rows.length; i++) {
           if (rows[i].getAttribute("href") === href && rows[i].getClientRects().length) {
-            rows[i].focus();
+            rows[i].focus({ preventScroll: true });
             return true;
           }
         }

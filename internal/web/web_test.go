@@ -820,3 +820,43 @@ func TestADestructiveActAsksBeforeItActs(t *testing.T) {
 		t.Errorf("setting a first secret up is toned as destructive: %s", opener)
 	}
 }
+
+// Switching a page in leaves the reader at the top of it, with the bar still
+// on screen.
+//
+// The page switcher moves focus to the main region so that a reader who
+// cannot see the page is told it changed. Focusing an element scrolls it into
+// view, and the bar above this one is sticky — so every switched-in page
+// arrived 56px down, with the bar scrolled away, on a page nobody had
+// touched. It was invisible on the two views short enough not to scroll,
+// which is what made it look like a bug in the other five.
+//
+// Focus without scroll is the whole fix, and this pins it because nothing
+// that runs in CI can see a scroll position.
+func TestSwitchingAPageLeavesItAtTheTop(t *testing.T) {
+	srv := testServer(t)
+	js := fetchAs(t, srv, "/static/app.js", nil).Body.String()
+
+	// Scoped to the switcher: everywhere else a focus is meant to bring its
+	// target into view — a dialog's close button, the next control a trapped
+	// Tab reaches, the button a closing overlay hands focus back to.
+	at := strings.Index(js, "// Switching pages without the flash.")
+	if at < 0 {
+		t.Fatal("the page switcher is gone")
+	}
+	switcher := js[at:]
+
+	if !strings.Contains(switcher, "main.focus({ preventScroll: true })") {
+		t.Error("the main region is focused with a scroll, which drags the sticky bar off screen")
+	}
+	for _, line := range strings.Split(switcher, "\n") {
+		if strings.Contains(line, ".focus()") {
+			t.Errorf("a focus that scrolls the page: %s", strings.TrimSpace(line))
+		}
+	}
+	// Four: the region, and the three controls the switcher aims at instead
+	// — a ranking row, a section bar, a rail row.
+	if n := strings.Count(switcher, "preventScroll: true"); n != 4 {
+		t.Errorf("%d of the switcher's focus calls prevent scrolling, want 4", n)
+	}
+}
