@@ -19,3 +19,7 @@
 
 # macOS Finder metadata, which it drops into any directory somebody opens.
 .DS_Store
+
+# Claude Code keeps worktrees and per-session state here. None of it is
+# this project.
+.claude/
