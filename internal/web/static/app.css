@@ -563,7 +563,6 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 .card > table,
 .card > .table-scroll,
 .card > .callouts,
-.card > .month-chips,
 .card > .panels,
 .card > .admin-split,
 .card > .grid-wrap,
@@ -1271,12 +1270,16 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 /* A row of separate cards rather than tiles on a shared slab. The slab was a
    1px-gap background standing in for dividers, which with two months in the
    season showed as an empty grey band across the rest of the card. */
+/* The gutter is on the row itself rather than inherited from .card > *,
+   because this row scrolls: padding on the scroll container holds at both
+   ends of the scroll, where a parent's padding would leave the first chip
+   flush against the card's edge as soon as it moved. */
 .month-chips {
   display: flex;
   gap: 8px;
   list-style: none;
   margin: 16px 0 0;
-  padding: 0;
+  padding: 0 var(--space-card);
   overflow-x: auto;
   scroll-snap-type: x proximity;
   scrollbar-width: thin;
