@@ -1401,3 +1401,27 @@ func TestTheMonthsTopThreeAreColouredForAPhone(t *testing.T) {
 		}
 	}
 }
+
+// A month's mark is a block that its cell centres, never an inline box.
+//
+// It was inline-grid, which puts a box on the text baseline — and a grid
+// container's baseline comes from its own content, so a ★ (which falls out of
+// Manrope to whatever the system has) and a place in an outlined month sat at
+// different heights. Two marks in the same row, in cells of identical height,
+// came out 5.4px apart, and a grid of places read as a grid that had slipped.
+func TestASeasonMarkIsNotAlignedOnTheTextBaseline(t *testing.T) {
+	srv := testServer(t)
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+
+	cell := cssRule(t, css, ".mark-cell {")
+	if strings.Contains(cell, "inline-grid") || strings.Contains(cell, "inline-flex") {
+		t.Error("the mark is an inline box again, so its content decides its height in the row")
+	}
+	if !strings.Contains(cell, "margin: 0 auto") {
+		t.Error("the mark is a block with nothing centring it across its cell")
+	}
+	col := cssRule(t, css, ".season-table .mark-col {")
+	if !strings.Contains(col, "vertical-align: middle") {
+		t.Error("the cell does not centre the mark down its own height")
+	}
+}

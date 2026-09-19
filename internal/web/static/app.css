@@ -2250,14 +2250,26 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
    and a grid of places read as a grid that had slipped. The last column keeps
    the card's gutter, so the row does not end flush against the edge. */
 .season-table .mark-col {
+  vertical-align: middle;
   width: 34px;
   padding-left: 6px;
   padding-right: 6px;
   text-align: center;
 }
 .season-table .mark-col:last-child { padding-right: var(--space-card); }
+/* A block, not an inline box, and centred by its cell rather than by a line
+   of text.
+   It was inline-grid, which puts it on the text baseline — and a grid
+   container's baseline comes from its own content, so a ★ (which falls out of
+   Manrope to whatever the system has), a place in an outlined month and an
+   empty one each sat at a different height. Two marks in the same row, in
+   cells of identical height, came out 5.4px apart, and a grid of places read
+   as a grid that had slipped. Nothing here wants a baseline: the content is
+   centred in a fixed square and every square in the row is the same size, so
+   the square is a block and the cell centres it. */
 .mark-cell {
-  display: inline-grid;
+  display: grid;
+  margin: 0 auto;
   place-items: center;
   width: 22px;
   height: 22px;
