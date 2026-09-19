@@ -16,18 +16,22 @@
 </head>
 <body>
 {{if .Shell}}
-  {{/* The application shell: the rail, then a column holding the bar and the
-       page. Every page inside it renders only its own content — the furniture
-       is assembled once, here, rather than each page remembering to call for
-       it.
+  {{/* The application shell: a bar across the top carrying the wordmark and
+       the controls, and under it the rail beside the page. Every page inside
+       it renders only its own content — the furniture is assembled once,
+       here, rather than each page remembering to call for it.
+
+       The bar spans the whole width rather than sitting inside the page
+       column, so the wordmark stays put at every width and the rail below it
+       is only ever navigation.
 
        The skip link earns its place now that six navigation rows come before
        the content on every page. */}}
   <a class="skip-link" href="#main">{{.T.T "nav.skip"}}</a>
+  {{template "topbar" .}}
   <div class="shell">
     {{template "sidebar" .}}
     <div class="shell-main">
-      {{template "topbar" .}}
       <main id="main">{{block "content" .}}{{end}}</main>
       {{template "site-footer" .}}
     </div>

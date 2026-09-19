@@ -34,7 +34,7 @@ func TestSparkPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := sparkPath(tt.series, 100, 60)
+			got := sparkPath(tt.series, 100, 60, 0)
 			if strings.ReplaceAll(got, " ", "") != strings.ReplaceAll(tt.want, " ", "") {
 				t.Errorf("sparkPath() = %q, want %q", got, tt.want)
 			}
@@ -47,7 +47,7 @@ func TestSparkPath(t *testing.T) {
 // Zero and below are the "no game" sentinel rather than scores, so the
 // clamp is exercised with values that are positive but outside 1..7.
 func TestSparkPathClampsToTheBox(t *testing.T) {
-	got := sparkPath([]float64{0.5, 99}, 100, 60)
+	got := sparkPath([]float64{0.5, 99}, 100, 60, 0)
 	for _, coord := range []string{"-", "60.1", "99"} {
 		if strings.Contains(got, coord) {
 			t.Errorf("path %q escapes the box", got)
@@ -74,5 +74,31 @@ func TestHasSparkline(t *testing.T) {
 				t.Errorf("hasSparkline() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+// The rules on the form chart and the line drawn over them come from one
+// mapping, so they cannot disagree about where a 4 is. They did not always:
+// the rules were placed by the stylesheet spreading them evenly and the line
+// by its own arithmetic, which agreed only while the scale touched both edges.
+func TestScoreYPlacesTheScaleInsideItsInset(t *testing.T) {
+	const height, inset = 140.0, 6.0
+
+	if got := scoreY(bestScore, height, inset); got != inset {
+		t.Errorf("a 1 sits at %v, want the top inset %v", got, inset)
+	}
+	if got, want := scoreY(worstScore, height, inset), height-inset; got != want {
+		t.Errorf("a miss sits at %v, want the bottom inset %v", got, want)
+	}
+	// The midpoint of the scale is the midpoint of the box, whatever the inset.
+	if got, want := scoreY((bestScore+worstScore)/2, height, inset), height/2; got != want {
+		t.Errorf("a 4 sits at %v, want %v", got, want)
+	}
+
+	// And the line uses it: the first point of a series that opens on a miss
+	// lands on the bottom rule rather than on the floor of the box.
+	path := sparkPath([]float64{worstScore, bestScore}, 100, height, inset)
+	if !strings.HasPrefix(path, "M0.0 134.0") {
+		t.Errorf("sparkPath() = %q, want it to open on the bottom rule", path)
 	}
 }

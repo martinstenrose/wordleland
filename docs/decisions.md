@@ -429,6 +429,13 @@ from it:
   along. That costs a round trip per collapse, which is the right price: the
   alternative is script standing between a reader and a control that already
   works without it.
+
+  The shape of that shell is the design's: a bar across the whole width
+  carrying the wordmark and the controls, and beneath it the rail on the
+  surface beside the page, the page itself in a well cut out of that surface
+  with its top-left corner turned. The bar spans the rail rather than sitting
+  beside it, which is what keeps the wordmark in one place at every width and
+  leaves the rail as navigation and nothing else.
 - **Its dark score ramp**, which it does not have. The design draws the
   guess-count ramp light-first, and its pale end would glare on the dark
   canvas; the dark ramp is derived here. Both ends are also pulled slightly

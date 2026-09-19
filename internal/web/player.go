@@ -19,6 +19,11 @@ const (
 	chartWidth  = 560
 	chartHeight = 140
 
+	// How far the scale is held off the top and bottom edges. This chart
+	// rules every score, and without the inset the rules for 1 and 7 sit
+	// flush against the box and read as its border rather than as the scale.
+	chartInset = 6
+
 	// recentResults bounds the strip of individual scores. It matches the
 	// form window, so the strip and the form figure describe the same games.
 	recentResults = stats.FormWindow
@@ -76,6 +81,11 @@ type playerPage struct {
 	HasChart  bool
 	Gridlines []chartGridline
 
+	// FormXLabels marks how far back the chart reaches. Without them the
+	// horizontal axis says nothing at all: the shape is legible, the span
+	// it covers is a guess.
+	FormXLabels []string
+
 	Distribution []distributionBar
 	Recent       []scoreCell
 
@@ -120,10 +130,13 @@ type playerTab struct {
 	On    bool
 }
 
-// chartGridline is one horizontal rule with the score it marks.
+// chartGridline is one horizontal rule, the score it marks, and where that
+// label sits as a share of the chart's height — the stylesheet places the
+// label from Top so that it lands on the rule rather than near it.
 type chartGridline struct {
 	Y     string
-	Score int
+	Top   string
+	Label string
 }
 
 // handlePlayer renders one player's detail page, authenticated or shared.
@@ -192,10 +205,11 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, pref
 		FormText:    formatScore(t, player.Form),
 		ReasonKey:   reasonKey(player.Reason),
 
-		FormPath:  template.HTML(sparkPath(player.Series, chartWidth, chartHeight)),
-		GroupPath: template.HTML(sparkPath(board.GroupSeries, chartWidth, chartHeight)),
-		HasChart:  hasSparkline(player.Series),
-		Gridlines: chartGridlines(),
+		FormPath:    template.HTML(sparkPath(player.Series, chartWidth, chartHeight, chartInset)),
+		GroupPath:   template.HTML(sparkPath(board.GroupSeries, chartWidth, chartHeight, chartInset)),
+		HasChart:    hasSparkline(player.Series),
+		Gridlines:   chartGridlines(ch.T),
+		FormXLabels: formXLabels(ch.T),
 
 		Distribution: distributionBars(player, t),
 		Recent:       recentCells(player, results, board.CurrentPuzzle, t),
@@ -296,12 +310,35 @@ func findPlayer(board stats.Board, slug string) (stats.Player, bool) {
 	return stats.Player{}, false
 }
 
-// chartGridlines marks scores 1 through 7 on the form chart.
-func chartGridlines() []chartGridline {
+// formXLabels are the three marks under the form chart: the far end of the
+// window, its midpoint, and today. The series is one point per puzzle and one
+// puzzle per day, so a count of puzzles is a count of days.
+func formXLabels(t translator) []string {
+	return []string{
+		t.T("player.formChart.ago", stats.FormWindow),
+		t.T("player.formChart.ago", stats.FormWindow/2),
+		t.T("player.formChart.now"),
+	}
+}
+
+// chartGridlines marks every score on the form chart, from a 1 down to a
+// miss. Each carries the offset of its own rule rather than being spread
+// evenly by the stylesheet, so a label cannot drift off the line it names.
+func chartGridlines(t translator) []chartGridline {
 	var lines []chartGridline
 	for score := int(bestScore); score <= int(worstScore); score++ {
-		y := (float64(score) - bestScore) / (worstScore - bestScore) * chartHeight
-		lines = append(lines, chartGridline{Y: strconv.FormatFloat(y, 'f', 1, 64), Score: score})
+		y := scoreY(float64(score), chartHeight, chartInset)
+		label := strconv.Itoa(score)
+		if float64(score) == worstScore {
+			// The bottom rule is not a seventh guess; it is the other
+			// outcome, and the strip and the ramp both call it X.
+			label = t.T("player.failed")
+		}
+		lines = append(lines, chartGridline{
+			Y:     strconv.FormatFloat(y, 'f', 1, 64),
+			Top:   strconv.FormatFloat(y/chartHeight*100, 'f', 2, 64) + "%",
+			Label: label,
+		})
 	}
 	return lines
 }

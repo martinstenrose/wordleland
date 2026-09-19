@@ -57,6 +57,8 @@
   "player.hardMode": "Hard mode",
   "player.lastPlayed": "Last played",
   "player.formChart": "Form against the group",
+  "player.formChart.ago": "−%d d",
+  "player.formChart.now": "today",
   "player.distribution": "Guess distribution",
   "player.recent": "Last 30 days",
   "player.puzzle": "#%d",

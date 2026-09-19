@@ -620,32 +620,32 @@ func TestSharedBarOffersSignIn(t *testing.T) {
 	}
 }
 
-// The search control is the one in the bar with more than an icon in it —
-// icon, a word, a shortcut chip — and a tint is what holds those three
-// together. It deliberately does not take a box outline: on a bar whose other
-// controls are circles, an outlined box reads as a field to type into, and
-// this one is a link to the search page.
-func TestTheSearchControlIsTintedRatherThanOutlined(t *testing.T) {
+// The bar stands on the surface and the page on the canvas, and the search
+// control takes the page's ground rather than the bar's — which is what makes
+// it read as a field cut into the bar instead of a button sitting on it.
+func TestTheSearchControlSitsOnThePagesGround(t *testing.T) {
 	srv := testServer(t)
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
 
-	searchBtn := cssRule(t, css, ".search-btn {")
-	if !strings.Contains(searchBtn, "background: var(--color-surface-raised)") {
-		t.Error(".search-btn has no tint to bind its parts")
-	}
-	if !strings.Contains(searchBtn, "border-color: transparent") {
-		t.Error(".search-btn draws a border as well as a tint")
+	bar := cssRule(t, css, ".topbar {")
+	if !strings.Contains(bar, "background: var(--color-surface)") {
+		t.Error("the bar does not stand on the surface")
 	}
 
-	// The chip is a key cap: it sits on the surface the tint is struck from,
-	// which is what makes it read as raised out of the control.
+	searchBtn := cssRule(t, css, ".search-btn {")
+	if !strings.Contains(searchBtn, "background: var(--color-canvas)") {
+		t.Error(".search-btn does not take the page's ground")
+	}
+
+	// The chip is a key cap: it steps back off that ground, which is what
+	// makes it read as raised out of the control.
 	shortcut := cssRule(t, css, ".search-shortcut {")
 	if !strings.Contains(shortcut, "font-size: var(--text-xs)") {
 		t.Error("the shortcut chip is not the smallest step")
 	}
-	if !strings.Contains(shortcut, "background: var(--color-surface)") {
-		t.Error("the shortcut chip does not sit on its own surface")
+	if !strings.Contains(shortcut, "background: var(--color-surface-raised)") {
+		t.Error("the shortcut chip does not step off the control's ground")
 	}
 }
 

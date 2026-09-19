@@ -214,8 +214,9 @@ func TestTopBarSubtitleIsNotShownSignedOut(t *testing.T) {
 	}
 }
 
-// The views live in the rail, with a brand link to Today above them.
-func TestTheRailCarriesEveryViewAndTheWordmark(t *testing.T) {
+// The views live in the rail; the wordmark lives in the bar above it, where
+// it holds one place at every width — the rail is only ever navigation.
+func TestTheRailCarriesEveryViewAndTheBarTheWordmark(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -229,9 +230,20 @@ func TestTheRailCarriesEveryViewAndTheWordmark(t *testing.T) {
 			t.Errorf("the rail is missing %q", view)
 		}
 	}
+	if strings.Contains(rail, `class="brand"`) {
+		t.Error("the rail carries the wordmark, which belongs in the bar")
+	}
 
-	if !strings.Contains(rail, `<a class="brand" href="/today">`) {
-		t.Error("the wordmark does not link to Today")
+	bar := body[strings.Index(body, `<header class="topbar">`):]
+	bar = bar[:strings.Index(bar, "</header>")]
+	if !strings.Contains(bar, `<a class="brand" href="/today">`) {
+		t.Error("the bar's wordmark does not link to Today")
+	}
+
+	// And the bar is above the shell rather than inside it, which is what
+	// lets it span the rail as well as the page.
+	if strings.Index(body, `<header class="topbar">`) > strings.Index(body, `<div class="shell">`) {
+		t.Error("the bar is rendered inside the shell rather than above it")
 	}
 }
 

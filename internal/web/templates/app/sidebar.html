@@ -30,7 +30,8 @@
 
 {{define "sidebar"}}
 <nav class="sidebar" aria-label="{{.T.T "nav.views"}}">
-  {{template "sidebar-brand" .}}
+  {{/* No wordmark here: it sits in the bar above, where it stays put at every
+       width. The rail is only ever navigation. */}}
   <div class="nav-rows">{{template "sidebar-rows" .}}</div>
 
   {{/* Pinned to the bottom. Absent from the drawer, where the rail is

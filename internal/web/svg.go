@@ -27,7 +27,13 @@ const (
 // rendering fault rather than as information.
 //
 // Lower is better, so a 1 sits at the top and a 7 at the bottom.
-func sparkPath(series []float64, width, height float64) string {
+//
+// inset holds the line off the top and bottom edges, for a chart that draws a
+// rule at every score: without it the rules for 1 and 7 sit flush against the
+// box and read as its border rather than as the scale. The sparklines pass 0 —
+// at 30px tall there is no room to give away, and they draw no rule at the
+// ends to be confused with.
+func sparkPath(series []float64, width, height, inset float64) string {
 	if len(series) < 2 {
 		return ""
 	}
@@ -50,7 +56,7 @@ func sparkPath(series []float64, width, height float64) string {
 		if clamped > worstScore {
 			clamped = worstScore
 		}
-		y := (clamped - bestScore) / (worstScore - bestScore) * height
+		y := scoreY(clamped, height, inset)
 
 		verb := "L"
 		if !open {
@@ -63,6 +69,13 @@ func sparkPath(series []float64, width, height float64) string {
 		}
 	}
 	return strings.TrimSpace(b.String())
+}
+
+// scoreY places a score on the vertical scale, inside whatever inset the
+// caller keeps off the edges. It is the one place the mapping lives, so a
+// chart's rules and its line cannot disagree about where a 4 is.
+func scoreY(score, height, inset float64) float64 {
+	return inset + (score-bestScore)/(worstScore-bestScore)*(height-2*inset)
 }
 
 // hasSparkline reports whether a series has enough points to draw.

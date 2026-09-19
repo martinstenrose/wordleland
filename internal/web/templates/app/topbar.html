@@ -94,20 +94,24 @@
      :target would put "#menu" in the address bar and in the back button; a
      checkbox and label would not be focusable.
 
-     When it is open, app.css stretches the summary across the viewport behind
-     the panel, so that clicking away closes it — clicking the dim really is
-     clicking the button again. What that does not give: Esc does not close a
+     When it is open, app.css hangs a dim off the summary covering everything
+     below the bar, so that clicking away closes it — clicking the dim really
+     is clicking the button again, and the button itself stays where it was,
+     showing a cross. What that does not give: Esc does not close a
      <details>, and focus is free to leave the panel for the page behind it.
      The panel sits immediately after the summary so that at least the first
      Tab goes into it. It is not marked up as a dialog, because with focus
      free to leave it, saying so would be a lie. */}}
 {{define "drawer"}}
 <details class="drawer" name="topbar-menu">
+  {{/* Both glyphs are in the markup and app.css shows one: which of them
+       applies is the element's own open state, which CSS can read and a
+       template cannot. */}}
   <summary class="menu-btn drawer-btn" aria-label="{{.T.T "nav.menu"}}" title="{{.T.T "nav.menu"}}">
-    {{template "menu-icon" .}}
+    <span class="drawer-shut">{{template "menu-icon" .}}</span>
+    <span class="drawer-open">{{template "close-icon" .}}</span>
   </summary>
   <div class="drawer-panel">
-    {{template "sidebar-brand" .}}
     <nav class="nav-rows" aria-label="{{.T.T "nav.views"}}">{{template "sidebar-rows" .}}</nav>
   </div>
 </details>
@@ -116,8 +120,11 @@
 {{define "topbar"}}
 <header class="topbar">
   <div class="topbar-lead">
+    {{template "sidebar-brand" .}}
     {{template "drawer" .}}
+  </div>
 
+  <div class="topbar-search">
     {{if .SearchPath}}
       {{/* A plain link — every part of search works from this alone, with
            no script at all. app.js additionally binds ⌘K to open the

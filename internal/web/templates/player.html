@@ -38,17 +38,24 @@
       {{if .ChartNoteKey}}
         <p class="hint">{{.T.T .ChartNoteKey}}</p>
       {{else if .HasChart}}
+        {{/* The scale is markup beside the chart rather than SVG text: the
+             chart stretches with preserveAspectRatio="none" and text inside
+             it would stretch with it. Each label is placed from its own rule's
+             offset, so the two cannot drift apart. */}}
         <div class="chart-wrap">
+          <ol class="scale" aria-hidden="true">
+            {{range .Gridlines}}<li style="top:{{.Top}}">{{.Label}}</li>{{end}}
+          </ol>
           <svg class="chart" viewBox="0 0 560 140" preserveAspectRatio="none" role="img"
                aria-label="{{.T.T "player.formChart"}}">
             {{range .Gridlines}}<line class="grid" x1="0" x2="560" y1="{{.Y}}" y2="{{.Y}}"/>{{end}}
             {{if .GroupPath}}<path class="group" d="{{.GroupPath}}"/>{{end}}
             <path class="player" d="{{.FormPath}}"/>
           </svg>
-          <ol class="scale" aria-hidden="true">
-            {{range .Gridlines}}<li>{{.Score}}</li>{{end}}
-          </ol>
         </div>
+        <ol class="chart-x" aria-hidden="true">
+          {{range .FormXLabels}}<li>{{.}}</li>{{end}}
+        </ol>
       {{end}}
     </div>
 
