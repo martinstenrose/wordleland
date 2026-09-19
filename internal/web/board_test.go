@@ -380,29 +380,33 @@ func TestFooterExplainsBothRankingThresholds(t *testing.T) {
 	}
 }
 
-// The two toggles turn independently, but "count missed" has no effect
-// without "count failed" — the page has to say so, or a reader who selects
-// both, then turns failures off, sees no reason their average did not move.
-func TestCountMissedIsMarkedMootWithoutCountFailed(t *testing.T) {
+// The two scoring rules turn independently.
+//
+// "Count missed as 7" used to be gated behind "count failed as 7", on the
+// reasoning that with a failure scored as nothing there is no number an
+// absence could take either. There is: 7 is what a Wordle is worth when it
+// was not solved, and whether somebody attempted it is a separate question
+// from whether they turned up. "A failure does not count against you, but not
+// playing does" is a rule somebody can want, and it was not expressible.
+func TestCountMissedWorksWithoutCountFailed(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
-	// The reason is on the page, not in a title= — the control moved into a
-	// menu partly so that a phone, which has no hover, could show it.
-	const why = "Has no effect while"
-
-	def := fetch(t, srv, "/share/"+slug+"/board?missed=1").Body.String()
-	if strings.Contains(def, why) {
-		t.Error("count missed is marked moot while count failed is on")
+	plain := fetch(t, srv, "/share/"+slug+"/board?failed=0").Body.String()
+	missed := fetch(t, srv, "/share/"+slug+"/board?failed=0&missed=1").Body.String()
+	if plain == missed {
+		t.Error("counting missed days changed nothing while failures were excluded")
 	}
 
-	off := fetch(t, srv, "/share/"+slug+"/board?failed=0&missed=1").Body.String()
-	if !strings.Contains(off, why) {
-		t.Error("count missed is not marked moot once count failed is turned off")
+	// And the menu no longer warns that it would not: that caveat was the
+	// gate describing itself.
+	if strings.Contains(missed, "Has no effect while") {
+		t.Error("the menu still says the rule has no effect")
 	}
-	if strings.Contains(off, "title=\"Has no effect") {
-		t.Error("the reason is back in a title=, which a phone cannot show")
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+	if strings.Contains(css, "ranking-why") || strings.Contains(css, ".toggle.moot") {
+		t.Error("the rules behind that caveat survive with nothing reading them")
 	}
 }
 
@@ -635,6 +639,78 @@ func TestFormDeltaPointsTheWayTheScoreMoves(t *testing.T) {
 		text, direction := formatDelta(tr, tc.delta)
 		if text != tc.text || direction != tc.direction {
 			t.Errorf("%s: got %q/%q, want %q/%q", tc.name, text, direction, tc.text, tc.direction)
+		}
+	}
+}
+
+// "?partial=1" is the ranking menu asking for the board alone, so choosing a
+// rule can swap the card in place instead of reloading — see app.js. It is
+// the page's own "content" block, not a second template, so the two cannot
+// drift: the board a reader gets by following the link and the board they get
+// by pressing the same row with script running are the same markup.
+func TestTheBoardCanBeFetchedAsJustItsCard(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	for _, path := range []string{"/share/" + slug + "/board", "/share/" + slug + "/board?mode=hard"} {
+		full := fetch(t, srv, path)
+		partial := fetch(t, srv, path+(map[bool]string{true: "&", false: "?"}[strings.Contains(path, "?")])+"partial=1")
+		if partial.Code != http.StatusOK {
+			t.Fatalf("GET %s partial = %d", path, partial.Code)
+		}
+		body := partial.Body.String()
+
+		// The card and nothing around it.
+		if !strings.HasPrefix(strings.TrimSpace(body), `<section class="card">`) {
+			t.Errorf("%s: the partial does not start with the card", path)
+		}
+		for _, chrome := range []string{"<html", "<header class=\"topbar\">", `class="sidebar"`} {
+			if strings.Contains(body, chrome) {
+				t.Errorf("%s: the partial carries %s, so it is the whole page", path, chrome)
+			}
+		}
+		// And it is the same card the full page renders, so a rule applied
+		// through the menu cannot land somewhere the link would not.
+		card := strings.TrimSpace(body)
+		if !strings.Contains(full.Body.String(), card) {
+			t.Errorf("%s: the partial is not the card the full page renders", path)
+		}
+	}
+}
+
+// "partial=1" never survives into a rendered link.
+//
+// It says how a request was made rather than what is being looked at, and
+// every link builder here starts from the request's own query so that
+// switching one control keeps the rest. Left in, every control on a swapped-in
+// card would point at a bare fragment — and following one without a script to
+// catch the press would land a reader on markup with no page around it.
+//
+// The bench toggle on Today has had this shape since before the board did, so
+// it is checked here too.
+func TestPartialNeverSurvivesIntoALink(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	session := signIn(t, srv, admin.ID)
+
+	for _, tt := range []struct {
+		path   string
+		cookie *http.Cookie
+	}{
+		// The board: control links, sort headers and the switchers.
+		{path: "/share/" + slug + "/board?partial=1"},
+		{path: "/share/" + slug + "/board?mode=hard&sort=average&partial=1"},
+		// Today: the bench toggle, and the theme and language switchers
+		// urlWith builds.
+		{path: "/today?partial=1", cookie: session},
+		{path: "/today?benched=1&partial=1", cookie: session},
+	} {
+		body := fetchAs(t, srv, tt.path, tt.cookie).Body.String()
+		if strings.Contains(body, "partial=1") || strings.Contains(body, "partial=") {
+			t.Errorf("%s: a rendered link carries partial=", tt.path)
 		}
 	}
 }

@@ -108,6 +108,10 @@ func (q boardQuery) with(mutate func(*boardQuery)) string {
 	for k, v := range q.raw {
 		values[k] = v
 	}
+	// See urlWith: "partial=1" is how a request was made rather than part of
+	// what is being looked at, and a control link carrying it would hand a
+	// reader a bare card the moment they followed it without a script.
+	values.Del("partial")
 
 	// Only non-default values appear, so a plain board has a clean URL.
 	set := func(key, value string, keep bool) {
@@ -147,13 +151,6 @@ func (q boardQuery) CountMissedHref() string {
 	return q.with(func(n *boardQuery) { n.CountMissed = !n.CountMissed })
 }
 
-// CountMissedMoot reports whether "count missed as 7" currently has no
-// effect on the averages: without a failure worth 7, a missed day has no
-// number to take either. The two toggles still turn independently — this
-// only marks the state on the page so a reader is not left wondering why
-// selecting it changed nothing.
-func (q boardQuery) CountMissedMoot() bool { return !q.CountXAsSeven }
-
 // IsDefault reports whether the board is ranked the way it is out of the box:
 // every game counted, a failure worth 7, a missed day worth nothing.
 func (q boardQuery) IsDefault() bool {
@@ -165,11 +162,6 @@ type rankingRow struct {
 	Label string
 	Href  string
 	On    bool
-	// Why is shown under the label when the row is in force but currently
-	// changes nothing. It used to be a title= on the chip this replaces,
-	// which is a hover — and a phone has none, so on the one screen where
-	// these controls are most crowded the explanation did not exist.
-	Why string
 }
 
 // rankingGroup is a headed set of rows. There are two, because the controls
@@ -206,9 +198,6 @@ func rankingMenuFor(t translator, q boardQuery, boardPath string) rankingMenu {
 		Label: t.T("board.toggle.countMissed"),
 		Href:  boardPath + q.CountMissedHref(),
 		On:    q.CountMissed,
-	}
-	if q.CountMissedMoot() {
-		missed.Why = t.T("board.toggle.countMissed.moot")
 	}
 
 	return rankingMenu{
@@ -326,6 +315,16 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boa
 		page.CSRFToken = token
 	}
 
+	// "?partial=1" asks for just the card, the same way today.go's bench
+	// toggle and search.go's overlay reuse their own pages — see app.js — so
+	// choosing a ranking rule can swap the board in without a full reload
+	// while still working from a plain link when script is absent. This
+	// page's "content" block is the card, so there is no second template to
+	// keep in step with the first.
+	if r.URL.Query().Get("partial") == "1" {
+		s.renderBlock(w, r, http.StatusOK, "board.html", "content", page)
+		return
+	}
 	s.render(w, r, http.StatusOK, "board.html", page)
 }
 

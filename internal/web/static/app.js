@@ -385,45 +385,210 @@
   document.addEventListener("keydown", onKey);
 })();
 
-// Putting the share link on the clipboard.
+// The share slug: copying it, and rotating it without leaving the page.
 //
-// The one enhancement here that is not a shortcut for something already on
-// the page: a clipboard cannot be written to from markup, so without this
-// there is no copy button at all. That is why the button is built here rather
-// than rendered and then wired up — it exists exactly when it works. A page
-// served over plain http to anything but localhost has no navigator.clipboard
-// at all, and a button that silently does nothing is worse than none.
+// Two enhancements in one place because they are one thing. A rotation
+// replaces the slug, and the copy button carries the address of the slug it
+// was built for — so whatever rebuilds one has to rebuild the other.
 //
-// Without it the link is still on the page, on one line, selectable: the same
-// way it was copied before this existed. Both words the button needs come
-// from the markup, so no string in this file has to be translated.
+// Copying cannot exist without a script at all: a clipboard cannot be written
+// to from markup. That is why the button is built here rather than rendered
+// and then wired up — it exists exactly when it works, and a page served over
+// plain http to anything but localhost, which has no navigator.clipboard,
+// gets no button instead of a dead one.
+//
+// Rotating works entirely without this. The control is a link to the same
+// page with the question showing, the answer is a form that posts, and the
+// server redirects to the outcome — three page loads for one decision. This
+// swaps the card in place at each step instead. Every request it makes is the
+// one the markup already pointed at, so nothing is decided here that the
+// server did not decide, and any failure falls back to the navigation that
+// was asked for.
+//
+// The whole card is fetched rather than a "?partial=1" fragment, unlike the
+// board's ranking menu: here the card is nearly the whole page, so a partial
+// route would save almost nothing and add a branch to a handler.
+//
+// One deliberate difference from a full page load: the outcome arrives as the
+// note inside the swapped card rather than being raised into a panel. The
+// slug visibly changes under the reader's eyes, and a dialog to dismiss on
+// top of something they just watched happen is feedback for nothing.
 (function () {
   "use strict";
 
-  var row = document.querySelector("[data-copy]");
-  if (!row) return; // No link yet, or no APP_URL to make it absolute with.
-  if (!navigator.clipboard || !navigator.clipboard.writeText) return;
+  // Rebuilt after every swap: the row is new markup carrying a new address.
+  function mountCopy() {
+    var row = document.querySelector("[data-copy]");
+    if (!row) return; // No link yet, or no APP_URL to make it absolute with.
+    if (!navigator.clipboard || !navigator.clipboard.writeText) return;
 
-  var button = document.createElement("button");
-  button.type = "button";
-  button.textContent = row.dataset.copyLabel;
-  // First in the row: copying is what somebody is usually here to do, and
-  // the control beside it replaces the link for everybody in the group.
-  row.insertBefore(button, row.firstChild);
+    var button = document.createElement("button");
+    button.type = "button";
+    button.textContent = row.dataset.copyLabel;
+    // First in the row: copying is what somebody is usually here to do, and
+    // the control beside it rotates the slug for everybody in the group.
+    row.insertBefore(button, row.firstChild);
 
-  var revert;
-  button.addEventListener("click", function () {
-    navigator.clipboard.writeText(row.dataset.copy).then(function () {
-      button.textContent = row.dataset.copiedLabel;
-      // Said, then taken back: a button stuck reading "Copied" is a button
-      // that looks pressed rather than one that can be pressed again.
-      clearTimeout(revert);
-      revert = setTimeout(function () {
-        button.textContent = row.dataset.copyLabel;
-      }, 2000);
-    }).catch(function () {
-      // Refused — a permissions policy, or a window that is not focused.
-      // The link is still on the page to select, so say nothing.
+    var revert;
+    button.addEventListener("click", function () {
+      navigator.clipboard.writeText(row.dataset.copy).then(function () {
+        button.textContent = row.dataset.copiedLabel;
+        // Said, then taken back: a button stuck reading "Copied" is a button
+        // that looks pressed rather than one that can be pressed again.
+        clearTimeout(revert);
+        revert = setTimeout(function () {
+          button.textContent = row.dataset.copyLabel;
+        }, 2000);
+      }).catch(function () {
+        // Refused — a permissions policy, or a window that is not focused.
+        // The slug is still on the page to read, so say nothing.
+      });
     });
+  }
+
+  mountCopy();
+  if (!window.fetch) return; // Without it every control is still a real one.
+
+  // Swaps in the card from a response, and puts the copy button back on it.
+  // Returns false when the markup was not what we expected, so the caller can
+  // fall back to a real navigation rather than leaving a half-changed page.
+  function swap(html, url) {
+    var card = document.querySelector("section.card");
+    var wrapper = document.createElement("div");
+    wrapper.innerHTML = html;
+    var replacement = wrapper.querySelector("section.card");
+    if (!card || !replacement) return false;
+
+    card.replaceWith(replacement);
+    if (url) history.replaceState(null, "", url);
+    mountCopy();
+    return true;
+  }
+
+  function load(url) {
+    fetch(url, { credentials: "same-origin" })
+      .then(function (response) { return response.ok ? response.text() : null; })
+      .then(function (html) {
+        if (html === null || !swap(html, url)) window.location.href = url;
+      })
+      .catch(function () { window.location.href = url; });
+  }
+
+  // Asking the question, and taking it back: both are links to this same page
+  // with the question showing or not.
+  document.addEventListener("click", function (event) {
+    var link = event.target.closest(".share-section a[href]");
+    if (!link) return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+    event.preventDefault();
+    load(link.href);
+  });
+
+  // Answering it. The form carries its own CSRF token, so posting it as it
+  // stands is the same request the browser would have made.
+  document.addEventListener("submit", function (event) {
+    var form = event.target;
+    if (!form.matches(".share-section form")) return;
+
+    event.preventDefault();
+    // URLSearchParams, not the FormData it is built from: FormData posts as
+    // multipart, and this form declares no enctype, so a browser submitting
+    // it sends url-encoded. The difference is not cosmetic — Go's ParseForm
+    // does not read a multipart body, leaves PostForm empty, and the CSRF
+    // token goes missing, which the server correctly answers with "the form
+    // expired". Every request this makes has to be the one the markup
+    // already described.
+    fetch(form.action, {
+      method: "POST",
+      body: new URLSearchParams(new FormData(form)),
+      credentials: "same-origin",
+    })
+      .then(function (response) {
+        // The redirect has been followed, so this is the outcome page and
+        // response.url is where it landed.
+        return response.ok ? response.text().then(function (html) {
+          return { html: html, url: response.url };
+        }) : null;
+      })
+      .then(function (result) {
+        if (result === null || !swap(result.html, result.url)) form.submit();
+      })
+      .catch(function () { form.submit(); });
+  });
+})();
+
+// The leaderboard's ranking menu, applied without the round trip.
+//
+// Every row in that menu is a link that flips one rule and keeps the rest of
+// the query, and that is the whole feature: it works with this file absent,
+// disabled, or failing to load. What following one costs is a page load, and
+// with it the open menu — so setting two rules means opening the menu twice.
+//
+// This swaps the card in place instead, the same "?partial=1" trick the bench
+// toggle and the ⌘K overlay already use, and leaves the menu open on the row
+// that was just pressed. Nothing is decided here that the server did not
+// decide: the replacement markup is the board the link pointed at, rendered
+// by the same template, so a rule applied this way and a rule applied by
+// following the link land on identical pages.
+//
+// A modified click — a new tab, a new window — is left alone to do what was
+// asked of it.
+(function () {
+  "use strict";
+
+  if (!window.fetch) return; // Without it the link is still the whole feature.
+
+  document.addEventListener("click", function (event) {
+    var link = event.target.closest(".ranking-panel a");
+    if (!link) return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+
+    var card = link.closest("section.card");
+    var panel = link.closest(".ranking-panel");
+    if (!card || !panel) return; // Markup changed underneath us; let the link navigate.
+
+    // Where in the menu the press landed, so focus can be put back on the
+    // same row once the replacement has been drawn. The rows are rebuilt,
+    // not moved, so the index is the only handle that survives.
+    var rows = Array.prototype.slice.call(panel.querySelectorAll("a"));
+    var index = rows.indexOf(link);
+
+    event.preventDefault();
+    var url = link.href;
+
+    fetch(url + (url.indexOf("?") === -1 ? "?" : "&") + "partial=1", { credentials: "same-origin" })
+      .then(function (response) { return response.ok ? response.text() : null; })
+      .then(function (html) {
+        if (html === null) {
+          window.location.href = url;
+          return;
+        }
+        var wrapper = document.createElement("div");
+        wrapper.innerHTML = html;
+        var replacement = wrapper.querySelector("section.card");
+        if (!replacement) {
+          window.location.href = url;
+          return;
+        }
+        card.replaceWith(replacement);
+        history.replaceState(null, "", url);
+
+        // The board arrives with its menu shut, because that is how a board
+        // reached by following the link should arrive. Here it was already
+        // open and the reader may well have a second rule to set.
+        var menu = replacement.querySelector("details.ranking");
+        if (!menu) return;
+        menu.open = true;
+        var next = menu.querySelectorAll(".ranking-panel a")[index];
+        if (next) next.focus();
+      })
+      .catch(function () {
+        // Pure enhancement: fall back to the link's real navigation.
+        window.location.href = url;
+      });
   });
 })();

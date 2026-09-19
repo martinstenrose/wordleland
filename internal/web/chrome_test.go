@@ -868,3 +868,39 @@ func TestTheSignInFamilyHasItsOwnFrame(t *testing.T) {
 		t.Error("an error page is drawn in a frame")
 	}
 }
+
+// A failure is drawn in the danger tone and a warning in the second accent,
+// and inside a card both sit on the card's own gutter.
+//
+// Both were drawn in the brand hue, because the palette had no red or amber
+// when they were written — a green ring around "the form expired" told a
+// reader the opposite of what the words did. And as a direct child of a card
+// the box inherits the card's gutter as padding, which its own shorthand
+// throws away: it spanned the card edge to edge while the heading beneath it
+// sat 22px in.
+func TestAFailureIsDrawnAsOneAndSitsOnTheGutter(t *testing.T) {
+	srv := testServer(t)
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+
+	for _, want := range []string{
+		".note.error { background: var(--color-danger-08); box-shadow: inset 0 0 0 1px var(--color-danger); }",
+		".note.warn { background: var(--color-accent-2-14); box-shadow: inset 0 0 0 1px var(--color-accent-2); }",
+		".card > .note.warn { margin: 14px var(--space-card); }",
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("missing rule: %s", want)
+		}
+	}
+	// The accent is the brand hue. Neither of these may reach for it again.
+	for _, rule := range []string{".note.error", ".note.warn", ".hint.warn"} {
+		at := strings.Index(css, "\n"+rule+" {")
+		if at < 0 {
+			t.Errorf("no rule for %s", rule)
+			continue
+		}
+		body := css[at : at+strings.Index(css[at:], "}")]
+		if strings.Contains(body, "--color-accent-strong") || strings.Contains(body, "--color-accent-50") {
+			t.Errorf("%s is drawn in the brand hue: %s", rule, body)
+		}
+	}
+}

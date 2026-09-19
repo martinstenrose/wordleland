@@ -369,6 +369,12 @@ func (s *Server) sidebarFor(w http.ResponseWriter, r *http.Request) string {
 func urlWith(r *http.Request, key, value string) string {
 	q := r.URL.Query()
 	q.Set(key, value)
+	// Never this one. "partial=1" asks a handler for a fragment instead of a
+	// page — it is how a request was made, not part of what is being looked
+	// at — and a link built while serving one would hand a reader a bare
+	// card with no page around it the moment they followed it without a
+	// script to catch the press.
+	q.Del("partial")
 
 	path := r.URL.EscapedPath()
 	if path == "" {

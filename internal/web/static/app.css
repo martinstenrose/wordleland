@@ -783,7 +783,6 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   border: 1px solid var(--color-text-12); border-radius: var(--radius-md); color: var(--color-text-50);
 }
 .toggle.on { color: var(--color-accent-strong); border-color: var(--color-accent-50); background: var(--color-accent-14); }
-.toggle.moot.on { opacity: .5; }
 
 .note, .empty {
   padding: 14px var(--space-card); font-size: var(--text-sm); color: var(--color-text-50);
@@ -1178,7 +1177,36 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   border: 0;
 }
 .actions button:hover { background: var(--color-accent-strong); }
-.note.error { color: var(--color-text); box-shadow: inset 0 0 0 1px var(--color-accent-50); border-radius: var(--radius-md); padding: 10px 12px; }
+/* Something went wrong, and something needs a look. Both were drawn in the
+   brand hue, because the palette had no red or amber when they were written
+   — the same reason --color-danger's own note gives for signing out and a
+   failed diagnostic having borrowed the accent. A green ring around "the form
+   expired" tells a reader the opposite of what the words do.
+
+   The tones are the ones already carrying these meanings: danger for a
+   failure, the second accent for a warning, which is what .diag-value.warn
+   has always used. */
+.note.error,
+.note.warn {
+  color: var(--color-text);
+  border-bottom: 0;
+  border-radius: var(--radius-md);
+  /* The same room .confirm gives its own question. These two are boxes
+     rather than the full-bleed band a plain note is, and a box wants more
+     than a band does at the same edge. */
+  padding: 14px 16px;
+}
+/* A direct child of a card inherits the card's gutter as padding, which the
+   shorthand above throws away — so the box spanned the card edge to edge
+   while the heading under it sat 22px in, and the 16px inside it read as
+   cramped by comparison. The gutter is a margin here instead, so the box
+   lines up with everything else in the card. Scoped to that case: in an auth
+   card or the settings panel the note already sits inside a padded column,
+   and insetting it again would step it off the form beside it. */
+.card > .note.error,
+.card > .note.warn { margin: 14px var(--space-card); }
+.note.error { background: var(--color-danger-08); box-shadow: inset 0 0 0 1px var(--color-danger); }
+.note.warn { background: var(--color-accent-2-14); box-shadow: inset 0 0 0 1px var(--color-accent-2); }
 
 
 /* ---- The app mark ------------------------------------------------------
@@ -1873,14 +1901,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .ranking-panel { width: min(256px, calc(100vw - 32px)); }
 .ranking-panel .kicker { margin: 6px 0 4px; padding: 0 10px; }
 .ranking-panel .kicker:first-child { margin-top: 2px; }
-/* min-width so the row may shrink: without it the reason under a rule holds
-   the panel open at its own width and shoves the tick off the end. */
-.ranking-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-/* The reason a rule currently changes nothing, under the rule. It was a
-   title= on the chip this replaces — a hover, which a phone does not have,
-   on the width where these controls are most crowded. */
-.ranking-why { font-size: var(--text-xs); color: var(--color-text-45); line-height: 1.4; }
-.menu-row.on .ranking-why { color: var(--color-text-50); }
 .menu-row svg { display: block; flex: none; border-radius: var(--radius-xs); }
 
 /* ---- Search: the topbar link, its ⌘K overlay, and the results both
@@ -2396,6 +2416,16 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
    place to give it away. */
 .env-redacted { font-family: var(--font-mono); letter-spacing: .12em; }
 .env-lock { flex: none; display: flex; color: var(--color-text-35); }
+/* Says a value is in force and that nobody chose it. Quiet enough to read as
+   an annotation on the value rather than as part of it. */
+.env-default {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--color-text-35);
+  border: 1px solid var(--color-text-10);
+  border-radius: var(--radius-xs);
+  padding: 1px 5px;
+}
 .badge.on {
   background: var(--color-accent-14);
   border-color: transparent;
@@ -2480,7 +2510,9 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   user-select: all;
 }
 
-.hint.warn { color: var(--color-accent-strong); }
+/* "Running low. Generate a new set before you are locked out." — a warning,
+   and it was drawn in the brand hue. Same tone as .note.warn above. */
+.hint.warn { color: var(--color-accent-2-strong); }
 
 @media (max-width: 480px) {
   .recovery-codes { grid-template-columns: 1fr; }
