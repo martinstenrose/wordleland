@@ -1599,6 +1599,20 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
      month was shared, which is two golds and then a bronze. */
   .months-table .medal { display: none; }
   .months-table .medal-mark { display: inline; }
+  /* On a phone the medal is the rank, so the figure beside it would say the
+     same thing twice. Hidden from the eye and not from a screen reader: the
+     medal is aria-hidden, so this is what carries the placing. */
+  .months-table .medal-mark + .rank-num {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
 /* ---- Sortable headers -------------------------------------------------- */

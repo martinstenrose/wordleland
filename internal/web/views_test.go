@@ -1382,13 +1382,17 @@ func TestTheMonthsTopThreeCarryAMedalOnAPhone(t *testing.T) {
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 
 	body := fetchAs(t, srv, "/months", signIn(t, srv, admin.ID)).Body.String()
-	if !strings.Contains(body, `<span class="medal-mark" aria-hidden="true">🥇</span>`) {
-		t.Error("the month's leader carries no medal")
+	// In the rank column, immediately before the figure it stands in for: the
+	// names are different lengths, so trailing them put the medals at six
+	// different offsets down a column meant to read as a podium.
+	if !strings.Contains(body,
+		`<span class="medal-mark" aria-hidden="true">🥇</span><span class="rank-num">1</span>`) {
+		t.Error("the medal is not in the rank column, ahead of the figure it replaces")
 	}
-	// Decoration, not information: the rank is a column of the same row, in
-	// figures, so a label here would only repeat it.
-	if strings.Contains(body, `class="medal-mark"`) && !strings.Contains(body, `class="medal-mark" aria-hidden="true"`) {
-		t.Error("the medal is exposed to assistive tech, which already has the rank")
+	// The figure is always rendered: the medal is aria-hidden, so that is
+	// what carries the placing once the eye stops seeing it.
+	if strings.Count(body, `class="rank-num"`) < 3 {
+		t.Error("the rank figures are not rendered, so a hidden medal says nothing")
 	}
 	// The chip is still in the markup: app.css shows one or the other by
 	// width, so neither is rendered conditionally on the server.
@@ -1400,6 +1404,7 @@ func TestTheMonthsTopThreeCarryAMedalOnAPhone(t *testing.T) {
 	for _, want := range []string{
 		".months-table .medal { display: none; }",
 		".months-table .medal-mark { display: inline; }",
+		".months-table .medal-mark + .rank-num {",
 	} {
 		if !strings.Contains(css, want) {
 			t.Errorf("the phone rules are missing %q", want)
