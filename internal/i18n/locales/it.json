@@ -33,7 +33,6 @@
   "board.mode.excluded.other": "%d giocatori nascosti — nessun puzzle in modalità difficile",
   "board.toggle.countX": "Conta i falliti come 7",
   "board.toggle.countMissed": "Conta i giorni saltati come 7",
-  "board.toggle.countMissed.moot": "Non ha effetto finché «Conta i falliti come 7» è spento",
   "board.ranking.label": "Classifica",
   "board.ranking.standard": "Standard",
   "board.ranking.custom": "Personalizzata",

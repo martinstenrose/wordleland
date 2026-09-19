@@ -33,7 +33,6 @@
   "board.mode.excluded.other": "%d Spieler ausgeblendet — keine Hard-Mode-Rätsel",
   "board.toggle.countX": "Fehlversuche als 7 zählen",
   "board.toggle.countMissed": "Verpasste als 7 zählen",
-  "board.toggle.countMissed.moot": "Ohne Wirkung, solange „Fehlversuche als 7 zählen“ aus ist",
   "board.ranking.label": "Wertung",
   "board.ranking.standard": "Standard",
   "board.ranking.custom": "Angepasst",

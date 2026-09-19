@@ -33,7 +33,6 @@
   "board.mode.excluded.other": "%d jugadores ocultos — sin puzles en modo difícil",
   "board.toggle.countX": "Contar los fallos como 7",
   "board.toggle.countMissed": "Contar los días sin jugar como 7",
-  "board.toggle.countMissed.moot": "No tiene efecto mientras «Contar los fallos como 7» esté desactivado",
   "board.ranking.label": "Clasificación",
   "board.ranking.standard": "Estándar",
   "board.ranking.custom": "Personalizada",

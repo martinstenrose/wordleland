@@ -189,23 +189,22 @@ func buildMonth(year int, month time.Month, rows []store.BoardResult,
 		// and everybody had the same one.
 		//
 		// The denominator is every concluded calendar day in the month,
-		// whether or not somebody else posted it. It follows CountXAsSeven,
-		// because with a failure scored as nothing there is no number an
-		// absence could take either.
+		// whether or not somebody else posted it. It does not follow
+		// CountXAsSeven: 7 is what a Wordle is worth when it was not solved,
+		// and whether somebody attempted it is a separate question from
+		// whether they turned up — see Options.CountMissed.
 		//
 		// It is also bounded to concludedPuzzles, not puzzles: today isn't
 		// missed until it's over, even if somebody else has already played
 		// it.
-		if opts.CountXAsSeven {
-			playedConcluded := 0
-			for _, r := range history {
-				if r.PuzzleNo >= firstPuzzle && r.PuzzleNo < concludedThrough {
-					playedConcluded++
-				}
+		playedConcluded := 0
+		for _, r := range history {
+			if r.PuzzleNo >= firstPuzzle && r.PuzzleNo < concludedThrough {
+				playedConcluded++
 			}
-			for missed := concludedPuzzles - playedConcluded; missed > 0; missed-- {
-				acc.add(failedAsSeven)
-			}
+		}
+		for missed := concludedPuzzles - playedConcluded; missed > 0; missed-- {
+			acc.add(failedAsSeven)
 		}
 
 		if acc.count > 0 {

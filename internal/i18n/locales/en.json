@@ -33,7 +33,6 @@
   "board.mode.excluded.other": "%d players hidden — no hard-mode puzzles",
   "board.toggle.countX": "Count failed as 7",
   "board.toggle.countMissed": "Count missed as 7",
-  "board.toggle.countMissed.moot": "Has no effect while \"Count failed as 7\" is off",
   "board.ranking.label": "Ranking",
   "board.ranking.standard": "Standard",
   "board.ranking.custom": "Custom",

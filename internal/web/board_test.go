@@ -380,29 +380,33 @@ func TestFooterExplainsBothRankingThresholds(t *testing.T) {
 	}
 }
 
-// The two toggles turn independently, but "count missed" has no effect
-// without "count failed" — the page has to say so, or a reader who selects
-// both, then turns failures off, sees no reason their average did not move.
-func TestCountMissedIsMarkedMootWithoutCountFailed(t *testing.T) {
+// The two scoring rules turn independently.
+//
+// "Count missed as 7" used to be gated behind "count failed as 7", on the
+// reasoning that with a failure scored as nothing there is no number an
+// absence could take either. There is: 7 is what a Wordle is worth when it
+// was not solved, and whether somebody attempted it is a separate question
+// from whether they turned up. "A failure does not count against you, but not
+// playing does" is a rule somebody can want, and it was not expressible.
+func TestCountMissedWorksWithoutCountFailed(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
-	// The reason is on the page, not in a title= — the control moved into a
-	// menu partly so that a phone, which has no hover, could show it.
-	const why = "Has no effect while"
-
-	def := fetch(t, srv, "/share/"+slug+"/board?missed=1").Body.String()
-	if strings.Contains(def, why) {
-		t.Error("count missed is marked moot while count failed is on")
+	plain := fetch(t, srv, "/share/"+slug+"/board?failed=0").Body.String()
+	missed := fetch(t, srv, "/share/"+slug+"/board?failed=0&missed=1").Body.String()
+	if plain == missed {
+		t.Error("counting missed days changed nothing while failures were excluded")
 	}
 
-	off := fetch(t, srv, "/share/"+slug+"/board?failed=0&missed=1").Body.String()
-	if !strings.Contains(off, why) {
-		t.Error("count missed is not marked moot once count failed is turned off")
+	// And the menu no longer warns that it would not: that caveat was the
+	// gate describing itself.
+	if strings.Contains(missed, "Has no effect while") {
+		t.Error("the menu still says the rule has no effect")
 	}
-	if strings.Contains(off, "title=\"Has no effect") {
-		t.Error("the reason is back in a title=, which a phone cannot show")
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+	if strings.Contains(css, "ranking-why") || strings.Contains(css, ".toggle.moot") {
+		t.Error("the rules behind that caveat survive with nothing reading them")
 	}
 }
 

@@ -783,7 +783,6 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   border: 1px solid var(--color-text-12); border-radius: var(--radius-md); color: var(--color-text-50);
 }
 .toggle.on { color: var(--color-accent-strong); border-color: var(--color-accent-50); background: var(--color-accent-14); }
-.toggle.moot.on { opacity: .5; }
 
 .note, .empty {
   padding: 14px var(--space-card); font-size: var(--text-sm); color: var(--color-text-50);
@@ -1873,14 +1872,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .ranking-panel { width: min(256px, calc(100vw - 32px)); }
 .ranking-panel .kicker { margin: 6px 0 4px; padding: 0 10px; }
 .ranking-panel .kicker:first-child { margin-top: 2px; }
-/* min-width so the row may shrink: without it the reason under a rule holds
-   the panel open at its own width and shoves the tick off the end. */
-.ranking-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-/* The reason a rule currently changes nothing, under the rule. It was a
-   title= on the chip this replaces — a hover, which a phone does not have,
-   on the width where these controls are most crowded. */
-.ranking-why { font-size: var(--text-xs); color: var(--color-text-45); line-height: 1.4; }
-.menu-row.on .ranking-why { color: var(--color-text-50); }
 .menu-row svg { display: block; flex: none; border-radius: var(--radius-xs); }
 
 /* ---- Search: the topbar link, its ⌘K overlay, and the results both

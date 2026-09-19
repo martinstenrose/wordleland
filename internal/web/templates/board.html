@@ -29,10 +29,7 @@
             <p class="kicker">{{.Kicker}}</p>
             {{range .Rows}}
               <a class="menu-row{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>
-                <span class="ranking-row-text">
-                  <span>{{.Label}}</span>
-                  {{if .Why}}<span class="ranking-why">{{.Why}}</span>{{end}}
-                </span>
+                <span>{{.Label}}</span>
                 <span class="menu-check" aria-hidden="true">{{if .On}}✓{{end}}</span>
               </a>
             {{end}}

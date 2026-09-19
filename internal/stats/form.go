@@ -33,12 +33,13 @@ func ComputeTodayForm(results []store.BoardResult, opts Options) TodayForm {
 		counted = filterHardMode(results)
 	}
 	values, games, series := windowValues(counted, opts, start, current)
-	if opts.CountXAsSeven {
-		for puzzle := max(start, first); puzzle < current; puzzle++ {
-			if !played[puzzle] {
-				values = append(values, failedAsSeven)
-				series[puzzle-start] = failedAsSeven
-			}
+	// Not gated on CountXAsSeven: a gap in the window is a day nobody turned
+	// up for, which is worth 7 however an attempted failure is scored — see
+	// Options.CountMissed.
+	for puzzle := max(start, first); puzzle < current; puzzle++ {
+		if !played[puzzle] {
+			values = append(values, failedAsSeven)
+			series[puzzle-start] = failedAsSeven
 		}
 	}
 	form := TodayForm{Games: games, Series: series}
