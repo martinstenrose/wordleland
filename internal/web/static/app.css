@@ -488,7 +488,7 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   /* One size for every round control in the bar. */
   .topbar .drawer-btn,
   .topbar-controls .theme-cycle,
-  .search-btn {
+  .topbar-search .search-btn {
     width: 34px;
     height: 34px;
   }

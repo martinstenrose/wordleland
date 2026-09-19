@@ -703,12 +703,19 @@ func TestTheSearchControlSitsOnThePagesGround(t *testing.T) {
 // with prefix (e.g. ".menu-btn {"), for a test that wants to inspect one
 // rule's declarations without matching a substring anywhere else in the
 // file.
+// The prefix is anchored to the start of an unindented line, so it finds the
+// rule it names and not a longer selector ending in the same text. Without
+// that anchor ".search-btn {" also matches ".topbar-search .search-btn {" and
+// any grouped selector whose last member is .search-btn — both of which live
+// inside media queries, come earlier in the file, and would hand back the
+// wrong declarations.
 func cssRule(t *testing.T, css, prefix string) string {
 	t.Helper()
-	start := strings.Index(css, prefix)
+	start := strings.Index(css, "\n"+prefix)
 	if start < 0 {
 		t.Fatalf("no rule opening with %q found", prefix)
 	}
+	start++
 	end := strings.Index(css[start:], "}")
 	if end < 0 {
 		t.Fatalf("rule opening with %q is never closed", prefix)
