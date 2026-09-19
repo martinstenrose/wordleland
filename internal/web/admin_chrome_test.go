@@ -173,7 +173,9 @@ func TestTheChromeIsIdenticalOnEveryPage(t *testing.T) {
 
 	chromes := map[string]string{}
 	for _, path := range []string{
-		"/today", "/leaderboard", "/months", "/grid", "/players",
+		// /players is not a page: it opens on whoever leads the board, so
+		// the player's own page is what stands for that view here.
+		"/today", "/leaderboard", "/months", "/grid", "/players/harda",
 		"/settings", "/admin/players", "/admin/pending", "/admin/activity",
 		"/admin/diagnostics",
 	} {

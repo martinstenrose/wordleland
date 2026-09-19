@@ -128,8 +128,9 @@ posts.
 **What is not a control.** `link` is a prose link — a link inside or beside a
 sentence, underlined, accent-coloured — and never goes on a `<button>`: a
 control that looks like prose is a control nobody can find. Nav rows, menu
-rows, settings tabs, `chip`, `badge` and `.toggle` are navigation and
-selection; they carry their own rules and are not part of this table. The
+rows, settings tabs, the section bar's own step arrows, `chip`, `badge` and
+`.toggle` are navigation and selection; they carry their own rules and are not
+part of this table. The
 account menu's rows are drawn by being in the menu, whatever element they
 are, which is why signing out is a bare `<button class="danger">` there.
 
@@ -167,12 +168,21 @@ its heading is the control that changes it, so the strip of tabs and the
 title that repeated the highlighted one are a single thing now.
 
 `switcher` does the same for the roster, where the heading is the player's
-name. The two shapes differ in what each row carries — a section has an icon,
-a player has a rank and an average — and in what sits beside the heading: a
-glyph for a section, initials for a player. One partial draws both, because
-they are the same control; two would drift. `switcher.go` builds each from the
-list that already exists (`AdminTabs`, the board), so there is still one place
-that knows what the admin area contains and one that knows who plays.
+name. The two shapes differ only in what each row carries — a section has an
+icon, a player has a rank and an average. One partial draws both, because they
+are the same control; two would drift. `switcher.go` builds each from the list
+that already exists (`AdminTabs`, the board), so there is still one place that
+knows what the admin area contains and one that knows who plays.
+
+The heading starts on the card's gutter, exactly where a `card-head`'s `<h1>`
+starts and at the same size, and the line under it wears `kicker` like every
+other subtitle — so moving between a page whose title is a menu and a page
+whose title is just a title does not move either of them. Nothing
+sits in front of it — the bar used to carry a section icon or a player's
+initials there, which pushed the heading 45px in and said nothing the icons in
+the list below do not say where they are useful. The step arrows on the right
+are links to the neighbours on either side, and they wrap, so neither is ever
+a disabled control.
 
 A card carrying a bar is marked `card-bar`, which stops the card clipping the
 open menu. It has to be a class rather than `:has()`: the two overflow axes

@@ -63,8 +63,12 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request) {
 		s.handleGrid(w, r, prefix, viewPath(prefix, viewGrid), true)
 	case rest == "players":
 		s.handlePlayers(w, r, prefix, viewPath(prefix, viewPlayers), true)
+	case strings.HasPrefix(rest, "players/") && store.ValidSlug(strings.TrimPrefix(rest, "players/")):
+		s.handlePlayer(w, r, strings.TrimPrefix(rest, "players/"), prefix, viewPath(prefix, viewPlayers), true)
+	// The path a player's page used to have under a share link. Somebody
+	// holds one of these; it is one line to keep it working.
 	case strings.HasPrefix(rest, "p/") && store.ValidSlug(strings.TrimPrefix(rest, "p/")):
-		s.handlePlayer(w, r, strings.TrimPrefix(rest, "p/"), prefix, viewPath(prefix, viewPlayers), true)
+		http.Redirect(w, r, prefix+"/players/"+strings.TrimPrefix(rest, "p/"), http.StatusMovedPermanently)
 	case rest == "search":
 		// Settings and the admin screens drop out of what a query can
 		// find here — see searchDestinations — since neither exists for

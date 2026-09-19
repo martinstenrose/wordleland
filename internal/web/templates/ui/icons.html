@@ -114,6 +114,13 @@
 
 {{/* The larger of the two: a chevron on a control someone presses, rather
      than the hairline one that trails a caption. */}}
+{{/* The two step arrows on a section bar. Same stroke and cap as the caret
+     beside them, one size down: they are a way to move, not the control the
+     bar is about. */}}
+{{define "chevron-left"}}<svg class="chevron" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>{{end}}
+
+{{define "chevron-right"}}<svg class="chevron" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>{{end}}
+
 {{define "chevron-down"}}<svg class="chevron" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>{{end}}
 
 {{define "chevron"}}<svg class="chevron" width="9" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>{{end}}

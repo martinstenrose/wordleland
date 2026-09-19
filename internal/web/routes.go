@@ -47,7 +47,11 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /settings/password", s.requireAuth(s.handleSettingsPassword))
 	mux.HandleFunc("POST /settings/recovery-codes", s.requireAuth(s.handleSettingsRecoveryCodes))
 	mux.HandleFunc("POST /settings/totp/disable", s.requireAuth(s.handleSettingsTOTPDisable))
-	mux.HandleFunc("GET /p/{slug}", s.requireAuth(s.handlePlayerPage))
+	mux.HandleFunc("GET /players/{slug}", s.requireAuth(s.handlePlayerPage))
+	// The path this used to be. Player links get pasted into the group chat,
+	// so the old ones are answered rather than 404ed — permanently, because
+	// the new path is where they live now.
+	mux.HandleFunc("GET /p/{slug}", s.redirectToPlayer)
 
 	// Admin. The admin UI is deliberately partial; the player slice of it is
 	// pulled forward because correcting a name or a link is the change the

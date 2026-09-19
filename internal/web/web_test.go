@@ -667,9 +667,9 @@ func TestEveryFrameCarriesTheMainRegion(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	for _, path := range []string{
-		"/share/" + slug + "/",                 // the application frame
-		"/",                                    // the sign-in frame
-		"/share/" + slug + "/p/no-such-player", // no frame at all
+		"/share/" + slug + "/", // the application frame
+		"/",                    // the sign-in frame
+		"/share/" + slug + "/players/no-such-player", // no frame at all
 	} {
 		body := fetchAs(t, srv, path, nil).Body.String()
 		if got := strings.Count(body, `<main id="main">`); got != 1 {
@@ -858,5 +858,129 @@ func TestSwitchingAPageLeavesItAtTheTop(t *testing.T) {
 	// — a ranking row, a section bar, a rail row.
 	if n := strings.Count(switcher, "preventScroll: true"); n != 4 {
 		t.Errorf("%d of the switcher's focus calls prevent scrolling, want 4", n)
+	}
+}
+
+// The page's title sits in the same place, at the same size, on every screen.
+//
+// It did not. A card whose title is a menu carried a glyph in front of it — a
+// section icon, a player's initials — which pushed the heading 45px past
+// where a card-head puts one, so moving between the Leaderboard and Players
+// moved the title. Today had the day's headline where every other page has
+// its name, at a different size again, so the title moved on the way in and
+// out of Today as well.
+//
+// Geometry is not something CI can see, so this pins the three rules it comes
+// out of: one heading treatment, one box around it, and a name in it.
+func TestThePageTitleDoesNotMoveBetweenPages(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	session := signIn(t, srv, admin.ID)
+
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+
+	// One heading treatment, whatever the title happens to be. Today is not
+	// in this list: it is the front page and leads with the day's result
+	// rather than with its own name, which is a heading of a different kind
+	// and is deliberately set larger.
+	head := cssRule(t, css, ".card-head h1,")
+	for _, rule := range []string{".switcher-label {"} {
+		got := cssRule(t, css, rule)
+		for _, want := range []string{"font-size: var(--text-xl)", "font-weight: 700"} {
+			if !strings.Contains(got, want) || !strings.Contains(head, want) {
+				t.Errorf("%s does not carry %s the way .card-head h1 does: %s", rule, want, got)
+			}
+		}
+	}
+	// And one box around it. The bar and Today's head both take .card-head's
+	// own vertical padding and the card's gutter.
+	for _, rule := range []string{".switcher-bar {", ".today-head {"} {
+		if got := cssRule(t, css, rule); !strings.Contains(got, "16px") {
+			t.Errorf("%s does not take .card-head's vertical padding: %s", rule, got)
+		}
+	}
+	// And one subtitle treatment under it, .kicker's, wherever there is one.
+	if !strings.Contains(fetchAs(t, srv, "/grid", session).Body.String(), `<p class="kicker">`) {
+		t.Error("the grid has no subtitle under its title")
+	}
+	// Nothing in front of the heading inside the bar: that was the 45px.
+	if strings.Contains(css, ".switcher-avatar") || strings.Contains(css, ".switcher-mark") {
+		t.Error("the bar still draws a glyph in front of its heading")
+	}
+
+	// Every page names itself in an <h1> — except Today, whose <h1> is the
+	// day's result.
+	for _, tt := range []struct{ path, want string }{
+		{"/leaderboard", "The board"},
+		{"/players/harda", "Harda"},
+		{"/admin/pending", "Pending results"},
+	} {
+		body := fetchAs(t, srv, tt.path, session).Body.String()
+		at := strings.Index(body, `<main id="main">`)
+		if at < 0 {
+			t.Fatalf("%s has no main region", tt.path)
+		}
+		main := body[at:]
+		open := strings.Index(main, "<h1")
+		if open < 0 {
+			t.Errorf("%s has no title at all", tt.path)
+			continue
+		}
+		title := main[open:]
+		title = title[strings.Index(title, ">")+1 : strings.Index(title, "</h1>")]
+		if strings.TrimSpace(title) != tt.want {
+			t.Errorf("%s is titled %q, want %q", tt.path, strings.TrimSpace(title), tt.want)
+		}
+	}
+}
+
+// One press to the section or the player next door, and both ends wrap so
+// neither arrow is ever the disabled control a first or last item would need.
+func TestTheSectionBarStepsToItsNeighbours(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	session := signIn(t, srv, admin.ID)
+
+	step := regexp.MustCompile(`<a class="switcher-step" href="([^"]+)" aria-label="([^"]+)"`)
+
+	// Settings is the first of the five, so its "previous" wraps to the last.
+	got := step.FindAllStringSubmatch(fetchAs(t, srv, "/admin/settings", session).Body.String(), -1)
+	if len(got) != 2 {
+		t.Fatalf("got %d step arrows on the first section, want 2", len(got))
+	}
+	if got[0][1] != "/admin/diagnostics" || !strings.Contains(got[0][2], "Diagnostics") {
+		t.Errorf("the first section's previous is %q (%q), want the last one", got[0][1], got[0][2])
+	}
+	if got[1][1] != "/admin/players" || !strings.Contains(got[1][2], "Players") {
+		t.Errorf("the first section's next is %q (%q)", got[1][1], got[1][2])
+	}
+
+	// The roster steps in the board's order, and the arrows name who is there.
+	got = step.FindAllStringSubmatch(fetchAs(t, srv, "/players/harda", session).Body.String(), -1)
+	if len(got) != 2 {
+		t.Fatalf("got %d step arrows on a player, want 2", len(got))
+	}
+	for _, m := range got {
+		if !strings.HasPrefix(m[1], "/players/") {
+			t.Errorf("a roster arrow goes to %q, which is not a player", m[1])
+		}
+		if !strings.Contains(m[2], ":") {
+			t.Errorf("a roster arrow is unlabelled: %q", m[2])
+		}
+	}
+
+	// A roster of one has nowhere to step, so it offers no arrows.
+	only := testServer(t)
+	seedLogin(t, only, "admin@example.tld", true)
+	lone, _ := store.CreatePlayer(context.Background(), only.db,
+		store.SystemActor(), "Solo", "solo")
+	seedResult(t, only, lone.ID, currentPuzzle(), 4, false)
+	_, alone := login(t, only, "admin@example.tld", testPassword)
+	_, alone = enrol(t, only, alone)
+	page, _ := getWith(t, only, "/players/solo", alone)
+	if strings.Contains(page.Body.String(), "switcher-step") {
+		t.Error("a roster of one offers a step with nowhere to go")
 	}
 }

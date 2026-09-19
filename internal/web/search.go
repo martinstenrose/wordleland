@@ -129,7 +129,7 @@ func (s *Server) search(ctx context.Context, query, prefix string, readOnly, isA
 		if !strings.Contains(strings.ToLower(p.Name), needle) && !strings.Contains(strings.ToLower(p.Slug), needle) {
 			continue
 		}
-		hit := searchHit{Kind: "player", Label: p.Name, Href: prefix + "/p/" + p.Slug}
+		hit := searchHit{Kind: "player", Label: p.Name, Href: prefix + "/players/" + p.Slug}
 		hit.Before, hit.Match, hit.After = highlightLabel(hit.Label, needle)
 		results.Players = append(results.Players, hit)
 	}

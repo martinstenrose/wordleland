@@ -15,6 +15,11 @@
          day it is on the left, how far through it the group is on the
          right. */}}
     <div class="today-headline">
+      {{/* The one page that does not name itself. Every other title answers
+           "where am I"; this one is the front page, and what it has to say
+           is what happened today — so the day is the kicker and the day's
+           result is the heading. Naming it "Today" above them would be a
+           title telling a reader something the rail already has highlighted. */}}
       <p class="kicker">
         <span class="accent">{{.T.T "player.puzzle" (.T.Puzzle .PuzzleNo)}}</span>
         <span class="muted">{{.DateLong}}</span>

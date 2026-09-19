@@ -238,7 +238,7 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 	}
 	for _, row := range season.Rows {
 		view := seasonRow{
-			Name: row.Name, Href: prefix + "/p/" + row.Slug,
+			Name: row.Name, Href: prefix + "/players/" + row.Slug,
 			Wins: row.Wins, Podiums: row.Podiums, Best: "—",
 		}
 		if row.Best != nil {
@@ -281,7 +281,7 @@ const (
 
 func monthRowFor(p stats.MonthPlayer, prefix string, winners []stats.MonthPlayer, t translator) monthRow {
 	row := monthRow{
-		Rank: p.Rank, Name: p.Name, Href: prefix + "/p/" + p.Slug,
+		Rank: p.Rank, Name: p.Name, Href: prefix + "/players/" + p.Slug,
 		Average: formatScore(t, p.Average), Games: p.Games,
 		ThreeOrBetter: p.ThreeOrBetter, Fails: p.Fails, BestRun: p.BestRun,
 	}

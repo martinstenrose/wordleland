@@ -219,7 +219,7 @@ func (s *Server) adminPanel(r *http.Request, slug string, games map[int64]int, f
 		// Shown beside the slug field so an admin can see the address they
 		// are about to change. Falls back to a bare path when APP_URL is
 		// unset, which is the local-run case.
-		SlugBase: strings.TrimPrefix(s.cfg.AppURL, "https://") + "/p/",
+		SlugBase: strings.TrimPrefix(s.cfg.AppURL, "https://") + "/players/",
 		Users:    users,
 		Form:     formFor(player),
 	}

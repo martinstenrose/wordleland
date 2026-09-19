@@ -279,3 +279,12 @@ func (s *Server) handlePlayersPage(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handlePlayerPage(w http.ResponseWriter, r *http.Request) {
 	s.handlePlayer(w, r, r.PathValue("slug"), "", viewPath("", viewPlayers), false)
 }
+
+// redirectToPlayer answers the path a player's page used to have.
+//
+// Not behind requireAuth: the redirect says nothing about the account or the
+// player, and sending a signed-out reader to the sign-in page from the new
+// path rather than the old one is the same outcome with one less bounce.
+func (s *Server) redirectToPlayer(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/players/"+r.PathValue("slug"), http.StatusMovedPermanently)
+}

@@ -232,7 +232,7 @@ func TestSharedSearchWorksUnderThePrefix(t *testing.T) {
 	}
 	// Player links stay under the share prefix, the same as every other
 	// link on this view — see TestShareBoardMirrorsTheAuthenticatedOne.
-	if !strings.Contains(body, `href="/share/`+slug+`/p/harda"`) {
+	if !strings.Contains(body, `href="/share/`+slug+`/players/harda"`) {
 		t.Error("a shared search result does not link back into the share prefix")
 	}
 
@@ -280,7 +280,7 @@ func TestSearchHitsCarryTheirKindsIcon(t *testing.T) {
 		t.Error("an admin row does not draw the shield icon")
 	}
 
-	if strings.Contains(body, `<li><a class="search-hit" href="/p/harda">Harda</a></li>`) {
+	if strings.Contains(body, `<li><a class="search-hit" href="/players/harda">Harda</a></li>`) {
 		t.Error("a result row is still the old bullet-point markup with no icon")
 	}
 }
