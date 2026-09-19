@@ -31,8 +31,24 @@ jobs:
         with:
           fetch-depth: 1
 
+      # Dependabot-triggered runs don't get repository (Actions) secrets from
+      # GitHub, only secrets explicitly added under Settings > Secrets and
+      # variables > Dependabot. Until CLAUDE_CODE_OAUTH_TOKEN is added there
+      # too, skip cleanly instead of failing the check.
+      - name: Check Claude token availability
+        id: check-token
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run Claude Code Review
         id: claude-review
+        if: steps.check-token.outputs.available == 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
