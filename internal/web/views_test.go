@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/stats"
 	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/wordle"
@@ -1317,7 +1318,7 @@ func TestEveryBanterHasDetails(t *testing.T) {
 				}
 				if kind == stats.CalloutOneAndDone {
 					date, _ := wordle.DateForPuzzle(1890)
-					want := "Wordle #" + tr.Integer(1890) + " · " + date.Format(time.DateOnly)
+					want := "Wordle #" + i18n.Identifier(1890) + " · " + date.Format(time.DateOnly)
 					if count > 1 {
 						prefix := "Latest: "
 						if locale == "sv" {

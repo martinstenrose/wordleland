@@ -259,7 +259,7 @@ func (s *Server) calloutFor(c stats.Callout, prefix string, t translator) callou
 			if c.Count > 1 {
 				key = "callout.meta.latestPuzzle"
 			}
-			view.Meta = t.T(key, c.PuzzleNo, date.Format(time.DateOnly))
+			view.Meta = t.T(key, t.Puzzle(c.PuzzleNo), date.Format(time.DateOnly))
 		}
 	case stats.CalloutOnForm, stats.CalloutOffForm:
 		view.Args = []any{c.Name, c.Value}

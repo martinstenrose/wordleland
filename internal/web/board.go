@@ -313,7 +313,7 @@ func formatScore(t translator, v *float64) string {
 // names one does: "#1869 (2026-08-01)". One function rather than the
 // string built again at each call site, so they cannot drift apart.
 func puzzleDate(t translator, puzzleNo int, date string) string {
-	return "#" + t.Integer(puzzleNo) + " (" + date + ")"
+	return "#" + t.Puzzle(puzzleNo) + " (" + date + ")"
 }
 
 // deltaDeadZone is the band within which a delta is not worth colouring. It

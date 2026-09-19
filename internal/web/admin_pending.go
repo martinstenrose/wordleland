@@ -151,7 +151,7 @@ func pendingSnippet(t translator, held []store.PendingResult) string {
 		if h.HardMode {
 			score += "*"
 		}
-		parts = append(parts, t.T("pending.line", h.PuzzleNo, score))
+		parts = append(parts, t.T("pending.line", t.Puzzle(h.PuzzleNo), score))
 	}
 	line := strings.Join(parts, " · ")
 	if len(held) > shown {

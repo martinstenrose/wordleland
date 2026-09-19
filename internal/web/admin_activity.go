@@ -159,7 +159,7 @@ func (s *Server) activityRowFor(e store.Event, t translator) activityRow {
 	// makes two otherwise identical lines tell apart.
 	if e.Kind == store.ActivityResults {
 		if puzzle, ok := detailNumber(detail, "puzzle_no"); ok {
-			row.Text += " · " + t.T("player.puzzle", puzzle)
+			row.Text += " · " + t.T("player.puzzle", t.Puzzle(puzzle))
 		}
 	}
 	return row

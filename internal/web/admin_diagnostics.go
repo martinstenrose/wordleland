@@ -101,7 +101,7 @@ func (s *Server) freshnessRows(t translator, f store.Freshness, now time.Time) [
 
 	puzzle := diagnosticRow{Label: t.T("diag.latestPuzzle"), Value: t.T("diag.none")}
 	if f.LatestPuzzle > 0 {
-		puzzle.Value = t.T("player.puzzle", f.LatestPuzzle)
+		puzzle.Value = t.T("player.puzzle", t.Puzzle(f.LatestPuzzle))
 	}
 	rows = append(rows, puzzle)
 

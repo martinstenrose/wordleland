@@ -119,9 +119,15 @@ func TestSwedishBoardLocalisesDisplayedNumbers(t *testing.T) {
 	if !strings.Contains(body, ">3,00<") {
 		t.Error("the Swedish board does not render an average with a decimal comma")
 	}
-	wantPuzzle := "#" + i18n.Integer("sv", currentPuzzle())
+	// The puzzle number is the exception, in every language: it names a
+	// puzzle rather than counting anything, and grouping its digits invites
+	// the eye to read a magnitude out of a name.
+	wantPuzzle := "#" + i18n.Identifier(currentPuzzle())
 	if !strings.Contains(body, wantPuzzle) {
 		t.Errorf("the Swedish board does not render the puzzle as %q", wantPuzzle)
+	}
+	if grouped := "#" + i18n.Integer("sv", currentPuzzle()); grouped != wantPuzzle && strings.Contains(body, grouped) {
+		t.Errorf("the puzzle number is grouped as a quantity (%q)", grouped)
 	}
 	if strings.Contains(body, ">3.00<") {
 		t.Error("the Swedish board still renders an average with a decimal point")
