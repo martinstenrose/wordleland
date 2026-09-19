@@ -57,19 +57,33 @@ func TestTodayFormDoesNotManufactureAbsences(t *testing.T) {
 	}
 }
 
-// With the toggle off there is no number a miss could take, so a gap must
-// stay uncounted rather than falling back to seven — the same rule
-// missedValues and the months backfill follow.
-func TestTodayFormMissedDaysFollowCountXAsSeven(t *testing.T) {
+// A gap in the window counts as seven whether or not an attempted failure
+// does — the same rule missedValues and the months backfill follow.
+//
+// This used to assert the opposite, on the reasoning that with a failure
+// scored as nothing there is no number a miss could take either. There is:
+// seven is what a Wordle is worth when it was not solved, and turning up is
+// a separate question from succeeding.
+func TestTodayFormMissedDaysDoNotFollowCountXAsSeven(t *testing.T) {
 	opts := DefaultOptions(today(t))
 	opts.CountXAsSeven = false
 	results := run(1, 1871, 1881, 3, false)
 	form := ComputeTodayForm(results, opts)
-	if form.Average == nil || *form.Average != 3 || form.Games != 11 {
-		t.Errorf("missed days were counted with the toggle off: %+v", form)
+
+	// Eleven played days at 3, and every concluded day since counted as a
+	// miss — so the average is worse than the days actually played.
+	if form.Games != 11 {
+		t.Errorf("Games = %d, want the 11 days played; a miss is not a game", form.Games)
 	}
-	if form.Series[11] != 0 {
-		t.Errorf("chart put a seven in a day that was never played: %v", form.Series)
+	if form.Average == nil || *form.Average <= 3 {
+		t.Errorf("missed days were not counted with failures excluded: %+v", form)
+	}
+	if form.Series[11] != failedAsSeven {
+		t.Errorf("chart left a gap uncounted: %v", form.Series)
+	}
+	// Today is not missed until it is over, whatever the toggles say.
+	if form.Series[len(form.Series)-1] != 0 {
+		t.Errorf("chart counted the day still in progress: %v", form.Series)
 	}
 }
 

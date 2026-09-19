@@ -38,8 +38,16 @@ const (
 type Options struct {
 	// CountXAsSeven treats a failure as a 7 in averages. Default on.
 	CountXAsSeven bool
-	// CountMissed counts missed puzzles as failures, bounded to each
-	// player's own window — first result to last. Default off.
+	// CountMissed counts missed puzzles as 7, bounded to each player's own
+	// window — first result to last. Default off.
+	//
+	// Independent of CountXAsSeven, which it used to be gated behind on the
+	// reasoning that with a failure scored as nothing there is no number an
+	// absence could take either. There is: 7 is what a Wordle is worth when
+	// it was not solved, and whether somebody attempted it is a separate
+	// question from whether they turned up. "A failure does not count
+	// against you, but not playing does" is a rule somebody can want, and
+	// it was not expressible.
 	CountMissed bool
 	// HardModeOnly restricts averages and distributions to hard-mode games.
 	HardModeOnly bool
@@ -323,9 +331,7 @@ func countedValues(counted, history []store.BoardResult, opts Options) []float64
 // the player failed to turn up, and scoring it as a miss would be a lie
 // about their attendance.
 func missedValues(counted, history []store.BoardResult, opts Options) []float64 {
-	if len(counted) < 2 || !opts.CountXAsSeven {
-		// With X not counted as 7 there is no number a miss could take
-		// either, so the toggle has nothing to add.
+	if len(counted) < 2 {
 		return nil
 	}
 	played := make(map[int]bool, len(history))

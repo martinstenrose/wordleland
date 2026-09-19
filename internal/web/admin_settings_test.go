@@ -48,7 +48,7 @@ func TestTheSettingsScreenNamesEveryVariableThisAppReads(t *testing.T) {
 	if !strings.Contains(cellAround(t, body, "Not set"), "muted") {
 		t.Error("an unset variable is not greyed, so the column cannot be swept")
 	}
-	if !strings.Contains(body, "Set via environment variable") {
+	if !strings.Contains(body, "Not editable here") {
 		t.Error("nothing says these cannot be changed here")
 	}
 }
@@ -301,5 +301,76 @@ func TestNoCopyControlWithoutAnOrigin(t *testing.T) {
 	// to reconstruct the address, and APP_URL is in the table below.
 	if !strings.Contains(body, `class="share-slug"`) {
 		t.Error("the slug is not shown at all")
+	}
+}
+
+// Rotating is three page loads without a script — ask, answer, outcome — and
+// app.js collapses them into swaps in place. What it swaps is scoped to this
+// one block, so the admin strip above, which links here too, is left alone.
+//
+// Every control it intercepts stays a real one: the question is a link, the
+// answer is a form that posts its own token, and either works with the script
+// gone.
+func TestTheShareSectionIsScopedAndStillWorksWithoutAScript(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+	if _, _, err := store.EnsureShareSlug(context.Background(), srv.db); err != nil {
+		t.Fatalf("EnsureShareSlug: %v", err)
+	}
+
+	plain := fetchAs(t, srv, "/admin/settings", session).Body.String()
+	if !strings.Contains(plain, `class="settings-section share-section"`) {
+		t.Error("the share section carries no hook, so the script would reach the whole page")
+	}
+	if !strings.Contains(plain, `href="/admin/settings?confirm=slug"`) {
+		t.Error("asking the question is not a link")
+	}
+
+	asked := fetchAs(t, srv, "/admin/settings?confirm=slug", session).Body.String()
+	form := asked[strings.Index(asked, `<form method="post" action="/admin/settings/slug"`):]
+	form = form[:strings.Index(form, "</form>")]
+	if !strings.Contains(form, `name="csrf_token"`) {
+		t.Error("the answer carries no token, so posting it from script would be refused")
+	}
+	// The script is not named anywhere in the markup: it finds its own work.
+	if strings.Contains(asked, "onclick") || strings.Contains(asked, "onsubmit") {
+		t.Error("a control carries an inline handler")
+	}
+}
+
+// The rotation posts what the form declares, which is url-encoded.
+//
+// It posted the FormData it is built from, which is multipart — and Go's
+// ParseForm does not read a multipart body. PostForm came back empty, the
+// CSRF token went missing, and the server answered correctly with "the form
+// expired": a valid token, rejected, because the request was not the one the
+// markup described.
+//
+// Asserted against the script's text because there is no other way to catch
+// it here, and "body: new FormData(form)" is exactly the simplification
+// somebody would make.
+func TestTheRotationPostsWhatTheFormDeclares(t *testing.T) {
+	srv := testServer(t)
+	script := fetchAs(t, srv, "/static/app.js", nil).Body.String()
+
+	if !strings.Contains(script, "body: new URLSearchParams(new FormData(form))") {
+		t.Error("the rotation does not post url-encoded, so its CSRF token will not arrive")
+	}
+	if strings.Contains(script, "body: new FormData(") {
+		t.Error("a fetch posts multipart, which Go's ParseForm leaves unread")
+	}
+
+	// And the form it reads really does declare that encoding — an enctype
+	// on it would make the script the wrong one rather than the right one.
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+	if _, _, err := store.EnsureShareSlug(context.Background(), srv.db); err != nil {
+		t.Fatalf("EnsureShareSlug: %v", err)
+	}
+	asked := fetchAs(t, srv, "/admin/settings?confirm=slug", session).Body.String()
+	form := asked[strings.Index(asked, `<form method="post" action="/admin/settings/slug"`):]
+	if strings.Contains(form[:strings.Index(form, ">")], "enctype") {
+		t.Error("the form declares an enctype the script does not send")
 	}
 }

@@ -47,6 +47,25 @@ type Setting struct {
 	// Mono asks for the monospace face: an identifier or a key, where
 	// telling 0 from O matters, rather than prose.
 	Mono bool
+
+	// Default marks a value nobody chose: the variable is not set, and what
+	// is shown is what the code falls back to.
+	//
+	// It is a third thing, and the screen was showing it as the first. "Not
+	// set" and a value somebody typed are easy to tell apart; a default sits
+	// between them — nothing was chosen, and yet something is in force — and
+	// reporting it as a choice hides the question an admin is usually here
+	// to ask, which is whether anyone has set this at all.
+	Default bool
+}
+
+// orDefault marks a setting whose value came from the code rather than from
+// the environment. The environment is read again here rather than recorded at
+// load time: it cannot change while the process runs, and Config keeps only
+// the resolved value, having thrown away where it came from.
+func orDefault(s Setting, env string) Setting {
+	s.Default = strings.TrimSpace(os.Getenv(env)) == ""
+	return s
 }
 
 // Settings is every variable this installation reads, in the order the admin
@@ -59,7 +78,7 @@ type Setting struct {
 func (c *Config) Settings(b *Bridge) []Setting {
 	out := []Setting{
 		text("APP_URL", c.AppURL),
-		{Name: "TZ", Value: localZone(), Kind: SettingValue},
+		orDefault(Setting{Name: "TZ", Value: localZone(), Kind: SettingValue}, "TZ"),
 		secret("TOTP_KEY", len(c.TOTPKey) > 0),
 		text("TRUSTED_PROXIES", proxyList(c)),
 
@@ -70,10 +89,10 @@ func (c *Config) Settings(b *Bridge) []Setting {
 		text("SMTP_FROM", c.SMTP.From),
 
 		text("PENDING_RETENTION", retention(c.PendingRetention)),
-		text("LOG_LEVEL", strings.ToLower(c.LogLevel.String())),
+		orDefault(text("LOG_LEVEL", strings.ToLower(c.LogLevel.String())), "LOG_LEVEL"),
 		text("ADMIN_EMAIL", c.AdminEmail),
 		secret("ADMIN_PASSWORD", c.AdminPassword != ""),
-		toggle("DEMO_MODE", c.DemoMode),
+		orDefault(toggle("DEMO_MODE", c.DemoMode), "DEMO_MODE"),
 	}
 
 	// With no bridge the two variables that turn it on are the answer, and
@@ -93,9 +112,9 @@ func (c *Config) Settings(b *Bridge) []Setting {
 		// with no reason to be there.
 		Setting{Name: "SIGNAL_ACCOUNT", Value: maskTail(b.SignalAccount, 4), Kind: SettingValue},
 		Setting{Name: "SIGNAL_GROUP_ID", Value: maskTail(b.SignalGroupID, 0), Kind: SettingValue, Mono: true},
-		toggle("SIGNAL_ANNOUNCE_MONTHS", b.AnnounceMonths),
-		text("SIGNAL_LOCALE", b.AnnounceLocale),
-		text("SIGNAL_API_URL", b.SignalAPIURL),
+		orDefault(toggle("SIGNAL_ANNOUNCE_MONTHS", b.AnnounceMonths), "SIGNAL_ANNOUNCE_MONTHS"),
+		orDefault(text("SIGNAL_LOCALE", b.AnnounceLocale), "SIGNAL_LOCALE"),
+		orDefault(text("SIGNAL_API_URL", b.SignalAPIURL), "SIGNAL_API_URL"),
 	)
 }
 

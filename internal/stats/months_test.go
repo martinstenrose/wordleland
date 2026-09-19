@@ -342,9 +342,17 @@ func TestMonthCountsAMissedDayAsAFailure(t *testing.T) {
 	}
 }
 
-// Missed days follow CountXAsSeven: with a failure worth nothing there is
-// no number an absence could take either.
-func TestMonthMissedDaysFollowCountXAsSeven(t *testing.T) {
+// A missed day counts as 7 whether or not an attempted failure does.
+//
+// It used to follow CountXAsSeven, on the reasoning that with a failure
+// scored as nothing there is no number an absence could take either. There
+// is: 7 is what a Wordle is worth when it was not solved, and whether
+// somebody attempted it is a separate question from whether they turned up.
+//
+// cherry scores 2s and plays half the month; everyday scores 4s and plays all
+// of it. With absences counted, turning up wins — which is the whole of what
+// this rule is for, and it was not expressible with failures excluded.
+func TestMonthMissedDaysDoNotFollowCountXAsSeven(t *testing.T) {
 	players := []store.Player{player(1, "everyday"), player(2, "cherry")}
 	results := run(1, 1871, 1890, 4, false)
 	for p := 1871; p <= 1880; p++ {
@@ -360,8 +368,16 @@ func TestMonthMissedDaysFollowCountXAsSeven(t *testing.T) {
 	if len(m.Ranked) != 2 {
 		t.Fatalf("Ranked = %v, want both", slugs(m.Ranked))
 	}
-	if got := *m.Ranked[0].Average; got != 2 || m.Ranked[0].Slug != "cherry" {
-		t.Errorf("winner is %s on %.2f, want cherry on 2.00", m.Ranked[0].Slug, got)
+	if m.Ranked[0].Slug != "everyday" {
+		t.Errorf("winner is %s, want everyday: cherry missed half the month", m.Ranked[0].Slug)
+	}
+	cherry := m.Ranked[1]
+	if cherry.Slug != "cherry" {
+		t.Fatalf("second is %s, want cherry", cherry.Slug)
+	}
+	if *cherry.Average <= 2 {
+		t.Errorf("cherry averages %.2f, which is their played days alone — absences are not counted",
+			*cherry.Average)
 	}
 }
 
