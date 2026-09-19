@@ -50,6 +50,7 @@
   "error.generic.body": "Something went wrong.",
   "player.rank": "Ranked %d on the board",
   "player.notRanked": "Not ranked",
+  "players.choose": "Choose a player to show.",
   "player.retired": "no longer in the group",
   "player.noGames": "No results yet for this player.",
   "player.currentStreak": "Current streak",

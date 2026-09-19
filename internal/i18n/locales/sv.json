@@ -50,6 +50,7 @@
   "error.generic.body": "Något gick fel.",
   "player.rank": "Rankad %d på tavlan",
   "player.notRanked": "Ej rankad",
+  "players.choose": "Välj en spelare att visa.",
   "player.retired": "inte längre med i gruppen",
   "player.noGames": "Inga resultat än för den här spelaren.",
   "player.currentStreak": "Nuvarande svit",

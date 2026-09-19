@@ -155,19 +155,33 @@ func (s *Server) handlePlayers(w http.ResponseWriter, r *http.Request, prefix, b
 		return
 	}
 
-	slug := ""
-	switch {
-	case len(board.Ranked) > 0:
-		slug = board.Ranked[0].Slug
-	case len(board.Unranked) > 0:
-		slug = board.Unranked[0].Slug
-	default:
+	if len(board.Ranked) == 0 && len(board.Unranked) == 0 {
 		// Nobody to show. The board's own empty state says why, so send the
 		// reader there rather than inventing a second one.
 		http.Redirect(w, r, boardPath, http.StatusSeeOther)
 		return
 	}
-	s.handlePlayer(w, r, slug, prefix, boardPath, readOnly)
+
+	// The strip and nothing under it. It used to open on whoever was top of
+	// the board, which put one player's page behind a link that says
+	// "Players" and made the strip look like it had already been used. Asking
+	// is one tap, and it is the honest answer to a view with no subject yet.
+	page := playersPage{chrome: s.newChrome(w, r, prefix, viewPlayers, readOnly)}
+	for _, group := range [][]stats.Player{board.Ranked, board.Unranked} {
+		for _, p := range group {
+			page.Picker = append(page.Picker, playerTab{
+				Label: p.Name, Href: prefix + "/p/" + p.Slug,
+			})
+		}
+	}
+	s.render(w, r, http.StatusOK, "players.html", page)
+}
+
+// playersPage is the players view with nobody chosen: the strip, and an
+// invitation to pick from it.
+type playersPage struct {
+	chrome
+	Picker []playerTab
 }
 
 func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, prefix, boardPath string, readOnly bool) {
