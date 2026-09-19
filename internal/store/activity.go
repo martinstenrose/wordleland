@@ -25,12 +25,16 @@ const (
 // Activity actions. Constants rather than literals so a typo is a compile
 // error and the vocabulary stays greppable as it grows.
 const (
-	ActionUserCreated         = "user.created"
-	ActionUserDisabled        = "user.disabled"
-	ActionUserEnabled         = "user.enabled"
-	ActionUserPasswordReset   = "user.password_reset"
-	ActionUser2FAReset        = "user.2fa_reset"
-	ActionUser2FAEnrolled     = "user.2fa_enrolled"
+	ActionUserCreated       = "user.created"
+	ActionUserDisabled      = "user.disabled"
+	ActionUserEnabled       = "user.enabled"
+	ActionUserPasswordReset = "user.password_reset"
+	ActionUser2FAReset      = "user.2fa_reset"
+	ActionUser2FAEnrolled   = "user.2fa_enrolled"
+	// ActionUser2FADisabled is somebody turning their own off, which is not
+	// the same event as an admin resetting theirs: a reset forces the account
+	// to enrol again, and this leaves it with no second factor at all.
+	ActionUser2FADisabled     = "user.2fa_disabled"
 	ActionUserEmailPending    = "user.email_pending"
 	ActionRecoveryCodesIssued = "user.recovery_codes_issued"
 	ActionRecoveryCodeUsed    = "user.recovery_code_used"
@@ -187,6 +191,7 @@ var activityKinds = map[string]string{
 	ActionUserPasswordReset:   ActivityUsers,
 	ActionUser2FAReset:        ActivityUsers,
 	ActionUser2FAEnrolled:     ActivityUsers,
+	ActionUser2FADisabled:     ActivityUsers,
 	ActionRecoveryCodesIssued: ActivityUsers,
 	ActionRecoveryCodeUsed:    ActivityUsers,
 	ActionUserEmailPending:    ActivityUsers,

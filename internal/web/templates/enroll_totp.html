@@ -1,10 +1,15 @@
 {{define "title"}}{{.T.T "enrol.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
 <section class="auth-card wide">
-  <h1>{{.T.T "enrol.heading"}}</h1>
+  <h1>{{if .Replacing}}{{.T.T "enrol.replace.title"}}{{else}}{{.T.T "enrol.heading"}}{{end}}</h1>
   <p class="signin-sub">
-    {{if .Mandatory}}{{.T.T "enrol.mandatory"}}{{else}}{{.T.T "enrol.sub"}}{{end}}
+    {{if .Replacing}}{{.T.T "enrol.replace.sub"}}
+    {{else if .Mandatory}}{{.T.T "enrol.mandatory"}}
+    {{else}}{{.T.T "enrol.sub"}}{{end}}
   </p>
+  {{/* Said before the form rather than after it: the recovery codes going is
+       a consequence of finishing this, not news to break afterwards. */}}
+  {{if .Replacing}}<p class="hint warn">{{.T.T "enrol.replace.codesGone"}}</p>{{end}}
 
   {{if .Error}}<p class="note error" role="alert">{{.Error}}</p>{{end}}
 
@@ -21,11 +26,23 @@
     <label for="code">{{.T.T "enrol.confirm"}}</label>
     <input class="code-input" type="text" id="code" name="code" inputmode="numeric"
            autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" required autofocus>
+    {{/* The password, only where there is an authenticator to replace: a
+         session that is already signed in is not on its own enough to take
+         the second factor off an account. */}}
+    {{if .Replacing}}
+      <label for="password">{{.T.T "enrol.replace.password"}}</label>
+      <input type="password" id="password" name="password"
+             autocomplete="current-password" required>
+    {{end}}
     <div class="actions"><button class="block" type="submit">{{.T.T "enrol.submit"}}</button></div>
   </form>
 
   <div class="signin-foot">
-    <a class="link" href="/">{{.T.T "forgot.back"}}</a>
+    {{if .Replacing}}
+      <a class="link" href="/settings/security">{{.T.T "enrol.replace.back"}}</a>
+    {{else}}
+      <a class="link" href="/">{{.T.T "forgot.back"}}</a>
+    {{end}}
   </div>
 </section>
 {{end}}

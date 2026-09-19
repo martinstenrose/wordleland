@@ -253,8 +253,14 @@ func TestUserMutationsAreLogged(t *testing.T) {
 	if err := ResetUserTOTP(ctx, db, actor, user.ID); err != nil {
 		t.Fatalf("ResetUserTOTP() failed: %v", err)
 	}
+	// Somebody turning their own off is a different event from an admin
+	// resetting theirs, and the log says which.
+	if err := DisableTOTP(ctx, db, PlayerActor(user.ID), user.ID); err != nil {
+		t.Fatalf("DisableTOTP() failed: %v", err)
+	}
 
-	want := []string{ActionUserCreated, ActionUserDisabled, ActionUserEnabled, ActionUser2FAReset}
+	want := []string{ActionUserCreated, ActionUserDisabled, ActionUserEnabled,
+		ActionUser2FAReset, ActionUser2FADisabled}
 	got := activityActions(t, db, SubjectUser, user.ID)
 	if len(got) != len(want) {
 		t.Fatalf("activity actions = %v, want %v", got, want)

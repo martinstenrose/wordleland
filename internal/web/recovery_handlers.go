@@ -55,6 +55,14 @@ func (s *Server) showRecoveryCodes(w http.ResponseWriter, r *http.Request, user 
 		Enrolling: enrolling,
 	}
 	page.CSRFToken = token
+	// Enrolment can be finished inside a dialog on the settings screen, and
+	// this is the last step of it: the codes are shown once and never again,
+	// so they are shown where the reader is looking rather than on a page
+	// that replaces it.
+	if wantsPartial(r) {
+		s.renderBlock(w, r, http.StatusOK, "recovery_codes.html", "content", page)
+		return
+	}
 	s.render(w, r, http.StatusOK, "recovery_codes.html", page)
 }
 

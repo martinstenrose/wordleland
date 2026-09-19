@@ -46,6 +46,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /settings/email", s.requireAuth(s.handleSettingsEmail))
 	mux.HandleFunc("POST /settings/password", s.requireAuth(s.handleSettingsPassword))
 	mux.HandleFunc("POST /settings/recovery-codes", s.requireAuth(s.handleSettingsRecoveryCodes))
+	mux.HandleFunc("POST /settings/totp/disable", s.requireAuth(s.handleSettingsTOTPDisable))
 	mux.HandleFunc("GET /p/{slug}", s.requireAuth(s.handlePlayerPage))
 
 	// Admin. The admin UI is deliberately partial; the player slice of it is

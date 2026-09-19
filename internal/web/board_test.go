@@ -643,11 +643,15 @@ func TestFormDeltaPointsTheWayTheScoreMoves(t *testing.T) {
 	}
 }
 
-// Switching pages is a whole-document swap now (see app.js), so "?partial=1"
-// means nothing outside search. It has to stay harmless: the parameter
-// survives in bookmarks and pasted links, and a page that answered one with a
-// bare fragment would hand a reader markup with no page around it.
-func TestPartialIsOnlyASearchThing(t *testing.T) {
+// "?partial=1" is for the handful of places a script lifts a card out of one
+// page and puts it inside another: the ⌘K overlay, and the dialog the
+// settings screen opens two-factor enrolment in. Switching pages is a
+// whole-document swap and asks for no fragment at all.
+//
+// Everywhere else it has to stay inert. The parameter survives in bookmarks
+// and pasted links, and a page that answered one with a bare fragment would
+// hand a reader markup with no page around it.
+func TestPartialIsOnlyForTheCardsAScriptBorrows(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -670,11 +674,54 @@ func TestPartialIsOnlyASearchThing(t *testing.T) {
 		}
 	}
 
-	// Search is the one route it does mean something on: the ⌘K overlay asks
-	// for the list of hits, not for a second page around them.
+	// Search is one of the routes it does mean something on: the ⌘K overlay
+	// asks for the list of hits, not for a second page around them.
 	hits := fetch(t, srv, "/share/"+slug+"/search?partial=1&q=harda").Body.String()
 	if strings.Contains(hits, "<html") {
 		t.Error("the search overlay is served a whole page")
+	}
+}
+
+// Enrolment is the other, and the card it hands over has to be the card the
+// page renders — otherwise setting a secret up in the dialog and setting one
+// up by following the link are two different screens with one name.
+func TestEnrolmentHandsOverItsCardForTheDialog(t *testing.T) {
+	srv := testServer(t)
+	seedLogin(t, srv, "admin@example.tld", true)
+	_, cookies := login(t, srv, "admin@example.tld", testPassword)
+
+	full, cookies := getWith(t, srv, "/enroll-totp", cookies)
+	part, _ := getWith(t, srv, "/enroll-totp?partial=1", cookies)
+
+	body := part.Body.String()
+	if strings.Contains(body, "<html") || strings.Contains(body, "auth-frame") {
+		t.Error("the dialog is handed the page around the card")
+	}
+	if !strings.Contains(body, `<section class="auth-card`) {
+		t.Fatalf("the dialog is not handed a card:\n%s", body)
+	}
+	// Same shape, different secret: revisiting mints a fresh one, which is
+	// what makes a mis-scanned code recoverable by reloading.
+	card := full.Body.String()
+	card = card[strings.Index(card, `<section class="auth-card`):]
+	card = card[:strings.LastIndex(card, "</section>")]
+	for _, mark := range []string{`class="enrol-code"`, `action="/enroll-totp"`, `name="code"`} {
+		if !strings.Contains(body, mark) || !strings.Contains(card, mark) {
+			t.Errorf("%s is in one of the two and not the other", mark)
+		}
+	}
+
+	// And the settings screen asks for it as a dialog rather than a page.
+	// Reachable once the account is enrolled: an admin who is not gets sent
+	// here from wherever else they try to go.
+	_, cookies = enrol(t, srv, cookies)
+	rec, _ := getWith(t, srv, "/settings/security", cookies)
+	settings := rec.Body.String()
+	if !strings.Contains(settings, `href="/enroll-totp"`) {
+		t.Error("the settings screen no longer links to enrolment at all")
+	}
+	if !strings.Contains(settings, "data-modal") {
+		t.Error("the link does not ask to be opened over the page")
 	}
 }
 
@@ -708,6 +755,9 @@ func TestPartialNeverSurvivesIntoALink(t *testing.T) {
 		{path: "/today?benched=1&partial=1", cookie: session},
 		// The player page: the roster's own rows.
 		{path: "/share/" + slug + "/p/harda?partial=1"},
+		// The enrolment card, which is fetched with the parameter on and
+		// carries a theme and a language link of its own.
+		{path: "/enroll-totp?partial=1", cookie: session},
 	} {
 		body := fetchAs(t, srv, tt.path, tt.cookie).Body.String()
 		if strings.Contains(body, "partial=1") || strings.Contains(body, "partial=") {

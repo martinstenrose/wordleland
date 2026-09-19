@@ -423,6 +423,9 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 }
 .about-link:hover { background: var(--color-text-06); }
 .about-link svg { flex: none; }
+/* Trailing, and quieter than the label it follows: it marks the link rather
+   than being part of it. */
+.external-icon { margin-left: 2px; opacity: .6; }
 
 /* An outcome raised to the middle of the screen. Built by app.js from the
    note the server rendered, so nothing here has a no-script counterpart to
@@ -2780,6 +2783,40 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 /* Wider than the sign-in cards: ten codes in two columns, rather than a
    column of ten that scrolls past the button under it. */
 .auth-card-wide { max-width: 34rem; }
+
+/* A card fetched into a dialog is the dialog. It already draws itself as a
+   bordered, padded box, so it is sized and made scrollable here rather than
+   nested inside a second panel that would draw the same edges twice — and it
+   loses the auth frame's vertical margin, which the backdrop is centring it
+   without. See app.js. */
+.modal-card {
+  position: relative;
+  width: min(34rem, 100%);
+  max-width: none;
+  margin: 0;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  border: 1px solid var(--color-text-10);
+}
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font: inherit;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--color-text-45);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.modal-close:hover { background: var(--color-text-06); color: var(--color-text); }
+.modal-close:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
 
 .recovery-codes {
   display: grid;

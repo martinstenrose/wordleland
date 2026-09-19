@@ -30,6 +30,10 @@ type settingsPage struct {
 	HasTOTP bool
 	// TOTPRequired marks an admin, for whom two-factor is not optional.
 	TOTPRequired bool
+	// ConfirmDisable is the second step of turning two-factor off: the
+	// first press only changes what the page shows, so the risk is read
+	// before anything is typed into the field that commits it.
+	ConfirmDisable bool
 
 	// RecoveryLeft is how many unused codes remain, so somebody running
 	// low finds out before it is the thing locking them out.
@@ -64,6 +68,63 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	s.renderSettings(w, r, user, r.URL.Query().Get("notice"), "", settingsForm{})
 }
 
+// handleSettingsTOTPDisable turns two-factor off at the account's own request.
+//
+// Admins cannot: two-factor is what the admin area is gated on, and a screen
+// that let one switch it off would make "required for admins" a suggestion.
+// The check is here and not only in the template — the template decides what
+// is offered, and this decides what is allowed.
+//
+// The password is required for the reason a replacement requires it, only
+// more so: this takes the second factor off the account and cancels the
+// recovery codes with it, and a session on a borrowed screen has already
+// cleared both factors. The password is the one thing it does not carry.
+func (s *Server) handleSettingsTOTPDisable(w http.ResponseWriter, r *http.Request) {
+	user, ok := s.settingsSubmit(w, r)
+	if !ok {
+		return
+	}
+	if user.IsAdmin || !user.HasTOTP {
+		s.renderError(w, r, http.StatusForbidden)
+		return
+	}
+
+	// Before the hash rather than after, and on the same key the password
+	// form uses: it is the same password being guessed at from the same
+	// account, and verifying costs 64 MiB either way.
+	clientIP := auth.ClientIP(r, s.cfg.TrustedProxies)
+	if !s.limiter.Allow("settings-password:user:"+strconv.FormatInt(user.ID, 10),
+		"settings-password:ip:"+clientIP) {
+		s.logger.Warn("two-factor disable rate limited", "ip", clientIP)
+		s.renderSettingsStatus(w, r, user, "", "settings.error.tooMany",
+			settingsForm{}, http.StatusTooManyRequests)
+		return
+	}
+
+	var verifyErr error
+	if err := s.limiter.WithHashSlot(r.Context(), func() error {
+		verifyErr = auth.VerifyPassword(user.PasswordHash, r.PostFormValue("password"))
+		return nil
+	}); err != nil {
+		s.logger.Error("verify password", "error", err)
+		s.renderSettings(w, r, user, "", "settings.error.failed", settingsForm{})
+		return
+	}
+	if verifyErr != nil {
+		s.renderSettings(w, r, user, "", "settings.error.wrongPassword", settingsForm{})
+		return
+	}
+
+	if err := store.DisableTOTP(r.Context(), s.db, store.PlayerActor(user.ID), user.ID); err != nil {
+		s.logger.Error("disable totp", "error", err)
+		s.renderSettings(w, r, user, "", "settings.error.failed", settingsForm{})
+		return
+	}
+	s.limiter.Reset("settings-password:user:" + strconv.FormatInt(user.ID, 10))
+
+	http.Redirect(w, r, "/settings/security?notice=totp-off", http.StatusSeeOther)
+}
+
 // settingsTabFor is which of the three a request belongs to, read from its
 // path rather than passed down.
 //
@@ -75,7 +136,7 @@ func settingsTabFor(path string) string {
 	switch path {
 	case "/settings/account", "/settings/email", "/settings/password":
 		return settingsAccount
-	case "/settings/security", "/settings/recovery-codes":
+	case "/settings/security", "/settings/recovery-codes", "/settings/totp/disable":
 		return settingsSecurity
 	default:
 		return settingsProfile
@@ -113,6 +174,7 @@ func (s *Server) renderSettingsStatus(w http.ResponseWriter, r *http.Request, us
 		Error:        errKey,
 		Form:         form,
 	}
+	page.ConfirmDisable = user.HasTOTP && !user.IsAdmin && r.URL.Query().Get("confirm") == "totp"
 	if user.PendingEmail != nil {
 		page.PendingEmail = *user.PendingEmail
 	}

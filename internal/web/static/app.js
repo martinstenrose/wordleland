@@ -14,6 +14,12 @@
 // is no longer in the page. A function registered here runs now and again
 // after every switch, so it has to be safe to run more than once: look the
 // elements up each time, and register document-level listeners outside it.
+// Set by the page switcher at the bottom: re-renders the page at the current
+// URL in place, for anything that changed the account underneath it. Null
+// until then, and null for good where the switcher is not running, so every
+// caller has to have a way of coping without it.
+var refreshPage = null;
+
 var onPageChange = (function () {
   "use strict";
   var fns = [];
@@ -527,6 +533,215 @@ var onPageChange = (function () {
   });
 })();
 
+// A page that is really a step, shown over the page that asked for it.
+//
+// Setting up a two-factor key is one screen with a form on it, and the
+// settings screen sends people to it. As a page of its own it takes the whole
+// window for a job that belongs to the screen behind it, and coming back
+// means a second navigation — so with a script it opens over that screen
+// instead, and the whole exchange happens there: the code, the password, a
+// rejected code, and finally the recovery codes, which are shown once and are
+// worth showing where the reader is already looking.
+//
+// The link is a link the whole time. With this file absent, disabled, or
+// failing at any step, following it goes to the page, which is the page this
+// is fetching anyway — the server renders the same card either way, and asks
+// only to be spared the frame around it.
+//
+// It is a dialog and is built as one here rather than marked up as one in the
+// template, for the reason the raised outcome above is: only here is it true.
+// Focus moves in, is held inside while it is open, and goes back to the
+// control that opened it when it closes.
+(function () {
+  "use strict";
+
+  if (!window.fetch) return; // Without it the link is still the whole feature.
+
+  var FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+  var backdrop = null;
+  var panel = null;
+  var openedBy = null;
+  // The word for the close button, taken from the link that opened the
+  // dialog so this file holds no copy of it in any language.
+  var closeLabel = "";
+  // Whether anything inside the dialog changed the account, and so whether
+  // the page behind it is now out of date.
+  var changed = false;
+
+  function focusables() {
+    return Array.prototype.filter.call(panel.querySelectorAll(FOCUSABLE), function (el) {
+      return el.getClientRects().length;
+    });
+  }
+
+  function onKey(event) {
+    if (!backdrop) return;
+    if (event.key === "Escape") {
+      close();
+      return;
+    }
+    if (event.key !== "Tab") return;
+
+    // Held inside: without this, Tab walks out of a dialog into the page it
+    // is drawn over, which for a password field is worse than untidy.
+    var items = focusables();
+    if (!items.length) return;
+    var first = items[0];
+    var last = items[items.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  function close() {
+    if (!backdrop) return;
+    backdrop.remove();
+    backdrop = null;
+    panel = null;
+    document.removeEventListener("keydown", onKey);
+    document.documentElement.style.overflow = "";
+    if (openedBy && document.contains(openedBy) && openedBy.focus) openedBy.focus();
+
+    // The account is not what it was: the badge, the code count and the
+    // control's own wording all belong to the state that just changed.
+    if (changed) {
+      changed = false;
+      if (refreshPage) refreshPage();
+      else window.location.reload();
+    }
+  }
+
+  // draw puts a fetched card in the panel and aims focus at its first field.
+  // The card is the dialog itself — it is already a bordered, padded box —
+  // rather than a card drawn inside a second one.
+  function draw(html) {
+    var wrapper = document.createElement("div");
+    wrapper.innerHTML = html;
+    var card = wrapper.querySelector("section");
+    if (!card) return false;
+
+    card.classList.add("modal-card");
+    card.setAttribute("role", "dialog");
+    card.setAttribute("aria-modal", "true");
+
+    var shut = document.createElement("button");
+    shut.type = "button";
+    shut.className = "modal-close";
+    // The template carries the word, so this file holds no copy of its own
+    // and needs no knowledge of which language the page is in.
+    shut.setAttribute("aria-label", closeLabel);
+    shut.textContent = "\u00d7";
+    shut.addEventListener("click", close);
+    card.insertBefore(shut, card.firstChild);
+
+    if (panel) panel.replaceWith(card);
+    else backdrop.appendChild(card);
+    panel = card;
+
+    var items = focusables();
+    // The close button is items[0] and is not what somebody came here to
+    // use; the field after it is.
+    (items[1] || items[0] || card).focus();
+    return true;
+  }
+
+  function open(url) {
+    fetch(url + (url.indexOf("?") === -1 ? "?" : "&") + "partial=1", {
+      credentials: "same-origin",
+      headers: { Accept: "text/html" },
+    })
+      .then(function (response) { return response.ok ? response.text() : null; })
+      .then(function (html) {
+        if (html === null) {
+          window.location.href = url;
+          return;
+        }
+        backdrop = document.createElement("div");
+        backdrop.className = "raised-backdrop";
+        backdrop.addEventListener("click", function (event) {
+          if (event.target === backdrop) close();
+        });
+        document.body.appendChild(backdrop);
+        if (!draw(html)) {
+          backdrop.remove();
+          backdrop = null;
+          window.location.href = url;
+          return;
+        }
+        document.addEventListener("keydown", onKey);
+        // The page behind must not scroll under a dialog drawn over it.
+        document.documentElement.style.overflow = "hidden";
+      })
+      .catch(function () { window.location.href = url; });
+  }
+
+  document.addEventListener("click", function (event) {
+    if (event.defaultPrevented) return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+
+    // A link inside the dialog is a way out of it — "back to settings", or
+    // the button under the recovery codes. Both mean "done here", and the
+    // page behind is the page they name.
+    if (panel && panel.contains(event.target)) {
+      var inside = event.target.closest("a[href]");
+      if (inside) {
+        event.preventDefault();
+        close();
+      }
+      return;
+    }
+
+    var link = event.target.closest("a[data-modal]");
+    if (!link) return;
+    event.preventDefault();
+    openedBy = link;
+    closeLabel = link.dataset.modalClose || "";
+    changed = false;
+    open(link.href);
+  });
+
+  // Every form in the dialog stays in it: what comes back is either the same
+  // card carrying its own error, or the next step of the same exchange.
+  document.addEventListener("submit", function (event) {
+    if (!panel || !panel.contains(event.target)) return;
+    var form = event.target.closest("form");
+    if (!form) return;
+    event.preventDefault();
+
+    var action = form.getAttribute("action") || window.location.pathname;
+    // URLSearchParams, not the FormData itself: that posts multipart, which
+    // Go's ParseForm does not read, and every field arrives empty.
+    fetch(action + (action.indexOf("?") === -1 ? "?" : "&") + "partial=1", {
+      method: "POST",
+      body: new URLSearchParams(new FormData(form)),
+      credentials: "same-origin",
+      headers: { Accept: "text/html" },
+    })
+      .then(function (response) {
+        return response.text().then(function (html) {
+          return { html: html, ok: response.ok };
+        });
+      })
+      .then(function (result) {
+        // A rejected form comes back as the same card with its message on
+        // it; a 200 is the step after this one, and the only step after this
+        // one is the account having changed.
+        if (result.ok) changed = true;
+        if (!draw(result.html)) {
+          window.location.href = action;
+        }
+      })
+      .catch(function () { form.submit(); });
+  });
+})();
+
 // Switching pages without the flash.
 //
 // Every link in the application is a real link to a real URL, and following
@@ -782,6 +997,12 @@ var onPageChange = (function () {
       window.scrollTo(0, 0);
     }, focus);
   });
+
+  // For anything that changed the page underneath it — the enrolment dialog
+  // finishing, say — without itself being a navigation.
+  refreshPage = function () {
+    go(window.location.href, function () {}, null);
+  };
 
   window.addEventListener("popstate", function (event) {
     if (!marked) return; // Nothing here was switched, so nothing here is stale.

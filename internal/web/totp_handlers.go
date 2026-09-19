@@ -30,6 +30,11 @@ type enrolPage struct {
 
 	Secret    string
 	Mandatory bool
+
+	// Replacing marks the page as a second enrolment over a live one: the
+	// account already has a secret and is rotating it. It asks for the
+	// password as well as the code, and says so.
+	Replacing bool
 }
 
 // qrDataURI wraps encoded PNG bytes as a URL the template will emit.
@@ -56,37 +61,48 @@ type totpPage struct {
 	Error string
 }
 
-// enrolCandidate returns the user this enrolment page is for, having
-// already sent anyone who shouldn't be here somewhere sensible.
+// enrolCandidate returns the user this enrolment page is for and whether
+// they are rotating a secret rather than setting a first one, having already
+// sent anyone who shouldn't be here somewhere sensible.
 //
 // Enrolment mints a secret and, on submit, overwrites whatever was there
-// before — so an account that already has one does not belong here. A
-// pending session needs only the password to reach this page; letting it
-// re-enrol would let a password alone replace the real secret and delete
-// the recovery codes with it, defeating the second factor entirely. Route
-// it to the TOTP prompt instead, which asks for the secret that already
-// exists. An enrolled account whose session has already cleared TOTP has
-// nothing to do here either.
-func (s *Server) enrolCandidate(w http.ResponseWriter, r *http.Request) (store.User, bool) {
+// before. A pending session has cleared only the password, so letting it
+// re-enrol would let a password alone replace the real secret and discard
+// the recovery codes with it, defeating the second factor entirely. Route it
+// to the TOTP prompt instead, which asks for the secret that already exists.
+//
+// A session that has cleared both factors is a different matter, and it is
+// the one this page used to turn away: rotating the secret — a new phone, a
+// lost one — is something an account with two-factor on is supposed to be
+// able to do, and the settings screen has offered it all along. What makes it
+// safe is not the session but the password the submit asks for on top of the
+// new code, which is what a borrowed screen does not have.
+//
+// There is one secret per account, not one per app: an authenticator app is
+// a holder of it, and any number of them can hold the same one. So this is
+// the only shape a change can take — a fresh secret, scanned into as many
+// apps as the reader wants, and every app holding the old one goes quiet.
+//
+// "Secret" rather than "key" throughout, because TOTP_KEY is already the key
+// this server encrypts every one of these with, and the admin settings screen
+// shows it. The standards agree: RFC 4226 calls it the shared secret, and the
+// otpauth:// URI carries it as secret=.
+func (s *Server) enrolCandidate(w http.ResponseWriter, r *http.Request) (user store.User, replacing bool, ok bool) {
 	session, ok := sessionFrom(r)
 	if !ok {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return store.User{}, false
+		return store.User{}, false, false
 	}
-	user, ok := userFrom(r)
+	user, ok = userFrom(r)
 	if !ok {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return store.User{}, false
+		return store.User{}, false, false
 	}
-	if user.HasTOTP {
-		if session.PendingTOTP {
-			http.Redirect(w, r, "/totp", http.StatusSeeOther)
-		} else {
-			http.Redirect(w, r, landingPath, http.StatusSeeOther)
-		}
-		return store.User{}, false
+	if user.HasTOTP && session.PendingTOTP {
+		http.Redirect(w, r, "/totp", http.StatusSeeOther)
+		return store.User{}, false, false
 	}
-	return user, true
+	return user, user.HasTOTP, true
 }
 
 // handleEnrolTOTPForm shows a QR code for a new secret.
@@ -95,7 +111,7 @@ func (s *Server) enrolCandidate(w http.ResponseWriter, r *http.Request) (store.U
 // account exactly as it was. Revisiting generates a fresh one, which is
 // what makes a mis-scanned code recoverable by simply reloading.
 func (s *Server) handleEnrolTOTPForm(w http.ResponseWriter, r *http.Request) {
-	user, ok := s.enrolCandidate(w, r)
+	user, replacing, ok := s.enrolCandidate(w, r)
 	if !ok {
 		return
 	}
@@ -132,7 +148,7 @@ func (s *Server) handleEnrolTOTPForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.render(w, r, http.StatusOK, "enroll_totp.html", enrolPage{
+	page := enrolPage{
 		chrome: s.signedOutChrome(w, r, token),
 		// Inlined as a data: URI rather than served from a second endpoint,
 		// which would mean holding the secret across two requests.
@@ -140,7 +156,17 @@ func (s *Server) handleEnrolTOTPForm(w http.ResponseWriter, r *http.Request) {
 		// Shown alongside the QR code for anyone entering it by hand.
 		Secret:    secret,
 		Mandatory: user.IsAdmin,
-	})
+		Replacing: replacing,
+	}
+	// The card alone, for the dialog the settings screen opens it in. The
+	// page around it is the sign-in family's frame, which is right for an
+	// admin sent here at sign-in and wrong over a page somebody is already
+	// reading.
+	if wantsPartial(r) {
+		s.renderBlock(w, r, http.StatusOK, "enroll_totp.html", "content", page)
+		return
+	}
+	s.render(w, r, http.StatusOK, "enroll_totp.html", page)
 }
 
 // handleEnrolTOTPSubmit promotes the pending secret once a code proves it was
@@ -154,8 +180,22 @@ func (s *Server) handleEnrolTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusForbidden)
 		return
 	}
-	user, ok := s.enrolCandidate(w, r)
+	user, replacing, ok := s.enrolCandidate(w, r)
 	if !ok {
+		return
+	}
+
+	// Rotating the secret asks for the password as well, for the reason a
+	// password change does: the session is already
+	// authenticated, and a borrowed screen should not be enough to take the
+	// second factor off an account — which, since promotion discards the
+	// recovery codes with the old secret, is the whole of it.
+	//
+	// It is checked before the code so that a wrong password never spends an
+	// attempt at the new secret, and it shares the settings screen's limiter
+	// key because it is the same password being guessed at from the same
+	// account.
+	if replacing && !s.verifyEnrolPassword(w, r, user) {
 		return
 	}
 
@@ -166,7 +206,7 @@ func (s *Server) handleEnrolTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 	// just by editing a settings field.
 	if !s.limiter.Allow("totp:user:"+strconv.FormatInt(user.ID, 10), "totp:ip:"+auth.ClientIP(r, s.cfg.TrustedProxies)) {
 		s.renderEnrolError(w, r, http.StatusTooManyRequests,
-			"Too many attempts. Please wait a few minutes and try again.")
+			s.translatorFor(w, r).T("settings.error.tooMany"))
 		return
 	}
 
@@ -202,6 +242,9 @@ func (s *Server) handleEnrolTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.limiter.Reset("totp:user:" + strconv.FormatInt(user.ID, 10))
+	if replacing {
+		s.limiter.Reset("settings-password:user:" + strconv.FormatInt(user.ID, 10))
+	}
 
 	// Enrolment completes the second factor, so the session is rotated out of
 	// its pending state rather than requiring an immediate second code.
@@ -274,7 +317,7 @@ func (s *Server) handleTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 	// brute-forceable in an afternoon.
 	if !s.limiter.Allow("totp:user:"+strconv.FormatInt(user.ID, 10), "totp:ip:"+auth.ClientIP(r, s.cfg.TrustedProxies)) {
 		s.renderTOTPError(w, r, http.StatusTooManyRequests,
-			"Too many attempts. Please wait a few minutes and try again.")
+			s.translatorFor(w, r).T("settings.error.tooMany"))
 		return
 	}
 
@@ -384,11 +427,51 @@ func (s *Server) renderEnrolError(w http.ResponseWriter, r *http.Request, status
 		s.renderError(w, r, http.StatusInternalServerError)
 		return
 	}
-	s.render(w, r, status, "enroll_totp.html", enrolPage{
+	page := enrolPage{
 		chrome:    s.signedOutChrome(w, r, token),
 		Error:     message,
 		QRCode:    qrDataURI(png.Bytes()),
 		Secret:    string(secret),
 		Mandatory: user.IsAdmin,
-	})
+		Replacing: user.HasTOTP,
+	}
+	if wantsPartial(r) {
+		s.renderBlock(w, r, status, "enroll_totp.html", "content", page)
+		return
+	}
+	s.render(w, r, status, "enroll_totp.html", page)
+}
+
+// verifyEnrolPassword checks the password a replacement asks for, reporting
+// whether the caller should carry on. It renders the failure itself, back
+// onto the enrolment page with the pending secret intact, so a mistyped
+// password does not cost the reader the QR code they have just scanned.
+func (s *Server) verifyEnrolPassword(w http.ResponseWriter, r *http.Request, user store.User) bool {
+	// Before the hash rather than after: verifying costs 64 MiB and the CPU
+	// time to go with it, so an unthrottled endpoint is a way to spend the
+	// box's memory as well as a way to find the password.
+	clientIP := auth.ClientIP(r, s.cfg.TrustedProxies)
+	if !s.limiter.Allow("settings-password:user:"+strconv.FormatInt(user.ID, 10),
+		"settings-password:ip:"+clientIP) {
+		s.logger.Warn("two-factor replacement rate limited", "ip", clientIP)
+		s.renderEnrolError(w, r, http.StatusTooManyRequests,
+			s.translatorFor(w, r).T("settings.error.tooMany"))
+		return false
+	}
+
+	var verifyErr error
+	if err := s.limiter.WithHashSlot(r.Context(), func() error {
+		verifyErr = auth.VerifyPassword(user.PasswordHash, r.PostFormValue("password"))
+		return nil
+	}); err != nil {
+		s.logger.Error("verify password", "error", err)
+		s.renderError(w, r, http.StatusInternalServerError)
+		return false
+	}
+	if verifyErr != nil {
+		s.renderEnrolError(w, r, http.StatusUnauthorized,
+			s.translatorFor(w, r).T("settings.error.wrongPassword"))
+		return false
+	}
+	return true
 }

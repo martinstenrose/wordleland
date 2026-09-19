@@ -290,15 +290,66 @@ rewrite the roster and read the activity log; a player can see a scoreboard.
 **An enrolling secret is held pending until a valid code proves it.** A
 mis-scanned QR code therefore cannot lock anyone out.
 
-**Enrolment is for accounts that have no second factor, and a session that
-has not cleared one cannot reach it.** Reaching the enrolment page needs only
-the password, and confirming it overwrites whatever secret was there and
-revokes the recovery codes with it — so a stolen password alone would
+**A session that has cleared the password and not the code cannot reach
+enrolment.** Confirming an enrolment overwrites whatever secret was there and
+revokes the recovery codes with it, so a stolen password alone would
 otherwise replace the second factor and delete the way back, which is the
-whole of what the second factor is for. An account that already has one is
-sent to the prompt for the one it has. There is deliberately no self-service
-way to re-enrol: the routes back are proving the current secret, spending a
-recovery code, or an admin running `reset-2fa`.
+whole of what the second factor is for. A half-signed-in session is sent to
+the prompt for the secret the account already has.
+
+**A session that has cleared both may change its own two-factor, and the
+password is what makes that safe rather than the session.** Both things an
+account can do to its own second factor — rotating the secret, and turning
+it off — ask for the password on top, for the reason changing the
+password asks for the current one: a borrowed screen has already cleared both
+factors, and the password is the one thing it does not carry.
+
+Replacing is the ordinary case and this page used to refuse it. A new phone
+or a lost one is a thing an enrolled account is supposed to survive, the
+settings screen had offered it all along, and the link landed every one of
+those people back on Today with nothing said.
+
+It is the secret that is rotated, not an app. An account holds one shared
+secret and an authenticator app is a holder of it, so any number of apps can
+show the same code — which is why the control is named for the secret, and
+says "rotate", and the copy tells you to scan it into every app you mean to
+use. Named for the app it read as "add another one", which is the one thing
+it does not do: a new secret silences every app still holding the old one.
+
+The word is "secret" and not "key" because TOTP_KEY is already the key this
+server encrypts every one of them with, and the admin settings screen shows
+it. The standards use it too: RFC 4226 calls it the shared secret, and the
+otpauth:// URI carries it as secret=. The old secret keeps working
+until the new one is confirmed, which is what the pending-secret design was
+already for, and promotion then discards the recovery codes along with the
+secret they were minted against — so the flow ends where a first enrolment
+ends, handing over a new set.
+
+Setting a key up is a step in what somebody is already doing on the settings
+screen, not a place to go, so with a script it opens over that screen and the
+whole exchange happens there — the code, the password, a rejected code, and
+finally the recovery codes, which are shown once and are worth showing where
+the reader is already looking. Without one it is the page it has always been,
+which is also the page an admin is sent to at sign-in: the link is a link the
+whole time, and the server renders the same card either way and is asked only
+to leave the frame off. That is the third and last thing `?partial=1` is for.
+
+Turning it off is offered to players and not to admins, because the admin
+area is gated on two-factor and a control that switched it off would make
+"required for admins" a suggestion. The template decides what is offered and
+the handler decides what is allowed, because only one of those is reachable
+by typing a URL.
+
+Neither deletes the account's other sessions, unlike an admin running
+`reset-2fa`. That command is for an account that may be in the wrong hands;
+these are somebody deciding about their own from inside it, and every session
+they would delete proved both factors when it was granted — no weaker after
+the change than before it, and one of them is the tab the decision was made
+in.
+
+Losing every app holding the secret, without being able to sign in at all,
+is still the
+admin's job: the routes back are spending a recovery code, or `reset-2fa`.
 
 **Rate limiting lives in memory, not the database.** DB-backed counters would
 turn every failed attempt into a write, and writes serialise in SQLite, so a

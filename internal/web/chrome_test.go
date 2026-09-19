@@ -904,3 +904,53 @@ func TestAFailureIsDrawnAsOneAndSitsOnTheGutter(t *testing.T) {
 		}
 	}
 }
+
+// The one link on the site that leaves it.
+//
+// It opens a tab of its own, which is a thing a reader has to be told rather
+// than discover: the arrow leaving its box says it to anyone looking, and the
+// words beside it, visually hidden, say it to anyone who is not. rel carries
+// noreferrer as well as noopener, for the reason nothing on these pages is
+// fetched from a third party — where somebody was reading is not GitHub's to
+// know.
+func TestTheOneExternalLinkSaysThatItLeaves(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	for _, path := range []string{
+		"/share/" + slug + "/", // the About panel in the rail
+		"/",                    // the sign-in page's footer
+	} {
+		body := fetchAs(t, srv, path, nil).Body.String()
+		at := strings.Index(body, `href="https://github.com/`)
+		if at < 0 {
+			t.Errorf("%s: no source link", path)
+			continue
+		}
+		link := body[strings.LastIndex(body[:at], "<a "):]
+		link = link[:strings.Index(link, "</a>")]
+
+		for _, want := range []string{`target="_blank"`, `rel="noopener noreferrer"`} {
+			if !strings.Contains(link, want) {
+				t.Errorf("%s: the source link is missing %s", path, want)
+			}
+		}
+		if !strings.Contains(link, "opens in a new tab") {
+			t.Errorf("%s: nothing tells a reader it opens a tab of its own", path)
+		}
+		if !strings.Contains(link, `class="external-icon"`) {
+			t.Errorf("%s: nothing shows a reader it leaves the site", path)
+		}
+	}
+
+	// And it is the only link that does: every other one on an application
+	// page stays here, which is what makes the mark mean something. The count
+	// is two rather than one because the About panel holding it is rendered
+	// twice — once in the rail, once in the drawer — and defined once.
+	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
+	tabs := strings.Count(body, `target="_blank"`)
+	if source := strings.Count(body, `href="https://github.com/`); tabs != source {
+		t.Errorf("%d links open a new tab against %d source links; something else leaves the site", tabs, source)
+	}
+}
