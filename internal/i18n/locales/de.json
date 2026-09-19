@@ -449,7 +449,6 @@
   "enrol.replace.sub": "Scanne dies mit deiner Authenticator-App – oder mit jeder App, die du nutzen willst, denn alle lesen dasselbe Geheimnis. Das Geheimnis, das du jetzt hast, funktioniert nicht mehr, sobald du dieses bestätigst.",
   "enrol.replace.password": "Dein Passwort",
   "enrol.replace.codesGone": "Der Wechsel hebt auch deine Wiederherstellungscodes auf. Erstelle danach einen neuen Satz.",
-  "enrol.replace.back": "← Zurück zu den Einstellungen",
   "admin.counts": "%d Spieler · %d mit Zugang · %d ohne",
   "admin.editPlayer": "Spieler bearbeiten",
   "admin.lastScore": "Letztes Ergebnis",

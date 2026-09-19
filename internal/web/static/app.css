@@ -450,22 +450,9 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   box-shadow: var(--shadow-elevated);
 }
 .raised-body { margin: 0 0 18px; font-size: var(--text-sm); color: var(--color-text-55); line-height: 1.6; }
-.raised-close {
-  display: block;
-  margin-left: auto;
-  font: inherit;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  height: 34px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: var(--radius-md);
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-  cursor: pointer;
-}
-.raised-close:hover { background: var(--color-accent-strong); }
-.raised-close:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 2px; }
+/* An ordinary control, placed: app.js gives it .btn as well, so the only
+   thing left to say here is which end of the panel it sits at. */
+.raised-close { margin-left: auto; }
 /* The control says what pressing it will do, so the half that describes the
    width already in force is the half to hide. Keyed off <html> rather than
    rendered by the server, so app.js flipping that attribute is enough to
@@ -756,6 +743,8 @@ html[data-loading]::after {
    win where they apply. */
 .hint { margin: 0; font-size: var(--text-sm); color: var(--color-text-45); }
 
+/* A prose link: a link inside or beside a sentence, and never a control. See
+   the controls block above for why a <button> never wears it. */
 .link {
   background: none; border: 0; padding: 0; cursor: pointer;
   font: inherit; font-size: var(--text-base); color: var(--color-accent);
@@ -919,10 +908,9 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .spark-grid line { stroke: var(--color-text-10); stroke-width: 1; vector-effect: non-scaling-stroke; }
 
 /* The name cell never wraps: the table already scrolls horizontally when a
-   row is wider than the viewport (see .table-scroll), so a long trait chip
+   row is wider than the viewport (see .table-scroll), so a long reason chip
    should push that scroll rather than break the name onto a second line. */
 .board td.name { white-space: nowrap; }
-.board-trait { margin-left: 6px; }
 
 .card-foot {
   display: flex; gap: 20px; flex-wrap: wrap;
@@ -937,7 +925,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   .board th, .board td { padding: 9px 12px; }
   .spark-col { display: none; }
   .window-col { display: none; }
-  .board-trait { display: none; }
   .board td.name .chip-pop { display: none; }
 }
 
@@ -1210,36 +1197,97 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   color: var(--color-text-80);
 }
 .form .check input { accent-color: var(--color-accent); }
-.actions { display: flex; align-items: center; gap: 14px; margin-top: 20px; }
-/* One size for every control in an actions row, so a primary and a secondary
-   standing side by side are the same object in two tones rather than two
-   objects. They were sized by two different systems — padding on one, a fixed
-   height on the other — and came out 6px apart.
+.actions { display: flex; align-items: center; gap: 14px; margin-top: 20px; flex-wrap: wrap; }
 
-   The tones mean one thing each. Filled: this control does the thing.
-   Outline: this is a step towards it. Green: safe, and the common thing to do
-   here. Red: destructive. So a copy is filled green, the control that opens a
-   rotation is an outlined red, and the one that answers the question is
-   filled red. */
-.actions button,
-.actions a.secondary,
-.actions button.secondary,
-.inline-field button {
+/* ---- Controls -----------------------------------------------------------
+
+   One control on two axes, and nothing outside them.
+
+   Weight says how much of its group a control should take:
+
+     .btn             filled — the one thing this group is for
+     .btn.secondary   outlined — a real control that is not that one
+
+   Tone says what pressing it costs:
+
+     (none)           the accent: safe, and the ordinary thing to do here
+     .danger          red: something stops working, or something is deleted
+
+   Four combinations, one meaning each:
+
+     .btn                     do the thing
+     .btn.secondary           an alternative, a cancel, a field's own submit
+     .btn.danger              commit something destructive
+     .btn.secondary.danger    open something destructive, or do a small one
+
+   So a destructive act that asks first reads the same wherever it appears: an
+   outlined red control opens the question, and the filled red one inside the
+   question commits it — filled there because inside that block committing is
+   what the group is for. Rotating the share slug, rotating a two-factor
+   secret and turning two-factor off are all that shape.
+
+   Anchors and buttons wear the same class and come out the same object. They
+   were two before — a 32px anchor and a 36px button — and stood side by side
+   in one row six pixels apart.
+
+   What is deliberately not here: .link is a prose link, underlined, and never
+   a <button> — a control that looks like prose is a control nobody can find.
+   Nav rows, menu rows, settings tabs, chips and .toggle are navigation and
+   selection, not controls, and carry their own rules. */
+.btn {
   box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   height: 36px;
   padding: 0 16px;
   border-radius: var(--radius-md);
   font: inherit;
   font-size: var(--text-sm);
-  cursor: pointer;
-}
-.actions button {
   font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
   color: var(--color-canvas);
   background: var(--color-accent);
-  border: 0;
+  border: 1px solid transparent;
 }
-.actions button:hover { background: var(--color-accent-strong); }
+.btn:hover { background: var(--color-accent-strong); }
+.btn:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
+.btn svg { display: block; flex: none; }
+
+.btn.secondary {
+  font-weight: 500;
+  color: var(--color-text-80);
+  background: transparent;
+  border-color: var(--color-text-16);
+}
+.btn.secondary:hover {
+  background: transparent;
+  border-color: var(--color-accent-60);
+  color: var(--color-text);
+}
+
+.btn.danger {
+  color: var(--score-x-ink);
+  background: var(--color-danger);
+  border-color: transparent;
+}
+.btn.danger:hover { background: var(--color-danger); filter: brightness(1.06); }
+
+/* The risk legible before the press, with the filled version kept for the
+   control that commits it. */
+.btn.secondary.danger {
+  color: var(--color-danger);
+  background: transparent;
+  border-color: var(--color-danger-40);
+}
+.btn.secondary.danger:hover { background: var(--color-danger-08); border-color: var(--color-danger); }
+
+/* For a card whose form has one button and nothing to stand beside. */
+.btn.block { width: 100%; }
 /* Something went wrong, and something needs a look. Both were drawn in the
    brand hue, because the palette had no red or amber when they were written
    — the same reason --color-danger's own note gives for signing out and a
@@ -1332,18 +1380,27 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .account-name { font-size: var(--text-sm); font-weight: 500; }
 .account-email { font-size: var(--text-xs); color: var(--color-text-50); overflow-wrap: anywhere; }
 .account-menu hr { height: 1px; border: 0; background: var(--color-text-08); margin: 6px 2px; }
+/* Every row in the menu is drawn by being in the menu, whatever element it
+   is: the sign-out row is a form's button because signing out is a POST.
+   Which is why this takes the browser's button chrome off itself rather than
+   leaning on another class to have done it — a row here is a row, not a
+   control with a border and a grey ground. */
 .account-menu a,
-.account-menu .link {
+.account-menu button {
   display: block;
   width: 100%;
   text-align: left;
+  font: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
   padding: 8px 10px;
   font-size: var(--text-sm);
   color: var(--color-text-80);
   text-decoration: none;
   border-radius: var(--radius-sm);
 }
-.account-menu a:hover, .account-menu .link:hover { background: var(--color-text-06); }
+.account-menu a:hover, .account-menu button:hover { background: var(--color-text-06); }
 .account-menu .danger { color: var(--color-danger); }
 
 /* ---- Sign-in ---------------------------------------------------------- */
@@ -2019,8 +2076,8 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .rank-chart text { fill: var(--color-text-55); }
 .rank-chart .axis { fill: var(--color-text-35); }
 
-/* Desktop only, same as the board's reason chip (app.css, ~720px breakpoint
-   near .board-trait): there isn't room for the full-text reason next to a
+/* Desktop only, same as the board's own reason chip (the ~720px breakpoint
+   near .board td.name): there isn't room for the full-text reason next to a
    name at phone width. */
 @media (max-width: 720px) {
   .bench-rows .chip-pop { display: none; }
@@ -2230,8 +2287,8 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
      rules above it. aria-label on the anchor carries the accessible
      name once the visible text is gone. Padding tightens to match: the
      full padding was sized for an icon next to text, not an icon alone. */
-  .btn-primary-label { display: none; }
-  .btn-primary { padding: 0 9px; }
+  .btn-label { display: none; }
+  .topbar .btn { padding: 0 9px; }
 }
 
 /* ---- Admin: tabs, activity log, pending results ------------------------ */
@@ -2418,38 +2475,12 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   vertical-align: middle;
   cursor: help;
 }
-.months-table .trait, .season-table .trait, .admin-row .trait, .board-trait .trait {
-  font-size: var(--text-xs);
-  padding: 1px 6px;
-  border-color: transparent;
-  color: var(--color-text-40);
-}
 
 /* ---- Read-only bar ----------------------------------------------------- */
 
-/* Outlined, not filled: that is what btn-primary is in the design system —
-   accent text and an accent border on a transparent ground, filling only on
-   hover. */
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  height: 32px;
-  padding: 0 16px;
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-canvas);
-  background: var(--color-accent);
-  border: 1px solid transparent;
-  text-decoration: none;
-  white-space: nowrap;
-}
-.btn-primary:hover { background: var(--color-accent-strong); }
-.btn-primary:active { background: var(--color-accent-strong); }
-.btn-primary:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
-.btn-primary svg { display: block; flex: none; }
+/* The bar keeps its own rhythm: its controls are 32px and a 36px button
+   standing among them would sit proud of the row. */
+.topbar .btn { height: 32px; }
 
 
 /* ---- Season standing --------------------------------------------------- */
@@ -2772,8 +2803,6 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 }
 .code-input:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; border-color: var(--color-accent); }
 
-.actions button.block { width: 100%; justify-content: center; }
-
 /* ---- Recovery codes ---------------------------------------------------- */
 
 /* A recovery code is 19 characters against a TOTP code's six, so the wide
@@ -2890,7 +2919,11 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   gap: 1px;
   background: var(--color-text-10);
 }
-.admin-list { background: var(--color-surface); min-width: 0; }
+/* A container query rather than a viewport one: what decides how many
+   columns fit is this pane, and the pane's width depends on whether the rail
+   is collapsed as well as on the window. Keyed to the viewport it was wrong
+   by the 148px the rail gives back. */
+.admin-list { background: var(--color-surface); min-width: 0; container-type: inline-size; }
 .admin-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 3.5rem 3.5rem minmax(0, 9rem) 6rem;
@@ -2914,6 +2947,16 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 .admin-name { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .admin-name .player { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-row .right { text-align: right; }
+
+/* Below this the five columns want more room than the pane has, and a grid
+   that cannot fit them does not shrink — it overflows, which took the name
+   column to nothing and left a roster with no names in it. Puzzles and the
+   average stay because they are what the list is read for; the login and the
+   roster status are both in the panel beside it. */
+@container (max-width: 30rem) {
+  .admin-row { grid-template-columns: minmax(0, 1fr) 3rem 3.5rem; }
+  .admin-row > :nth-child(4), .admin-row > :nth-child(5) { display: none; }
+}
 
 .admin-panel { background: var(--color-surface); padding: 18px var(--space-card) 24px; min-width: 0; }
 .admin-panel .form { max-width: none; }
@@ -3005,41 +3048,11 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 
 @media (max-width: 860px) {
   .admin-split { grid-template-columns: minmax(0, 1fr); }
-  .admin-row { grid-template-columns: minmax(0, 1fr) 3rem 4.5rem; }
-  .admin-row > :nth-child(4), .admin-row > :nth-child(5) { display: none; }
 }
 
 .invite-form { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--color-text-08); }
 .inline-field { display: flex; gap: 8px; }
 .inline-field input { flex: 1; min-width: 0; }
-/* A link that is an action. The rotate control is a link because its first
-   press only changes what the page shows — the question — and a form that
-   submitted nothing would be the wrong element for that. It has to look like
-   the button it stands beside all the same. */
-.actions a.secondary {
-  display: inline-flex;
-  align-items: center;
-  text-decoration: none;
-}
-.actions button.danger {
-  color: var(--score-x-ink);
-  background: var(--color-danger);
-  border-color: transparent;
-}
-.actions button.danger:hover { background: var(--color-danger); filter: brightness(1.06); }
-
-.actions a.secondary,
-.actions button.secondary,
-.inline-field button {
-  font-weight: 500;
-  color: var(--color-text-80);
-  background: transparent;
-  border: 1px solid var(--color-text-16);
-}
-/* An outline in the danger tone: the risk is legible before the press, and
-   the filled version below is kept for the control that commits it. */
-.actions .secondary.danger { color: var(--color-danger); border-color: var(--color-danger-40); }
-.actions .secondary.danger:hover { background: var(--color-danger-08); border-color: var(--color-danger); }
 /* The admin's inline selects, which matched no rule and so were drawn by the
    browser — the same near-black default the Settings fields had. */
 .inline-field select {
@@ -3053,7 +3066,6 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   padding: 0 8px;
 }
 .inline-field select:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
-.inline-field button:hover { border-color: var(--color-accent-60); color: var(--color-text); }
 
 /* .season opts out of the card's shared gutter (like table-scroll does)
    so its table can bleed to the card edges the same as the one above it;

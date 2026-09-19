@@ -46,7 +46,7 @@ read fields on a struct.
 | `switcher` | A card's section bar: the heading is the control that changes it. |
 | `progress-bar` | A filled track, with a `compact` size and a `win` fill modifier. |
 | `stat-list` | A label/value `<dl>`, in three visual variants (`figure`, `row`, `admin`). |
-| `button` | A link styled as the app's one button treatment (`btn-primary`). |
+| `button` | A link styled as a control (`.btn` — see *Controls* below). |
 | `chip` | A tag on something else — a reason, a retirement notice, an activity kind. |
 | `badge` | A status of the thing itself — on/off, remaining/none. |
 
@@ -89,8 +89,53 @@ names:
   things (`chip` annotates something else, `badge` reports a status of
   the thing itself) — kept as two partials, not merged into one with a
   variant, because the roles are real, not accidental.
-- `button` wraps the one button style app.css defines (`btn-primary`)
-  rather than inventing a second one nobody asked for.
+- `button` wraps `.btn` rather than inventing a second one nobody asked
+  for.
+
+## Controls
+
+Every control on every screen is one of four things, told apart by two
+classes. The rules live in app.css under *Controls*; this is the table to
+write markup from.
+
+| Class | Reads as | Use it for |
+|---|---|---|
+| `btn` | filled, accent | The one thing this group is for: a form's submit, the primary link out of a card. At most one per row. |
+| `btn secondary` | outlined, neutral | A real control that is not that one: a cancel, an alternative, the submit attached to a single field. |
+| `btn danger` | filled, red | The press that commits something destructive — only ever inside the question that asked first. |
+| `btn secondary danger` | outlined, red | The press that opens something destructive, or one that does a destructive thing outright without asking. |
+
+So an act that cannot be undone reads the same wherever it appears: an
+outlined red control opens the question, a filled red one inside it commits.
+Rotating the share slug, rotating a two-factor secret and turning two-factor
+off are all that shape, and the tone follows the consequence rather than the
+screen — the same enrolment control is `btn` when setting a first secret up
+and `btn secondary danger` when replacing one, because only the second one
+costs anything.
+
+Whether an act asks first is a separate question from how it is toned. It
+asks when what it breaks is not immediately in front of the reader — the share
+slug breaks everyone else's links, turning two-factor off removes a factor —
+and does not when the result is the next thing on screen: discarding a held
+result, generating recovery codes. Either way the opener is outlined red;
+only the press inside a question is filled.
+
+Anchors and buttons take the same class and come out the same object. Use an
+anchor when the press is a navigation (a cancel that goes back, a control
+whose first press only changes what the page shows) and a button when it
+posts.
+
+**What is not a control.** `link` is a prose link — a link inside or beside a
+sentence, underlined, accent-coloured — and never goes on a `<button>`: a
+control that looks like prose is a control nobody can find. Nav rows, menu
+rows, settings tabs, `chip`, `badge` and `.toggle` are navigation and
+selection; they carry their own rules and are not part of this table. The
+account menu's rows are drawn by being in the menu, whatever element they
+are, which is why signing out is a bare `<button class="danger">` there.
+
+Two tests hold this together: `TestEveryControlIsOneOfTheFour` walks the
+screens and refuses a `<button>` with no control class or with `link` on it,
+and `TestADestructiveActAsksBeforeItActs` pins the open-then-commit pair.
 
 **Not built:** a table-scroll wrapper. `.table-scroll` (in app.css) is
 already just a CSS class on a wrapping `<div>` around a `<table>` — Go's

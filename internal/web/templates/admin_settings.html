@@ -36,8 +36,8 @@
           <p class="hint">{{.T.T "admin.settings.rotateAskBody"}}</p>
           <form method="post" action="/admin/settings/slug" class="actions">
             <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <button class="danger" type="submit">{{.T.T "admin.settings.rotate"}}</button>
-            <a class="secondary" href="/admin/settings">{{.T.T "admin.cancel"}}</a>
+            <button class="btn danger" type="submit">{{.T.T "admin.settings.rotate"}}</button>
+            <a class="btn secondary" href="/admin/settings">{{.T.T "admin.cancel"}}</a>
           </form>
         </div>
       {{else}}
@@ -53,7 +53,7 @@
           {{/* Outlined and danger-toned: it opens the question rather than
                answering it, so the risk reads before it is pressed while the
                filled red stays on the control that actually does it. */}}
-          <a class="secondary danger" href="/admin/settings?confirm=slug">{{.T.T "admin.settings.rotate"}}</a>
+          <a class="btn secondary danger" href="/admin/settings?confirm=slug">{{.T.T "admin.settings.rotate"}}</a>
         </div>
       {{end}}
     {{else}}

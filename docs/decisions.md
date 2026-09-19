@@ -658,6 +658,58 @@ break by moving code: the switcher's click listener has to be the last one
 registered, because several enhancements take a press by calling
 `preventDefault` and the switcher stands down when one of them has.
 
+## Every control is one of four things
+
+A screen's controls had drifted into six treatments that meant nothing in
+particular. A filled green anchor and a filled green button were 32px and 36px
+and stood side by side in one row. `Cancel` was an underlined green link in
+the player editor and an outlined button in the slug rotation's question.
+`Discard` — a delete — wore `.link.danger` and came out accent green, because
+`.link.danger` is only red inside the account menu, where a different rule
+happens to catch it. `Assign`, the main thing a pending row is for, was a grey
+outline. And the control that rotates a two-factor secret was filled green —
+the tone this app uses for "safe, and the ordinary thing to do here" — on a
+press that silences every authenticator app holding the old secret and cancels
+the recovery codes.
+
+None of that was a decision. Each was locally reasonable and nothing held them
+against each other, which is how six treatments happen.
+
+There are two axes now and nothing outside them. **Weight** says how much of
+its group a control should take: `.btn` is filled, for the one thing the group
+is for, and `.btn.secondary` is outlined, for a real control that is not that
+one. **Tone** says what pressing it costs: the accent is safe, `.danger` means
+something stops working or is deleted. Four combinations, one meaning each,
+and they are written down in `internal/web/templates/README.md` under
+*Controls*.
+
+Two consequences worth stating, because they are what the system buys:
+
+**An act that cannot be undone reads the same wherever it appears.** An
+outlined red control opens the question; the filled red one inside the
+question commits it — filled there because inside that block, committing is
+what the group is for. Rotating the share slug, rotating a two-factor secret
+and turning two-factor off are now all that shape, and a reader who has met
+one has met all three.
+
+**Tone follows the consequence, not the screen.** The same enrolment control
+is `.btn` when setting a first secret up and `.btn.secondary.danger` when
+replacing one, because only the second costs anything; the submit inside the
+dialog changes with it. A control that is green on one visit and red on the
+next is telling the reader something true.
+
+What is deliberately outside the system: `.link` is a prose link and never
+goes on a `<button>` — a control that looks like prose is a control nobody can
+find. Navigation and selection — nav rows, menu rows, settings tabs, chips,
+badges, the grid's filter toggle — are not controls in this sense and keep
+their own rules; the account menu's rows in particular are drawn by being in
+that menu, whatever element they are.
+
+The two things most likely to rot are held by tests rather than by care:
+`TestEveryControlIsOneOfTheFour` refuses a `<button>` with no control class or
+with `.link` on it, and `TestADestructiveActAsksBeforeItActs` pins the
+open-then-commit pair on both of the acts that have one.
+
 ## Deliberately not built
 
 - **Self-report in the browser** — a player filing their own result, by form or

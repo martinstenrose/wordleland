@@ -1337,16 +1337,17 @@ func TestEveryBanterHasDetails(t *testing.T) {
 // Traits are a reading of a player's whole history. Months is about one month
 // at a time, so a badge saying "Late finisher" beside a September average
 // claims a relation that is not there; the leaderboard already carries eight
-// columns of the same reading in numbers; and Today's form list is a row of
-// figures about the last thirty days. In all three the name column is for the
-// name.
+// columns of the same reading in numbers; Today's form list is a row of
+// figures about the last thirty days; and the admin roster is for renaming
+// people, retiring them and attaching logins, none of which a trait bears on.
+// In all four the name column is for the name.
 func TestTraitBadgesAreOnlyWhereTheyMeanSomething(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 	session := signIn(t, srv, admin.ID)
 
-	for _, path := range []string{"/months", "/leaderboard", "/today"} {
+	for _, path := range []string{"/months", "/leaderboard", "/today", "/admin/players"} {
 		if strings.Contains(fetchAs(t, srv, path, session).Body.String(), `class="trait"`) {
 			t.Errorf("%s carries a trait badge", path)
 		}

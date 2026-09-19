@@ -449,7 +449,6 @@
   "enrol.replace.sub": "Escanea esto con tu aplicación de autenticación, o con todas las que quieras usar, porque todas leen el mismo secreto. El secreto que tienes ahora deja de funcionar en cuanto confirmes este.",
   "enrol.replace.password": "Tu contraseña",
   "enrol.replace.codesGone": "Cambiarlo también anula tus códigos de recuperación. Genera un juego nuevo después.",
-  "enrol.replace.back": "← Volver a ajustes",
   "admin.counts": "%d jugadores · %d con cuenta · %d sin ella",
   "admin.editPlayer": "Editar jugador",
   "admin.lastScore": "Último resultado",

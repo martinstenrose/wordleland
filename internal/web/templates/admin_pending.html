@@ -46,7 +46,7 @@
                   <option value="{{.Slug}}"{{if eq .Slug $suggested}} selected{{end}}>{{.Name}}</option>
                 {{end}}
               </select>
-              <button type="submit" class="secondary">{{$page.T.T "pending.assign"}}</button>
+              <button type="submit" class="btn secondary">{{$page.T.T "pending.assign"}}</button>
             </form>
 
             {{if .Suggestion}}
@@ -55,7 +55,7 @@
                 <input type="hidden" name="source" value="{{.Source}}">
                 <input type="hidden" name="external_id" value="{{.ExternalID}}">
                 <input type="hidden" name="player" value="{{.SuggestionSlug}}">
-                <button type="submit" class="link">{{$page.T.T "pending.confirm" .Suggestion}}</button>
+                <button type="submit" class="btn">{{$page.T.T "pending.confirm" .Suggestion}}</button>
               </form>
             {{end}}
 
@@ -63,7 +63,7 @@
               <input type="hidden" name="csrf_token" value="{{$page.CSRFToken}}">
               <input type="hidden" name="source" value="{{.Source}}">
               <input type="hidden" name="external_id" value="{{.ExternalID}}">
-              <button type="submit" class="link danger">{{$page.T.T "pending.discard"}}</button>
+              <button type="submit" class="btn secondary danger">{{$page.T.T "pending.discard"}}</button>
             </form>
           </div>
         </li>

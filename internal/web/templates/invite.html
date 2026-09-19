@@ -5,7 +5,7 @@
     {{if .Invalid}}
       <h1>{{.T.T "invite.invalid.heading"}}</h1>
       <p class="signin-sub">{{.T.T "invite.invalid.body"}}</p>
-      <div class="actions"><a class="btn-primary" href="/">{{.T.T "nav.signIn"}}</a></div>
+      <div class="actions"><a class="btn" href="/">{{.T.T "nav.signIn"}}</a></div>
     {{else}}
       <h1>{{.T.T "invite.heading" .PlayerName}}</h1>
       <p class="signin-sub">{{.T.T "invite.sub" .Email}}</p>
@@ -23,7 +23,7 @@
         <label for="password_confirm">{{.T.T "reset.repeat"}}</label>
         <input type="password" id="password_confirm" name="password_confirm" required autocomplete="new-password">
 
-        <div class="actions"><button type="submit">{{.T.T "invite.submit"}}</button></div>
+        <div class="actions"><button class="btn" type="submit">{{.T.T "invite.submit"}}</button></div>
       </form>
     {{end}}
 

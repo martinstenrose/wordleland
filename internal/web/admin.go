@@ -35,8 +35,6 @@ type adminPlayerRow struct {
 	LinkedEmail string
 	Games       int
 	Average     string
-	Trait       string
-	Why         string
 	Status      string
 	Href        string
 	Selected    bool
@@ -134,7 +132,6 @@ func (s *Server) handleAdminPlayers(w http.ResponseWriter, r *http.Request) {
 		chosen = r.URL.Query().Get("player")
 	}
 
-	traits := stats.NewTraiter(board)
 	figures := make(map[int64]stats.Player, len(players))
 	for _, group := range [][]stats.Player{board.Ranked, board.Unranked} {
 		for _, p := range group {
@@ -156,10 +153,6 @@ func (s *Server) handleAdminPlayers(w http.ResponseWriter, r *http.Request) {
 		}
 		if f, ok := figures[p.ID]; ok {
 			row.Average = formatScore(page.T, f.Average)
-			if key := traits.For(f); key != "" {
-				row.Trait = page.T.T("trait." + key)
-				row.Why = page.T.T("trait." + key + ".why")
-			}
 		}
 		if p.UserID != nil {
 			page.Linked++
@@ -409,7 +402,6 @@ func (s *Server) renderAdminPlayer(w http.ResponseWriter, r *http.Request, playe
 		InviteLocale: defaultLocale,
 	}
 
-	traits := stats.NewTraiter(board)
 	for _, p := range players {
 		row := adminPlayerRow{
 			Player: p, Games: games[p.ID], Average: "—",
@@ -422,10 +414,6 @@ func (s *Server) renderAdminPlayer(w http.ResponseWriter, r *http.Request, playe
 		}
 		if f, ok := figures[p.ID]; ok {
 			row.Average = formatScore(page.T, f.Average)
-			if key := traits.For(f); key != "" {
-				row.Trait = page.T.T("trait." + key)
-				row.Why = page.T.T("trait." + key + ".why")
-			}
 		}
 		if p.UserID != nil {
 			page.Linked++
