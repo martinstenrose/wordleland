@@ -131,8 +131,14 @@ type chrome struct {
 	// ReadOnly hides everything that implies an account.
 	ReadOnly bool
 
-	// AdminTab marks which admin page is open, for the strip they share.
+	// AdminTab marks which admin page is open, for the bar they share.
 	AdminTab string
+
+	// Section is that bar: the heading of an admin card, and the control
+	// that changes which section the card is. Empty outside the area. A
+	// page with a count worth showing overwrites its Hint or Badge — see
+	// adminSwitcher.
+	Section switcher
 
 	// AdminWarning is a problem worth an admin's attention, raised on the way
 	// into the area rather than only on the page that computes it. A page
@@ -177,7 +183,7 @@ func (c chrome) SidebarRows() []chromeOpt {
 	return rows
 }
 
-// AdminTabs feeds the pill-nav shared by every admin screen. The five
+// AdminTabs feeds the section bar shared by every admin screen. The five
 // destinations are fixed, unlike Nav's — there is no admin page that can be
 // absent — so this builds them from AdminTab rather than the caller passing
 // a slice each time.
@@ -482,6 +488,7 @@ func viewPath(prefix, view string) string {
 func (s *Server) adminChrome(w http.ResponseWriter, r *http.Request, tab string) chrome {
 	c := s.newChrome(w, r, "", "", false)
 	c.AdminTab = tab
+	c.Section = c.adminSwitcher()
 
 	// Losing the container-level "unhealthy" signal when the services merged
 	// traded a warning that came to you for a page you have to open. This

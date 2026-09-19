@@ -1,11 +1,7 @@
 {{define "title"}}{{.T.T "diag.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<section class="card">
-  {{template "admin-tabs" .}}
-
-  <div class="card-head">
-    <h1>{{.T.T "diag.title"}}</h1>
-  </div>
+<section class="card card-bar">
+  {{template "switcher" .Section}}
 
   {{if not .Configured}}
     {{/* Not a fault: a deployment can serve the board and have results

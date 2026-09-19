@@ -732,6 +732,12 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   overflow-y: hidden;
   scrollbar-width: thin;
 }
+/* A card whose heading is a menu has to let that menu out of it. The two
+   axes cannot disagree — CSS turns a visible one into a scrolling one as soon
+   as the other scrolls — so this is all or nothing, and it is safe here:
+   every card carrying a bar holds panels and lists, and the one that holds a
+   table (the activity log) already wraps it in its own .table-scroll. */
+.card-bar { overflow: visible; }
 /* Every block in a card lines up on the same gutter. Without this a section
    added later sits flush against the card edge, which is how the today and
    month views shipped. Tables opt out because their cells already carry it,
@@ -762,7 +768,10 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   padding: 16px var(--space-card);
   border-bottom: 1px solid var(--color-text-10);
 }
-.card-head h1 {
+/* h2 as well as h1: on the activity detail the section bar above is the
+   page's heading, so the event below it is one level down. */
+.card-head h1,
+.card-head h2 {
   margin: 0; font-size: var(--text-xl); font-weight: 700; letter-spacing: -.015em;
 }
 /* The small uppercase label above or beside a heading. Semibold because at
@@ -901,19 +910,26 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   margin-top: 0;
 }
 
+/* The name and the rank moved up into the bar, so what is left here is the
+   four figures and whatever marks the player carries. The figures keep the
+   right edge they had — pushed there by their own margin now that there is
+   not always something on the left to push them. */
 .player-head {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
   gap: 26px;
   flex-wrap: wrap;
-  padding-top: 20px;
-  padding-bottom: 18px;
+  padding-top: 14px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--color-text-10);
 }
-.player-head-main { min-width: 0; }
-.player-head h1 { margin: 0 0 6px; font-size: 1.9rem; letter-spacing: -.02em; }
-.player-head p { margin: 0; }
+.player-head > .stat-list { margin-left: auto; }
+/* …but not on a phone, where they wrap onto a line of their own and being
+   pushed to the right edge just moves them away from everything above. */
+@media (max-width: 720px) {
+  .player-head > .stat-list { margin-left: 0; }
+}
+.player-marks { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 /* Two columns of panels, as the design lays them out, dropping to one when
    there is not room. The separators are the grid's own gap over a tinted
@@ -2308,6 +2324,112 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 /* An outline rather than a fill: the month is not finished, so the placing
    in it is provisional. */
 .mark-cell.running { background: transparent; border-color: var(--color-accent-50); color: var(--color-accent-strong); }
+
+/* ---- The card's section bar -------------------------------------------
+   The heading is the control that changes the section. It replaces a strip
+   of tabs above a title: the strip and the title said the same word twice,
+   and the strip was the half that did not fit — five admin sections wrapped
+   to a second row on a phone, and a roster of fourteen scrolled sideways. A
+   heading is one line at every width whatever is behind it. */
+
+.switcher { position: relative; border-bottom: 1px solid var(--color-text-10); }
+.switcher > summary { list-style: none; cursor: pointer; }
+.switcher > summary::-webkit-details-marker { display: none; }
+.switcher > summary:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: -2px; }
+
+.switcher-bar {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px var(--space-card);
+}
+.switcher > summary:hover .switcher-bar,
+.switcher[open] .switcher-bar { background: var(--color-text-04); }
+
+.switcher-mark { flex: none; display: flex; color: var(--color-accent); }
+/* A player has initials where a section has a glyph. Same box either way, so
+   the heading beside it starts in the same place on both. */
+.switcher-avatar {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-circle);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-text-12);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-text-50);
+}
+
+.switcher-id { flex: 1; min-width: 0; }
+.switcher-title { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.switcher-label {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 800;
+  letter-spacing: -.015em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.switcher-title .chevron { flex: none; color: var(--color-text-50); }
+.switcher[open] .switcher-title .chevron { transform: rotate(180deg); }
+.switcher-hint {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-text-40);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.switcher-badges { flex: none; display: flex; align-items: center; gap: 6px; }
+
+/* Stretched to the card's edges on a phone, because that is the room there
+   is; a column of its own on a wider one, where a menu as wide as the card
+   would be a line of text with a tick a long way from it. */
+.switcher-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% - 6px);
+  left: 10px;
+  right: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-text-12);
+  box-shadow: var(--shadow-elevated);
+}
+.switcher-row { gap: 10px; }
+/* The shared menu row stretches whichever span comes first, because in the
+   account and language menus that span is the label. Here it is an icon or a
+   rank, so say which one takes the slack by name rather than by position —
+   matching the shared rule's specificity, and after it. */
+.switcher-row > span:nth-of-type(1) { flex: none; }
+.switcher-row > span.switcher-row-label { flex: 1; }
+.switcher-row-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.switcher-row.on .switcher-row-label { font-weight: 700; }
+.switcher-row .switcher-icon { flex: none; display: flex; color: var(--color-text-45); }
+.switcher-row.on .switcher-icon { color: var(--color-accent-strong); }
+/* The rank column is fixed so fourteen names start in the same place. */
+.switcher-rank { flex: none; width: 24px; font-size: var(--text-xs); font-weight: 700; color: var(--color-text-40); }
+.switcher-avg { flex: none; font-size: var(--text-xs); color: var(--color-text-50); }
+.switcher-row-badge { flex: none; font-size: var(--text-xs); font-weight: 700; color: var(--color-accent-2-strong); }
+
+@media (min-width: 721px) {
+  .switcher-label { font-size: var(--text-xl); letter-spacing: -.02em; }
+  .switcher-hint { font-size: var(--text-sm); color: var(--color-text-50); }
+  .switcher-avatar { width: 36px; height: 36px; }
+  .switcher-panel { left: 16px; right: auto; width: 330px; max-height: 320px; }
+}
 
 /* ---- Settings ---------------------------------------------------------- */
 

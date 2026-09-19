@@ -1,0 +1,45 @@
+{{/* A card's section bar, in which the heading is the control that changes
+     it. See the switcher type in switcher.go for what it replaces and why.
+
+     A <details> in the shared "menu-group", so it opens, closes on a second
+     press, and closes when another menu opens — all from the markup. Every
+     row is a link to the page it names, so the whole control works with no
+     script at all; app.js only adds the outside-click dismissal every other
+     menu already gets.
+
+     The heading really is the <h1>: the page has no other title, and a
+     summary may carry heading content. Data: the switcher type. */}}
+{{define "switcher"}}
+<details class="switcher menu" name="menu-group"{{if .Open}} open{{end}}>
+  <summary class="switcher-bar">
+    {{if .Initials}}
+      <span class="switcher-avatar" aria-hidden="true">{{.Initials}}</span>
+    {{else if .Code}}
+      <span class="switcher-mark">{{template "section-icon" .Code}}</span>
+    {{end}}
+    <span class="switcher-id">
+      <span class="switcher-title">
+        <h1 class="switcher-label">{{.Label}}</h1>
+        {{template "chevron-down" .}}
+      </span>
+      {{if .Hint}}<span class="switcher-hint">{{.Hint}}</span>{{end}}
+    </span>
+    {{if .Badge}}
+      <span class="switcher-badges">{{template "badge" (dict "Label" .Badge "On" true)}}</span>
+    {{end}}
+  </summary>
+
+  <div class="switcher-panel">
+    {{range .Items}}
+      <a class="menu-row switcher-row{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>
+        {{if .Rank}}<span class="switcher-rank">{{.Rank}}</span>{{end}}
+        {{if .Code}}<span class="switcher-icon">{{template "section-icon" .Code}}</span>{{end}}
+        <span class="switcher-row-label">{{.Label}}</span>
+        {{if .Avg}}<span class="switcher-avg num">{{.Avg}}</span>{{end}}
+        {{if .Badge}}<span class="switcher-row-badge">{{.Badge}}</span>{{end}}
+        <span class="menu-check" aria-hidden="true">{{if .On}}✓{{end}}</span>
+      </a>
+    {{end}}
+  </div>
+</details>
+{{end}}

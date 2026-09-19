@@ -1,10 +1,14 @@
 {{define "title"}}{{.T.T "activity.detail.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<section class="card">
-  {{template "admin-tabs" .}}
+<section class="card card-bar">
+  {{/* The only admin screen with a subject of its own below the section.
+       The bar names where you are, as everywhere else, and the event keeps
+       its own heading one level down — two titles, in the order you arrived
+       at them. */}}
+  {{template "switcher" .Section}}
 
   <div class="card-head">
-    <h1>{{.Row.Text}}</h1>
+    <h2>{{.Row.Text}}</h2>
     <p class="kicker">{{.Row.When}}</p>
   </div>
 

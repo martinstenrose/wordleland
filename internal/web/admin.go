@@ -186,6 +186,10 @@ func (s *Server) handleAdminPlayers(w http.ResponseWriter, r *http.Request) {
 		page.Selected = panel
 	}
 
+	// The roster's own counts, where a section that has none falls back to
+	// the sentence describing it.
+	page.Section.Hint = page.T.T("admin.counts", page.Count, page.Linked, page.Unlinked)
+
 	if !s.issueChromeToken(w, r, &page.chrome) {
 		return
 	}

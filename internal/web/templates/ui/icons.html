@@ -163,3 +163,38 @@
     </svg>
   {{end}}
 {{end}}
+
+{{/* One glyph per admin section, dispatched on the section's code the way
+     nav-icon dispatches on a view's. Same recipe as the rest of this file:
+     a 24-unit box, no fill, 1.7 stroke, round joins. */}}
+{{define "section-icon"}}
+  <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+    <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      {{if eq . "settings"}}
+        {{/* Sliders rather than a gear, for the reason search-hit-icon
+             already records: a gear at this size is the theme picker's sun. */}}
+        <path d="M4 7h3M11 7h9"/><circle cx="7.5" cy="7" r="2"/>
+        <path d="M4 12h9M17 12h3"/><circle cx="14.5" cy="12" r="2"/>
+        <path d="M4 17h3M11 17h9"/><circle cx="7.5" cy="17" r="2"/>
+      {{else if eq . "players"}}
+        <circle cx="9" cy="8.5" r="3"/>
+        <path d="M3.4 19.6c0-3 2.5-5.1 5.6-5.1s5.6 2.1 5.6 5.1"/>
+        <path d="M16.4 6.6a2.3 2.3 0 010 4.5M17 13.6c2.1.5 3.6 2 3.6 4"/>
+      {{else if eq . "pending"}}
+        {{/* A tray with the slot results drop through. */}}
+        <path d="M3.5 13.5h4l1.4 2.4h6.2l1.4-2.4h4"/>
+        <path d="M5.6 5.2h12.8l2.1 8.3v4A1.5 1.5 0 0119 19H5a1.5 1.5 0 01-1.5-1.5v-4z"/>
+      {{else if eq . "activity"}}
+        {{/* A clock wound backwards: what happened, newest first. */}}
+        <path d="M3.6 10.4A8.6 8.6 0 1112 20.6a8.6 8.6 0 01-6.4-2.9"/>
+        <path d="M3.4 5.6v4.8h4.8"/>
+        <path d="M12 7.8V12l3 1.8"/>
+      {{else}}
+        {{/* A monitor with a pulse across it. */}}
+        <rect x="2.8" y="4.4" width="18.4" height="12.6" rx="2"/>
+        <path d="M8.6 20.4h6.8M12 17v3.4"/>
+        <path d="M6 10.8h2.6L10 8.4l2 5 1.4-2.6H18"/>
+      {{end}}
+    </g>
+  </svg>
+{{end}}

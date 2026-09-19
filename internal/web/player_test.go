@@ -99,7 +99,7 @@ func TestThinPlayerGetsScoresRatherThanCharts(t *testing.T) {
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
-	page := fetch(t, srv, "/share/"+slug+"/p/thin").Body.String()
+	page := withoutRoster(fetch(t, srv, "/share/"+slug+"/p/thin").Body.String())
 
 	if strings.Contains(page, "3.00") {
 		t.Error("a player below the ranking threshold is showing a computed average")
@@ -248,12 +248,13 @@ func TestAuthenticatedPlayerPageRequiresASession(t *testing.T) {
 	if page.Code != http.StatusOK {
 		t.Fatalf("signed-in GET /p/harda = %d", page.Code)
 	}
-	// The design gives the panel no back-link: the picker above it is how
-	// you move between players, and the mark is how you leave. What matters
-	// is that the page is not a dead end.
+	// The design gives the panel no back-link: the bar above it — the name,
+	// which is also the control that opens the roster — is how you move
+	// between players, and the mark is how you leave. What matters is that
+	// the page is not a dead end.
 	body := page.Body.String()
-	if !strings.Contains(body, `class="pill-nav-item`) {
-		t.Error("the player page has no picker to move with")
+	if !strings.Contains(body, `class="menu-row switcher-row`) {
+		t.Error("the player page has no roster to move with")
 	}
 	if !strings.Contains(body, `class="brand"`) {
 		t.Error("the player page has no way back out")
@@ -335,4 +336,76 @@ func TestBuildMonthRanksDashesTheSegmentIntoAnUnfinishedMonth(t *testing.T) {
 			t.Errorf("dashedPath = %q, want none once the month has closed", dashedPath)
 		}
 	})
+}
+
+// withoutRoster cuts the open-the-roster menu out of a player page.
+//
+// Every player is listed in it with their own rank and average, so a figure
+// found anywhere on the page is not necessarily a figure about the player the
+// page is about — which is the only thing the tests below are asking.
+func withoutRoster(page string) string {
+	i := strings.Index(page, `<div class="switcher-panel">`)
+	if i < 0 {
+		return page
+	}
+	j := strings.Index(page[i:], "</details>")
+	if j < 0 {
+		return page
+	}
+	return page[:i] + page[i+j:]
+}
+
+// The roster lists everyone, so it is a second place the withheld figures
+// could leak out of — and the one nobody would think to look at.
+func TestTheRosterWithholdsFiguresBelowTheThreshold(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	page := fetch(t, srv, "/share/"+slug+"/p/harda").Body.String()
+	i := strings.Index(page, `<div class="switcher-panel">`)
+	if i < 0 {
+		t.Fatal("the player page has no roster")
+	}
+	menu := page[i : i+strings.Index(page[i:], "</details>")]
+
+	row := menu[strings.Index(menu, "/p/thin"):]
+	row = row[:strings.Index(row, "</a>")]
+	if !strings.Contains(row, `<span class="switcher-avg num">—</span>`) {
+		t.Errorf("the roster gives a player below the threshold an average: %s", row)
+	}
+	if !strings.Contains(row, `<span class="switcher-rank">—</span>`) {
+		t.Errorf("the roster gives an unranked player a rank: %s", row)
+	}
+	// And a ranked one still has both, or the dash above means nothing.
+	ranked := menu[strings.Index(menu, "/p/harda"):]
+	ranked = ranked[:strings.Index(ranked, "</a>")]
+	if strings.Contains(ranked, "—") {
+		t.Errorf("a ranked player's figures are withheld too: %s", ranked)
+	}
+}
+
+// The roster's script asks for the card alone, and what it gets has to be the
+// same card the full page draws — otherwise picking a name with a script and
+// picking one without it land on two different pages.
+func TestThePlayerCardIsTheSameWholeOrInPart(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	full := fetch(t, srv, "/share/"+slug+"/p/harda").Body.String()
+	part := fetch(t, srv, "/share/"+slug+"/p/harda?partial=1").Body.String()
+
+	if strings.Contains(part, "<html") || strings.Contains(part, `class="sidebar"`) {
+		t.Error("the partial carries the page around the card")
+	}
+	if !strings.Contains(part, `<h1 class="switcher-label">Harda`) {
+		t.Error("the partial is not the player's card")
+	}
+
+	card := full[strings.Index(full, `<section class="card`):]
+	card = card[:strings.LastIndex(card, "</section>")+len("</section>")]
+	if strings.TrimSpace(part) != strings.TrimSpace(card) {
+		t.Error("the card differs between the whole page and the partial")
+	}
 }

@@ -43,6 +43,7 @@ read fields on a struct.
 |---|---|
 | `theme-icon`, `chevron`, `search-icon`, `search-hit-icon`, `nav-icon`, `menu-icon`, `collapse-icon` | Small inline SVG icons — `icons.html`. No app data — `search-hit-icon` takes a plain kind string ("player", "settings", "admin", or the default "page") and `nav-icon` a view code, not a Wordleland type. |
 | `pill-nav` | One active choice among several, as a row of pills. |
+| `switcher` | A card's section bar: the heading is the control that changes it. |
 | `progress-bar` | A filled track, with a `compact` size and a `win` fill modifier. |
 | `stat-list` | A label/value `<dl>`, in three visual variants (`figure`, `row`, `admin`). |
 | `button` | A link styled as the app's one button treatment (`btn-primary`). |
@@ -59,9 +60,12 @@ complete" below).
 They replace patterns already duplicated across pages under different
 names:
 
-- `pill-nav` replaces `.view` (topbar/tabs), `.pick` (admin tabs) and
-  `.span` (grid time-span picker) — the same "one active link among a
-  row of links" pattern three times over. `.seg` / `.seg-opt` was a fourth,
+- `pill-nav` replaces `.view` (topbar/tabs) and `.span` (grid time-span
+  picker) — the same "one active link among a row of links" pattern twice
+  over. It had two more callers, the admin tabs and the player picker, and
+  both are now `switcher` instead: a row of links only works while the row
+  fits, and neither of those did — five admin sections wrapped to a second
+  line on a phone and fourteen names scrolled sideways. `.seg` / `.seg-opt` was a fourth,
   left alone as a genuinely different visual — a bordered strip with
   internal dividers rather than a loose row of pills. Its one user was the
   board's All / Hard mode pair, which is now a row inside the ranking menu,
@@ -113,7 +117,22 @@ tab strip they replace was already built to avoid.
 
 The rail carries one row for the admin area, not one per screen inside it:
 where in the application you are is the rail's job, and which of the five
-admin screens you are on is `admin-tabs`', at the top of that screen.
+admin screens you are on is the `switcher`'s, at the top of that screen:
+its heading is the control that changes it, so the strip of tabs and the
+title that repeated the highlighted one are a single thing now.
+
+`switcher` does the same for the roster, where the heading is the player's
+name. The two shapes differ in what each row carries — a section has an icon,
+a player has a rank and an average — and in what sits beside the heading: a
+glyph for a section, initials for a player. One partial draws both, because
+they are the same control; two would drift. `switcher.go` builds each from the
+list that already exists (`AdminTabs`, the board), so there is still one place
+that knows what the admin area contains and one that knows who plays.
+
+A card carrying a bar is marked `card-bar`, which stops the card clipping the
+open menu. It has to be a class rather than `:has()`: the two overflow axes
+cannot disagree, so this turns off the card's own horizontal scroll, and that
+is only safe on cards whose wide tables carry their own `table-scroll`.
 
 `about` is the second thing rendered twice and defined once, for the same
 reason and with one difference: it carries `name="about"` rather than joining

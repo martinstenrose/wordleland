@@ -1,11 +1,7 @@
 {{define "title"}}{{.T.T "admin.settings.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<section class="card">
-  {{template "admin-tabs" .}}
-
-  <div class="card-head">
-    <h1>{{.T.T "admin.settings.title"}}</h1>
-  </div>
+<section class="card card-bar">
+  {{template "switcher" .Section}}
 
   {{if .Notice}}<p class="note" role="status" data-raise="{{.T.T "action.close"}}">{{.Notice}}</p>{{end}}
   {{if .Error}}<p class="note error" role="alert">{{.Error}}</p>{{end}}
