@@ -1362,18 +1362,18 @@ func TestTraitBadgesAreOnlyWhereTheyMeanSomething(t *testing.T) {
 }
 
 // A phone has no room for a name and a chip beside it in a table cell, so the
-// month's top three are written in gold, silver and bronze instead. A shared
-// win is two golds and then a bronze: competition ranking numbers a tie
-// 1, 1, 3, and there is no second place for a silver to go to.
-func TestTheMonthsTopThreeAreColouredForAPhone(t *testing.T) {
+// month's top three carry a medal instead. A shared win is two golds and then
+// a bronze: competition ranking numbers a tie 1, 1, 3, and there is no second
+// place for a silver to go to.
+func TestTheMonthsTopThreeCarryAMedalOnAPhone(t *testing.T) {
 	for _, tt := range []struct {
 		rank int
 		want string
 	}{
-		{1, "gold"}, {2, "silver"}, {3, "bronze"}, {4, ""}, {0, ""},
+		{1, "🥇"}, {2, "🥈"}, {3, "🥉"}, {4, ""}, {0, ""},
 	} {
-		if got := medalTone(tt.rank); got != tt.want {
-			t.Errorf("medalTone(%d) = %q, want %q", tt.rank, got, tt.want)
+		if got := medalIcon(tt.rank); got != tt.want {
+			t.Errorf("medalIcon(%d) = %q, want %q", tt.rank, got, tt.want)
 		}
 	}
 
@@ -1382,8 +1382,13 @@ func TestTheMonthsTopThreeAreColouredForAPhone(t *testing.T) {
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 
 	body := fetchAs(t, srv, "/months", signIn(t, srv, admin.ID)).Body.String()
-	if !strings.Contains(body, "medal-gold") {
-		t.Error("the month's leader is not coloured")
+	if !strings.Contains(body, `<span class="medal-mark" aria-hidden="true">🥇</span>`) {
+		t.Error("the month's leader carries no medal")
+	}
+	// Decoration, not information: the rank is a column of the same row, in
+	// figures, so a label here would only repeat it.
+	if strings.Contains(body, `class="medal-mark"`) && !strings.Contains(body, `class="medal-mark" aria-hidden="true"`) {
+		t.Error("the medal is exposed to assistive tech, which already has the rank")
 	}
 	// The chip is still in the markup: app.css shows one or the other by
 	// width, so neither is rendered conditionally on the server.
@@ -1394,11 +1399,15 @@ func TestTheMonthsTopThreeAreColouredForAPhone(t *testing.T) {
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
 	for _, want := range []string{
 		".months-table .medal { display: none; }",
-		".months-table .player.medal-bronze { color: var(--color-bronze);",
+		".months-table .medal-mark { display: inline; }",
 	} {
 		if !strings.Contains(css, want) {
 			t.Errorf("the phone rules are missing %q", want)
 		}
+	}
+	// And the colours they replace are gone rather than left unused.
+	if strings.Contains(css, "--color-gold") {
+		t.Error("the podium colour tokens survive with nothing reading them")
 	}
 }
 

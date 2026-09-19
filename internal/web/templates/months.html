@@ -59,12 +59,15 @@
         <tr>
           <td class="right num muted">{{$.T.Integer .Rank}}</td>
           <td>
-            {{/* The chip names the place; the colour says it again in the
+            {{/* The chip names the place in words; the medal says it in the
                  space a phone actually has. app.css shows one or the other,
-                 never both. */}}
+                 never both. The medal is decoration: the rank is a column of
+                 this same row, in figures, so it is hidden from assistive
+                 tech rather than given a label that would repeat it. */}}
             <span class="admin-name">
-              <a class="player{{if .MedalTone}} medal-{{.MedalTone}}{{end}}" href="{{.Href}}">{{.Name}}</a>
+              <a class="player" href="{{.Href}}">{{.Name}}</a>
               {{if .Medal}}<span class="medal">{{.Medal}}</span>{{end}}
+              {{if .MedalIcon}}<span class="medal-mark" aria-hidden="true">{{.MedalIcon}}</span>{{end}}
             </span>
           </td>
           <td class="bar-cell">{{template "progress-bar" (dict "Percent" .BarPercent "Win" .Winner "Compact" true)}}</td>

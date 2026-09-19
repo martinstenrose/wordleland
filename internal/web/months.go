@@ -13,10 +13,10 @@ type monthRow struct {
 	Rank  int
 	Name  string
 	Medal string
-	// MedalTone is "gold", "silver" or "bronze" for the top three, empty
-	// below them. A phone has no room for the chip beside a name, so it
-	// writes the name in that colour instead — see medalTone.
-	MedalTone string
+	// MedalIcon is a medal for each of the top three, empty below them. A
+	// phone has no room for the chip beside a name and shows this instead —
+	// see medalIcon.
+	MedalIcon string
 	Href      string
 	Average   string
 	// BarPercent scales the average against the worst on the board, so the
@@ -230,7 +230,7 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 		case p.Rank == 2 && !page.Running:
 			row.Medal = ch.T.T("months.medal.runnerUp")
 		}
-		row.MedalTone = medalTone(p.Rank)
+		row.MedalIcon = medalIcon(p.Rank)
 		page.Rows = append(page.Rows, row)
 	}
 	for _, p := range m.Thin {
@@ -284,7 +284,7 @@ const (
 	barCeiling = 5.2
 )
 
-// medalTone is the colour a phone writes a top-three name in, in place of the
+// medalIcon is the mark a phone shows beside a top-three name, in place of the
 // chip it has no room for.
 //
 // It reads the rank rather than the medal above, which is what gives a shared
@@ -292,14 +292,22 @@ const (
 // ranking already numbers a tie 1, 1, 3 (see stats/months.go), so there is no
 // second place for a silver to go to — and inventing one would name a
 // runner-up the data does not.
-func medalTone(rank int) string {
+//
+// These are the one place this project spends an emoji rather than drawing a
+// glyph, and the reason the flags in the language menu were drawn does not
+// apply: a medal is three characters that every platform this is read on has
+// had since 2016, where a flag needs a pair of regional indicators most
+// desktops still will not join. Nothing is carried by them alone — the rank
+// is a column of the same row, in figures — so a platform that renders them
+// as tofu loses decoration rather than meaning.
+func medalIcon(rank int) string {
 	switch rank {
 	case 1:
-		return "gold"
+		return "🥇"
 	case 2:
-		return "silver"
+		return "🥈"
 	case 3:
-		return "bronze"
+		return "🥉"
 	}
 	return ""
 }
