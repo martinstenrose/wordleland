@@ -50,6 +50,8 @@ func (s *Server) routes() http.Handler {
 	// pulled forward because correcting a name or a link is the change the
 	// roster actually needs, and reaching for docker compose exec to rename
 	// somebody is the wrong shape of chore.
+	mux.HandleFunc("GET /admin/settings", s.requireAdmin(s.handleAdminSettings))
+	mux.HandleFunc("POST /admin/settings/slug", s.requireAdmin(s.handleAdminSlugRotate))
 	mux.HandleFunc("GET /admin/players", s.requireAdmin(s.handleAdminPlayers))
 	mux.HandleFunc("GET /admin/players/{slug}", s.requireAdmin(s.handleAdminPlayers))
 	mux.HandleFunc("POST /admin/players/{slug}", s.requireAdmin(s.handleAdminPlayerSubmit))

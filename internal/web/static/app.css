@@ -82,6 +82,12 @@
   --color-accent-22: oklch(.68 .14 155 / .22);
   --color-accent-14: oklch(.68 .14 155 / .14);
 
+  /* Two steps of the danger hue, for the one place a warning needs a
+     ground of its own rather than red ink on the page's: the question
+     asked before something that cannot be undone. */
+  --color-danger-40: oklch(.65 .15 25 / .4);
+  --color-danger-08: oklch(.65 .15 25 / .08);
+
   /* Score ramp: the fill behind a guess count, one step per guess, plus
      --score-x for a miss. The design system draws it light-first and opaque,
      stepping one hue from a solved-in-1 down to a near-canvas tint; this is
@@ -197,6 +203,8 @@
   --color-accent-45: oklch(.55 .13 155 / .45);
   --color-accent-22: oklch(.55 .13 155 / .22);
   --color-accent-14: oklch(.55 .13 155 / .14);
+  --color-danger-40: oklch(.55 .15 25 / .4);
+  --color-danger-08: oklch(.55 .15 25 / .08);
 }
 
 /* "system" is a stored choice, not the absence of one, so the attribute on
@@ -253,6 +261,8 @@
     --color-accent-45: oklch(.55 .13 155 / .45);
     --color-accent-22: oklch(.55 .13 155 / .22);
     --color-accent-14: oklch(.55 .13 155 / .14);
+    --color-danger-40: oklch(.55 .15 25 / .4);
+    --color-danger-08: oklch(.55 .15 25 / .08);
   }
 }
 
@@ -580,6 +590,12 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 }
 .muted { color: var(--color-text-50); }
 .small { font-size: 11px; }
+/* A note under the thing it is about. It had rules only inside a form, a
+   panel and a pending row, so the same class on a plain section — Settings'
+   "no player is linked" line among them — was drawn at body size in body ink
+   and read as content rather than as a note. The three narrower rules still
+   win where they apply. */
+.hint { margin: 0; font-size: var(--text-sm); color: var(--color-text-45); }
 
 .link {
   background: none; border: 0; padding: 0; cursor: pointer;
@@ -770,6 +786,11 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   color: var(--color-text-50);
   font-weight: 600;
   margin: 28px 0 12px;
+}
+/* The first heading under a card's own head needs no space above it: the
+   head's rule is already the separation. */
+.section.flush {
+  margin-top: 0;
 }
 
 .player-head {
@@ -2067,6 +2088,44 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 .settings-section:last-child { border-bottom: 0; }
 .settings-section .form { max-width: 26rem; }
 .settings-state { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; }
+
+/* The admin area's settings screen.
+   The share link, with the origin sitting back so the slug reads as the
+   thing: the origin is the same on every installation's screen, the slug is
+   what this one has. */
+.slug-line {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 0 0 8px;
+  padding: 9px 11px;
+  border: 1px solid var(--color-text-10);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.slug-line code { font-weight: 600; }
+
+/* The question asked before a rotation, drawn as its own block so it is
+   plainly a step rather than another paragraph. Not a dialog: nothing is
+   trapped here and nothing is behind it — the page simply shows the
+   question until it is answered or left. */
+.confirm {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-danger-40);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-08);
+}
+.confirm-title { margin: 0 0 4px; font-size: var(--text-sm); font-weight: 600; }
+.confirm .actions { margin-top: 14px; }
+
+/* Values that cannot be typed over. The lock trails each one rather than
+   heading the table, so a row read on its own still says so. */
+.env-fields dd { display: flex; align-items: center; gap: 8px; }
+.env-value { min-width: 0; overflow-wrap: anywhere; }
+.env-lock { flex: none; display: flex; color: var(--color-text-35); }
 .badge.on {
   background: var(--color-accent-14);
   border-color: transparent;
@@ -2313,6 +2372,23 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 .invite-form { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--color-text-08); }
 .inline-field { display: flex; gap: 8px; }
 .inline-field input { flex: 1; min-width: 0; }
+/* A link that is an action. The rotate control is a link because its first
+   press only changes what the page shows — the question — and a form that
+   submitted nothing would be the wrong element for that. It has to look like
+   the button it stands beside all the same. */
+.actions a.secondary {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.actions button.danger {
+  color: var(--score-x-ink);
+  background: var(--color-danger);
+  border-color: transparent;
+}
+.actions button.danger:hover { background: var(--color-danger); filter: brightness(1.06); }
+
+.actions a.secondary,
 .actions button.secondary,
 .inline-field button {
   font: inherit;

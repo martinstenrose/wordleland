@@ -196,11 +196,11 @@ func TestAccountMenuOnlyForSignedInUsers(t *testing.T) {
 	if !strings.Contains(adminBody, "admin@example.tld") {
 		t.Error("the account menu does not show which account is signed in")
 	}
-	if !strings.Contains(adminBody, `href="/admin/players"`) {
+	if !strings.Contains(adminBody, `href="/admin/settings"`) {
 		t.Error("an admin has no link to the admin area")
 	}
 
-	if body := as(ordinary); strings.Contains(body, `href="/admin/players"`) {
+	if body := as(ordinary); strings.Contains(body, `href="/admin/settings"`) {
 		t.Error("a non-admin is offered the admin area")
 	}
 }
