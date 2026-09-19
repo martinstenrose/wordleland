@@ -105,6 +105,8 @@
   "admin.save": "Spara",
   "admin.cancel": "Avbryt",
   "action.close": "Stäng",
+  "action.copyLink": "Kopiera länk",
+  "action.copied": "Kopierad",
   "admin.field.name": "Visningsnamn",
   "admin.field.slug": "Slug",
   "admin.field.slugHint": "Små bokstäver, siffror och bindestreck. Ändrar du den ändras spelarens adress.",

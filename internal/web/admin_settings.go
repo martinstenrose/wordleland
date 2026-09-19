@@ -40,10 +40,16 @@ type adminSettingsPage struct {
 	// set and a bare path when it is not — the path is still what someone
 	// needs, just without the origin.
 	ShareURL string
-	// Slug is the same link's last segment, drawn apart from the rest so the
-	// part that changes is the part that stands out.
-	Slug   string
-	Origin string
+	// Slug is the same link's last segment, shown on its own because it is
+	// what identifies this link — and because a whole URL has no good place
+	// to break on a phone.
+	Slug string
+
+	// CopyURL is what a copy button would put on the clipboard, and empty
+	// when APP_URL is not set: the link is a bare path then, and copying it
+	// hands somebody something that is not a link. The template offers no
+	// copy control at all in that case.
+	CopyURL string
 
 	// Confirming is the rotate form's second step. Rotating breaks every
 	// link the group already has, so it is asked once before it happens
@@ -82,8 +88,10 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	default:
 		page.Slug = slug
-		page.Origin = s.cfg.AppURL + "/share/"
-		page.ShareURL = page.Origin + slug + "/"
+		page.ShareURL = s.cfg.AppURL + "/share/" + slug + "/"
+		if s.cfg.AppURL != "" {
+			page.CopyURL = page.ShareURL
+		}
 	}
 
 	page.Env = envRows(page.T, s.cfg.Settings(s.bridgeCfg))

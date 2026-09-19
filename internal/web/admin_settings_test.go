@@ -231,3 +231,74 @@ func cellAround(t *testing.T, body, needle string) string {
 	}
 	return body[open : at+close]
 }
+
+// The share link is on the page in a form that can be selected, and the copy
+// button is not: a clipboard cannot be written to from markup, so app.js
+// builds that button and it exists exactly where it works. Rendering one here
+// would put a control on the page for every reader whose browser will not let
+// it do anything.
+func TestTheShareLinkIsSelectableAndTheCopyButtonIsNot(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+	srv.cfg.AppURL = "https://wordle.example.tld"
+	slug, _, err := store.EnsureShareSlug(context.Background(), srv.db)
+	if err != nil {
+		t.Fatalf("EnsureShareSlug: %v", err)
+	}
+
+	body := fetchAs(t, srv, "/admin/settings", session).Body.String()
+	want := "https://wordle.example.tld/share/" + slug + "/"
+
+	// The slug on its own, which is what identifies the link and the only
+	// part of it short enough to read on a phone.
+	if !strings.Contains(body, `<p class="share-slug"><code>`+slug+`</code></p>`) {
+		t.Error("the slug is not shown on its own")
+	}
+	// And the whole link, as a link: without a script that is what there is
+	// to select, and it doubles as a way to see what a reader of it sees.
+	if !strings.Contains(body, `<a href="`+want+`">`+want+`</a>`) {
+		t.Error("the whole link is not on the page to be selected")
+	}
+	// Nothing in that row is a button: the only control the server puts
+	// there is the link to the replace question.
+	row := body[strings.Index(body, `<div class="actions" data-copy=`):]
+	row = row[:strings.Index(row, "</div>")]
+	if strings.Contains(row, "<button") {
+		t.Error("a copy button was rendered server-side, where it may not work")
+	}
+	if !strings.Contains(row, `href="/admin/settings?confirm=slug"`) {
+		t.Error("the row lost the control that does not need a script")
+	}
+	// What the script needs is in the markup, so no string in it is English.
+	if !strings.Contains(body, `data-copy="`+want+`"`) {
+		t.Error("the script is given no link to copy")
+	}
+	if !strings.Contains(body, `data-copy-label="Copy link"`) || !strings.Contains(body, `data-copied-label="Copied"`) {
+		t.Error("the script is given no words, so it would have to carry its own")
+	}
+}
+
+// With no APP_URL the link is a bare path, and copying it hands somebody
+// something that is not a link. No copy control is offered at all.
+func TestNoCopyControlWithoutAnOrigin(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+	if _, _, err := store.EnsureShareSlug(context.Background(), srv.db); err != nil {
+		t.Fatalf("EnsureShareSlug: %v", err)
+	}
+
+	body := fetchAs(t, srv, "/admin/settings", session).Body.String()
+	if srv.cfg.AppURL != "" {
+		t.Fatal("this test needs an installation with no APP_URL")
+	}
+	if strings.Contains(body, "data-copy=") {
+		t.Error("a copy control is offered for a link that is only a path")
+	}
+	// The path is still shown: it is what somebody needs, just without the
+	// origin in front of it.
+	if !strings.Contains(body, `class="share-url"`) {
+		t.Error("the link is not shown at all")
+	}
+}

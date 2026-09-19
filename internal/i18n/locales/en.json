@@ -105,6 +105,8 @@
   "admin.save": "Save",
   "admin.cancel": "Cancel",
   "action.close": "Close",
+  "action.copyLink": "Copy link",
+  "action.copied": "Copied",
   "admin.field.name": "Display name",
   "admin.field.slug": "Slug",
   "admin.field.slugHint": "Lowercase letters, digits and hyphens. Changing it changes this player's URL.",

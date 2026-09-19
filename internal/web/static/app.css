@@ -2356,19 +2356,33 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
    The share link, with the origin sitting back so the slug reads as the
    thing: the origin is the same on every installation's screen, the slug is
    what this one has. */
-.slug-line {
-  display: flex;
-  align-items: center;
-  gap: 0;
+/* The slug, which is what identifies this link and the part that changes.
+   It was the whole URL wrapped to fit, and overflow-wrap: anywhere broke it
+   mid-slug on a phone — shredding the one string here worth reading. */
+.share-slug {
   margin: 0 0 8px;
-  padding: 9px 11px;
+  padding: 10px 12px;
   border: 1px solid var(--color-text-10);
   border-radius: var(--radius-md);
   background: var(--color-surface-raised);
-  font-size: var(--text-sm);
-  overflow-wrap: anywhere;
 }
-.slug-line code { font-weight: 600; }
+.share-slug code { font-size: var(--text-md); font-weight: 600; }
+/* The link itself: one line that scrolls, never one that wraps. A URL has no
+   good place to break, and at this width every place it could break is
+   somewhere in the middle of a word nobody can read either half of. */
+.share-url {
+  margin: 0 0 10px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.share-url a {
+  display: block;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--color-text-45);
+  text-decoration: none;
+}
+.share-url a:hover { color: var(--color-text-75); text-decoration: underline; }
 
 /* The question asked before a rotation, drawn as its own block so it is
    plainly a step rather than another paragraph. Not a dialog: nothing is

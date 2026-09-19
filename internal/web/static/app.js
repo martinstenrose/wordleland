@@ -384,3 +384,46 @@
   });
   document.addEventListener("keydown", onKey);
 })();
+
+// Putting the share link on the clipboard.
+//
+// The one enhancement here that is not a shortcut for something already on
+// the page: a clipboard cannot be written to from markup, so without this
+// there is no copy button at all. That is why the button is built here rather
+// than rendered and then wired up — it exists exactly when it works. A page
+// served over plain http to anything but localhost has no navigator.clipboard
+// at all, and a button that silently does nothing is worse than none.
+//
+// Without it the link is still on the page, on one line, selectable: the same
+// way it was copied before this existed. Both words the button needs come
+// from the markup, so no string in this file has to be translated.
+(function () {
+  "use strict";
+
+  var row = document.querySelector("[data-copy]");
+  if (!row) return; // No link yet, or no APP_URL to make it absolute with.
+  if (!navigator.clipboard || !navigator.clipboard.writeText) return;
+
+  var button = document.createElement("button");
+  button.type = "button";
+  button.textContent = row.dataset.copyLabel;
+  // First in the row: copying is what somebody is usually here to do, and
+  // the control beside it replaces the link for everybody in the group.
+  row.insertBefore(button, row.firstChild);
+
+  var revert;
+  button.addEventListener("click", function () {
+    navigator.clipboard.writeText(row.dataset.copy).then(function () {
+      button.textContent = row.dataset.copiedLabel;
+      // Said, then taken back: a button stuck reading "Copied" is a button
+      // that looks pressed rather than one that can be pressed again.
+      clearTimeout(revert);
+      revert = setTimeout(function () {
+        button.textContent = row.dataset.copyLabel;
+      }, 2000);
+    }).catch(function () {
+      // Refused — a permissions policy, or a window that is not focused.
+      // The link is still on the page to select, so say nothing.
+    });
+  });
+})();

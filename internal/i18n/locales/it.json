@@ -105,6 +105,8 @@
   "admin.save": "Salva",
   "admin.cancel": "Annulla",
   "action.close": "Chiudi",
+  "action.copyLink": "Copia il link",
+  "action.copied": "Copiato",
   "admin.field.name": "Nome visualizzato",
   "admin.field.slug": "Slug",
   "admin.field.slugHint": "Minuscole, cifre e trattini. Cambiarlo cambia l’URL di questo giocatore.",

@@ -13,9 +13,17 @@
   <div class="settings-section">
     <h2 class="section flush">{{.T.T "admin.settings.slug"}}</h2>
     {{if .Slug}}
-      {{/* The origin sits back and the slug stands out: the slug is the part
-           that changes, and the part someone is here to look at. */}}
-      <p class="slug-line"><span class="muted">{{.Origin}}</span><code>{{.Slug}}</code><span class="muted">/</span></p>
+      {{/* The slug on its own line, because it is the part that identifies
+           this link and the part that changes — and because a whole URL on a
+           phone is a string with no good break in it. It used to be the whole
+           link wrapped to fit, which broke mid-slug and shredded the one
+           thing here worth reading. */}}
+      <p class="share-slug"><code>{{.Slug}}</code></p>
+      {{/* The link itself stays, one line that scrolls rather than wraps.
+           Without a script there is no copy button, and an admin still needs
+           something to select; it also answers whether APP_URL is the public
+           origin or something left over from a local run. */}}
+      <p class="share-url"><a href="{{.ShareURL}}">{{.ShareURL}}</a></p>
       <p class="hint">{{.T.T "admin.settings.slugHint"}}</p>
 
       {{if .Confirming}}
@@ -34,7 +42,15 @@
           </form>
         </div>
       {{else}}
-        <div class="actions">
+        {{/* data-copy asks app.js for a copy button, and carries both words
+             it needs so the script holds no strings of its own. It is absent
+             when APP_URL is not set, because the link is then a bare path and
+             copying it hands somebody something that is not a link. Without
+             the script the row is just the replace control, and the link
+             above is there to be selected. */}}
+        <div class="actions"{{if .CopyURL}} data-copy="{{.CopyURL}}"
+             data-copy-label="{{.T.T "action.copyLink"}}"
+             data-copied-label="{{.T.T "action.copied"}}"{{end}}>
           <a class="secondary" href="/admin/settings?confirm=slug">{{.T.T "admin.settings.rotate"}}</a>
         </div>
       {{end}}
