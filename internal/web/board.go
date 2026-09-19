@@ -315,16 +315,6 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boa
 		page.CSRFToken = token
 	}
 
-	// "?partial=1" asks for just the card, the same way today.go's bench
-	// toggle and search.go's overlay reuse their own pages — see app.js — so
-	// choosing a ranking rule can swap the board in without a full reload
-	// while still working from a plain link when script is absent. This
-	// page's "content" block is the card, so there is no second template to
-	// keep in step with the first.
-	if r.URL.Query().Get("partial") == "1" {
-		s.renderBlock(w, r, http.StatusOK, "board.html", "content", page)
-		return
-	}
 	s.render(w, r, http.StatusOK, "board.html", page)
 }
 

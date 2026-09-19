@@ -643,39 +643,38 @@ func TestFormDeltaPointsTheWayTheScoreMoves(t *testing.T) {
 	}
 }
 
-// "?partial=1" is the ranking menu asking for the board alone, so choosing a
-// rule can swap the card in place instead of reloading — see app.js. It is
-// the page's own "content" block, not a second template, so the two cannot
-// drift: the board a reader gets by following the link and the board they get
-// by pressing the same row with script running are the same markup.
-func TestTheBoardCanBeFetchedAsJustItsCard(t *testing.T) {
+// Switching pages is a whole-document swap now (see app.js), so "?partial=1"
+// means nothing outside search. It has to stay harmless: the parameter
+// survives in bookmarks and pasted links, and a page that answered one with a
+// bare fragment would hand a reader markup with no page around it.
+func TestPartialIsOnlyASearchThing(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
-	for _, path := range []string{"/share/" + slug + "/board", "/share/" + slug + "/board?mode=hard"} {
-		full := fetch(t, srv, path)
-		partial := fetch(t, srv, path+(map[bool]string{true: "&", false: "?"}[strings.Contains(path, "?")])+"partial=1")
-		if partial.Code != http.StatusOK {
-			t.Fatalf("GET %s partial = %d", path, partial.Code)
+	for _, path := range []string{
+		"/share/" + slug + "/",
+		"/share/" + slug + "/board",
+		"/share/" + slug + "/board?mode=hard&",
+		"/share/" + slug + "/months",
+		"/share/" + slug + "/p/harda",
+		"/share/" + slug + "/players",
+	} {
+		sep := "?"
+		if strings.Contains(path, "?") {
+			sep = ""
 		}
-		body := partial.Body.String()
+		body := fetch(t, srv, path+sep+"partial=1").Body.String()
+		if !strings.Contains(body, "<html") || !strings.Contains(body, "</html>") {
+			t.Errorf("%s: ?partial=1 answers with a fragment rather than a page", path)
+		}
+	}
 
-		// The card and nothing around it.
-		if !strings.HasPrefix(strings.TrimSpace(body), `<section class="card">`) {
-			t.Errorf("%s: the partial does not start with the card", path)
-		}
-		for _, chrome := range []string{"<html", "<header class=\"topbar\">", `class="sidebar"`} {
-			if strings.Contains(body, chrome) {
-				t.Errorf("%s: the partial carries %s, so it is the whole page", path, chrome)
-			}
-		}
-		// And it is the same card the full page renders, so a rule applied
-		// through the menu cannot land somewhere the link would not.
-		card := strings.TrimSpace(body)
-		if !strings.Contains(full.Body.String(), card) {
-			t.Errorf("%s: the partial is not the card the full page renders", path)
-		}
+	// Search is the one route it does mean something on: the ⌘K overlay asks
+	// for the list of hits, not for a second page around them.
+	hits := fetch(t, srv, "/share/"+slug+"/search?partial=1&q=harda").Body.String()
+	if strings.Contains(hits, "<html") {
+		t.Error("the search overlay is served a whole page")
 	}
 }
 

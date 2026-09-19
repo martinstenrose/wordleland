@@ -384,28 +384,3 @@ func TestTheRosterWithholdsFiguresBelowTheThreshold(t *testing.T) {
 		t.Errorf("a ranked player's figures are withheld too: %s", ranked)
 	}
 }
-
-// The roster's script asks for the card alone, and what it gets has to be the
-// same card the full page draws — otherwise picking a name with a script and
-// picking one without it land on two different pages.
-func TestThePlayerCardIsTheSameWholeOrInPart(t *testing.T) {
-	srv := testServer(t)
-	seedBoard(t, srv)
-	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
-
-	full := fetch(t, srv, "/share/"+slug+"/p/harda").Body.String()
-	part := fetch(t, srv, "/share/"+slug+"/p/harda?partial=1").Body.String()
-
-	if strings.Contains(part, "<html") || strings.Contains(part, `class="sidebar"`) {
-		t.Error("the partial carries the page around the card")
-	}
-	if !strings.Contains(part, `<h1 class="switcher-label">Harda`) {
-		t.Error("the partial is not the player's card")
-	}
-
-	card := full[strings.Index(full, `<section class="card`):]
-	card = card[:strings.LastIndex(card, "</section>")+len("</section>")]
-	if strings.TrimSpace(part) != strings.TrimSpace(card) {
-		t.Error("the card differs between the whole page and the partial")
-	}
-}

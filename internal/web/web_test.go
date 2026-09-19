@@ -617,3 +617,62 @@ func TestFaviconIsServed(t *testing.T) {
 		}
 	}
 }
+
+// Switching pages in place rests on two things that are easy to break by
+// moving code around, so both are pinned here.
+//
+// The first is ordering. Several enhancements take a press by calling
+// preventDefault — the search button, the rail's collapse, the share slug —
+// and the page switcher stands down when one of them has. Listeners fire in
+// the order they are registered, so the switcher's has to be the last click
+// listener in the file; registered earlier, it would swallow every one of
+// them before its owner saw it.
+//
+// The second is the registry. Enhancements that hold on to an element rather
+// than delegating from the document have to be run again once the body has
+// been replaced, or search, the rail's collapse and the copy button stop
+// working after the first switch.
+func TestThePageSwitcherIsRegisteredLast(t *testing.T) {
+	srv := testServer(t)
+	js := fetchAs(t, srv, "/static/app.js", nil).Body.String()
+
+	switcher := strings.Index(js, "// Switching pages without the flash.")
+	if switcher < 0 {
+		t.Fatal("the page switcher is gone")
+	}
+	const listener = `document.addEventListener("click"`
+	if last := strings.LastIndex(js, listener); last < switcher {
+		t.Error("a click listener is registered after the page switcher's, so the switcher sees the press first")
+	}
+
+	if !strings.Contains(js, "onPageChange.rerun()") {
+		t.Error("the page switcher does not run the re-init registry")
+	}
+	for _, enhancement := range []string{"search-overlay", ".nav-collapse", "mountCopy", "[data-raise]"} {
+		if !strings.Contains(js, "onPageChange") {
+			t.Fatal("there is no re-init registry")
+		}
+		if !strings.Contains(js, enhancement) {
+			t.Errorf("%s is gone from app.js", enhancement)
+		}
+	}
+}
+
+// Every frame has one, because it is both what the skip link points at and
+// where the page switcher puts focus once a page is in place.
+func TestEveryFrameCarriesTheMainRegion(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	for _, path := range []string{
+		"/share/" + slug + "/",                 // the application frame
+		"/",                                    // the sign-in frame
+		"/share/" + slug + "/p/no-such-player", // no frame at all
+	} {
+		body := fetchAs(t, srv, path, nil).Body.String()
+		if got := strings.Count(body, `<main id="main">`); got != 1 {
+			t.Errorf("%s renders %d main regions, want exactly one", path, got)
+		}
+	}
+}
