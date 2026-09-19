@@ -42,7 +42,11 @@ func TestSinceTextIncludesUTCOffset(t *testing.T) {
 		"activity.tomorrowAt":  "tomorrow at %s",
 		"activity.yesterdayAt": "yesterday at %s",
 	}}
-	now := time.Now()
+	// Midday, not time.Now(): 25 hours before 00:30 is two calendar days
+	// back, which is a day count rather than "yesterday at", and this
+	// catalogue deliberately has no day-count key. The test was red for
+	// the first hour of every day, on every machine, for nobody's fault.
+	now := time.Date(2026, time.September, 20, 12, 0, 0, 0, time.Local)
 
 	timestampPattern := regexp.MustCompile(`\d{2}:\d{2}:\d{2} [+-]\d{2}:\d{2}$`)
 
