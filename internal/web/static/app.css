@@ -107,6 +107,13 @@
   --score-ink-alt: oklch(.95 .006 65);
   --score-x-ink: oklch(.99 .004 25);
 
+  /* What is legible on a field of --color-accent. It tracks the accent
+     rather than the text ramp: the accent is light in this theme and deep
+     in the other, so the ink on it has to turn over with it. The score
+     ramp's own ink happens to land on the same two values, but an avatar
+     is not a score and should not be pinned to that ramp. */
+  --color-on-accent: oklch(.19 .012 65);
+
   /* Elevation. No extra hairline ring: every consumer here already draws
      its own 1px border, and adding a second ring on top of that would
      double it rather than sharpen it. */
@@ -164,6 +171,7 @@
   --score-ink: oklch(.99 .004 155);
   --score-ink-alt: oklch(.22 .02 155);
   --score-x-ink: oklch(.99 .004 25);
+  --color-on-accent: oklch(.99 .004 155);
   --color-text-80: oklch(.22 .012 65 / .86);
   --color-text-75: oklch(.22 .012 65 / .84);
   --color-text-70: oklch(.22 .012 65 / .8);
@@ -219,6 +227,7 @@
     --score-ink: oklch(.99 .004 155);
     --score-ink-alt: oklch(.22 .02 155);
     --score-x-ink: oklch(.99 .004 25);
+    --color-on-accent: oklch(.99 .004 155);
     --color-text-80: oklch(.22 .012 65 / .86);
     --color-text-75: oklch(.22 .012 65 / .84);
     --color-text-70: oklch(.22 .012 65 / .8);
@@ -485,12 +494,27 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   .topbar-lead { flex: 1; }
   .topbar-search { flex: none; }
 
-  /* One size for every round control in the bar. */
+  /* The mark is the whole of the left here, so the breathing room the
+     wordmark needs beside it on a wide bar is just a wider gutter. */
+  .topbar .brand { padding: 0; }
+
+  /* One size, one tint and one ink for every round control in the bar: on a
+     phone the search control is an icon among icons rather than the one wide
+     field it is at desktop width, so it stops taking the page's ground and
+     joins them. */
   .topbar .drawer-btn,
   .topbar-controls .theme-cycle,
   .topbar-search .search-btn {
     width: 34px;
     height: 34px;
+  }
+  .topbar-search .search-btn {
+    padding: 0;
+    justify-content: center;
+    border-radius: var(--radius-circle);
+    background: var(--color-surface-raised);
+    border-color: var(--color-text-12);
+    color: var(--color-text);
   }
 
   /* The language control loses its word and its chevron and becomes another
@@ -1048,8 +1072,8 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   place-items: center;
   font-size: var(--text-sm);
   font-weight: 600;
-  background: var(--score-3);
-  color: var(--score-ink-alt);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
   flex: none;
 }
 
@@ -1605,7 +1629,11 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   gap: 7px;
   padding: 0 9px;
   border-radius: var(--radius-sm);
-  color: var(--color-text-70);
+  /* Full ink. These are controls, not captions: the design draws every glyph
+     in the bar at text strength and lets the tint behind it carry the
+     distinction instead. The search control is the one exception and sets
+     its own, quieter, ink below. */
+  color: var(--color-text);
   border: 1px solid transparent;
 }
 .menu-btn:hover { background: var(--color-text-06); color: var(--color-text); }
@@ -1661,6 +1689,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   border-radius: var(--radius-md);
   background: var(--color-canvas);
   border-color: var(--color-text-10);
+  color: var(--color-text-45);
   text-decoration: none;
 }
 .search-btn:hover { border-color: var(--color-text-16); }
