@@ -34,6 +34,18 @@ func Integer(locale string, value int) string {
 	return localizeNumber(locale, strconv.Itoa(value))
 }
 
+// Identifier formats a number that names a thing rather than counting one —
+// a Wordle puzzle number, above all.
+//
+// It is the same digits in every language, because grouping them is what a
+// reader does to a quantity: "#1.918" invites the eye to read a magnitude out
+// of a name, and nobody writes a house number or a flight number that way
+// either. English arrived at this by having no grouping to apply; the rest
+// get it on purpose.
+func Identifier(value int) string {
+	return strconv.Itoa(value)
+}
+
 // Decimal formats a fixed-precision decimal for display.
 func Decimal(locale string, value float64, places int) string {
 	raw := strconv.FormatFloat(value, 'f', places, 64)

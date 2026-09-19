@@ -104,3 +104,21 @@ func TestEveryLocaleNamesItself(t *testing.T) {
 		t.Errorf("de names itself %q", got)
 	}
 }
+
+// A puzzle number names a puzzle; it does not count anything. Grouping its
+// digits invites the eye to read a magnitude out of a name — "#1.918" in
+// German, "#1 918" in Swedish — and nobody writes a house number or a flight
+// number that way either. English arrived here by having no grouping to
+// apply; the rest get it on purpose.
+func TestAnIdentifierIsNeverGrouped(t *testing.T) {
+	for _, locale := range []string{"en", "sv", "de", "es", "it"} {
+		if got := Identifier(1918); got != "1918" {
+			t.Errorf("Identifier(1918) = %q under %s, want the bare digits", got, locale)
+		}
+	}
+	// A quantity still groups, so this is a distinction rather than a
+	// blanket retreat from locale-aware numbers.
+	if got := Integer("de", 1918); got != "1.918" {
+		t.Errorf("Integer(\"de\", 1918) = %q, want a grouped quantity", got)
+	}
+}

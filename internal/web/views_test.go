@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/stats"
 	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/wordle"
@@ -681,7 +682,7 @@ func TestEachViewsControlsPointAtItself(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	board := fetchAs(t, srv, "/share/"+slug+"/board", nil).Body.String()
-	href := hrefFor(t, board, "Hard mode")
+	href := hrefFor(t, board, "Hard mode only")
 	if !strings.HasPrefix(href, "/share/"+slug+"/board") {
 		t.Errorf("the leaderboard's filter links to %q, not back to itself", href)
 	}
@@ -1317,7 +1318,7 @@ func TestEveryBanterHasDetails(t *testing.T) {
 				}
 				if kind == stats.CalloutOneAndDone {
 					date, _ := wordle.DateForPuzzle(1890)
-					want := "Wordle #" + tr.Integer(1890) + " · " + date.Format(time.DateOnly)
+					want := "Wordle #" + i18n.Identifier(1890) + " · " + date.Format(time.DateOnly)
 					if count > 1 {
 						prefix := "Latest: "
 						if locale == "sv" {
@@ -1334,24 +1335,87 @@ func TestEveryBanterHasDetails(t *testing.T) {
 	}
 }
 
-// Traits are a reading of a player's whole history, and Months is about one
-// month at a time: a badge saying "Late finisher" beside a September average
-// claims the two are related, and they are not. They belong on the board and
-// on a player's own page, which is where they stayed.
-func TestMonthsCarriesNoTraitBadges(t *testing.T) {
+// Traits are a reading of a player's whole history. Months is about one month
+// at a time, so a badge saying "Late finisher" beside a September average
+// claims a relation that is not there; and the leaderboard already carries
+// eight columns of the same reading in numbers, where the name column is for
+// the name. Both dropped them.
+func TestTraitBadgesAreOnlyWhereTheyMeanSomething(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	session := signIn(t, srv, admin.ID)
+
+	for _, path := range []string{"/months", "/leaderboard"} {
+		if strings.Contains(fetchAs(t, srv, path, session).Body.String(), `class="trait"`) {
+			t.Errorf("%s carries a trait badge", path)
+		}
+	}
+
+	// Still where they belong, so this cannot pass by the badge having been
+	// deleted everywhere: a player's own page, and Today's form table.
+	for _, path := range []string{"/p/harda", "/today"} {
+		if !strings.Contains(fetchAs(t, srv, path, session).Body.String(), `class="trait"`) {
+			t.Errorf("%s lost its trait badges too", path)
+		}
+	}
+}
+
+// A win and a second place are told apart by colour as well as by the word:
+// the brand hue for the win, the palette's second colour for the runner-up.
+// Neither is a third hue invented for the purpose, and both clear 4.5:1 on
+// their own theme's surface at the 11px uppercase a chip is set in.
+func TestAWinAndASecondPlaceAreDifferentTones(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 
-	months := fetchAs(t, srv, "/months", signIn(t, srv, admin.ID)).Body.String()
-	if strings.Contains(months, `class="trait"`) {
-		t.Error("a trait badge is back on the months view")
+	body := fetchAs(t, srv, "/months", signIn(t, srv, admin.ID)).Body.String()
+	if !strings.Contains(body, `<span class="medal win">`) {
+		t.Error("a win is not marked apart from a second place")
 	}
 
-	// And still where they belong, so this test cannot pass by the badge
-	// having been deleted everywhere.
-	board := fetchAs(t, srv, "/leaderboard", signIn(t, srv, admin.ID)).Body.String()
-	if !strings.Contains(board, `class="trait"`) {
-		t.Error("the board lost its trait badges too")
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+	chip := cssRule(t, css, ".medal {")
+	if !strings.Contains(chip, "var(--color-accent-2-strong)") {
+		t.Error("the runner-up chip does not take the palette's second colour")
+	}
+	if !strings.Contains(css, ".medal.win { background: var(--color-accent-14); color: var(--color-accent-strong); }") {
+		t.Error("a win does not take the brand hue")
+	}
+	// Both chips show at every width now: the word is what they are for, and
+	// a phone has room for one of them beside a name.
+	if strings.Contains(css, ".months-table .medal") {
+		t.Error("a phone still drops one of the chips")
+	}
+	// The two marks this replaced are gone rather than left unread.
+	for _, gone := range []string{"--color-gold", "medal-mark", "medal-gold"} {
+		if strings.Contains(css, gone) {
+			t.Errorf("%q survives with nothing reading it", gone)
+		}
+	}
+}
+
+// A month's mark is a block that its cell centres, never an inline box.
+//
+// It was inline-grid, which puts a box on the text baseline — and a grid
+// container's baseline comes from its own content, so a ★ (which falls out of
+// Manrope to whatever the system has) and a place in an outlined month sat at
+// different heights. Two marks in the same row, in cells of identical height,
+// came out 5.4px apart, and a grid of places read as a grid that had slipped.
+func TestASeasonMarkIsNotAlignedOnTheTextBaseline(t *testing.T) {
+	srv := testServer(t)
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+
+	cell := cssRule(t, css, ".mark-cell {")
+	if strings.Contains(cell, "inline-grid") || strings.Contains(cell, "inline-flex") {
+		t.Error("the mark is an inline box again, so its content decides its height in the row")
+	}
+	if !strings.Contains(cell, "margin: 0 auto") {
+		t.Error("the mark is a block with nothing centring it across its cell")
+	}
+	col := cssRule(t, css, ".season-table .mark-col {")
+	if !strings.Contains(col, "vertical-align: middle") {
+		t.Error("the cell does not centre the mark down its own height")
 	}
 }

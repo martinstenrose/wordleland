@@ -179,35 +179,40 @@ func TestDiagnosticsIsAdminOnly(t *testing.T) {
 // container. A page you have to open is not a replacement, so the problem is
 // raised on the way into the admin area, which opens on Players. It used to
 // repeat on every tab, which made it furniture rather than a warning.
-func TestAdminWarningIsRaisedOnTheWayIn(t *testing.T) {
+// Held results are not raised on the way in. A sender nobody has claimed yet
+// is the ordinary state of a new member's first week rather than a fault, the
+// count is on the Pending results tab where it is actually worked through,
+// and saying it again above every roster made it furniture.
+//
+// This test used to assert the opposite. The band it guards is still there,
+// for the two things that are genuinely wrong — see the test below.
+func TestHeldResultsAreNotRaisedOnTheWayIn(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
 	holdPending(t, srv, "unclaimed-1", "", 1894, 4)
 
 	const held = "held for a sender nobody has claimed"
-	body := fetchAs(t, srv, "/admin/players", session).Body.String()
-	if !strings.Contains(body, held) {
-		t.Error("the way into the admin area shows no warning about held results")
-	}
-	// And it points at the screen the problem is dealt with on. Held results
-	// are claimed on Pending results; Diagnostics only says so again.
-	if !strings.Contains(body, `href="/admin/pending"`) {
-		t.Error("the warning does not lead to where the results are claimed")
+	for _, path := range []string{"/admin/players", "/admin/activity", "/admin/diagnostics"} {
+		if body := fetchAs(t, srv, path, session).Body.String(); strings.Contains(body, held) {
+			t.Errorf("%s warns about held results", path)
+		}
 	}
 
-	// Once, not on every tab — and never on the two screens whose whole job
-	// is to show the same thing in full.
-	for _, path := range []string{"/admin/pending", "/admin/activity", "/admin/diagnostics"} {
-		if body := fetchAs(t, srv, path, session).Body.String(); strings.Contains(body, held) {
-			t.Errorf("%s repeats the warning", path)
-		}
+	// The count itself is not lost: it is on the tab that deals with them,
+	// and Diagnostics still reports it as a figure.
+	pending := fetchAs(t, srv, "/admin/pending", session).Body.String()
+	if !strings.Contains(pending, "waiting") {
+		t.Error("the pending tab does not say how many senders are waiting")
+	}
+	if !strings.Contains(fetchAs(t, srv, "/admin/diagnostics", session).Body.String(), "Held for unclaimed senders") {
+		t.Error("diagnostics no longer reports held results")
 	}
 }
 
-// A bridge that is down or a board gone quiet is read on Diagnostics, so
-// that is where those warnings lead. The destination follows the message.
-func TestAdminWarningLeadsToDiagnosticsWhenItIsNotAboutPending(t *testing.T) {
+// A bridge that is down or a board gone quiet is read on Diagnostics, so that
+// is where the warning leads — and those two are all that is left of it.
+func TestAdminWarningLeadsToDiagnostics(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)

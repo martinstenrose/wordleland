@@ -6,7 +6,7 @@
 <section class="card today">
   <div class="today-head">
     <p class="kicker">
-      <span class="accent">{{.T.T "player.puzzle" .PuzzleNo}}</span>
+      <span class="accent">{{.T.T "player.puzzle" (.T.Puzzle .PuzzleNo)}}</span>
       <span class="muted">{{.DateLong}}</span>
     </p>
 

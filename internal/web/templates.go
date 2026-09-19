@@ -153,12 +153,13 @@ func (s *Server) renderError(w http.ResponseWriter, r *http.Request, status int)
 		msg = "You do not have access to this page."
 	}
 	ch := s.newChrome(w, r, "", "", true)
-	// No shell. An error page is chrome for a stranger — renderError builds
-	// it with readOnly:true for any visitor, signed in or not — and wrapping
-	// "there is nothing at this address" in the whole navigation offers the
-	// application to somebody who has not got it. The same reasoning the
-	// SearchPath field comment records, one control further out.
-	ch.Shell = false
+	// No frame at all. An error page is chrome for a stranger — renderError
+	// builds it with readOnly:true for any visitor, signed in or not — and
+	// wrapping "there is nothing at this address" in the whole navigation
+	// offers the application to somebody who has not got it. The same
+	// reasoning the SearchPath field comment records, one control further
+	// out.
+	ch.Frame = frameBare
 	s.render(w, r, status, "error.html", errorPage{
 		chrome:  ch,
 		Title:   title,

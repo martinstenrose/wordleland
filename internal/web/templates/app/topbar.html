@@ -31,9 +31,13 @@
      Two kinds of disclosure share this pattern, each exclusive within
      itself but not with the other — a plain <details> with a name= the
      browser uses to close the rest of its own group:
-       - name="topbar-menu": the navigation drawer, the language picker and
-         the account menu — a choice or an action, not just information. Each
-         has one fixed spot in the bar, so it anchors itself in app.css.
+       - name="menu-group": the navigation drawer, the two pickers, the
+         account menu and the board's ranking menu — a choice or an action,
+         not just information. Each has one fixed spot on the page, so it
+         anchors itself in app.css. The group was called "topbar-menu" while
+         every one of them was in the bar; the ranking menu is the first that
+         is not, and a name that says where they live rather than what they
+         are was the wrong half to keep.
        - name="popup": a trait's explanation, a result cell's detail — read-
          only information with nothing to choose, and no fixed spot: either
          can open anywhere on the page. app.js nudges these back on screen
@@ -68,7 +72,7 @@
 {{end}}
 
 {{define "language-picker"}}
-<details class="menu" name="topbar-menu">
+<details class="menu" name="menu-group">
   <summary class="menu-btn lang-btn" aria-label="{{.LangLabel}}" title="{{.LangLabel}}">
     {{template "globe-icon" .}}
     <span class="lang-code">{{.Lang}}</span>
@@ -106,7 +110,7 @@
      Tab goes into it. It is not marked up as a dialog, because with focus
      free to leave it, saying so would be a lie. */}}
 {{define "drawer"}}
-<details class="drawer" name="topbar-menu">
+<details class="drawer" name="menu-group">
   {{/* Both glyphs are in the markup and app.css shows one: which of them
        applies is the element's own open state, which CSS can read and a
        template cannot. */}}
@@ -186,7 +190,7 @@
         <span class="btn-primary-label">{{.T.T "nav.signIn"}}</span>
       </a>
     {{else if .SignedIn}}
-      <details class="account" name="topbar-menu">
+      <details class="account" name="menu-group">
         <summary aria-label="{{.T.T "account.menu"}}">
           <span class="avatar" aria-hidden="true">{{.Initials}}</span>
         </summary>
@@ -208,6 +212,25 @@
         </div>
       </details>
     {{end}}
+  </div>
+</header>
+{{end}}
+
+{{/* The sign-in family's chrome: the wordmark in one corner, the two pickers
+     in the other, and nothing between them. No search, no account menu and no
+     navigation — there is no session yet for any of them to act on — so this
+     is not the top bar with pieces removed but its own, much shorter, row.
+
+     The pickers are the same partials the bar uses, which is the point: a
+     theme or language chosen at the door is the one in force on the other
+     side of it, and there is one definition of each control rather than two
+     that drift. */}}
+{{define "auth-chrome"}}
+<header class="auth-chrome">
+  {{template "sidebar-brand" .}}
+  <div class="auth-controls">
+    {{template "theme-picker" .}}
+    {{template "language-picker" .}}
   </div>
 </header>
 {{end}}

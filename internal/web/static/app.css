@@ -33,6 +33,11 @@
   /* The one place the design system leaves the brand hue rather than
      brightening it: the hover state of a plain prose link. */
   --color-accent-2: oklch(.72 .14 55);
+  /* The same hue, at the strength a chip's 11px uppercase needs to clear
+     4.5:1, and at the tint its ground is struck from. Second place gets
+     the palette's second colour rather than a third one invented for it. */
+  --color-accent-2-strong: oklch(.78 .13 55);
+  --color-accent-2-14: oklch(.72 .14 55 / .14);
 
   /* Destructive, and broken. The old single-hue palette had no red to give
      these, so signing out and a failed diagnostic both borrowed the accent —
@@ -163,6 +168,8 @@
   --color-accent: oklch(.55 .13 155);
   --color-accent-strong: oklch(.47 .14 155);
   --color-accent-2: oklch(.62 .13 55);
+  --color-accent-2-strong: oklch(.52 .13 55);
+  --color-accent-2-14: oklch(.62 .13 55 / .14);
   --color-danger: oklch(.55 .15 25);
   --color-better: var(--color-accent);
   --color-worse: var(--color-danger);
@@ -221,6 +228,8 @@
     --color-accent: oklch(.55 .13 155);
     --color-accent-strong: oklch(.47 .14 155);
     --color-accent-2: oklch(.62 .13 55);
+    --color-accent-2-strong: oklch(.52 .13 55);
+    --color-accent-2-14: oklch(.62 .13 55 / .14);
     --color-danger: oklch(.55 .15 25);
     --color-better: var(--color-accent);
     --color-worse: var(--color-danger);
@@ -533,9 +542,12 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 .theme-opt.on { background: var(--color-accent); color: var(--color-canvas); }
 .theme-opt:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
 /* The same three settings for a bar with room for one control. Qualified by
-   the bar it sits in, because .menu-btn gives it a display of its own further
-   down the file and would otherwise win on source order. */
-.topbar-controls .theme-cycle { display: none; }
+   the row it sits in, because .menu-btn gives it a display of its own further
+   down the file and would otherwise win on source order. Both rows that carry
+   the pickers are named here: the application's top bar, and the much shorter
+   one at the door. */
+.topbar-controls .theme-cycle,
+.auth-controls .theme-cycle { display: none; }
 
 /* Every icon-only control in the bar is the same circle, as the design has
    it: at this size a bare icon on the canvas reads as decoration rather than
@@ -591,7 +603,8 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
      next to everything else it has to hold. */
   .topbar .brand-id { display: none; }
   .theme-track { display: none; }
-  .topbar-controls .theme-cycle { display: inline-flex; }
+  .topbar-controls .theme-cycle,
+  .auth-controls .theme-cycle { display: inline-flex; }
 
   /* The mark and the menu hold the left; everything else goes to the right,
      as one group. Search sits in the middle of the bar at desktop width,
@@ -765,13 +778,6 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 .kicker.accent { color: var(--color-accent); }
 
 .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.seg { display: inline-flex; border: 1px solid var(--color-text-12); border-radius: var(--radius-md); overflow: hidden; }
-.seg-opt {
-  padding: 6px 12px; font-size: var(--text-sm); text-decoration: none;
-  color: var(--color-text-50);
-}
-.seg-opt + .seg-opt { border-left: 1px solid var(--color-text-12); }
-.seg-opt.on { color: var(--color-accent-strong); background: var(--color-accent-14); box-shadow: inset 0 0 0 1px var(--color-accent-50); }
 .toggle {
   padding: 6px 11px; font-size: var(--text-sm); text-decoration: none;
   border: 1px solid var(--color-text-12); border-radius: var(--radius-md); color: var(--color-text-50);
@@ -873,17 +879,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
      the whole shell, which on a phone left the bar floating in a margin with
      a rule down both sides of it instead of sitting across the top. */
   main { padding: 16px 12px 30px; }
-  /* The mode picker takes the whole row, so the two toggles land on the next
-     one together. They are a pair — the second only means anything while the
-     first is on — and wrapping between them read as one stray control. */
-  /* A grid rather than a wrapping flex row: where the wrap falls is the
-     whole point here, and flex decides that from the widths it is given. */
-  .controls {
-    display: grid;
-    grid-template-columns: max-content max-content;
-    justify-content: start;
-  }
-  .controls .seg { grid-column: 1 / -1; justify-self: start; }
   .board th, .board td { padding: 9px 12px; }
   .spark-col { display: none; }
   .window-col { display: none; }
@@ -1154,15 +1149,33 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 }
 .form .check input { accent-color: var(--color-accent); }
 .actions { display: flex; align-items: center; gap: 14px; margin-top: 20px; }
-.actions button {
+/* One size for every control in an actions row, so a primary and a secondary
+   standing side by side are the same object in two tones rather than two
+   objects. They were sized by two different systems — padding on one, a fixed
+   height on the other — and came out 6px apart.
+
+   The tones mean one thing each. Filled: this control does the thing.
+   Outline: this is a step towards it. Green: safe, and the common thing to do
+   here. Red: destructive. So a copy is filled green, the control that opens a
+   rotation is an outlined red, and the one that answers the question is
+   filled red. */
+.actions button,
+.actions a.secondary,
+.actions button.secondary,
+.inline-field button {
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
   font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.actions button {
   font-weight: 600;
   color: var(--color-canvas);
   background: var(--color-accent);
   border: 0;
-  border-radius: var(--radius-md);
-  padding: 9px 18px;
-  cursor: pointer;
 }
 .actions button:hover { background: var(--color-accent-strong); }
 .note.error { color: var(--color-text); box-shadow: inset 0 0 0 1px var(--color-accent-50); border-radius: var(--radius-md); padding: 10px 12px; }
@@ -1190,7 +1203,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 /* ---- Chrome: switchers and the account menu --------------------------- */
 
 .chrome { display: contents; }
-.chrome .seg { flex: none; }
 
 /* The account menu is a <details>, so it opens and closes with no script.
    The summary marker is removed because the avatar is the affordance. */
@@ -1245,24 +1257,46 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 /* ---- Sign-in ---------------------------------------------------------- */
 
+/* The door: a card in the middle of the canvas, the wordmark in one corner
+   and the two pickers in the other. It is not the application shell with its
+   navigation removed — a rail emptied down to a wordmark is a menu with
+   nothing in it — so this is its own, much shorter, arrangement. */
+.auth-frame {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+}
+.auth-chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.auth-chrome .brand { padding: 0; }
+.auth-controls { display: flex; align-items: center; gap: 10px; }
+/* The card takes the middle, with the chrome above it and the footer below:
+   centring the whole column would leave the wordmark floating in the middle
+   of the page on a tall screen. */
+.auth-frame > main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px 0; }
+.auth-frame > .site-footer { padding: 6px 0 0; }
+
 .signin {
   display: grid;
-  grid-template-columns: 1fr 300px;
-  min-height: 440px;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
   max-width: 760px;
-  margin: 6vh auto;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   overflow: hidden;
   background: var(--color-surface);
+  border: 1px solid var(--color-text-10);
   box-shadow: var(--shadow-elevated);
 }
-.signin-main {
-  padding: 44px;
-  display: flex; flex-direction: column; justify-content: center;
-}
-.signin h1 { font-size: 1.8rem; letter-spacing: -.02em; line-height: var(--line-tight); margin: 0; }
-.signin-sub { margin: 11px 0 0; font-size: var(--text-sm); line-height: 1.5; color: var(--color-text-55); max-width: 44ch; }
-.signin-form { max-width: 340px; margin-top: 20px; }
+.signin-main { padding: 40px; }
+.signin h1 { font-size: var(--text-xl); font-weight: 700; letter-spacing: -.02em; line-height: var(--line-tight); margin: 0 0 6px; }
+.signin-sub { margin: 0 0 28px; font-size: var(--text-sm); line-height: 1.5; color: var(--color-text-55); }
+.signin-form { margin-top: 0; }
 .signin-form input[type="email"],
 .signin-form input[type="password"] {
   font: inherit;
@@ -1274,7 +1308,21 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   width: 100%;
 }
 .signin-form input:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
-.signin-foot { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+/* The button fills the column, as the design has it: it is the one thing on
+   this card there is to do. */
+.signin-form .actions { margin-top: 24px; }
+.signin-form .actions button { width: 100%; height: 44px; justify-content: center; font-size: var(--text-base); }
+/* Ruled off from the form above it: what is below is a way out rather than
+   another step. */
+.signin-foot {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-text-10);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
 
 /* On the top row beside the mark. They used to flow after the links at the
    foot of the card, and those links differ from page to page — sign-in has
@@ -1283,21 +1331,23 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
    Nothing above this row varies. */
 
 .signin-aside {
-  border-left: 1px solid var(--color-text-10);
   background: var(--color-surface-raised);
-  padding: 30px 26px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 16px;
+  padding: 40px;
 }
-.signin-aside hr { height: 1px; border: 0; background: var(--color-text-08); width: 100%; margin: 0; }
-.signin-figure { font-size: 2.1rem; font-weight: 500; letter-spacing: -.02em; line-height: 1; margin: 0; }
+.signin-aside hr { height: 1px; border: 0; background: var(--color-text-10); width: 100%; margin: 16px 0; }
+.signin-aside .kicker { margin: 0 0 8px; }
+.signin-figure { font-size: 44px; font-weight: 700; letter-spacing: -.02em; line-height: 1; margin: 0; }
+.signin-aside .signin-figure + .small { margin: 10px 0 0; }
+.signin-aside > .small:last-child { margin-top: 20px; line-height: 1.6; }
+
 @media (max-width: 720px) {
-  .signin { grid-template-columns: 1fr; margin: 0; min-height: 100dvh; border-radius: 0; box-shadow: none; }
-  .signin-main { padding: 34px 24px 30px; }
-  .signin-aside { border-left: 0; border-top: 1px solid var(--color-text-10); }
-  .chrome { gap: 6px; }
+  /* One column, and the figures go entirely. They are an invitation rather
+     than information, and on a phone they push the only thing on this page
+     there is to do below the fold. */
+  .auth-frame { padding: 16px 12px; }
+  .signin { grid-template-columns: 1fr; max-width: 380px; }
+  .signin-main { padding: 28px; }
+  .signin-aside { display: none; }
 }
 
 /* ---- View switcher ---------------------------------------------------- */
@@ -1551,6 +1601,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   .today-out { padding-left: 0; border-left: 0; }
   .callouts { margin: 0; grid-template-columns: minmax(0, 1fr); }
   .months-table .bar-cell { display: none; }
+
 }
 
 /* ---- Sortable headers -------------------------------------------------- */
@@ -1809,6 +1860,27 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .menu-row.on { background: var(--color-accent-14); color: var(--color-text); }
 .menu-row > span:nth-of-type(1) { flex: 1; }
 .menu-check { color: var(--color-accent-strong); font-size: var(--text-sm); }
+
+/* The board's ranking menu. Wider than the pickers' and anchored to the left,
+   because it sits at the start of a row rather than at the end of the bar,
+   and because its rows are sentences rather than two words. */
+.ranking-btn { border-color: var(--color-text-12); background: var(--color-surface-raised); }
+.ranking-btn:hover { background: var(--color-text-08); }
+.ranking-state { font-weight: 600; }
+/* Anchored to the button's right edge like the pickers', not its left: the
+   control sits at the end of the card's head, so opening leftward is what
+   keeps the panel on screen at a phone's width. */
+.ranking-panel { width: min(256px, calc(100vw - 32px)); }
+.ranking-panel .kicker { margin: 6px 0 4px; padding: 0 10px; }
+.ranking-panel .kicker:first-child { margin-top: 2px; }
+/* min-width so the row may shrink: without it the reason under a rule holds
+   the panel open at its own width and shoves the tick off the end. */
+.ranking-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* The reason a rule currently changes nothing, under the rule. It was a
+   title= on the chip this replaces — a hover, which a phone does not have,
+   on the width where these controls are most crowded. */
+.ranking-why { font-size: var(--text-xs); color: var(--color-text-45); line-height: 1.4; }
+.menu-row.on .ranking-why { color: var(--color-text-50); }
 .menu-row svg { display: block; flex: none; border-radius: var(--radius-xs); }
 
 /* ---- Search: the topbar link, its ⌘K overlay, and the results both
@@ -2173,9 +2245,35 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
    between its own sections (.panels, above), just drawn as a border
    instead of a background gap, since this is a single block, not a grid. */
 .season { border-top: 1px solid var(--color-text-10); padding-top: 20px; padding-bottom: 4px; }
-.season-table .mark-col { width: 34px; }
+/* Every month column is exactly the mark plus its gutters — 22 + 6 + 6 — and
+   the mark is centred in it.
+   It was 34px wide while .board's own 12px side padding made the narrowest
+   the cell could be 46px. A table cannot be narrower than its content, so the
+   browser took the 34px as a hint and squeezed the padding by whatever each
+   column could spare: the mark then sat at a different offset in every one,
+   and a grid of places read as a grid that had slipped. The last column keeps
+   the card's gutter, so the row does not end flush against the edge. */
+.season-table .mark-col {
+  vertical-align: middle;
+  width: 34px;
+  padding-left: 6px;
+  padding-right: 6px;
+  text-align: center;
+}
+.season-table .mark-col:last-child { padding-right: var(--space-card); }
+/* A block, not an inline box, and centred by its cell rather than by a line
+   of text.
+   It was inline-grid, which puts it on the text baseline — and a grid
+   container's baseline comes from its own content, so a ★ (which falls out of
+   Manrope to whatever the system has), a place in an outlined month and an
+   empty one each sat at a different height. Two marks in the same row, in
+   cells of identical height, came out 5.4px apart, and a grid of places read
+   as a grid that had slipped. Nothing here wants a baseline: the content is
+   centred in a fixed square and every square in the row is the same size, so
+   the square is a block and the cell centres it. */
 .mark-cell {
-  display: inline-grid;
+  display: grid;
+  margin: 0 auto;
   place-items: center;
   width: 22px;
   height: 22px;
@@ -2262,19 +2360,17 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
    The share link, with the origin sitting back so the slug reads as the
    thing: the origin is the same on every installation's screen, the slug is
    what this one has. */
-.slug-line {
-  display: flex;
-  align-items: center;
-  gap: 0;
+/* The slug, which is what identifies this link and the part that changes.
+   It was the whole URL wrapped to fit, and overflow-wrap: anywhere broke it
+   mid-slug on a phone — shredding the one string here worth reading. */
+.share-slug {
   margin: 0 0 8px;
-  padding: 9px 11px;
+  padding: 10px 12px;
   border: 1px solid var(--color-text-10);
   border-radius: var(--radius-md);
   background: var(--color-surface-raised);
-  font-size: var(--text-sm);
-  overflow-wrap: anywhere;
 }
-.slug-line code { font-weight: 600; }
+.share-slug code { font-size: var(--text-md); font-weight: 600; }
 
 /* The question asked before a rotation, drawn as its own block so it is
    plainly a step rather than another paragraph. Not a dialog: nothing is
@@ -2294,6 +2390,11 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
    heading the table, so a row read on its own still says so. */
 .env-fields dd { display: flex; align-items: center; gap: 8px; }
 .env-value { min-width: 0; overflow-wrap: anywhere; }
+/* A redacted value, drawn wide enough to read as a run rather than as an
+   ellipsis. The dots are a fixed eight, not the secret's own length: a
+   length is itself something about a secret, and this screen is not the
+   place to give it away. */
+.env-redacted { font-family: var(--font-mono); letter-spacing: .12em; }
 .env-lock { flex: none; display: flex; color: var(--color-text-35); }
 .badge.on {
   background: var(--color-accent-14);
@@ -2560,17 +2661,15 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 .actions a.secondary,
 .actions button.secondary,
 .inline-field button {
-  font: inherit;
-  font-size: var(--text-sm);
   font-weight: 500;
-  height: 32px;
   color: var(--color-text-80);
   background: transparent;
   border: 1px solid var(--color-text-16);
-  border-radius: var(--radius-md);
-  padding: 0 14px;
-  cursor: pointer;
 }
+/* An outline in the danger tone: the risk is legible before the press, and
+   the filled version below is kept for the control that commits it. */
+.actions .secondary.danger { color: var(--color-danger); border-color: var(--color-danger-40); }
+.actions .secondary.danger:hover { background: var(--color-danger-08); border-color: var(--color-danger); }
 /* The admin's inline selects, which matched no rule and so were drawn by the
    browser — the same near-black default the Settings fields had. */
 .inline-field select {
@@ -2613,10 +2712,14 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   text-transform: uppercase;
   padding: 3px 8px;
   border-radius: var(--radius-pill);
-  background: var(--color-accent-14);
-  color: var(--color-accent-strong);
+  /* Second place by default, the winner's below: there is one runner-up chip
+     and several kinds of win — winner, joint winner, leading — so the class
+     marks the rarer case. */
+  background: var(--color-accent-2-14);
+  color: var(--color-accent-2-strong);
   white-space: nowrap;
 }
+.medal.win { background: var(--color-accent-14); color: var(--color-accent-strong); }
 .mark-cell.podium { background: var(--score-4); color: var(--color-text-80); }
 
 /* ---- ui/ component primitives -----------------------------------------

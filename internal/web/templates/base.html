@@ -15,7 +15,7 @@
 <noscript><style>.js-only{display:none}</style></noscript>
 </head>
 <body>
-{{if .Shell}}
+{{if eq .Frame "app"}}
   {{/* The application shell: a bar across the top carrying the wordmark and
        the controls, and under it the rail beside the page. Every page inside
        it renders only its own content — the furniture is assembled once,
@@ -35,14 +35,25 @@
       <main id="main">{{block "content" .}}{{end}}</main>
     </div>
   </div>
+{{else if eq .Frame "auth"}}
+  {{/* The sign-in family: a card in the middle of the canvas, the wordmark in
+       one corner and the pickers in the other. No navigation — there is
+       nothing yet to navigate — and so no rail to carry the About panel,
+       which is why the footer comes back here as well. */}}
+  <div class="auth-frame">
+    {{template "auth-chrome" .}}
+    <main id="main">{{block "content" .}}{{end}}</main>
+    {{template "site-footer" .}}
+  </div>
 {{else}}
-  {{/* No shell: an error page, which is chrome for a stranger. See the Shell
-       field's comment in chrome.go.
+  {{/* No frame at all: an error page, which is chrome for a stranger. See the
+       Frame field's comment in chrome.go.
 
-       The footer lives here and nowhere else. Every page inside the shell
-       carries these two links in the About panel at the foot of the rail;
-       this page has no rail, and leaving a stranger on a 404 with no way to
-       the privacy notice or the source is not a saving worth making. */}}
+       Every page inside the shell carries the privacy notice and the source
+       in the About panel at the foot of the rail. This one has no rail, and
+       leaving a stranger on a 404 with no way to either is not a saving
+       worth making, so the footer stands in — as it does for the sign-in
+       family above, for the same reason. */}}
   <main id="main">{{template "content" .}}</main>
   {{template "site-footer" .}}
 {{end}}

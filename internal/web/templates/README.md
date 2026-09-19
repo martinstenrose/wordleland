@@ -5,9 +5,16 @@
 shell it wraps them in. Every other file in this directory is a page
 (`today.html`, `board.html`, one per route), and a page renders only its own
 content: the rail and the bar are assembled once, in `base.html`, rather than
-each page remembering to call for them. A page that is handed
-`chrome.Shell == false` — an error page, and only that — gets the `<main>`
-without them.
+each page remembering to call for them.
+
+`chrome.Frame` picks which of three arrangements a page is wrapped in.
+`"app"` is that shell. `"auth"` is the sign-in family — the wordmark in one
+corner, the two pickers in the other, the card in the middle of the canvas and
+no navigation at all, because there is nothing yet to navigate. `"bare"` is an
+error page: the `<main>` and nothing else, since a full navigation wrapped
+around "there is nothing at this address" offers the application to somebody
+who has not got it. The last two render the footer, which every page inside
+the shell reaches through the About panel in the rail instead.
 
 `ui/` and `app/` hold shared partials, split by one test:
 
@@ -54,11 +61,11 @@ names:
 
 - `pill-nav` replaces `.view` (topbar/tabs), `.pick` (admin tabs) and
   `.span` (grid time-span picker) — the same "one active link among a
-  row of links" pattern three times over. `.seg` / `.seg-opt` (the grid's
-  segmented control) is a genuinely different visual — a bordered strip
-  with internal dividers and an inset ring on the active option, not a
-  loose row of pills — so it's left alone rather than forced into this
-  partial.
+  row of links" pattern three times over. `.seg` / `.seg-opt` was a fourth,
+  left alone as a genuinely different visual — a bordered strip with
+  internal dividers rather than a loose row of pills. Its one user was the
+  board's All / Hard mode pair, which is now a row inside the ranking menu,
+  so the pattern is gone rather than shared.
 - `progress-bar` replaces `.dist-track`/`.dist-fill` (the player page's
   score distribution) and `.bar`/`.bar-fill` (the months table's bar
   column). Both were driven by a literal `style="width:NN%"` — a
@@ -110,7 +117,7 @@ admin screens you are on is `admin-tabs`', at the top of that screen.
 
 `about` is the second thing rendered twice and defined once, for the same
 reason and with one difference: it carries `name="about"` rather than joining
-the `topbar-menu` group. The drawer renders a copy, and a shared group with
+the `menu-group` group. The drawer renders a copy, and a shared group with
 the drawer would close the drawer the copy lives in — taking the panel with
 it. It holds the privacy notice and the source link, which is where those went
 when the page footer came off; `site-footer` in `base.html` now renders on

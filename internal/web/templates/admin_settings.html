@@ -13,9 +13,17 @@
   <div class="settings-section">
     <h2 class="section flush">{{.T.T "admin.settings.slug"}}</h2>
     {{if .Slug}}
-      {{/* The origin sits back and the slug stands out: the slug is the part
-           that changes, and the part someone is here to look at. */}}
-      <p class="slug-line"><span class="muted">{{.Origin}}</span><code>{{.Slug}}</code><span class="muted">/</span></p>
+      {{/* The slug, and only the slug: it is what identifies this link and
+           the part that changes, and a whole URL on a phone is a string with
+           no good place to break. It was printed in full underneath and
+           wrapped mid-slug, which shredded the one thing here worth reading.
+
+           Not a link: following it would leave the admin area for the
+           board's public face, which is not what a reader of this screen is
+           reaching for. The address is had from the copy button beside it,
+           and reconstructed from APP_URL in the table below if that button
+           is not there. */}}
+      <p class="share-slug"><code>{{.Slug}}</code></p>
       <p class="hint">{{.T.T "admin.settings.slugHint"}}</p>
 
       {{if .Confirming}}
@@ -34,8 +42,19 @@
           </form>
         </div>
       {{else}}
-        <div class="actions">
-          <a class="secondary" href="/admin/settings?confirm=slug">{{.T.T "admin.settings.rotate"}}</a>
+        {{/* data-copy asks app.js for a copy button, and carries both words
+             it needs so the script holds no strings of its own. It is absent
+             when APP_URL is not set, because the link is then a bare path and
+             copying it hands somebody something that is not a link. Without
+             the script the row is just the replace control, and the link
+             above is there to be selected. */}}
+        <div class="actions"{{if .CopyURL}} data-copy="{{.CopyURL}}"
+             data-copy-label="{{.T.T "action.copyLink"}}"
+             data-copied-label="{{.T.T "action.copied"}}"{{end}}>
+          {{/* Outlined and danger-toned: it opens the question rather than
+               answering it, so the risk reads before it is pressed while the
+               filled red stays on the control that actually does it. */}}
+          <a class="secondary danger" href="/admin/settings?confirm=slug">{{.T.T "admin.settings.rotate"}}</a>
         </div>
       {{end}}
     {{else}}
@@ -50,7 +69,18 @@
       <div>
         <dt>{{.Name}}</dt>
         <dd>
-          <span class="env-value{{if .Muted}} muted{{end}}">{{if .Mono}}<code>{{.Value}}</code>{{else}}{{.Value}}{{end}}</span>
+          <span class="env-value{{if .Muted}} muted{{end}}">
+            {{if .Redacted}}
+              {{/* Dots rather than a word, at full strength rather than
+                   greyed: there is a value here, and greying it would say
+                   the opposite. The sentence behind them is the accessible
+                   name, so nothing is carried by the glyphs alone — and it
+                   is on the title too, for a reader who wonders. */}}
+              <span class="env-redacted" title="{{.Value}}" aria-hidden="true">••••••••</span>
+              <span class="visually-hidden">{{.Value}}</span>
+            {{else if .Mono}}<code>{{.Value}}</code>
+            {{else}}{{.Value}}{{end}}
+          </span>
           {{/* One lock per row, as the design has it: the point is that
                nothing in this table can be typed over, and a note at the top
                alone leaves each row looking editable. */}}

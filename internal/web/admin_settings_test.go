@@ -31,8 +31,22 @@ func TestTheSettingsScreenNamesEveryVariableThisAppReads(t *testing.T) {
 			t.Errorf("%s is not on the settings screen", name)
 		}
 	}
-	if !strings.Contains(body, "Configured") {
-		t.Error("a secret that is set is not reported as configured")
+	// A secret that is set draws as a run of dots at full strength, not as a
+	// greyed word: greying it would put it in the same visual class as "Not
+	// set", which is the opposite of what it means. Grey marks one thing on
+	// this table — that there is no value at all.
+	if !strings.Contains(body, `class="env-redacted"`) {
+		t.Error("a secret that is set is not shown as a redacted value")
+	}
+	if !strings.Contains(body, "Set, and never shown here.") {
+		t.Error("nothing says what the dots stand for, so they carry it alone")
+	}
+	if strings.Contains(cellAround(t, body, `class="env-redacted"`), "muted") {
+		t.Error("a secret is greyed, which says it is not set")
+	}
+	// Grey is still doing its one job: marking the rows with no value.
+	if !strings.Contains(cellAround(t, body, "Not set"), "muted") {
+		t.Error("an unset variable is not greyed, so the column cannot be swept")
 	}
 	if !strings.Contains(body, "Set via environment variable") {
 		t.Error("nothing says these cannot be changed here")
@@ -79,7 +93,7 @@ func TestRotatingTheSlugIsAskedFirst(t *testing.T) {
 	if !strings.Contains(asked, `action="/admin/settings/slug"`) {
 		t.Error("the question does not carry the form that answers it")
 	}
-	if !strings.Contains(asked, "Rotate the group slug?") {
+	if !strings.Contains(asked, "Rotate the share slug?") {
 		t.Error("the question is not asked")
 	}
 }
@@ -199,5 +213,93 @@ func TestAnOutcomeIsRenderedBeforeAnyScriptRunsIt(t *testing.T) {
 	}
 	if strings.Contains(bad, "data-raise") {
 		t.Error("an error was marked to be raised into a panel")
+	}
+}
+
+// cellAround returns the <dd> that contains needle, so an assertion about one
+// row of the environment table cannot pass on another row's markup.
+func cellAround(t *testing.T, body, needle string) string {
+	t.Helper()
+	at := strings.Index(body, needle)
+	if at < 0 {
+		t.Fatalf("no %q on the page", needle)
+	}
+	open := strings.LastIndex(body[:at], "<dd>")
+	close := strings.Index(body[at:], "</dd>")
+	if open < 0 || close < 0 {
+		t.Fatalf("%q is not inside a table cell", needle)
+	}
+	return body[open : at+close]
+}
+
+// The share link is on the page in a form that can be selected, and the copy
+// button is not: a clipboard cannot be written to from markup, so app.js
+// builds that button and it exists exactly where it works. Rendering one here
+// would put a control on the page for every reader whose browser will not let
+// it do anything.
+func TestTheShareLinkIsSelectableAndTheCopyButtonIsNot(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+	srv.cfg.AppURL = "https://wordle.example.tld"
+	slug, _, err := store.EnsureShareSlug(context.Background(), srv.db)
+	if err != nil {
+		t.Fatalf("EnsureShareSlug: %v", err)
+	}
+
+	body := fetchAs(t, srv, "/admin/settings", session).Body.String()
+	want := "https://wordle.example.tld/share/" + slug + "/"
+
+	// The slug alone is what is printed: a whole URL on a phone is a string
+	// with no good place to break, and it used to wrap mid-slug.
+	if !strings.Contains(body, `<p class="share-slug"><code>`+slug+`</code></p>`) {
+		t.Error("the slug is not shown alone")
+	}
+	// The URL itself is nowhere on the page but the copy target: it is had
+	// from the button, not read.
+	if strings.Count(body, want) != 1 {
+		t.Errorf("the share URL appears %d times, want once: the copy target",
+			strings.Count(body, want))
+	}
+	// Nothing in that row is a button: the only control the server puts
+	// there is the link to the replace question.
+	row := body[strings.Index(body, `<div class="actions" data-copy=`):]
+	row = row[:strings.Index(row, "</div>")]
+	if strings.Contains(row, "<button") {
+		t.Error("a copy button was rendered server-side, where it may not work")
+	}
+	if !strings.Contains(row, `href="/admin/settings?confirm=slug"`) {
+		t.Error("the row lost the control that does not need a script")
+	}
+	// What the script needs is in the markup, so no string in it is English.
+	if !strings.Contains(body, `data-copy="`+want+`"`) {
+		t.Error("the script is given no link to copy")
+	}
+	if !strings.Contains(body, `data-copy-label="Copy link"`) || !strings.Contains(body, `data-copied-label="Copied"`) {
+		t.Error("the script is given no words, so it would have to carry its own")
+	}
+}
+
+// With no APP_URL the link is a bare path, and copying it hands somebody
+// something that is not a link. No copy control is offered at all.
+func TestNoCopyControlWithoutAnOrigin(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+	if _, _, err := store.EnsureShareSlug(context.Background(), srv.db); err != nil {
+		t.Fatalf("EnsureShareSlug: %v", err)
+	}
+
+	body := fetchAs(t, srv, "/admin/settings", session).Body.String()
+	if srv.cfg.AppURL != "" {
+		t.Fatal("this test needs an installation with no APP_URL")
+	}
+	if strings.Contains(body, "data-copy=") {
+		t.Error("a copy control is offered for a link that is only a path")
+	}
+	// The slug is still shown, and still the link: it is what somebody needs
+	// to reconstruct the address, and APP_URL is in the table below.
+	if !strings.Contains(body, `class="share-slug"`) {
+		t.Error("the slug is not shown at all")
 	}
 }
