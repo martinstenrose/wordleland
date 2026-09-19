@@ -116,10 +116,10 @@ type chrome struct {
 	// AdminTab marks which admin page is open, for the strip they share.
 	AdminTab string
 
-	// AdminWarning is a problem worth an admin's attention, shown across
-	// the area rather than only on the page that computes it. A page nobody
-	// opens is not a signal.
-	AdminWarning string
+	// AdminWarning is a problem worth an admin's attention, raised on the way
+	// into the area rather than only on the page that computes it. A page
+	// nobody opens is not a signal.
+	AdminWarning adminWarning
 
 	// SearchPath is where the topbar's search control points, and doubles
 	// as whether it renders at all: set for a signed-in reader and for the
@@ -427,14 +427,15 @@ func (s *Server) adminChrome(w http.ResponseWriter, r *http.Request, tab string)
 	c := s.newChrome(w, r, "", "", false)
 	c.AdminTab = tab
 
-	// Losing the container-level "unhealthy" signal when the services
-	// merged traded a warning that came to you for a page you have to open.
-	// This closes that: whatever is wrong follows the admin around the area.
-	// Deliberately not on the diagnostics page itself, which already says it
-	// in full.
-	if tab != "diagnostics" {
+	// Losing the container-level "unhealthy" signal when the services merged
+	// traded a warning that came to you for a page you have to open. This
+	// closes that: the admin area opens on Players, so a problem is said once
+	// on the way in. It used to repeat on every tab, which made it furniture
+	// rather than a warning — and said it loudest on the two pages that exist
+	// to show the same thing in full.
+	if tab == "players" {
 		if fresh, err := store.ReadFreshness(r.Context(), s.db); err == nil {
-			c.AdminWarning = s.diagnosticsWarning(c.T, fresh, time.Now())
+			c.AdminWarning = s.adminWarningFor(c.T, fresh, time.Now())
 		} else {
 			s.logger.Error("read freshness for the admin warning", "error", err)
 		}

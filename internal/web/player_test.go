@@ -128,7 +128,11 @@ func TestRecentStripCellsOpenAPopupWithThePuzzleDetail(t *testing.T) {
 
 	// harda plays every one of the 26 puzzles in the fixture's window, all
 	// hard mode, all in 3 guesses — so every cell in the strip opens.
-	if got := strings.Count(page, `<details class="cell-pop" name="popup">`); got != 26 {
+	strip, ok := sectionOf(page, `<ol class="strip">`, "</ol>")
+	if !ok {
+		t.Fatal("the strip is missing")
+	}
+	if got := strings.Count(strip, `<details class="cell-pop" name="popup">`); got != 26 {
 		t.Errorf("expected 26 popups, one per played day, got %d", got)
 	}
 	// The asterisk marks hard mode on the box itself, so the popup needs no
@@ -145,6 +149,48 @@ func TestRecentStripCellsOpenAPopupWithThePuzzleDetail(t *testing.T) {
 	want := fmt.Sprintf(">#%d (%s)<", current, date.Format("2006-01-02"))
 	if !strings.Contains(page, want) {
 		t.Errorf("the popup does not show %q", want)
+	}
+}
+
+// Every day in the calendar opens the same kind of popup, and says what the
+// day took as well as which puzzle it was: the square is blank, so unlike a
+// cell in the strip there is no digit on it to read the result off.
+func TestCalendarSquaresOpenAPopupWithTheResult(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	page := fetch(t, srv, "/share/"+slug+"/p/harda").Body.String()
+	calendar, ok := sectionOf(page, `<ol class="calendar">`, "</ol>")
+	if !ok {
+		t.Fatal("the calendar is missing")
+	}
+
+	// One per day played, and none on the padding or on a day not played —
+	// there is nothing to open for a day with no result.
+	if got := strings.Count(calendar, `<details class="cell-pop" name="popup">`); got != 26 {
+		t.Errorf("expected 26 popups, one per day played, got %d", got)
+	}
+	for _, class := range []string{"cal pad", "cal miss"} {
+		at := strings.Index(calendar, class)
+		if at < 0 {
+			continue
+		}
+		if strings.Contains(calendar[at:at+120], "cell-pop") {
+			t.Errorf("a %q square opens a popup", class)
+		}
+	}
+
+	current := currentPuzzle()
+	date, err := wordle.DateForPuzzle(current)
+	if err != nil {
+		t.Fatalf("DateForPuzzle(%d): %v", current, err)
+	}
+	// harda solves everything in three, so the detail names the puzzle, the
+	// day, and what it took.
+	want := fmt.Sprintf("#%d (%s) · 3 guesses", current, date.Format("2006-01-02"))
+	if !strings.Contains(calendar, want) {
+		t.Errorf("the calendar popup does not show %q", want)
 	}
 }
 

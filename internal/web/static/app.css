@@ -1476,18 +1476,28 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 /* A week per column, a weekday per row — filled down each column, which is
    what grid-auto-flow: column gives with a fixed row count. */
-.calendar-wrap { overflow-x: auto; padding-bottom: 4px; }
+.calendar-wrap { padding-bottom: 4px; }
+/* The weeks share the panel's width rather than running off the side of it:
+   a column per week, each as wide as the space allows, and the squares take
+   their height from it. It scrolled horizontally before, which put half a
+   player's history behind a gesture. */
 .calendar {
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(7, 13px);
+  grid-auto-columns: minmax(0, 1fr);
+  grid-template-rows: repeat(7, auto);
   gap: 3px;
-  width: max-content;
+  width: 100%;
   list-style: none;
   margin: 0;
   padding: 0;
 }
-.cal { width: 13px; height: 13px; border-radius: var(--radius-xs); background: var(--color-text-06); }
+.cal {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius-xs);
+  background: var(--color-text-06);
+}
 .cal.pad { background: transparent; }
 .cal.miss { background: transparent; box-shadow: inset 0 0 0 1px var(--color-text-08); }
 .cal.t1 { background: var(--score-1); }
