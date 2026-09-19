@@ -11,10 +11,8 @@
 
 {{define "sidebar-rows"}}
   {{range .SidebarRows}}
-    <a class="nav-row{{if .Nested}} nested{{end}}{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>
-      {{/* The admin screens hang under the admin row and are told apart by
-           their indent, so they carry no glyph of their own. */}}
-      {{if .Code}}{{template "nav-icon" .Code}}{{end}}
+    <a class="nav-row{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>
+      {{template "nav-icon" .Code}}
       <span class="nav-label">{{.Label}}</span>
     </a>
   {{end}}

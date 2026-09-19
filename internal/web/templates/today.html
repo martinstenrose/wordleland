@@ -1,7 +1,10 @@
 {{define "title"}}{{.T.T "today.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<div class="today">
-  <section class="card today-head">
+{{/* One card. The day's figures are one thing — what happened, what it means,
+     who is in form — and three cards with gaps between them said they were
+     three. Rules between the parts instead. */}}
+<section class="card today">
+  <div class="today-head">
     <p class="kicker">
       <span class="accent">{{.T.T "player.puzzle" .PuzzleNo}}</span>
       <span class="muted">{{.DateLong}}</span>
@@ -36,10 +39,10 @@
         {{end}}
       </ul>
     {{end}}
-  </section>
+  </div>
 
   {{if .Callouts}}
-    <section class="card callouts">
+    <div class="callouts">
       {{$t := .T}}
       {{range .Callouts}}
         <div class="callout">
@@ -48,11 +51,11 @@
           {{if .Meta}}<p class="callout-meta">{{.Meta}}</p>{{end}}
         </div>
       {{end}}
-    </section>
+    </div>
   {{end}}
 
   {{if .Leaders}}
-    <section class="card today-form">
+    <div class="today-form">
       <p class="kicker">{{.T.T "today.formTable"}}</p>
       <div class="podium">
         {{range .Leaders}}
@@ -130,11 +133,11 @@
       <footer class="card-foot">
         <span>{{.T.T "today.formNote"}}</span>
       </footer>
-    </section>
+    </div>
   {{else}}
-    <section class="card"><p class="empty">{{.T.T "board.empty"}}</p></section>
+    <p class="empty">{{.T.T "board.empty"}}</p>
   {{end}}
-</div>
+</section>
 {{end}}
 
 {{/* Form rank, with overall rank in parentheses: two number columns side

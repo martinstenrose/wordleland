@@ -138,48 +138,28 @@ func (c chrome) SignedIn() bool { return c.User != nil && !c.ReadOnly }
 // IsAdmin reports whether the admin entries belong in the account menu.
 func (c chrome) IsAdmin() bool { return c.SignedIn() && c.User.IsAdmin }
 
-// sidebarRow is one row of the rail: where it points, plus whether it hangs
-// under the row above it. The admin screens are the only nesting there is —
-// they are a place inside the app rather than a fifth view beside it.
-type sidebarRow struct {
-	chromeOpt
-	Nested bool
-}
-
 // SidebarRows is the rail's contents: the views, then the admin area for an
-// admin, and — once inside it — its four screens indented underneath.
+// admin. One row for the area rather than five: which screen inside it you
+// are on is the strip at the top of that screen's job, and the rail is for
+// where in the application you are.
 //
 // Built here rather than in newChrome because it depends on the session,
-// which newChrome resolves after it builds Nav. The admin screens come from
-// AdminTabs rather than a second list: they were a strip at the top of every
-// admin page before the rail existed, and two lists of the same four
-// destinations is how one of them goes stale.
-func (c chrome) SidebarRows() []sidebarRow {
-	rows := make([]sidebarRow, 0, len(c.Nav)+5)
-	for _, view := range c.Nav {
-		rows = append(rows, sidebarRow{chromeOpt: view})
-	}
-	if !c.IsAdmin() {
-		return rows
-	}
-	rows = append(rows, sidebarRow{chromeOpt: chromeOpt{
-		Code:  "admin",
-		Label: c.T.T("nav.admin"),
-		Href:  "/admin/players",
-		On:    c.AdminTab != "",
-	}})
-	// Only once you are in there. A rail that always carried four extra rows
-	// would spend a quarter of itself on screens most sessions never open.
-	if c.AdminTab == "" {
-		return rows
-	}
-	for _, tab := range c.AdminTabs() {
-		rows = append(rows, sidebarRow{chromeOpt: tab, Nested: true})
+// which newChrome resolves after it builds Nav.
+func (c chrome) SidebarRows() []chromeOpt {
+	rows := make([]chromeOpt, 0, len(c.Nav)+1)
+	rows = append(rows, c.Nav...)
+	if c.IsAdmin() {
+		rows = append(rows, chromeOpt{
+			Code:  "admin",
+			Label: c.T.T("nav.admin"),
+			Href:  "/admin/players",
+			On:    c.AdminTab != "",
+		})
 	}
 	return rows
 }
 
-// AdminTabs feeds the admin rows of the rail. The four
+// AdminTabs feeds the pill-nav shared by every admin screen. The four
 // destinations are fixed, unlike Nav's — there is no admin page that can be
 // absent — so this builds them from AdminTab rather than the caller passing
 // a slice each time.
@@ -242,7 +222,7 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 			On:    code == c.Lang,
 		})
 	}
-	for _, theme := range []string{themeLight, themeDark, themeSystem} {
+	for _, theme := range []string{themeLight, themeSystem, themeDark} {
 		c.Themes = append(c.Themes, chromeOpt{
 			Code:  theme,
 			Label: t.T("theme." + theme),
@@ -255,7 +235,7 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 
 	// A bar too narrow for three theme buttons gets one that moves to the
 	// next setting, in the order the three are offered in.
-	order := []string{themeLight, themeDark, themeSystem}
+	order := []string{themeLight, themeSystem, themeDark}
 	for i, theme := range order {
 		if theme != c.Theme {
 			continue

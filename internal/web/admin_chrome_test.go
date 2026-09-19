@@ -234,3 +234,31 @@ func TestTheRailCarriesEveryViewAndTheWordmark(t *testing.T) {
 		t.Error("the wordmark does not link to Today")
 	}
 }
+
+// The rail says where in the application you are; which screen inside the
+// admin area you are on is the strip at the top of that screen's job. One row
+// for the area, not five — and the four screens listed in both places would
+// be two lists of the same destinations to keep in step.
+func TestTheRailCarriesOneAdminRow(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	body := fetchAs(t, srv, "/admin/pending", session).Body.String()
+	rail := body[strings.Index(body, `<nav class="sidebar"`):]
+	rail = rail[:strings.Index(rail, "</nav>")]
+
+	if !strings.Contains(rail, ">Admin area<") {
+		t.Error("the rail does not offer the admin area")
+	}
+	for _, screen := range []string{"Pending results", "Activity log", "Diagnostics"} {
+		if strings.Contains(rail, ">"+screen+"<") {
+			t.Errorf("the rail lists %q, which the page's own strip carries", screen)
+		}
+	}
+
+	// And that strip is on the page.
+	if !strings.Contains(body, `class="pill-nav"`) {
+		t.Error("the admin screen has no tab strip")
+	}
+}

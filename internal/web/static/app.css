@@ -318,19 +318,6 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 .nav-row:hover { background: var(--color-text-06); color: var(--color-text); }
 .nav-row.on { background: var(--color-accent-14); color: var(--color-accent-strong); font-weight: 600; }
 .nav-row .nav-icon { flex: none; }
-/* The admin screens hang under the admin row. A dot rather than a glyph each:
-   they are one place, and four more icons would read as four more sections.
-   The dot is also what keeps them legible once the rail is collapsed and the
-   labels go, since a row with neither would be a blank strip. */
-.nav-row.nested { padding-left: 34px; color: var(--color-text-50); font-weight: 400; }
-.nav-row.nested::before {
-  content: "";
-  flex: none;
-  width: 5px;
-  height: 5px;
-  border-radius: var(--radius-circle);
-  background: currentColor;
-}
 .nav-collapse { margin-top: auto; color: var(--color-text-45); }
 
 /* Collapsed to its icons. The labels are hidden from the eye and not from a
@@ -414,6 +401,44 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
    the bar it sits in, because .menu-btn gives it a display of its own further
    down the file and would otherwise win on source order. */
 .topbar-controls .theme-cycle { display: none; }
+
+/* Every icon-only control in the bar is the same circle, as the design has
+   it: at this size a bare icon on the canvas reads as decoration rather than
+   as something to press. The language control is the exception — it carries
+   a word, so it is a pill wide enough to hold one. */
+.topbar .drawer-btn,
+.topbar-controls .theme-cycle {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+  border-radius: var(--radius-circle);
+  background: var(--color-surface-raised);
+  border-color: var(--color-text-12);
+}
+.topbar .drawer-btn:hover,
+.topbar-controls .theme-cycle:hover { background: var(--color-text-08); }
+
+/* A pill carrying the code rather than a flag alone. The two flags this app
+   draws are a blue-and-yellow cross and a blue-and-red one, and at 16px
+   telling them apart is a second look; the code is not. The flags stay in
+   the menu below, where there is room to read them. */
+.lang-btn {
+  height: 32px;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  border-color: var(--color-text-12);
+}
+.lang-btn:hover { background: var(--color-text-08); }
+.lang-code {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
 
 .drawer { display: none; }
 .drawer > summary { list-style: none; cursor: pointer; }
@@ -640,7 +665,10 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 }
 
 @media (max-width: 720px) {
-  body { padding: 16px 12px 30px; }
+  /* The page column tightens; the body does not. Padding on the body insets
+     the whole shell, which on a phone left the bar floating in a margin with
+     a rule down both sides of it instead of sitting across the top. */
+  main { padding: 16px 12px 30px; }
   .board th, .board td { padding: 9px 12px; }
   .spark-col { display: none; }
   .window-col { display: none; }
@@ -1055,7 +1083,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 /* ---- Today ------------------------------------------------------------ */
 
-.today { display: grid; gap: 20px; }
 .today-head { padding-top: 22px; padding-bottom: 20px; border-bottom: 1px solid var(--color-text-10); }
 .today .kicker .accent { color: var(--color-accent); letter-spacing: .14em; text-transform: uppercase; }
 .today-hero { display: flex; gap: 30px; align-items: flex-end; flex-wrap: wrap; margin-top: 16px; }
@@ -1070,7 +1097,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .chips { display: flex; flex-wrap: wrap; gap: 5px; list-style: none; margin: 6px 0 0; padding: 0; }
 .chip.dashed { border: 1px dashed var(--color-text-20); background: transparent; color: var(--color-text-50); }
 
-.today-filed { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 20px 0 0; padding: 0 var(--space-card); }
+.today-filed { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 20px 0 0; padding: 0; }
 .today-filed li { display: flex; align-items: center; gap: 7px; font-size: var(--text-sm); }
 .today-filed a { color: var(--color-text-80); text-decoration: none; }
 .today-filed a:hover { color: var(--color-text); }
@@ -1098,7 +1125,14 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .callout-text { font-size: var(--text-md); line-height: 1.35; letter-spacing: -.01em; margin: 6px 0 0; }
 .callout-meta { margin: 9px 0 0; font-size: var(--text-xs); color: var(--color-text-40); font-variant-numeric: tabular-nums; }
 
-.today-form { padding-top: 22px; }
+/* Full-bleed, so the table inside it reaches the card's edges the way every
+   other table on the site does — its cells carry the gutter. The blocks
+   beside the table take the gutter themselves. */
+.today-form { padding-top: 22px; border-top: 1px solid var(--color-text-10); }
+.card > .today-form { padding-left: 0; padding-right: 0; }
+.today-form > .kicker,
+.today-form > .podium,
+.today-form > .bench-section { padding-left: var(--space-card); padding-right: var(--space-card); }
 .today-form > .card-foot { margin-top: 16px; border-top: 1px solid var(--color-text-10); }
 .podium { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
 .podium-card {
@@ -1513,27 +1547,37 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 /* A plain link styled like the picker buttons beside it, not a <details>
    summary, so its focus outline is set directly rather than through the
    `.menu > summary:focus-visible` rule those use. */
+/* Icon, a word and a shortcut chip, held together by a tint rather than an
+   outline. A box outline around the one wide control in the bar reads as a
+   field you can type into, which this is not — it is a link to the search
+   page, and the overlay it opens has the real input. */
 .search-btn {
-  width: auto;
+  width: 280px;
+  max-width: 100%;
+  height: 34px;
   gap: 8px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  border-color: transparent;
   text-decoration: none;
-  /* The one topbar button with more than an icon in it — icon, a word,
-     a shortcut chip — reads as three loose parts without a border to
-     say they are one control. The theme and language pickers stay
-     borderless: each is just an icon, which .menu-btn's own hover
-     background already sets off clearly enough on its own. */
-  border-color: var(--color-text-12);
 }
+.search-btn:hover { background: var(--color-text-08); }
 .search-btn:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
 /* Present, but quiet: the icon already says "search", so the word is a
    hint for anyone who wants it rather than a second copy of the same
    information at full strength. */
-.search-label { color: var(--color-text-45); }
+.search-label { color: var(--color-text-45); flex: 1; text-align: left; }
+/* A key cap, so it reads as something to press. It sits on the surface the
+   bar's tint is struck from, which is what makes it look raised out of the
+   control rather than drawn on it. */
 .search-shortcut {
-  padding: 1px 6px;
+  padding: 2px 6px;
   border-radius: var(--radius-xs);
-  border: 1px solid var(--color-text-16);
-  font-size: var(--text-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-text-12);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
   color: var(--color-text-50);
 }
 
@@ -1615,8 +1659,17 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .search-overlay-results .search-hits { margin: 4px 0; }
 .search-overlay-results .kicker { margin: 6px 0 2px; padding: 6px 10px 0; }
 
-@media (max-width: 720px) {
+@media (max-width: 860px) {
   .search-label, .search-shortcut { display: none; }
+  /* Icon only, and the same circle as its neighbours. */
+  .search-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
+    border-radius: var(--radius-circle);
+    border-color: var(--color-text-12);
+  }
   /* Icon only: the label repeats what the icon already says, and this is
      exactly the width where the bar is already tight — see the two
      rules above it. aria-label on the anchor carries the accessible
@@ -2135,6 +2188,7 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   font: inherit;
   font-size: var(--text-sm);
   font-weight: 500;
+  height: 32px;
   color: var(--color-text-80);
   background: transparent;
   border: 1px solid var(--color-text-16);
@@ -2142,6 +2196,19 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   padding: 0 14px;
   cursor: pointer;
 }
+/* The admin's inline selects, which matched no rule and so were drawn by the
+   browser — the same near-black default the Settings fields had. */
+.inline-field select {
+  font: inherit;
+  font-size: var(--text-sm);
+  height: 32px;
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-text-12);
+  border-radius: var(--radius-md);
+  padding: 0 8px;
+}
+.inline-field select:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
 .inline-field button:hover { border-color: var(--color-accent-60); color: var(--color-text); }
 
 /* .season opts out of the card's shared gutter (like table-scroll does)

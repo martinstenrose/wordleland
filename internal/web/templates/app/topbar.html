@@ -69,8 +69,10 @@
 
 {{define "language-picker"}}
 <details class="menu" name="topbar-menu">
-  <summary class="menu-btn" aria-label="{{.LangLabel}}" title="{{.LangLabel}}">
-    {{template "flag" .Lang}}{{template "chevron" .}}
+  <summary class="menu-btn lang-btn" aria-label="{{.LangLabel}}" title="{{.LangLabel}}">
+    {{template "globe-icon" .}}
+    <span class="lang-code">{{.Lang}}</span>
+    {{template "chevron" .}}
   </summary>
   <div class="menu-panel">
     <p class="kicker">{{.T.T "lang.label"}}</p>

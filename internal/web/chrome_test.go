@@ -506,6 +506,21 @@ func TestThemeControlOffersAllThree(t *testing.T) {
 	if !strings.Contains(body, `class="theme-opt on"`) {
 		t.Error("the track does not mark the setting in force")
 	}
+
+	// And it sits between the two it chooses from: the middle of the track is
+	// "whichever of these two the device says", which is only legible if the
+	// two are either side of it.
+	at := map[string]int{}
+	for _, code := range []string{"light", "system", "dark"} {
+		// The first occurrence of each is its place in the track, which comes
+		// before the single cycling link the narrow bar uses.
+		if at[code] = strings.Index(body, "theme="+code+`"`); at[code] < 0 {
+			t.Fatalf("no link to the %s theme", code)
+		}
+	}
+	if !(at["light"] < at["system"] && at["system"] < at["dark"]) {
+		t.Errorf("the track reads %v, want system between light and dark", at)
+	}
 }
 
 // Switching one setting keeps the rest of the query, filters included.
@@ -605,24 +620,32 @@ func TestSharedBarOffersSignIn(t *testing.T) {
 	}
 }
 
-// The search button is the one topbar control with more than an icon in
-// it (icon, a word, a shortcut chip), and that is what earns it a border:
-// the theme and language pickers stay borderless icon buttons, same as
-// before, and only .search-btn's own rule adds one on top of .menu-btn's
-// still-transparent placeholder.
-func TestOnlyTheSearchButtonHasAVisibleBorder(t *testing.T) {
+// The search control is the one in the bar with more than an icon in it —
+// icon, a word, a shortcut chip — and a tint is what holds those three
+// together. It deliberately does not take a box outline: on a bar whose other
+// controls are circles, an outlined box reads as a field to type into, and
+// this one is a link to the search page.
+func TestTheSearchControlIsTintedRatherThanOutlined(t *testing.T) {
 	srv := testServer(t)
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
 
-	menuBtn := cssRule(t, css, ".menu-btn {")
-	if !strings.Contains(menuBtn, "border: 1px solid transparent") {
-		t.Error(".menu-btn's border is no longer transparent — the theme and language pickers would grow one too")
+	searchBtn := cssRule(t, css, ".search-btn {")
+	if !strings.Contains(searchBtn, "background: var(--color-surface-raised)") {
+		t.Error(".search-btn has no tint to bind its parts")
+	}
+	if !strings.Contains(searchBtn, "border-color: transparent") {
+		t.Error(".search-btn draws a border as well as a tint")
 	}
 
-	searchBtn := cssRule(t, css, ".search-btn {")
-	if !strings.Contains(searchBtn, "border-color: var(--color-text-12)") {
-		t.Error(".search-btn does not override the border to something visible")
+	// The chip is a key cap: it sits on the surface the tint is struck from,
+	// which is what makes it read as raised out of the control.
+	shortcut := cssRule(t, css, ".search-shortcut {")
+	if !strings.Contains(shortcut, "font-size: var(--text-xs)") {
+		t.Error("the shortcut chip is not the smallest step")
+	}
+	if !strings.Contains(shortcut, "background: var(--color-surface)") {
+		t.Error("the shortcut chip does not sit on its own surface")
 	}
 }
 
@@ -694,7 +717,7 @@ func TestSearchButtonLabelIsPresentButFaded(t *testing.T) {
 	}
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	if !strings.Contains(css, ".search-label { color: var(--color-text-45); }") {
+	if !strings.Contains(css, ".search-label { color: var(--color-text-45); flex: 1; text-align: left; }") {
 		t.Error("the search label is not styled as faded")
 	}
 }

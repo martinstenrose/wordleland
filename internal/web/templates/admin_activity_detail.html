@@ -1,6 +1,7 @@
 {{define "title"}}{{.T.T "activity.detail.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
 <section class="card">
+  {{template "admin-tabs" .}}
   {{template "admin-warning" .}}
 
   <div class="card-head">
