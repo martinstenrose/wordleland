@@ -349,7 +349,60 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 .nav-row:hover { background: var(--color-text-06); color: var(--color-text); }
 .nav-row.on { background: var(--color-accent-14); color: var(--color-accent-strong); font-weight: 600; }
 .nav-row .nav-icon { flex: none; }
-.nav-collapse { margin-top: auto; color: var(--color-text-45); }
+/* Help sits above Collapse, both pushed to the foot of the rail. The margin
+   is on this one now: it is the first of the pair. */
+.about { margin-top: auto; }
+.about > summary { list-style: none; cursor: pointer; }
+.about > summary::-webkit-details-marker { display: none; }
+.nav-about { color: var(--color-text-45); }
+.nav-collapse { color: var(--color-text-45); }
+
+/* Open, the summary becomes the dim behind the panel, so clicking away is
+   clicking the control again — the same mechanic the drawer uses, and for
+   the same reason: no script, and no second close control to keep in step
+   with the first. Esc does not close a <details>, which is the honest cost
+   of that and the reason this is not marked up as a dialog. */
+.about[open] > summary::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 420;
+  background: oklch(0 0 0 / .4);
+}
+.about-panel {
+  position: fixed;
+  z-index: 430;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 22px 24px;
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  border: 1px solid var(--color-text-10);
+  box-shadow: var(--shadow-elevated);
+  white-space: normal;
+}
+.about-title { margin: 0 0 8px; font-size: var(--text-lg); font-weight: 700; letter-spacing: -.01em; }
+.about-body { margin: 0 0 10px; font-size: var(--text-sm); color: var(--color-text-55); line-height: 1.6; }
+.about-links { display: flex; gap: 8px; margin-top: 18px; }
+.about-link {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-text-12);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  text-decoration: none;
+}
+.about-link:hover { background: var(--color-text-06); }
+.about-link svg { flex: none; }
 /* The control says what pressing it will do, so the half that describes the
    width already in force is the half to hide. Keyed off <html> rather than
    rendered by the server, so app.js flipping that attribute is enough to
@@ -578,6 +631,11 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   /* The drawer is already at its full width, so there is nothing here to
      collapse. */
   .drawer-panel .nav-collapse { display: none; }
+  /* The drawer's Help row sits at its foot, above nothing. Its panel is
+     fixed and centred like the rail's, so the drawer stays open behind the
+     dim — which is what the reader expects to come back to. */
+  .drawer-panel .about { margin-top: auto; }
+  .drawer-panel .about[open] > summary::after { top: 0; }
   /* Holds the page still behind an open drawer. Where :has() is not
      understood the page scrolls behind it, which is untidy and not broken. */
   body:has(.drawer[open]) { overflow: hidden; }
