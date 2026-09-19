@@ -158,6 +158,7 @@
   "today.headline.empty": "Inga resultat inne än idag.",
   "today.formTable": "Form · senaste 30 dagarna",
   "today.results": "Dagens resultat",
+  "today.results.empty": "Resultat dyker upp här när de kommer in.",
   "today.column.vsAvg": "Mot snitt",
   "today.column.avg": "Snitt",
   "today.column.form": "Form",
