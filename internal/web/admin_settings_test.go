@@ -79,7 +79,7 @@ func TestRotatingTheSlugIsAskedFirst(t *testing.T) {
 	if !strings.Contains(asked, `action="/admin/settings/slug"`) {
 		t.Error("the question does not carry the form that answers it")
 	}
-	if !strings.Contains(asked, "Rotate the group slug?") {
+	if !strings.Contains(asked, "Replace the share link?") {
 		t.Error("the question is not asked")
 	}
 }

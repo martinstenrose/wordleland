@@ -388,14 +388,21 @@ func TestCountMissedIsMarkedMootWithoutCountFailed(t *testing.T) {
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
+	// The reason is on the page, not in a title= — the control moved into a
+	// menu partly so that a phone, which has no hover, could show it.
+	const why = "Has no effect while"
+
 	def := fetch(t, srv, "/share/"+slug+"/board?missed=1").Body.String()
-	if strings.Contains(def, "toggle on moot") {
+	if strings.Contains(def, why) {
 		t.Error("count missed is marked moot while count failed is on")
 	}
 
 	off := fetch(t, srv, "/share/"+slug+"/board?failed=0&missed=1").Body.String()
-	if !strings.Contains(off, "toggle on moot") {
+	if !strings.Contains(off, why) {
 		t.Error("count missed is not marked moot once count failed is turned off")
+	}
+	if strings.Contains(off, "title=\"Has no effect") {
+		t.Error("the reason is back in a title=, which a phone cannot show")
 	}
 }
 
@@ -562,7 +569,7 @@ func TestControlsWorkOnBothBoards(t *testing.T) {
 			}
 			body := rec.Body.String()
 
-			for _, control := range []string{"Hard mode", "Count missed as 7", "All"} {
+			for _, control := range []string{"Hard mode only", "Count missed as 7", "Count failed as 7"} {
 				href := hrefFor(t, body, control)
 				if !strings.HasPrefix(href, board.path) {
 					t.Errorf("%q links to %q, which is not under the board at %q",
@@ -575,7 +582,7 @@ func TestControlsWorkOnBothBoards(t *testing.T) {
 
 			// And the filter link does not merely resolve — it changes the
 			// board it resolves to.
-			hard := fetchAs(t, srv, hrefFor(t, body, "Hard mode"), board.cookie).Body.String()
+			hard := fetchAs(t, srv, hrefFor(t, body, "Hard mode only"), board.cookie).Body.String()
 			if !strings.Contains(hard, "players hidden") {
 				t.Errorf("following the hard-mode control left the board unfiltered")
 			}

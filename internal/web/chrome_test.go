@@ -66,7 +66,7 @@ func TestEveryPageCarriesThemeAndLocale(t *testing.T) {
 }
 
 // The navigation drawer, the language picker and the account menu all offer
-// a choice or an action, so they share name="topbar-menu": the browser closes
+// a choice or an action, so they share name="menu-group": the browser closes
 // whichever one was open when another opens. Without a shared name they open
 // independently, which is how the language picker used to leave the theme
 // picker open.
@@ -82,11 +82,11 @@ func TestTopbarMenusAreMutuallyExclusive(t *testing.T) {
 
 	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
 	for _, open := range []string{
-		`<details class="drawer" name="topbar-menu">`,
-		`<details class="menu" name="topbar-menu">`,
+		`<details class="drawer" name="menu-group">`,
+		`<details class="menu" name="menu-group">`,
 	} {
 		if !strings.Contains(body, open) {
-			t.Errorf("%s is not in the topbar-menu group", open)
+			t.Errorf("%s is not in the menu-group group", open)
 		}
 	}
 	if strings.Contains(body, `<details class="theme`) {
@@ -103,8 +103,8 @@ func TestAccountMenuJoinsTheTopbarMenuGroup(t *testing.T) {
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 
 	body := fetchAs(t, srv, "/leaderboard", signIn(t, srv, admin.ID)).Body.String()
-	if !strings.Contains(body, `<details class="account" name="topbar-menu">`) {
-		t.Error("the account menu does not share name=\"topbar-menu\" with the pickers")
+	if !strings.Contains(body, `<details class="account" name="menu-group">`) {
+		t.Error("the account menu does not share name=\"menu-group\" with the pickers")
 	}
 }
 
@@ -215,7 +215,7 @@ func TestAccountMenuNeedsNoScript(t *testing.T) {
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 
 	body := fetchAs(t, srv, "/leaderboard", signIn(t, srv, admin.ID)).Body.String()
-	if !strings.Contains(body, "<details class=\"account\" name=\"topbar-menu\">") {
+	if !strings.Contains(body, "<details class=\"account\" name=\"menu-group\">") {
 		t.Error("the account menu is not a details element")
 	}
 	if strings.Contains(body, "onclick") {
@@ -376,8 +376,8 @@ func TestTheDrawerNeedsNoScript(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	if !strings.Contains(body, `<details class="drawer" name="topbar-menu">`) {
-		t.Error("the drawer is not a details element in the topbar-menu group")
+	if !strings.Contains(body, `<details class="drawer" name="menu-group">`) {
+		t.Error("the drawer is not a details element in the menu-group group")
 	}
 	if !strings.Contains(body, `<summary class="menu-btn drawer-btn"`) {
 		t.Error("the drawer has no summary to open it")
@@ -421,7 +421,7 @@ func TestPopupPositioningScriptIsWiredUpAndScoped(t *testing.T) {
 	if !strings.Contains(script, `getAttribute("name") === "popup"`) {
 		t.Error("the script does not scope itself to name=\"popup\"")
 	}
-	if strings.Contains(script, `getAttribute("name") === "topbar-menu"`) {
+	if strings.Contains(script, `getAttribute("name") === "menu-group"`) {
 		t.Error("the positioning listener also reaches into the topbar menus, which anchor themselves in CSS instead")
 	}
 }

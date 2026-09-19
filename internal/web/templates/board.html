@@ -7,17 +7,38 @@
       <p class="kicker">{{.T.T "board.rankedBy"}}</p>
     </div>
 
+    {{/* Three chips in a row became one menu. At the width where these
+         matter most they wrapped, which put "count missed as 7" alone on a
+         line away from the toggle it depends on — and the menu gives that
+         dependency somewhere to be stated rather than hidden in a title=
+         that a phone cannot show.
+
+         Every row is a link that flips one rule and keeps the rest of the
+         query, so the whole control works with no script: following a row
+         re-renders the board and the menu closes with the page. It joins
+         the menu-group, so opening it closes whatever else was open. */}}
     <nav class="controls">
-      <span class="seg">
-        <a class="seg-opt{{if not .Query.HardModeOnly}} on{{end}}"
-           href="{{.BoardPath}}{{.Query.ModeAllHref}}">{{.T.T "board.mode.all"}}</a>
-        <a class="seg-opt{{if .Query.HardModeOnly}} on{{end}}"
-           href="{{.BoardPath}}{{.Query.ModeHardHref}}">{{.T.T "board.mode.hard"}}</a>
-      </span>
-      <a class="toggle{{if .Query.CountXAsSeven}} on{{end}}"
-         href="{{.BoardPath}}{{.Query.CountXHref}}">{{.T.T "board.toggle.countX"}}</a>
-      <a class="toggle{{if .Query.CountMissed}} on{{end}}{{if .Query.CountMissedMoot}} moot{{end}}"
-         href="{{.BoardPath}}{{.Query.CountMissedHref}}"{{if .Query.CountMissedMoot}} title="{{.T.T "board.toggle.countMissed.moot"}}"{{end}}>{{.T.T "board.toggle.countMissed"}}</a>
+      <details class="menu ranking" name="menu-group">
+        <summary class="menu-btn ranking-btn">
+          <span class="muted">{{.T.T "board.ranking.label"}}:</span>
+          <span class="ranking-state">{{.Ranking.State}}</span>
+          {{template "chevron-down" .}}
+        </summary>
+        <div class="menu-panel ranking-panel">
+          {{range .Ranking.Groups}}
+            <p class="kicker">{{.Kicker}}</p>
+            {{range .Rows}}
+              <a class="menu-row{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>
+                <span class="ranking-row-text">
+                  <span>{{.Label}}</span>
+                  {{if .Why}}<span class="ranking-why">{{.Why}}</span>{{end}}
+                </span>
+                <span class="menu-check" aria-hidden="true">{{if .On}}✓{{end}}</span>
+              </a>
+            {{end}}
+          {{end}}
+        </div>
+      </details>
     </nav>
   </div>
 

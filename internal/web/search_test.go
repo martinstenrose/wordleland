@@ -207,8 +207,8 @@ func TestSearchOverlayScriptIsWiredUpAndScoped(t *testing.T) {
 	if !strings.Contains(script, `"?partial=1&q="`) {
 		t.Error("the overlay does not fetch the partial results route")
 	}
-	if strings.Contains(script, `getAttribute("name") === "topbar-menu"`) {
-		t.Error("the search script reaches into the topbar-menu group, which is a separate concern")
+	if strings.Contains(script, `getAttribute("name") === "menu-group"`) {
+		t.Error("the search script reaches into the menu-group group, which is a separate concern")
 	}
 }
 

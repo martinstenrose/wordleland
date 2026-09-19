@@ -784,13 +784,6 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 .kicker.accent { color: var(--color-accent); }
 
 .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.seg { display: inline-flex; border: 1px solid var(--color-text-12); border-radius: var(--radius-md); overflow: hidden; }
-.seg-opt {
-  padding: 6px 12px; font-size: var(--text-sm); text-decoration: none;
-  color: var(--color-text-50);
-}
-.seg-opt + .seg-opt { border-left: 1px solid var(--color-text-12); }
-.seg-opt.on { color: var(--color-accent-strong); background: var(--color-accent-14); box-shadow: inset 0 0 0 1px var(--color-accent-50); }
 .toggle {
   padding: 6px 11px; font-size: var(--text-sm); text-decoration: none;
   border: 1px solid var(--color-text-12); border-radius: var(--radius-md); color: var(--color-text-50);
@@ -892,17 +885,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
      the whole shell, which on a phone left the bar floating in a margin with
      a rule down both sides of it instead of sitting across the top. */
   main { padding: 16px 12px 30px; }
-  /* The mode picker takes the whole row, so the two toggles land on the next
-     one together. They are a pair — the second only means anything while the
-     first is on — and wrapping between them read as one stray control. */
-  /* A grid rather than a wrapping flex row: where the wrap falls is the
-     whole point here, and flex decides that from the widths it is given. */
-  .controls {
-    display: grid;
-    grid-template-columns: max-content max-content;
-    justify-content: start;
-  }
-  .controls .seg { grid-column: 1 / -1; justify-self: start; }
   .board th, .board td { padding: 9px 12px; }
   .spark-col { display: none; }
   .window-col { display: none; }
@@ -1209,7 +1191,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 /* ---- Chrome: switchers and the account menu --------------------------- */
 
 .chrome { display: contents; }
-.chrome .seg { flex: none; }
 
 /* The account menu is a <details>, so it opens and closes with no script.
    The summary marker is removed because the avatar is the affordance. */
@@ -1875,6 +1856,27 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .menu-row.on { background: var(--color-accent-14); color: var(--color-text); }
 .menu-row > span:nth-of-type(1) { flex: 1; }
 .menu-check { color: var(--color-accent-strong); font-size: var(--text-sm); }
+
+/* The board's ranking menu. Wider than the pickers' and anchored to the left,
+   because it sits at the start of a row rather than at the end of the bar,
+   and because its rows are sentences rather than two words. */
+.ranking-btn { border-color: var(--color-text-12); background: var(--color-surface-raised); }
+.ranking-btn:hover { background: var(--color-text-08); }
+.ranking-state { font-weight: 600; }
+/* Anchored to the button's right edge like the pickers', not its left: the
+   control sits at the end of the card's head, so opening leftward is what
+   keeps the panel on screen at a phone's width. */
+.ranking-panel { width: min(256px, calc(100vw - 32px)); }
+.ranking-panel .kicker { margin: 6px 0 4px; padding: 0 10px; }
+.ranking-panel .kicker:first-child { margin-top: 2px; }
+/* min-width so the row may shrink: without it the reason under a rule holds
+   the panel open at its own width and shoves the tick off the end. */
+.ranking-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* The reason a rule currently changes nothing, under the rule. It was a
+   title= on the chip this replaces — a hover, which a phone does not have,
+   on the width where these controls are most crowded. */
+.ranking-why { font-size: var(--text-xs); color: var(--color-text-45); line-height: 1.4; }
+.menu-row.on .ranking-why { color: var(--color-text-50); }
 .menu-row svg { display: block; flex: none; border-radius: var(--radius-xs); }
 
 /* ---- Search: the topbar link, its ⌘K overlay, and the results both

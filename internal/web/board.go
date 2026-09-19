@@ -36,6 +36,9 @@ type boardPage struct {
 	// Query rebuilds the current URL with one control changed.
 	Query boardQuery
 
+	// Ranking is those controls collected into one menu.
+	Ranking rankingMenu
+
 	// Sort is the display ordering, and Headers carries the column links.
 	Sort    boardSort
 	Headers []sortHeader
@@ -129,12 +132,11 @@ func (q boardQuery) with(mutate func(*boardQuery)) string {
 // without altering what the reader is looking at.
 func (q boardQuery) Href() string { return q.with(func(*boardQuery) {}) }
 
-func (q boardQuery) ModeAllHref() string {
-	return q.with(func(n *boardQuery) { n.HardModeOnly = false })
-}
-
-func (q boardQuery) ModeHardHref() string {
-	return q.with(func(n *boardQuery) { n.HardModeOnly = true })
+// HardModeHref flips the filter rather than setting it, because the control
+// it feeds is one row that is either in force or not — the segmented pair of
+// "All" and "Hard mode" it replaces needed one href that meant each.
+func (q boardQuery) HardModeHref() string {
+	return q.with(func(n *boardQuery) { n.HardModeOnly = !n.HardModeOnly })
 }
 
 func (q boardQuery) CountXHref() string {
@@ -151,6 +153,83 @@ func (q boardQuery) CountMissedHref() string {
 // only marks the state on the page so a reader is not left wondering why
 // selecting it changed nothing.
 func (q boardQuery) CountMissedMoot() bool { return !q.CountXAsSeven }
+
+// IsDefault reports whether the board is ranked the way it is out of the box:
+// every game counted, a failure worth 7, a missed day worth nothing.
+func (q boardQuery) IsDefault() bool {
+	return !q.HardModeOnly && q.CountXAsSeven && !q.CountMissed
+}
+
+// rankingRow is one line of the ranking menu.
+type rankingRow struct {
+	Label string
+	Href  string
+	On    bool
+	// Why is shown under the label when the row is in force but currently
+	// changes nothing. It used to be a title= on the chip this replaces,
+	// which is a hover — and a phone has none, so on the one screen where
+	// these controls are most crowded the explanation did not exist.
+	Why string
+}
+
+// rankingGroup is a headed set of rows. There are two, because the controls
+// are two different kinds of thing: one decides which games are counted at
+// all, the others decide what a result is worth once it is.
+type rankingGroup struct {
+	Kicker string
+	Rows   []rankingRow
+}
+
+// rankingMenu is the board's controls, collected into one.
+//
+// Three chips in a row is three things to fit, and on a phone they wrapped
+// — which put "count missed as 7" alone on a line away from the toggle it
+// depends on. One control with the rules inside it fits at every width, and
+// gives the dependency somewhere to be stated.
+type rankingMenu struct {
+	// State is "Standard" or "Custom" rather than a list of what is on. A
+	// label built from the selection grows with it and has to be truncated
+	// on the width where this matters most; the card's own footer already
+	// states the rules in prose, so this says only whether they are the
+	// usual ones.
+	State  string
+	Groups []rankingGroup
+}
+
+func rankingMenuFor(t translator, q boardQuery, boardPath string) rankingMenu {
+	state := t.T("board.ranking.custom")
+	if q.IsDefault() {
+		state = t.T("board.ranking.standard")
+	}
+
+	missed := rankingRow{
+		Label: t.T("board.toggle.countMissed"),
+		Href:  boardPath + q.CountMissedHref(),
+		On:    q.CountMissed,
+	}
+	if q.CountMissedMoot() {
+		missed.Why = t.T("board.toggle.countMissed.moot")
+	}
+
+	return rankingMenu{
+		State: state,
+		Groups: []rankingGroup{{
+			Kicker: t.T("board.ranking.games"),
+			Rows: []rankingRow{{
+				Label: t.T("board.ranking.hardOnly"),
+				Href:  boardPath + q.HardModeHref(),
+				On:    q.HardModeOnly,
+			}},
+		}, {
+			Kicker: t.T("board.ranking.scoring"),
+			Rows: []rankingRow{{
+				Label: t.T("board.toggle.countX"),
+				Href:  boardPath + q.CountXHref(),
+				On:    q.CountXAsSeven,
+			}, missed},
+		}},
+	}
+}
 
 // parseBoardQuery reads the controls, defaulting: count failed as 7 on,
 // count missed off, no filter.
@@ -209,12 +288,14 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boa
 		return
 	}
 
+	ch := s.newChrome(w, r, prefix, viewBoard, readOnly)
 	page := boardPage{
-		chrome:     s.newChrome(w, r, prefix, viewBoard, readOnly),
+		chrome:     ch,
 		Board:      board,
 		Prefix:     prefix,
 		BoardPath:  boardPath,
 		Query:      query,
+		Ranking:    rankingMenuFor(ch.T, query, boardPath),
 		GroupPath:  template.HTML(sparkPath(board.GroupSeries, sparkWidth, sparkHeight, 0)),
 		MinGames:   stats.MinGames,
 		FormWindow: stats.FormWindow,

@@ -147,7 +147,7 @@ func TestAuthPickersAreInTheChromeOnly(t *testing.T) {
 		if strings.Contains(body, `class="sidebar"`) {
 			t.Errorf("%s draws the application rail", path)
 		}
-		for _, control := range []string{`class="theme-track"`, `<details class="menu" name="topbar-menu">`} {
+		for _, control := range []string{`class="theme-track"`, `<details class="menu" name="menu-group">`} {
 			if n := strings.Count(body, control); n != 1 {
 				t.Errorf("%s renders %s %d times, want 1", path, control, n)
 			}

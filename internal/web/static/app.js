@@ -15,7 +15,7 @@
   // Keep clicks on menu links and summaries native. Other disclosures,
   // such as result details and admin diagnostics, are not dismissible menus.
   document.addEventListener("click", function (event) {
-    document.querySelectorAll('details[name="topbar-menu"][open]').forEach(function (menu) {
+    document.querySelectorAll('details[name="menu-group"][open]').forEach(function (menu) {
       if (!menu.contains(event.target)) {
         menu.open = false;
       }
