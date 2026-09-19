@@ -442,7 +442,7 @@ func TestStylesheetIsWhole(t *testing.T) {
 
 	// Both light blocks carry the same ground, so a system-preference reader
 	// and one who chose light see the same page.
-	if strings.Count(css, "--color-canvas: #cfd3e5") != 2 && strings.Count(css, "--color-canvas:#cfd3e5") != 2 {
+	if strings.Count(css, "--color-canvas: oklch(.97 .006 65)") != 2 && strings.Count(css, "--color-canvas:oklch(.97 .006 65)") != 2 {
 		t.Error("the light ground is not defined in both light blocks")
 	}
 
@@ -454,6 +454,76 @@ func TestStylesheetIsWhole(t *testing.T) {
 		if got := strings.Count(css, token+":"); got != 3 {
 			t.Errorf("%s is defined %d times, want once per theme block", token, got)
 		}
+	}
+}
+
+// A guess count is the one number on the board a reader takes in without
+// reading it, so every outcome gets its own fill. Four of the seven used to,
+// and a 5, a 6 and a miss all fell through to the grey text ramp — which made
+// the three outcomes worth telling apart at a glance the three that looked
+// alike. Each tier naming its own token is what stops that closing up again.
+func TestEveryScoreTierHasItsOwnFill(t *testing.T) {
+	srv := testServer(t)
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+
+	fills := map[string]string{}
+	for tier, token := range map[string]string{
+		"t1": "--score-1", "t2": "--score-2", "t3": "--score-3", "t4": "--score-4",
+		"t5": "--score-5", "t6": "--score-6", "t7": "--score-x",
+	} {
+		for _, selector := range []string{".cell." + tier, ".cal." + tier} {
+			rule, ok := ruleFor(css, selector)
+			if !ok {
+				t.Errorf("the stylesheet has no rule for %s", selector)
+				continue
+			}
+			if !strings.Contains(rule, "background: var("+token+")") {
+				t.Errorf("%s is not filled with %s: %s", selector, token, rule)
+			}
+		}
+		fills[token] = tier
+	}
+	if len(fills) != 7 {
+		t.Errorf("tiers share a fill token: %v", fills)
+	}
+}
+
+// ruleFor returns the declarations of the first rule for exactly this
+// selector, so a test can assert on one rule rather than on the whole file.
+func ruleFor(css, selector string) (string, bool) {
+	for _, at := range []string{selector + " {", selector + "{"} {
+		if i := strings.Index(css, at); i >= 0 {
+			rest := css[i+len(at):]
+			if end := strings.Index(rest, "}"); end >= 0 {
+				return strings.TrimSpace(rest[:end]), true
+			}
+		}
+	}
+	return "", false
+}
+
+// The stylesheet asks for a typeface this app serves itself. A font that 404s
+// is invisible in every test that only reads markup: the page still renders,
+// in the fallback, and nobody notices until they look at one. The embed is
+// the thing that breaks — a file added to static/ but not reachable through
+// it — so this asks the server for the bytes the @font-face names.
+func TestTheTypefaceIsServed(t *testing.T) {
+	srv := testServer(t)
+
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+	const src = "/static/fonts/manrope-variable.ttf"
+	if !strings.Contains(css, src) {
+		t.Fatalf("the stylesheet does not reference %s", src)
+	}
+
+	rec := fetchAs(t, srv, src, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("%s = %d", src, rec.Code)
+	}
+	// An sfnt file starts with a version tag; 0x00010000 is TrueType outlines,
+	// which is what format("truetype-variations") promises the browser.
+	if got := rec.Body.Bytes(); len(got) < 4 || !bytes.Equal(got[:4], []byte{0x00, 0x01, 0x00, 0x00}) {
+		t.Errorf("%s is not a TrueType file (%d bytes, starts %x)", src, len(got), got[:min(4, len(got))])
 	}
 }
 
