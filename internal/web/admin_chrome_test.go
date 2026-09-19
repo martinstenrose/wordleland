@@ -121,41 +121,31 @@ func TestRosterSwitchHintIsNotUppercased(t *testing.T) {
 	}
 }
 
-// The pickers sit on the top row beside the mark. They used to flow after
-// the links at the foot of the card, and those links differ per page —
-// sign-in has two, the two-factor step two others, the reset page one — so
-// the pickers sat at a different height on each and jumped when moving
-// between pages. Nothing above the top row varies.
-func TestAuthPickersSitBesideTheMark(t *testing.T) {
+// The pickers sit in the top bar, in one fixed place on every page. They used
+// to flow after the links at the foot of the auth card, and those links differ
+// per page — sign-in has two, the two-factor step two others, the reset page
+// one — so the pickers sat at a different height on each and jumped when
+// moving between pages. Then they moved to a row of their own at the top of
+// each card, which fixed the jumping and left every auth page carrying its own
+// copy of the chrome; the shell carries it now, and the cards carry none.
+func TestAuthPickersAreInTheTopBarOnly(t *testing.T) {
 	srv := testServer(t)
-	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	if !strings.Contains(css, ".auth-top {") {
-		t.Fatal("the top row has no rule")
-	}
 
 	for _, path := range []string{"/", "/forgot-password", "/reset-password?token=x", "/invite?token=x"} {
 		body := fetchAs(t, srv, path, nil).Body.String()
 
-		top := strings.Index(body, `class="auth-top"`)
-		if top < 0 {
-			t.Errorf("%s has no top row", path)
+		bar := strings.Index(body, `<header class="topbar">`)
+		if bar < 0 {
+			t.Errorf("%s has no top bar", path)
 			continue
 		}
-		row := body[top:]
-		row = row[:strings.Index(row, "</div>")]
-		if !strings.Contains(row, "brand-lg") {
-			t.Errorf("%s: the mark is not on the top row", path)
-		}
-		if !strings.Contains(row, "signin-switchers") {
-			t.Errorf("%s: the pickers are not on the top row", path)
-		}
-
-		// Exactly one block, and nothing left behind in the footer.
-		if n := strings.Count(body, `class="signin-switchers"`); n != 1 {
-			t.Errorf("%s renders %d picker blocks, want 1", path, n)
-		}
-		if foot := strings.Index(body, `class="signin-foot"`); foot >= 0 && foot < top {
-			t.Errorf("%s renders the footer above the top row", path)
+		for _, control := range []string{`class="theme-track"`, `<details class="menu" name="topbar-menu">`} {
+			if n := strings.Count(body, control); n != 1 {
+				t.Errorf("%s renders %s %d times, want 1", path, control, n)
+			}
+			if strings.Index(body, control) < bar {
+				t.Errorf("%s renders %s outside the top bar", path, control)
+			}
 		}
 	}
 }
