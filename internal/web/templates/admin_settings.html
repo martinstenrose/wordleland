@@ -51,7 +51,10 @@
         <div class="actions"{{if .CopyURL}} data-copy="{{.CopyURL}}"
              data-copy-label="{{.T.T "action.copyLink"}}"
              data-copied-label="{{.T.T "action.copied"}}"{{end}}>
-          <a class="secondary" href="/admin/settings?confirm=slug">{{.T.T "admin.settings.rotate"}}</a>
+          {{/* Outlined and danger-toned: it opens the question rather than
+               answering it, so the risk reads before it is pressed while the
+               filled red stays on the control that actually does it. */}}
+          <a class="secondary danger" href="/admin/settings?confirm=slug">{{.T.T "admin.settings.rotate"}}</a>
         </div>
       {{end}}
     {{else}}
