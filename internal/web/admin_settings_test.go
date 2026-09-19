@@ -303,3 +303,38 @@ func TestNoCopyControlWithoutAnOrigin(t *testing.T) {
 		t.Error("the slug is not shown at all")
 	}
 }
+
+// Rotating is three page loads without a script — ask, answer, outcome — and
+// app.js collapses them into swaps in place. What it swaps is scoped to this
+// one block, so the admin strip above, which links here too, is left alone.
+//
+// Every control it intercepts stays a real one: the question is a link, the
+// answer is a form that posts its own token, and either works with the script
+// gone.
+func TestTheShareSectionIsScopedAndStillWorksWithoutAScript(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+	if _, _, err := store.EnsureShareSlug(context.Background(), srv.db); err != nil {
+		t.Fatalf("EnsureShareSlug: %v", err)
+	}
+
+	plain := fetchAs(t, srv, "/admin/settings", session).Body.String()
+	if !strings.Contains(plain, `class="settings-section share-section"`) {
+		t.Error("the share section carries no hook, so the script would reach the whole page")
+	}
+	if !strings.Contains(plain, `href="/admin/settings?confirm=slug"`) {
+		t.Error("asking the question is not a link")
+	}
+
+	asked := fetchAs(t, srv, "/admin/settings?confirm=slug", session).Body.String()
+	form := asked[strings.Index(asked, `<form method="post" action="/admin/settings/slug"`):]
+	form = form[:strings.Index(form, "</form>")]
+	if !strings.Contains(form, `name="csrf_token"`) {
+		t.Error("the answer carries no token, so posting it from script would be refused")
+	}
+	// The script is not named anywhere in the markup: it finds its own work.
+	if strings.Contains(asked, "onclick") || strings.Contains(asked, "onsubmit") {
+		t.Error("a control carries an inline handler")
+	}
+}
