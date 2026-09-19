@@ -2,11 +2,9 @@
 {{define "content"}}
 <section class="card">
   {{template "admin-tabs" .}}
-  {{template "admin-warning" .}}
 
   <div class="card-head">
     <h1>{{.T.T "activity.title"}}</h1>
-    <p class="kicker">{{.T.T "activity.adminOnly"}}</p>
   </div>
 
   <div class="activity-filters">

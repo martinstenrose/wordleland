@@ -242,6 +242,29 @@ func (s *Server) bridgeRows(t translator, b Bridge, now time.Time) []diagnosticR
 
 // diagnosticsWarning is the line the rest of the admin area shows, so a
 // stalled bridge finds the reader rather than waiting to be looked for.
+// adminWarning is a problem and the screen that does something about it. The
+// destination follows the message: held results are claimed on Pending
+// results, and everything else — a bridge that is down, a board that has gone
+// quiet — is read in full on Diagnostics.
+type adminWarning struct {
+	Text  string
+	Href  string
+	Label string
+}
+
+// adminWarningFor pairs the warning with where it leads.
+func (s *Server) adminWarningFor(t translator, f store.Freshness, now time.Time) adminWarning {
+	text := s.diagnosticsWarning(t, f, now)
+	if text == "" {
+		return adminWarning{}
+	}
+	w := adminWarning{Text: text, Href: "/admin/diagnostics", Label: t.T("diag.title")}
+	if f.PendingResults > 0 {
+		w.Href, w.Label = "/admin/pending", t.T("pending.title")
+	}
+	return w
+}
+
 func (s *Server) diagnosticsWarning(t translator, f store.Freshness, now time.Time) string {
 	if s.bridge != nil {
 		if alive, why := s.bridge.Alive(); !alive {

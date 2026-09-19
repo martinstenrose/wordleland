@@ -60,10 +60,11 @@ group it was for — which is what to switch on while diagnosing a bridge that
 looks idle, not something to run all the time. It never includes a phone
 number or a message's text at any level.
 
-The database path and listen port are not configurable: always
-`/data/db.sqlite` and `:8080`. A volume decides where the file really
-lives, and the port is invisible behind the proxy. The binary accepts
-`--db <path>` for running outside a container.
+The database path and listen port are not configurable *in a deployment*:
+always `/data/db.sqlite` and `:8080`. A volume decides where the file really
+lives, and the port is invisible behind the proxy. For running outside a
+container the binary accepts `--db <path>`, and `serve -port <n>` for a
+machine where 8080 already belongs to something else.
 
 For SMTP submission, use a relay endpoint that advertises STARTTLS (normally
 port 587). The Go SMTP client upgrades automatically when STARTTLS is offered;
@@ -634,6 +635,13 @@ APP_URL=http://localhost:8080 \
 ADMIN_EMAIL=you@example.tld \
 ADMIN_PASSWORD=<12+ characters> \
   go run ./cmd/wordleland --db ./db.sqlite serve
+```
+
+`serve` takes `-port` if 8080 is taken — it belongs to the noun rather than
+before it, the way `--db` does, and `APP_URL` has to name the same port:
+
+```sh
+... go run ./cmd/wordleland --db ./db.sqlite serve -port 8099
 ```
 
 `APP_URL` matters here even though nothing sends mail: unset, cookies

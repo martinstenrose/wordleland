@@ -223,6 +223,56 @@ func TestAccountMenuNeedsNoScript(t *testing.T) {
 	}
 }
 
+// Collapsing the rail is a link first and a script second. The link is the
+// whole feature — following it re-renders at the other width and the cookie
+// remembers — and app.js only does the visible half without the round trip.
+// What it needs from the server is the other destination and both labels,
+// since it renders neither itself.
+func TestTheCollapseControlWorksWithoutScript(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
+	control, ok := sectionOf(body, `<a class="nav-row nav-collapse"`, "</a>")
+	if !ok {
+		t.Fatal("the rail has no collapse control")
+	}
+
+	// A link with somewhere to go, not a button waiting for a handler.
+	if !strings.Contains(control, `href="`) {
+		t.Error("the collapse control is not a link")
+	}
+	if !strings.Contains(control, "sidebar=narrow") {
+		t.Error("a wide rail's control does not point at the narrow width")
+	}
+
+	// Both destinations, so the script can point the link at the other one
+	// after flipping the rail in place.
+	for _, attr := range []string{`data-href-wide="`, `data-href-narrow="`} {
+		if !strings.Contains(control, attr) {
+			t.Errorf("the collapse control is missing %s", attr)
+		}
+	}
+
+	// Both labels, so the wording and the accessible name follow the width
+	// through CSS rather than being written by the script.
+	for _, label := range []string{"Collapse sidebar", "Expand sidebar"} {
+		if !strings.Contains(control, ">"+label+"<") {
+			t.Errorf("the collapse control does not carry %q", label)
+		}
+	}
+
+	// And the script is wired to that control and nothing else.
+	js := fetchAs(t, srv, "/static/app.js", nil).Body.String()
+	if !strings.Contains(js, `querySelector(".nav-collapse")`) {
+		t.Error("app.js does not bind the collapse control")
+	}
+	if !strings.Contains(js, "preventDefault") {
+		t.Error("app.js does not take over the click it is enhancing")
+	}
+}
+
 // The rail's width is remembered the way the theme is: a link sets it, a
 // cookie keeps it, and <html> says which one is in force. Nothing about it
 // depends on a script having run.
@@ -653,12 +703,19 @@ func TestTheSearchControlSitsOnThePagesGround(t *testing.T) {
 // with prefix (e.g. ".menu-btn {"), for a test that wants to inspect one
 // rule's declarations without matching a substring anywhere else in the
 // file.
+// The prefix is anchored to the start of an unindented line, so it finds the
+// rule it names and not a longer selector ending in the same text. Without
+// that anchor ".search-btn {" also matches ".topbar-search .search-btn {" and
+// any grouped selector whose last member is .search-btn — both of which live
+// inside media queries, come earlier in the file, and would hand back the
+// wrong declarations.
 func cssRule(t *testing.T, css, prefix string) string {
 	t.Helper()
-	start := strings.Index(css, prefix)
+	start := strings.Index(css, "\n"+prefix)
 	if start < 0 {
 		t.Fatalf("no rule opening with %q found", prefix)
 	}
+	start++
 	end := strings.Index(css[start:], "}")
 	if end < 0 {
 		t.Fatalf("rule opening with %q is never closed", prefix)

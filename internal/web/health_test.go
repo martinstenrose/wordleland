@@ -176,28 +176,49 @@ func TestDiagnosticsIsAdminOnly(t *testing.T) {
 }
 
 // Merging the services lost the signal that came to you — an unhealthy
-// container. A page you have to open is not a replacement, so whatever is
-// wrong follows the admin around the area.
-func TestAdminWarningFollowsTheAdminAround(t *testing.T) {
+// container. A page you have to open is not a replacement, so the problem is
+// raised on the way into the admin area, which opens on Players. It used to
+// repeat on every tab, which made it furniture rather than a warning.
+func TestAdminWarningIsRaisedOnTheWayIn(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
 	holdPending(t, srv, "unclaimed-1", "", 1894, 4)
 
-	for _, path := range []string{"/admin/players", "/admin/pending", "/admin/activity"} {
-		body := fetchAs(t, srv, path, session).Body.String()
-		if !strings.Contains(body, "held for a sender nobody has claimed") {
-			t.Errorf("%s shows no warning about held results", path)
-		}
-		if !strings.Contains(body, `href="/admin/diagnostics"`) {
-			t.Errorf("%s warns without linking to the detail", path)
-		}
+	const held = "held for a sender nobody has claimed"
+	body := fetchAs(t, srv, "/admin/players", session).Body.String()
+	if !strings.Contains(body, held) {
+		t.Error("the way into the admin area shows no warning about held results")
+	}
+	// And it points at the screen the problem is dealt with on. Held results
+	// are claimed on Pending results; Diagnostics only says so again.
+	if !strings.Contains(body, `href="/admin/pending"`) {
+		t.Error("the warning does not lead to where the results are claimed")
 	}
 
-	// Not on the diagnostics page itself, which already says it in full.
-	body := fetchAs(t, srv, "/admin/diagnostics", session).Body.String()
-	if strings.Contains(body, "held for a sender nobody has claimed") {
-		t.Error("the diagnostics page repeats its own warning back at itself")
+	// Once, not on every tab — and never on the two screens whose whole job
+	// is to show the same thing in full.
+	for _, path := range []string{"/admin/pending", "/admin/activity", "/admin/diagnostics"} {
+		if body := fetchAs(t, srv, path, session).Body.String(); strings.Contains(body, held) {
+			t.Errorf("%s repeats the warning", path)
+		}
+	}
+}
+
+// A bridge that is down or a board gone quiet is read on Diagnostics, so
+// that is where those warnings lead. The destination follows the message.
+func TestAdminWarningLeadsToDiagnosticsWhenItIsNotAboutPending(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+	srv.SetBridge(fakeBridge{alive: false, reason: "the bridge is not connected"})
+
+	body := fetchAs(t, srv, "/admin/players", session).Body.String()
+	if !strings.Contains(body, "the bridge is not connected") {
+		t.Fatal("a bridge that is down raises no warning")
+	}
+	if !strings.Contains(body, `href="/admin/diagnostics"`) {
+		t.Error("a bridge warning does not lead to the diagnostics page")
 	}
 }
 

@@ -34,13 +34,23 @@
        width. The rail is only ever navigation. */}}
   <div class="nav-rows">{{template "sidebar-rows" .}}</div>
 
-  {{/* Pinned to the bottom. Absent from the drawer, where the rail is
-       already at its full width and there is nothing to collapse — see the
-       rule in app.css. A link rather than a button: it is a round trip, and
-       a round trip is what lets the choice outlive the page. */}}
-  <a class="nav-row nav-collapse" href="{{.SidebarToggle.Href}}" title="{{.SidebarToggle.Label}}">
-    {{template "collapse-icon" .SidebarToggle.Code}}
-    <span class="nav-label">{{.SidebarToggle.Label}}</span>
+  {{/* Pinned to the bottom. Absent from the drawer, where the rail is already
+       at its full width and there is nothing to collapse — see the rule in
+       app.css.
+
+       A link, and it works as one: following it re-renders the page at the
+       other width and remembers the choice. app.js makes the same press
+       instant instead, and needs the other destination to point this at
+       afterwards — hence both. Both labels are here too, and app.css shows
+       whichever the rail's current width calls for, so the wording and the
+       accessible name follow the toggle without the script touching either. */}}
+  <a class="nav-row nav-collapse" href="{{.SidebarToggle.Href}}" title="{{.SidebarToggle.Label}}"
+     data-href-wide="{{.SidebarWideHref}}" data-href-narrow="{{.SidebarNarrowHref}}">
+    {{template "collapse-icon" .}}
+    <span class="nav-label">
+      <span class="to-narrow">{{.T.T "nav.collapse"}}</span>
+      <span class="to-wide">{{.T.T "nav.expand"}}</span>
+    </span>
   </a>
 </nav>
 {{end}}

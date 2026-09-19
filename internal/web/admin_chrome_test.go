@@ -13,8 +13,10 @@ var (
 	csrfValue = regexp.MustCompile(`name="csrf_token" value="[^"]*"`)
 )
 
-// The three admin screens are one area and have to look like it: same tab
-// row in the same place, same card header shape.
+// The admin screens are one area and have to look like it: the same card, the
+// same tab row in the same place, the same header. Their subtitles are the
+// exception — Players and Pending count what they hold, and Activity and
+// Diagnostics have nothing to count — so the comparison stops at the head.
 func TestAdminScreensShareTheirChrome(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
@@ -30,7 +32,7 @@ func TestAdminScreensShareTheirChrome(t *testing.T) {
 			t.Fatalf("%s has no card section", path)
 		}
 		head := body[start:]
-		if cut := strings.Index(head, "</div>"); cut > 0 {
+		if cut := strings.Index(head, "<h1"); cut > 0 {
 			head = head[:cut]
 		}
 		var seq []string

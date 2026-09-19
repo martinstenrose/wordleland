@@ -426,9 +426,16 @@ from it:
   collapse state are component state. Here the rail is server-rendered, the
   drawer is a `<details>`, the theme is three links, and the collapsed width is
   a cookie set by following a link — the same mechanism the theme has used all
-  along. That costs a round trip per collapse, which is the right price: the
-  alternative is script standing between a reader and a control that already
-  works without it.
+  along.
+
+  Collapsing the rail is the one place script is worth adding on top, and it
+  is added the way this repository allows: the link is the whole feature and
+  still works on its own, and `app.js` only saves the round trip, flipping the
+  width attribute on `<html>` and telling the server in the background. It
+  renders nothing — the wording, the arrow and the accessible name all follow
+  that one attribute through CSS, so there is no second copy of any of them to
+  keep in step. With the script absent, disabled or failing to load, pressing
+  the control navigates, exactly as before.
 
   The shape of that shell is the design's: a bar across the whole width
   carrying the wordmark and the controls, and beneath it the rail on the
