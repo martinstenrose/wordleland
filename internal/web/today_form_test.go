@@ -57,7 +57,7 @@ func TestTodayShowsCompactFormRanksChartsAndLeaderboardLastFive(t *testing.T) {
 		{"/share/" + slug + "/", "/share/" + slug + "/board", "/share/" + slug, nil},
 	} {
 		body := fetchAs(t, srv, surface.path+"?form=7", surface.cookie).Body.String()
-		at := strings.Index(body, `class="card today-form"`)
+		at := strings.Index(body, `class="today-form"`)
 		if at < 0 {
 			t.Fatal("no Today form table")
 		}

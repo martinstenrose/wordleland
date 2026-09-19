@@ -1,11 +1,6 @@
 {{define "title"}}{{.T.T "totp.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
 <section class="auth-card">
-  <div class="auth-top">
-    <a class="brand brand-lg" href="/">{{template "mark" .}}</a>
-    <span class="signin-switchers">{{template "theme-picker" .}}{{template "language-picker" .}}</span>
-  </div>
-
   <h1>{{.T.T "totp.heading"}}</h1>
   <p class="signin-sub">
     {{if .Email}}{{.T.T "totp.sub" .Email}}{{else}}{{.T.T "totp.subPlain"}}{{end}}

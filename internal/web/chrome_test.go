@@ -65,19 +65,32 @@ func TestEveryPageCarriesThemeAndLocale(t *testing.T) {
 	}
 }
 
-// The theme picker, the language picker and the account menu all offer a
-// choice or an action, so they share name="topbar-menu": the browser closes
-// whichever one was open when another opens. Without a shared name they
-// open independently, which is how the language picker used to leave the
-// theme picker open.
-func TestTopbarPickersAreMutuallyExclusive(t *testing.T) {
+// The navigation drawer, the language picker and the account menu all offer
+// a choice or an action, so they share name="topbar-menu": the browser closes
+// whichever one was open when another opens. Without a shared name they open
+// independently, which is how the language picker used to leave the theme
+// picker open.
+//
+// The theme picker is no longer among them — it is three links rather than a
+// disclosure — but the reason the group exists outlives it, and the drawer
+// joining it is what keeps a full-height panel from staying open behind a
+// menu.
+func TestTopbarMenusAreMutuallyExclusive(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	if got := strings.Count(body, `<details class="menu" name="topbar-menu">`); got != 2 {
-		t.Errorf("expected both the theme and language pickers to share name=\"topbar-menu\", found %d", got)
+	for _, open := range []string{
+		`<details class="drawer" name="topbar-menu">`,
+		`<details class="menu" name="topbar-menu">`,
+	} {
+		if !strings.Contains(body, open) {
+			t.Errorf("%s is not in the topbar-menu group", open)
+		}
+	}
+	if strings.Contains(body, `<details class="theme`) {
+		t.Error("the theme picker is a disclosure again; it is meant to be three links")
 	}
 }
 
@@ -207,6 +220,129 @@ func TestAccountMenuNeedsNoScript(t *testing.T) {
 	}
 	if strings.Contains(body, "onclick") {
 		t.Error("the account menu carries an inline event handler")
+	}
+}
+
+// The rail's width is remembered the way the theme is: a link sets it, a
+// cookie keeps it, and <html> says which one is in force. Nothing about it
+// depends on a script having run.
+func TestSidebarWidthIsRememberedAndApplied(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	rec := fetchAs(t, srv, "/share/"+slug+"/board?sidebar=narrow", nil)
+	if !strings.Contains(rec.Body.String(), `data-sidebar="narrow"`) {
+		t.Error("?sidebar=narrow did not apply")
+	}
+
+	var cookie *http.Cookie
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == sidebarCookie {
+			cookie = c
+		}
+	}
+	if cookie == nil {
+		t.Fatal("collapsing the rail set no cookie")
+	}
+	if got := fetchAs(t, srv, "/share/"+slug+"/", cookie).Body.String(); !strings.Contains(got, `data-sidebar="narrow"`) {
+		t.Error("the remembered width was not applied on a later request")
+	}
+
+	// Wide is the default, and a value that is neither is ignored rather than
+	// written through to the attribute.
+	bad := fetchAs(t, srv, "/share/"+slug+"/board?sidebar=hidden", nil).Body.String()
+	if !strings.Contains(bad, `data-sidebar="wide"`) {
+		t.Error("an unknown width was not rejected")
+	}
+}
+
+// A collapsed rail keeps its labels in the markup. Hiding them with
+// display:none would save the same width and leave every row an icon with no
+// accessible name, which is the kind of saving that costs somebody the page.
+func TestACollapsedRailKeepsItsLabels(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	body := fetchAs(t, srv, "/share/"+slug+"/board?sidebar=narrow", nil).Body.String()
+	rail, ok := sectionOf(body, `<nav class="sidebar"`, "</nav>")
+	if !ok {
+		t.Fatal("the rail is missing")
+	}
+	for _, view := range []string{"Today", "Leaderboard", "Months", "Grid", "Players"} {
+		if !strings.Contains(rail, ">"+view+"<") {
+			t.Errorf("the collapsed rail dropped %q from the markup", view)
+		}
+	}
+
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+	rule, ok := ruleFor(css, `:root[data-sidebar="narrow"] .sidebar .nav-label`)
+	if !ok {
+		t.Fatal("nothing hides the labels when the rail is collapsed")
+	}
+	if strings.Contains(rule, "display: none") {
+		t.Error("the collapsed rail's labels are hidden from assistive technology too")
+	}
+}
+
+// The shell is drawn once per page, by the layout rather than by each page
+// calling for it. The two ways that breaks are a page template that kept its
+// own call to the bar, and an error page that was handed the shell it is
+// meant to go without.
+func TestTheShellIsDrawnOncePerPage(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	for _, path := range []string{
+		"/today", "/leaderboard", "/months", "/grid", "/players", "/search",
+		"/settings", "/privacy", "/admin/players", "/admin/pending",
+		"/admin/activity", "/admin/diagnostics",
+	} {
+		body := fetchAs(t, srv, path, session).Body.String()
+		if got := strings.Count(body, `<nav class="sidebar"`); got != 1 {
+			t.Errorf("%s draws the rail %d times, want 1", path, got)
+		}
+		if got := strings.Count(body, `<header class="topbar">`); got != 1 {
+			t.Errorf("%s draws the bar %d times, want 1", path, got)
+		}
+	}
+
+	// An error page is chrome for a stranger: no rail, no bar, no way into
+	// the rest of the application from a page that says there is nothing here.
+	notFound := fetchAs(t, srv, "/no-such-page", session).Body.String()
+	if strings.Contains(notFound, `<nav class="sidebar"`) || strings.Contains(notFound, `<header class="topbar">`) {
+		t.Error("a 404 renders the application shell")
+	}
+}
+
+// The drawer opens, closes and reports its state without a line of script:
+// it is a <details>, the browser owns the open state, and nothing here binds
+// a handler to it.
+func TestTheDrawerNeedsNoScript(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
+	if !strings.Contains(body, `<details class="drawer" name="topbar-menu">`) {
+		t.Error("the drawer is not a details element in the topbar-menu group")
+	}
+	if !strings.Contains(body, `<summary class="menu-btn drawer-btn"`) {
+		t.Error("the drawer has no summary to open it")
+	}
+	if strings.Contains(body, "onclick") {
+		t.Error("the drawer carries an inline event handler")
+	}
+	// Saying it is a modal dialog would be a claim this cannot keep: focus is
+	// free to leave an open drawer, and nothing server-rendered can hold it.
+	drawer, ok := sectionOf(body, `<details class="drawer"`, "</details>")
+	if !ok {
+		t.Fatal("the drawer is missing")
+	}
+	if strings.Contains(drawer, "aria-modal") || strings.Contains(drawer, `role="dialog"`) {
+		t.Error("the drawer claims to be a modal dialog it cannot behave as")
 	}
 }
 
@@ -344,16 +480,17 @@ func hrefOfClass(t *testing.T, body, class string) string {
 	return html.UnescapeString(rest[:strings.Index(rest, `"`)])
 }
 
-// The theme menu offers all three settings, marks the one in force, and
-// each row applies it.
-func TestThemeMenuOffersAllThree(t *testing.T) {
+// The theme control offers all three settings, marks the one in force, and
+// each of them applies it. They are icon links, so the label a reader gets is
+// the accessible name rather than text in the page.
+func TestThemeControlOffersAllThree(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
 	for _, label := range []string{"Light", "Dark", "System"} {
-		href := hrefFor(t, body, label)
+		href := hrefForName(t, body, label)
 		href = strings.ReplaceAll(href, "&amp;", "&")
 		rec := fetchAs(t, srv, href, nil)
 		if rec.Code != http.StatusOK {
@@ -365,9 +502,24 @@ func TestThemeMenuOffersAllThree(t *testing.T) {
 		}
 	}
 
-	// System is in force to begin with, and the menu says so.
-	if !strings.Contains(body, `class="menu-row on"`) {
-		t.Error("the menu does not mark the setting in force")
+	// System is in force to begin with, and the track says so.
+	if !strings.Contains(body, `class="theme-opt on"`) {
+		t.Error("the track does not mark the setting in force")
+	}
+
+	// And it sits between the two it chooses from: the middle of the track is
+	// "whichever of these two the device says", which is only legible if the
+	// two are either side of it.
+	at := map[string]int{}
+	for _, code := range []string{"light", "system", "dark"} {
+		// The first occurrence of each is its place in the track, which comes
+		// before the single cycling link the narrow bar uses.
+		if at[code] = strings.Index(body, "theme="+code+`"`); at[code] < 0 {
+			t.Fatalf("no link to the %s theme", code)
+		}
+	}
+	if !(at["light"] < at["system"] && at["system"] < at["dark"]) {
+		t.Errorf("the track reads %v, want system between light and dark", at)
 	}
 }
 
@@ -378,10 +530,17 @@ func TestPickersPreserveTheRestOfTheQuery(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/board?mode=hard&lang=sv", nil).Body.String()
-	dark := strings.ReplaceAll(hrefFor(t, body, "Mörkt"), "&amp;", "&")
+	dark := strings.ReplaceAll(hrefForName(t, body, "Mörkt"), "&amp;", "&")
 	for _, want := range []string{"mode=hard", "lang=sv", "theme=dark"} {
 		if !strings.Contains(dark, want) {
 			t.Errorf("the dark link %q dropped %q", dark, want)
+		}
+	}
+
+	narrow := strings.ReplaceAll(hrefFor(t, body, "Fäll ihop sidofältet"), "&amp;", "&")
+	for _, want := range []string{"mode=hard", "lang=sv", "sidebar=narrow"} {
+		if !strings.Contains(narrow, want) {
+			t.Errorf("the collapse link %q dropped %q", narrow, want)
 		}
 	}
 
@@ -461,24 +620,32 @@ func TestSharedBarOffersSignIn(t *testing.T) {
 	}
 }
 
-// The search button is the one topbar control with more than an icon in
-// it (icon, a word, a shortcut chip), and that is what earns it a border:
-// the theme and language pickers stay borderless icon buttons, same as
-// before, and only .search-btn's own rule adds one on top of .menu-btn's
-// still-transparent placeholder.
-func TestOnlyTheSearchButtonHasAVisibleBorder(t *testing.T) {
+// The bar stands on the surface and the page on the canvas, and the search
+// control takes the page's ground rather than the bar's — which is what makes
+// it read as a field cut into the bar instead of a button sitting on it.
+func TestTheSearchControlSitsOnThePagesGround(t *testing.T) {
 	srv := testServer(t)
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
 
-	menuBtn := cssRule(t, css, ".menu-btn {")
-	if !strings.Contains(menuBtn, "border: 1px solid transparent") {
-		t.Error(".menu-btn's border is no longer transparent — the theme and language pickers would grow one too")
+	bar := cssRule(t, css, ".topbar {")
+	if !strings.Contains(bar, "background: var(--color-surface)") {
+		t.Error("the bar does not stand on the surface")
 	}
 
 	searchBtn := cssRule(t, css, ".search-btn {")
-	if !strings.Contains(searchBtn, "border-color: var(--color-text-12)") {
-		t.Error(".search-btn does not override the border to something visible")
+	if !strings.Contains(searchBtn, "background: var(--color-canvas)") {
+		t.Error(".search-btn does not take the page's ground")
+	}
+
+	// The chip is a key cap: it steps back off that ground, which is what
+	// makes it read as raised out of the control.
+	shortcut := cssRule(t, css, ".search-shortcut {")
+	if !strings.Contains(shortcut, "font-size: var(--text-xs)") {
+		t.Error("the shortcut chip is not the smallest step")
+	}
+	if !strings.Contains(shortcut, "background: var(--color-surface-raised)") {
+		t.Error("the shortcut chip does not step off the control's ground")
 	}
 }
 
@@ -542,7 +709,7 @@ func TestSearchButtonLabelIsPresentButFaded(t *testing.T) {
 	}
 	tag := body[start : start+end]
 
-	if !strings.Contains(tag, `>Search<`) {
+	if !strings.Contains(tag, `>Search players and pages<`) {
 		t.Error("the search button lost its visible label")
 	}
 	if !strings.Contains(tag, `aria-label="Search"`) {
@@ -550,7 +717,7 @@ func TestSearchButtonLabelIsPresentButFaded(t *testing.T) {
 	}
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	if !strings.Contains(css, ".search-label { color: var(--color-text-45); }") {
+	if !strings.Contains(css, ".search-label { color: var(--color-text-45); flex: 1; text-align: left; }") {
 		t.Error("the search label is not styled as faded")
 	}
 }

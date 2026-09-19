@@ -74,7 +74,6 @@
   --color-text-08: oklch(.95 .006 65 / .08);
   --color-text-06: oklch(.95 .006 65 / .06);
   --color-text-04: oklch(.95 .006 65 / .04);
-  --color-text-02: oklch(.95 .006 65 / .02);
 
   --color-accent-80: oklch(.68 .14 155 / .8);
   --color-accent-60: oklch(.68 .14 155 / .6);
@@ -131,6 +130,9 @@
   --text-xs: 11px;
   --text-sm: 13px;
   --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 22px;
   --line-tight: 1.1;
 
   --transition-fast: .12s ease;
@@ -181,7 +183,6 @@
   --color-text-08: oklch(.22 .012 65 / .08);
   --color-text-06: oklch(.22 .012 65 / .06);
   --color-text-04: oklch(.22 .012 65 / .04);
-  --color-text-02: oklch(.22 .012 65 / .02);
   --color-accent-80: oklch(.55 .13 155 / .8);
   --color-accent-60: oklch(.55 .13 155 / .6);
   --color-accent-50: oklch(.55 .13 155 / .5);
@@ -237,7 +238,6 @@
     --color-text-08: oklch(.22 .012 65 / .08);
     --color-text-06: oklch(.22 .012 65 / .06);
     --color-text-04: oklch(.22 .012 65 / .04);
-    --color-text-02: oklch(.22 .012 65 / .02);
     --color-accent-80: oklch(.55 .13 155 / .8);
     --color-accent-60: oklch(.55 .13 155 / .6);
     --color-accent-50: oklch(.55 .13 155 / .5);
@@ -251,15 +251,14 @@
 
 body {
   margin: 0;
-  padding: 26px var(--space-card) 40px;
-  background: var(--color-canvas);
+  background: var(--color-surface);
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: var(--text-base);
   line-height: 1.55;
 }
 
-main { max-width: 1160px; margin: 0 auto; }
+main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space-card) 40px; }
 
 .site-footer {
   display: flex; align-items: center; justify-content: center; gap: 14px;
@@ -275,53 +274,248 @@ main { max-width: 1160px; margin: 0 auto; }
 }
 .footer-gh:hover, .footer-gh:focus-visible { color: var(--color-text-75); }
 
-/* One horizontal bar across the width, as the design has it: the mark and
-   the views on the left, the controls on the right. It was two separate
-   pills before. */
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  max-width: 1160px;
-  margin: 0 auto 18px;
-  padding: 5px 8px 5px 5px;
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  border: 1px solid var(--color-text-12);
-  box-shadow: var(--shadow-elevated);
-}
-.topbar-nav {
-  flex: 0 1 auto;
+/* The application shell: below the bar, a rail on the surface beside the page,
+   and the page itself in a well cut out of it — its own ground, its own edge,
+   and a corner turned where the two meet. The rail is sticky rather than
+   fixed, so the page is still one document with one scroll position: a fixed
+   rail with a scrollbar of its own is a second place to lose your place in. */
+.shell { display: flex; align-items: flex-start; min-height: calc(100vh - 56px); }
+.shell-main {
+  flex: 1;
   min-width: 0;
+  min-height: calc(100vh - 56px);
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.topbar-controls {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.topbar-divider { width: 1px; height: 22px; background: var(--color-text-10); margin: 0 3px; flex: none; }
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  padding: 3px 9px 3px 4px;
-  border-radius: var(--radius-md);
-  text-decoration: none;
-  color: var(--color-text);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  letter-spacing: -.01em;
+  flex-direction: column;
+  background: var(--color-canvas);
+  border: 1px solid var(--color-text-10);
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: var(--radius-lg) 0 0 0;
 }
 
+.sidebar {
+  position: sticky;
+  top: 56px;
+  flex: none;
+  width: 220px;
+  height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 14px 12px;
+  background: var(--color-surface);
+  overflow-y: auto;
+}
+.nav-rows { display: flex; flex-direction: column; gap: 2px; }
+.nav-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  box-sizing: border-box;
+  padding: 0 11px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-60);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.nav-row:hover { background: var(--color-text-06); color: var(--color-text); }
+.nav-row.on { background: var(--color-accent-14); color: var(--color-accent-strong); font-weight: 600; }
+.nav-row .nav-icon { flex: none; }
+.nav-collapse { margin-top: auto; color: var(--color-text-45); }
+
+/* Collapsed to its icons. The labels are hidden from the eye and not from a
+   screen reader: display:none would leave every row an icon with no
+   accessible name at all, which is worse than the width it saves. */
+:root[data-sidebar="narrow"] .sidebar { width: 72px; padding-left: 10px; padding-right: 10px; }
+:root[data-sidebar="narrow"] .sidebar .brand,
+:root[data-sidebar="narrow"] .sidebar .nav-row { justify-content: center; padding-left: 0; padding-right: 0; gap: 0; }
+:root[data-sidebar="narrow"] .sidebar .nav-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Gets out of the way until it is focused, which is the only time it is for
+   anybody. It earns its place now that six rows of navigation come before the
+   content of every page. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 500;
+  padding: 10px 14px;
+  border-radius: 0 0 var(--radius-md) 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-text-12);
+  color: var(--color-text);
+  text-decoration: none;
+}
+.skip-link:focus { left: 0; }
+
+/* One bar across the whole width: the wordmark at the left, search in the
+   middle, the controls at the right. It sits above the rail rather than beside
+   it, so the wordmark holds one place at every width and the rail below is
+   only ever navigation. No rule under it — the well the page sits in draws its
+   own edge. */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding: 0 14px;
+  background: var(--color-surface);
+}
+.topbar-lead { flex: none; display: flex; align-items: center; gap: 10px; }
+.topbar-search { flex: 1; min-width: 0; display: flex; justify-content: center; }
+.topbar-controls { flex: none; display: flex; align-items: center; gap: 8px; }
+.topbar .brand { padding: 0 6px; flex: none; }
+
+/* Three links in a track, the one in force filled. Not a menu: there are
+   three choices and they all fit, so making a reader open something first
+   would be a click spent on nothing. */
+.theme-track {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-text-12);
+}
+.theme-opt {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-circle);
+  color: var(--color-text-50);
+}
+.theme-opt svg { display: block; }
+.theme-opt:hover { color: var(--color-text); }
+.theme-opt.on { background: var(--color-accent); color: var(--color-canvas); }
+.theme-opt:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
+/* The same three settings for a bar with room for one control. Qualified by
+   the bar it sits in, because .menu-btn gives it a display of its own further
+   down the file and would otherwise win on source order. */
+.topbar-controls .theme-cycle { display: none; }
+
+/* Every icon-only control in the bar is the same circle, as the design has
+   it: at this size a bare icon on the canvas reads as decoration rather than
+   as something to press. The language control is the exception — it carries
+   a word, so it is a pill wide enough to hold one. */
+.topbar .drawer-btn,
+.topbar-controls .theme-cycle {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+  border-radius: var(--radius-circle);
+  background: var(--color-surface-raised);
+  border-color: var(--color-text-12);
+}
+.topbar .drawer-btn:hover,
+.topbar-controls .theme-cycle:hover { background: var(--color-text-08); }
+
+/* A pill carrying the code rather than a flag alone. The two flags this app
+   draws are a blue-and-yellow cross and a blue-and-red one, and at 16px
+   telling them apart is a second look; the code is not. The flags stay in
+   the menu below, where there is room to read them. */
+.lang-btn {
+  height: 32px;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  border-color: var(--color-text-12);
+}
+.lang-btn:hover { background: var(--color-text-08); }
+.lang-code {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.drawer { display: none; }
+.drawer > summary { list-style: none; cursor: pointer; }
+.drawer > summary::-webkit-details-marker { display: none; }
+/* One of the two glyphs, decided by the element's own open state — which is
+   something CSS can read and a template cannot. */
+.drawer:not([open]) .drawer-open,
+.drawer[open] .drawer-shut { display: none; }
+.drawer-shut, .drawer-open { display: flex; }
+
+@media (max-width: 860px) {
+  .sidebar { display: none; }
+  .drawer { display: block; }
+  /* The shell is the page alone, and the well's turned corner with it: there
+     is no rail beside it to turn away from. */
+  .shell-main { border: 0; border-radius: 0; }
+  /* The mark keeps its place; the words beside it do not fit a phone's bar
+     next to everything else it has to hold. */
+  .topbar .brand-id { display: none; }
+  .theme-track { display: none; }
+  .topbar-controls .theme-cycle { display: inline-flex; }
+
+  /* Open, a dim hangs off the summary over everything below the bar. Clicking
+     it is clicking the control again — no script, and no second close button
+     to keep in step with the first. The button itself stays put and shows a
+     cross, so the way out is where the way in was. */
+  .drawer[open] > summary::after {
+    content: "";
+    position: fixed;
+    top: 56px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 390;
+    background: oklch(0 0 0 / .45);
+  }
+  .drawer-panel { display: none; }
+  .drawer[open] > .drawer-panel {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    bottom: 0;
+    z-index: 400;
+    width: min(260px, 78vw);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 14px;
+    background: var(--color-surface);
+    border-right: 1px solid var(--color-text-10);
+    overflow-y: auto;
+  }
+  /* The drawer is already at its full width, so there is nothing here to
+     collapse. */
+  .drawer-panel .nav-collapse { display: none; }
+  /* Holds the page still behind an open drawer. Where :has() is not
+     understood the page scrolls behind it, which is untidy and not broken. */
+  body:has(.drawer[open]) { overflow: hidden; }
+}
+
+/* The design system's badge: a pill, in a neutral tone by default and the
+   accent tone when it reports something switched on. */
 .badge {
-  font-size: 11px; padding: 3px 9px; border-radius: var(--radius-sm);
-  border: 1px solid var(--color-accent-50); color: var(--color-accent-strong);
+  display: inline-flex; align-items: center;
+  font-size: var(--text-xs); font-weight: 600; padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-text-12);
+  color: var(--color-text-50);
 }
 .muted { color: var(--color-text-50); }
 .small { font-size: 11px; }
@@ -338,7 +532,7 @@ main { max-width: 1160px; margin: 0 auto; }
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-text-10);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-elevated);
   min-width: 0;
   overflow-x: auto;
@@ -377,11 +571,13 @@ main { max-width: 1160px; margin: 0 auto; }
   border-bottom: 1px solid var(--color-text-10);
 }
 .card-head h1 {
-  margin: 0; font-size: 17px; font-weight: 500; letter-spacing: -.015em;
+  margin: 0; font-size: var(--text-xl); font-weight: 700; letter-spacing: -.015em;
 }
+/* The small uppercase label above or beside a heading. Semibold because at
+   11px with this much letter-spacing a regular weight goes to grey mush. */
 .kicker {
-  margin: 2px 0 0; font-size: 10px; text-transform: uppercase;
-  letter-spacing: .08em; color: var(--color-text-40);
+  margin: 2px 0 0; font-size: var(--text-xs); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .08em; color: var(--color-text-40);
 }
 
 .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -407,13 +603,19 @@ main { max-width: 1160px; margin: 0 auto; }
 .empty p { margin: 0 0 6px; }
 
 .board { width: 100%; border-collapse: collapse; }
+/* Cells carry a narrow gutter and the row's outer edges carry the card's, so
+   that ten columns spend their width on figures rather than on padding. At
+   the card gutter on every cell the board lost its last three columns off
+   the edge of a laptop. */
 .board th {
-  padding: 9px var(--space-card); text-align: left;
-  font-size: 10px; font-weight: 400; text-transform: uppercase;
-  letter-spacing: .08em; color: var(--color-text-40);
+  padding: 9px 6px; text-align: left;
+  font-size: var(--text-xs); font-weight: 600; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--color-text-40);
   border-bottom: 1px solid var(--color-text-10);
 }
-.board td { padding: 11px var(--space-card); border-bottom: 1px solid var(--color-text-06); }
+.board td { padding: 11px 6px; border-bottom: 1px solid var(--color-text-06); }
+.board th:first-child, .board td:first-child { padding-left: var(--space-card); }
+.board th:last-child, .board td:last-child { padding-right: var(--space-card); }
 .board .right { text-align: right; }
 .num { font-variant-numeric: tabular-nums; }
 /* white-space: nowrap, not just on .delta: the score and its delta sit in
@@ -421,13 +623,14 @@ main { max-width: 1160px; margin: 0 auto; }
    is a break point too — a narrow Form column wrapped the whole cell
    between the score and the arrow, not just inside the delta. */
 .board td.num { color: var(--color-text-60); font-size: var(--text-sm); white-space: nowrap; }
-.board td.strong { color: var(--color-text); font-size: 17px; font-weight: 500; }
+.board td.strong { color: var(--color-text); font-size: var(--text-md); font-weight: 700; }
 
 .player { color: inherit; text-decoration: none; font-size: 15px; font-weight: 500; }
 .player:hover { color: var(--color-accent-strong); }
 
 .chip {
-  margin-left: 8px; font-size: 10px; padding: 2px 6px; border-radius: var(--radius-sm);
+  margin-left: 8px; font-size: var(--text-xs); font-weight: 500;
+  padding: 2px 8px; border-radius: var(--radius-pill);
   border: 1px solid var(--color-text-16); color: var(--color-text-55);
 }
 
@@ -460,7 +663,11 @@ tr.unranked td.strong { color: var(--color-text-45); }
 tr.unranked .muted { color: var(--color-text-30); }
 tr.unranked .chip-pop > summary { color: var(--color-text-35); border-color: var(--color-text-10); }
 
-.spark-col { width: 30%; min-width: 160px; }
+/* A fixed, narrow column rather than a share of the table. At 30% it took
+   a third of the board and pushed the last three columns off the edge on a
+   laptop; the line it draws is a shape, not a reading, and it reads the same
+   at this width. */
+.spark-col { width: 150px; min-width: 120px; }
 .spark-col svg { display: block; width: 100%; height: 30px; }
 svg .group { fill: none; stroke: var(--color-text-45); stroke-width: 1.5; stroke-dasharray: 5 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
@@ -478,7 +685,10 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 }
 
 @media (max-width: 720px) {
-  body { padding: 16px 12px 30px; }
+  /* The page column tightens; the body does not. Padding on the body insets
+     the whole shell, which on a phone left the bar floating in a margin with
+     a rule down both sides of it instead of sitting across the top. */
+  main { padding: 16px 12px 30px; }
   .board th, .board td { padding: 9px 12px; }
   .spark-col { display: none; }
   .window-col { display: none; }
@@ -561,9 +771,21 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   color: var(--color-text-50);
   margin-bottom: 4px;
 }
-.figures dd { margin: 0; font-size: 1.25rem; }
+.figures dd { margin: 0; font-size: var(--text-lg); font-weight: 700; }
 
-.chart-wrap { display: flex; gap: 10px; align-items: stretch; }
+.chart-wrap { display: flex; gap: 8px; align-items: stretch; }
+/* Under the plot, and indented past the scale so the first mark sits over the
+   start of the line rather than over the labels beside it. */
+.chart-x {
+  display: flex;
+  justify-content: space-between;
+  list-style: none;
+  margin: 4px 0 0 28px;
+  padding: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-40);
+  font-variant-numeric: tabular-nums;
+}
 .chart {
   flex: 1;
   height: 140px;
@@ -585,22 +807,25 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   stroke-dasharray: 4 4;
   vector-effect: non-scaling-stroke;
 }
-/* The scale is a plain list beside the chart rather than SVG text, so it
-   does not stretch with preserveAspectRatio="none". */
+/* The scale is a plain list beside the chart rather than SVG text, so it does
+   not stretch with preserveAspectRatio="none". Each label is placed from the
+   offset of the rule it names rather than spread evenly down the column: the
+   two agreed only as long as the rules were evenly spread, which they stopped
+   being when the scale took an inset. */
 .scale {
+  position: relative;
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  flex: none;
+  width: 20px;
   height: 140px;
+  text-align: right;
   font-size: var(--text-xs);
   color: var(--color-text-40);
   font-variant-numeric: tabular-nums;
 }
-.scale li { line-height: 1; transform: translateY(-50%); }
-.scale li:first-child { transform: none; }
+.scale li { position: absolute; right: 0; line-height: 1; transform: translateY(-50%); }
 
 .dist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .dist li {
@@ -696,7 +921,13 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   font-weight: 600;
   margin-top: 12px;
 }
+/* Every text-like input a form here carries, not only type="text": the email
+   and password fields on Settings matched none of this and were drawn by the
+   browser, with a near-black default border in the middle of a page that has
+   no other black line on it. */
 .form input[type="text"],
+.form input[type="email"],
+.form input[type="password"],
 .form select {
   font: inherit;
   color: var(--color-text);
@@ -707,6 +938,8 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   width: 100%;
 }
 .form input[type="text"]:focus,
+.form input[type="email"]:focus,
+.form input[type="password"]:focus,
 .form select:focus { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
 .form .hint { margin: 0; font-size: var(--text-sm); color: var(--color-text-45); }
 .form .check {
@@ -836,14 +1069,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   padding: 44px;
   display: flex; flex-direction: column; justify-content: center;
 }
-.brand-lg { display: inline-flex; margin-bottom: 22px; }
-.brand-lg .mark {
-  grid-template-columns: repeat(3, 14px);
-  grid-template-rows: repeat(3, 14px);
-  gap: 4px;
-  padding: 7px;
-  border-radius: var(--radius-md);
-}
 .signin h1 { font-size: 1.8rem; letter-spacing: -.02em; line-height: var(--line-tight); margin: 0; }
 .signin-sub { margin: 11px 0 0; font-size: var(--text-sm); line-height: 1.5; color: var(--color-text-55); max-width: 44ch; }
 .signin-form { max-width: 340px; margin-top: 20px; }
@@ -865,15 +1090,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
    two, the two-factor step two others, the reset page one — so the pickers
    sat at a different height on each and jumped when moving between them.
    Nothing above this row varies. */
-.auth-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 22px;
-}
-.auth-top .brand-lg { margin-bottom: 0; }
-.signin-switchers { display: flex; gap: 8px; }
 
 .signin-aside {
   border-left: 1px solid var(--color-text-10);
@@ -902,7 +1118,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 /* ---- Today ------------------------------------------------------------ */
 
-.today { display: grid; gap: 20px; }
 .today-head { padding-top: 22px; padding-bottom: 20px; border-bottom: 1px solid var(--color-text-10); }
 .today .kicker .accent { color: var(--color-accent); letter-spacing: .14em; text-transform: uppercase; }
 .today-hero { display: flex; gap: 30px; align-items: flex-end; flex-wrap: wrap; margin-top: 16px; }
@@ -917,7 +1132,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .chips { display: flex; flex-wrap: wrap; gap: 5px; list-style: none; margin: 6px 0 0; padding: 0; }
 .chip.dashed { border: 1px dashed var(--color-text-20); background: transparent; color: var(--color-text-50); }
 
-.today-filed { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 20px 0 0; padding: 0 var(--space-card); }
+.today-filed { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 20px 0 0; padding: 0; }
 .today-filed li { display: flex; align-items: center; gap: 7px; font-size: var(--text-sm); }
 .today-filed a { color: var(--color-text-80); text-decoration: none; }
 .today-filed a:hover { color: var(--color-text); }
@@ -942,10 +1157,17 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
    around the popup itself. */
 .callout, .podium-card { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
 .callout .accent { color: var(--color-accent); }
-.callout-text { font-size: 1rem; line-height: 1.35; letter-spacing: -.01em; margin: 6px 0 0; }
+.callout-text { font-size: var(--text-md); line-height: 1.35; letter-spacing: -.01em; margin: 6px 0 0; }
 .callout-meta { margin: 9px 0 0; font-size: var(--text-xs); color: var(--color-text-40); font-variant-numeric: tabular-nums; }
 
-.today-form { padding-top: 22px; }
+/* Full-bleed, so the table inside it reaches the card's edges the way every
+   other table on the site does — its cells carry the gutter. The blocks
+   beside the table take the gutter themselves. */
+.today-form { padding-top: 22px; border-top: 1px solid var(--color-text-10); }
+.card > .today-form { padding-left: 0; padding-right: 0; }
+.today-form > .kicker,
+.today-form > .podium,
+.today-form > .bench-section { padding-left: var(--space-card); padding-right: var(--space-card); }
 .today-form > .card-foot { margin-top: 16px; border-top: 1px solid var(--color-text-10); }
 .podium { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
 .podium-card {
@@ -1021,10 +1243,12 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 /* A fixed number of months in view, scrolling for the rest, rather than
    letting each one shrink until the words are cut. About four fit; the
    snap points make a flick land on a chip rather than between two. */
+/* A row of separate cards rather than tiles on a shared slab. The slab was a
+   1px-gap background standing in for dividers, which with two months in the
+   season showed as an empty grey band across the rest of the card. */
 .month-chips {
   display: flex;
-  gap: 1px;
-  background: var(--color-text-10);
+  gap: 8px;
   list-style: none;
   margin: 16px 0 0;
   padding: 0;
@@ -1033,20 +1257,21 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   scrollbar-width: thin;
 }
 .month-chips li {
-  flex: 0 0 max(11rem, calc(25% - 1px));
+  flex: 0 0 max(11rem, calc(25% - 6px));
   scroll-snap-align: start;
 }
 .month-chip {
   display: block;
-  padding: 14px 18px 15px;
+  padding: 10px 14px 11px;
   background: var(--color-surface);
+  border: 1px solid var(--color-text-12);
+  border-radius: var(--radius-md);
   text-decoration: none;
   color: inherit;
-  border-bottom: 2px solid transparent;
   height: 100%;
 }
 .month-chip:hover { background: var(--color-text-04); }
-.month-chip.on { background: var(--color-surface-raised); border-bottom-color: var(--color-accent); }
+.month-chip.on { background: var(--color-accent-14); border-color: var(--color-accent-50); }
 /* Two lines, and only two: an abbreviated month keeps the head on one line
    and the name is clipped rather than wrapped, so a long winner or a tie
    cannot push the row of chips to three times its height. */
@@ -1216,12 +1441,12 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 /* The box fills its column, inset by the design's 2px, so it is centred
    under the name above it whatever the column works out to. */
 .grid tbody .cell {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: auto;
-  height: 20px;
-  margin: 2px;
+  width: 22px;
+  height: 22px;
+  margin: 2px auto;
   border-radius: var(--radius-xs);
   font-size: var(--text-xs);
 }
@@ -1357,27 +1582,36 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 /* A plain link styled like the picker buttons beside it, not a <details>
    summary, so its focus outline is set directly rather than through the
    `.menu > summary:focus-visible` rule those use. */
+/* Icon, a word and a shortcut chip, held together by a tint rather than an
+   outline. A box outline around the one wide control in the bar reads as a
+   field you can type into, which this is not — it is a link to the search
+   page, and the overlay it opens has the real input. */
 .search-btn {
-  width: auto;
+  width: min(420px, 100%);
+  height: 34px;
   gap: 8px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-canvas);
+  border-color: var(--color-text-10);
   text-decoration: none;
-  /* The one topbar button with more than an icon in it — icon, a word,
-     a shortcut chip — reads as three loose parts without a border to
-     say they are one control. The theme and language pickers stay
-     borderless: each is just an icon, which .menu-btn's own hover
-     background already sets off clearly enough on its own. */
-  border-color: var(--color-text-12);
 }
+.search-btn:hover { border-color: var(--color-text-16); }
 .search-btn:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
 /* Present, but quiet: the icon already says "search", so the word is a
    hint for anyone who wants it rather than a second copy of the same
    information at full strength. */
-.search-label { color: var(--color-text-45); }
+.search-label { color: var(--color-text-45); flex: 1; text-align: left; }
+/* A key cap, so it reads as something to press. It sits on the surface the
+   bar's tint is struck from, which is what makes it look raised out of the
+   control rather than drawn on it. */
 .search-shortcut {
-  padding: 1px 6px;
+  padding: 2px 6px;
   border-radius: var(--radius-xs);
-  border: 1px solid var(--color-text-16);
-  font-size: var(--text-sm);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-text-12);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
   color: var(--color-text-50);
 }
 
@@ -1459,8 +1693,17 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .search-overlay-results .search-hits { margin: 4px 0; }
 .search-overlay-results .kicker { margin: 6px 0 2px; padding: 6px 10px 0; }
 
-@media (max-width: 720px) {
+@media (max-width: 860px) {
   .search-label, .search-shortcut { display: none; }
+  /* Icon only, and the same circle as its neighbours. */
+  .search-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
+    border-radius: var(--radius-circle);
+    border-color: var(--color-text-12);
+  }
   /* Icon only: the label repeats what the icon already says, and this is
      exactly the width where the bar is already tight — see the two
      rules above it. aria-label on the anchor carries the accessible
@@ -1637,43 +1880,20 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
    the top bar keeps the mark and the controls, and the views move to their
    own scrolling row directly under it — the same pills, rather than a
    second kind of navigation to keep in step with the first. */
-.views-mobile { display: none; }
-
-@media (max-width: 720px) {
-  .views-mobile {
-    display: flex;
-    gap: 4px;
-    max-width: 1160px;
-    margin: -8px auto 16px;
-    padding: 4px;
-    border-radius: var(--radius-md);
-    background: var(--color-surface);
-    border: 1px solid var(--color-text-12);
-    box-shadow: var(--shadow-elevated);
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .views-mobile::-webkit-scrollbar { display: none; }
-  .views-mobile .pill-nav-item { flex: none; white-space: nowrap; }
-
-  /* The views leave the top bar so it does not wrap to three rows. */
-  .topbar-nav .pill-nav-item,
-  .topbar-divider { display: none; }
-}
-
 /* ---- Nicknames --------------------------------------------------------- */
 
 /* Earned from the figures rather than stored, so they come and go. Styled
    as a quiet marker beside the name, not as a second heading. */
 .trait {
   display: inline-block;
-  font-size: var(--text-sm);
-  font-weight: 400;
+  font-size: var(--text-xs);
+  font-weight: 600;
   letter-spacing: .01em;
-  padding: 3px 9px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-accent-50);
-  color: var(--color-accent-strong);
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-text-12);
+  color: var(--color-text-50);
   vertical-align: middle;
   cursor: help;
 }
@@ -1698,15 +1918,15 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   padding: 0 16px;
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--color-accent-strong);
-  background: transparent;
-  border: 1px solid var(--color-accent);
+  font-weight: 600;
+  color: var(--color-canvas);
+  background: var(--color-accent);
+  border: 1px solid transparent;
   text-decoration: none;
   white-space: nowrap;
 }
-.btn-primary:hover { background: var(--color-accent-14); }
-.btn-primary:active { background: var(--color-accent-22); }
+.btn-primary:hover { background: var(--color-accent-strong); }
+.btn-primary:active { background: var(--color-accent-strong); }
 .btn-primary:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
 .btn-primary svg { display: block; flex: none; }
 
@@ -1746,12 +1966,16 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   border-bottom: 1px solid var(--color-text-10);
 }
 .avatar.big { width: 44px; height: 44px; font-size: 1rem; }
-.settings-name { font-size: 1.1rem; font-weight: 500; letter-spacing: -.015em; }
+.settings-name { font-size: var(--text-lg); font-weight: 600; letter-spacing: -.015em; }
 .settings-section { padding-top: 6px; padding-bottom: 22px; border-bottom: 1px solid var(--color-text-08); }
 .settings-section:last-child { border-bottom: 0; }
 .settings-section .form { max-width: 26rem; }
 .settings-state { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; }
-.badge.on { color: var(--color-accent-strong); border-color: var(--color-accent-50); }
+.badge.on {
+  background: var(--color-accent-14);
+  border-color: transparent;
+  color: var(--color-accent-strong);
+}
 
 /* ---- Two-factor -------------------------------------------------------- */
 
@@ -1998,6 +2222,7 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   font: inherit;
   font-size: var(--text-sm);
   font-weight: 500;
+  height: 32px;
   color: var(--color-text-80);
   background: transparent;
   border: 1px solid var(--color-text-16);
@@ -2005,6 +2230,19 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   padding: 0 14px;
   cursor: pointer;
 }
+/* The admin's inline selects, which matched no rule and so were drawn by the
+   browser — the same near-black default the Settings fields had. */
+.inline-field select {
+  font: inherit;
+  font-size: var(--text-sm);
+  height: 32px;
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-text-12);
+  border-radius: var(--radius-md);
+  padding: 0 8px;
+}
+.inline-field select:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
 .inline-field button:hover { border-color: var(--color-accent-60); color: var(--color-text); }
 
 /* .season opts out of the card's shared gutter (like table-scroll does)
@@ -2026,9 +2264,15 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 }
 .season-head .small { text-transform: none; letter-spacing: 0; }
 .medal {
+  display: inline-flex;
+  align-items: center;
   font-size: var(--text-xs);
+  font-weight: 600;
   letter-spacing: .06em;
   text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-14);
   color: var(--color-accent-strong);
   white-space: nowrap;
 }
