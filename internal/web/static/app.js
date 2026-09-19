@@ -259,3 +259,57 @@
     links[index].scrollIntoView({ block: "nearest" });
   });
 })();
+
+// Collapsing the rail without the round trip.
+//
+// The control is a link and stays one: following it re-renders the page at the
+// other width and the server remembers the choice in a cookie. That is the
+// whole feature, and it works with this file absent, disabled, or failing to
+// load. What this adds is doing the visible half here — flipping the width
+// attribute on <html>, which is what the stylesheet keys the rail off — and
+// asking the server for the same URL in the background so the cookie is right
+// for the next page load. Nothing is rendered from script: the wording, the
+// arrow and the accessible name all follow that one attribute through CSS.
+//
+// If the background request fails, this page keeps the width just chosen and
+// the next one goes back to the stored width. A modified click (new tab, new
+// window) is left alone to do what was asked of it.
+(function () {
+  "use strict";
+
+  var toggle = document.querySelector(".nav-collapse");
+  if (!toggle) return; // Signed out, or a page with no rail.
+  if (!window.fetch) return; // Without it the link is still the whole feature.
+
+  toggle.addEventListener("click", function (event) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+    event.preventDefault();
+
+    var root = document.documentElement;
+    var next = root.getAttribute("data-sidebar") === "narrow" ? "wide" : "narrow";
+
+    // Read both before anything moves: one is the width being applied, which
+    // is what the server has to be told, and the other is where the link
+    // points afterwards. Taking them in the wrong order stores the width the
+    // reader just left.
+    var applied = next === "narrow" ? toggle.dataset.hrefNarrow : toggle.dataset.hrefWide;
+    var other = next === "narrow" ? toggle.dataset.hrefWide : toggle.dataset.hrefNarrow;
+
+    root.setAttribute("data-sidebar", next);
+
+    // Point the link at the other width, for the next press and for anyone
+    // who opens it in a tab of its own.
+    if (other) toggle.setAttribute("href", other);
+
+    // The label now showing is the one describing the next press, so the
+    // tooltip comes from the DOM rather than from a copy kept here.
+    var label = toggle.querySelector(".nav-label .to-" + (next === "narrow" ? "wide" : "narrow"));
+    if (label) toggle.setAttribute("title", label.textContent.trim());
+
+    // HEAD rather than GET: the handler still runs and still sets the cookie,
+    // and a page's worth of HTML is not worth transferring to discard.
+    if (applied) fetch(applied, { method: "HEAD", credentials: "same-origin" }).catch(function () {});
+  });
+})();

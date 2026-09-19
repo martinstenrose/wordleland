@@ -92,8 +92,16 @@ type chrome struct {
 	Sidebar string
 
 	// SidebarToggle is the collapse/expand control: a link back to this URL
-	// with the other width, exactly as the two switchers are.
+	// with the other width, exactly as the two switchers are. Following it
+	// works with no script at all.
 	SidebarToggle chromeOpt
+
+	// SidebarWideHref and SidebarNarrowHref are that same control's two
+	// destinations. app.js flips the rail without a round trip and needs the
+	// other one to point the link at afterwards; the server renders whichever
+	// applies now into SidebarToggle.Href for a reader with no script.
+	SidebarWideHref   string
+	SidebarNarrowHref string
 
 	// ThemeNext is the theme the single-button control moves to, for a bar
 	// too narrow to carry all three.
@@ -260,6 +268,8 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 	}
 	toggle.Href = urlWith(r, "sidebar", toggle.Code)
 	c.SidebarToggle = toggle
+	c.SidebarWideHref = urlWith(r, "sidebar", sidebarWide)
+	c.SidebarNarrowHref = urlWith(r, "sidebar", sidebarNarrow)
 
 	if user, ok := authenticated(r); ok && !readOnly {
 		c.User = &user

@@ -305,6 +305,10 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   padding: 6px 14px 12px;
   background: var(--color-surface);
   overflow-y: auto;
+  transition: width .15s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar { transition: none; }
 }
 .nav-rows { display: flex; flex-direction: column; gap: 2px; }
 .nav-row {
@@ -325,6 +329,12 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 .nav-row.on { background: var(--color-accent-14); color: var(--color-accent-strong); font-weight: 600; }
 .nav-row .nav-icon { flex: none; }
 .nav-collapse { margin-top: auto; color: var(--color-text-45); }
+/* The control says what pressing it will do, so the half that describes the
+   width already in force is the half to hide. Keyed off <html> rather than
+   rendered by the server, so app.js flipping that attribute is enough to
+   bring the wording, the arrow and the accessible name with it. */
+:root[data-sidebar="narrow"] .to-narrow,
+:root[data-sidebar="wide"] .to-wide { display: none; }
 
 /* Collapsed to its icons. The labels are hidden from the eye and not from a
    screen reader: display:none would leave every row an icon with no
