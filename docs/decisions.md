@@ -403,6 +403,55 @@ instance" section of README.md), and a fix would mean the roster knowing
 its eventual, database-unique slug before any player row exists, which it
 cannot today.
 
+## The look
+
+**The design lives outside this repository.** The palette, the type and radius
+scales, the component treatments and the shape of every screen come from the
+Stenröse design system, a Claude Design project, against which Wordleland was
+drawn page by page before any of it was built here. `internal/web/static/app.css`
+is that design expressed as tokens; `internal/web/static/README.md` documents
+each one.
+
+What follows from that: a value in the token block that looks arbitrary
+probably is not ours to re-pick on its own, and a change to the look is worth
+making there first. What does *not* follow is that the design is authoritative
+over this repository's constraints — three things were deliberately not taken
+from it:
+
+- **Its icon font.** The design pulls Material Symbols from Google Fonts. Icons
+  here stay inline SVG: a page that reaches a third party to finish rendering
+  is a page this app does not control, and one more party watching whoever
+  reads the board. Manrope is self-hosted for the same reason.
+- **Its shell.** The prototype is React, and its rail, drawer, theme picker and
+  collapse state are component state. Here the rail is server-rendered, the
+  drawer is a `<details>`, the theme is three links, and the collapsed width is
+  a cookie set by following a link — the same mechanism the theme has used all
+  along. That costs a round trip per collapse, which is the right price: the
+  alternative is script standing between a reader and a control that already
+  works without it.
+
+  The shape of that shell is the design's: a bar across the whole width
+  carrying the wordmark and the controls, and beneath it the rail on the
+  surface beside the page, the page itself in a well cut out of that surface
+  with its top-left corner turned. The bar spans the rail rather than sitting
+  beside it, which is what keeps the wordmark in one place at every width and
+  leaves the rail as navigation and nothing else.
+- **Its dark score ramp**, which it does not have. The design draws the
+  guess-count ramp light-first, and its pale end would glare on the dark
+  canvas; the dark ramp is derived here. Both ends are also pulled slightly
+  further apart than the design draws them, so that the digit each tile carries
+  clears 4.5:1 — the design's own tier-2 green put white text at about 3.2:1,
+  and at 11px that digit is the content rather than decoration.
+
+**What the drawer does not do.** It opens and closes with no script, and when
+it is open its summary becomes the dim behind the panel, so clicking away is
+clicking the control again. Esc does not close it, and focus is free to leave
+it for the page behind — a `<details>` gives neither, and nothing
+server-rendered can add them. It is therefore marked up as the disclosure it
+is and not as a modal dialog. None of that is verifiable here: this project has
+no headless browser, and adding one is a dependency that needs its own
+argument, so the drawer's behaviour is checked by looking at it.
+
 ## Deliberately not built
 
 - **Self-report in the browser** — a player filing their own result, by form or

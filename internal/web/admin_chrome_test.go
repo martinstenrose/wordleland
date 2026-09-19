@@ -121,80 +121,85 @@ func TestRosterSwitchHintIsNotUppercased(t *testing.T) {
 	}
 }
 
-// The pickers sit on the top row beside the mark. They used to flow after
-// the links at the foot of the card, and those links differ per page —
-// sign-in has two, the two-factor step two others, the reset page one — so
-// the pickers sat at a different height on each and jumped when moving
-// between pages. Nothing above the top row varies.
-func TestAuthPickersSitBesideTheMark(t *testing.T) {
+// The pickers sit in the top bar, in one fixed place on every page. They used
+// to flow after the links at the foot of the auth card, and those links differ
+// per page — sign-in has two, the two-factor step two others, the reset page
+// one — so the pickers sat at a different height on each and jumped when
+// moving between pages. Then they moved to a row of their own at the top of
+// each card, which fixed the jumping and left every auth page carrying its own
+// copy of the chrome; the shell carries it now, and the cards carry none.
+func TestAuthPickersAreInTheTopBarOnly(t *testing.T) {
 	srv := testServer(t)
-	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	if !strings.Contains(css, ".auth-top {") {
-		t.Fatal("the top row has no rule")
-	}
 
 	for _, path := range []string{"/", "/forgot-password", "/reset-password?token=x", "/invite?token=x"} {
 		body := fetchAs(t, srv, path, nil).Body.String()
 
-		top := strings.Index(body, `class="auth-top"`)
-		if top < 0 {
-			t.Errorf("%s has no top row", path)
+		bar := strings.Index(body, `<header class="topbar">`)
+		if bar < 0 {
+			t.Errorf("%s has no top bar", path)
 			continue
 		}
-		row := body[top:]
-		row = row[:strings.Index(row, "</div>")]
-		if !strings.Contains(row, "brand-lg") {
-			t.Errorf("%s: the mark is not on the top row", path)
-		}
-		if !strings.Contains(row, "signin-switchers") {
-			t.Errorf("%s: the pickers are not on the top row", path)
-		}
-
-		// Exactly one block, and nothing left behind in the footer.
-		if n := strings.Count(body, `class="signin-switchers"`); n != 1 {
-			t.Errorf("%s renders %d picker blocks, want 1", path, n)
-		}
-		if foot := strings.Index(body, `class="signin-foot"`); foot >= 0 && foot < top {
-			t.Errorf("%s renders the footer above the top row", path)
+		for _, control := range []string{`class="theme-track"`, `<details class="menu" name="topbar-menu">`} {
+			if n := strings.Count(body, control); n != 1 {
+				t.Errorf("%s renders %s %d times, want 1", path, control, n)
+			}
+			if strings.Index(body, control) < bar {
+				t.Errorf("%s renders %s outside the top bar", path, control)
+			}
 		}
 	}
 }
 
-// The top bar is one thing, built in one place. It used to be assembled per
+// The chrome is one thing, built in one place. It used to be assembled per
 // page, so the subtitle beside the wordmark appeared on the five board
 // views and vanished on Settings and in the admin area.
-func TestTopBarIsIdenticalOnEveryPage(t *testing.T) {
+//
+// The drawer is cut out before comparing: it carries the rail's rows, and
+// those are meant to differ — inside the admin area the four admin screens
+// hang under the admin row. That the drawer and the rail agree is
+// TestTheDrawerCarriesTheSameRowsAsTheRail's job.
+func TestTheChromeIsIdenticalOnEveryPage(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
 
-	bars := map[string]string{}
+	chromes := map[string]string{}
 	for _, path := range []string{
 		"/today", "/leaderboard", "/months", "/grid", "/players",
 		"/settings", "/admin/players", "/admin/pending", "/admin/activity",
 		"/admin/diagnostics",
 	} {
 		body := fetchAs(t, srv, path, session).Body.String()
+
 		bar := body[strings.Index(body, `class="topbar`):]
 		bar = bar[:strings.Index(bar, "</header>")]
+		if open := strings.Index(bar, `<details class="drawer"`); open >= 0 {
+			bar = bar[:open] + bar[strings.Index(bar, "</details>")+len("</details>"):]
+		}
+		// The wordmark and its subtitle live in the rail now, and they are
+		// the part of it that must not vary.
+		brand := body[strings.Index(body, `<nav class="sidebar"`):]
+		brand = brand[:strings.Index(brand, "</a>")]
+
+		combined := bar + brand
 		// Three things are meant to differ: which view is marked current,
 		// the theme and language links, which point back at the page you
 		// are on so switching keeps you there, and the sign-out form's
 		// CSRF token: these isolated requests do not share a cookie jar.
-		bar = strings.ReplaceAll(bar, " on", "")
-		bar = strings.ReplaceAll(bar, ` aria-current="page"`, "")
-		bar = selfLink.ReplaceAllString(bar, `href="?$1`)
-		bar = csrfValue.ReplaceAllString(bar, `name="csrf_token"`)
-		bars[path] = bar
+		combined = strings.ReplaceAll(combined, " on", "")
+		combined = strings.ReplaceAll(combined, ` aria-current="page"`, "")
+		combined = selfLink.ReplaceAllString(combined, `href="?$1`)
+		combined = csrfValue.ReplaceAllString(combined, `name="csrf_token"`)
+		chromes[path] = combined
 	}
 
-	want := bars["/today"]
+	want := chromes["/today"]
 	if !strings.Contains(want, "brand-sub") {
 		t.Fatal("the wordmark has no subtitle to compare")
 	}
-	for path, got := range bars {
+	for path, got := range chromes {
 		if got != want {
-			t.Errorf("%s renders a different top bar than /today", path)
+			t.Errorf("%s renders different chrome than /today", path)
 		}
 	}
 }
@@ -209,31 +214,63 @@ func TestTopBarSubtitleIsNotShownSignedOut(t *testing.T) {
 	}
 }
 
-// One nav, shown the same way at both widths, with a brand link to Today.
-func TestNavIsOneListAndTheWordmarkLinksToToday(t *testing.T) {
+// The views live in the rail; the wordmark lives in the bar above it, where
+// it holds one place at every width — the rail is only ever navigation.
+func TestTheRailCarriesEveryViewAndTheBarTheWordmark(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
 
 	body := fetchAs(t, srv, "/leaderboard", session).Body.String()
-	header := body[strings.Index(body, `class="topbar`):strings.Index(body, "</header>")]
+	rail := body[strings.Index(body, `<nav class="sidebar"`):]
+	rail = rail[:strings.Index(rail, "</nav>")]
 
 	for _, view := range []string{"Today", "Leaderboard", "Months", "Grid", "Players"} {
-		if !strings.Contains(header, ">"+view+"<") {
-			t.Errorf("the top bar is missing %q", view)
+		if !strings.Contains(rail, ">"+view+"<") {
+			t.Errorf("the rail is missing %q", view)
+		}
+	}
+	if strings.Contains(rail, `class="brand"`) {
+		t.Error("the rail carries the wordmark, which belongs in the bar")
+	}
+
+	bar := body[strings.Index(body, `<header class="topbar">`):]
+	bar = bar[:strings.Index(bar, "</header>")]
+	if !strings.Contains(bar, `<a class="brand" href="/today">`) {
+		t.Error("the bar's wordmark does not link to Today")
+	}
+
+	// And the bar is above the shell rather than inside it, which is what
+	// lets it span the rail as well as the page.
+	if strings.Index(body, `<header class="topbar">`) > strings.Index(body, `<div class="shell">`) {
+		t.Error("the bar is rendered inside the shell rather than above it")
+	}
+}
+
+// The rail says where in the application you are; which screen inside the
+// admin area you are on is the strip at the top of that screen's job. One row
+// for the area, not five — and the four screens listed in both places would
+// be two lists of the same destinations to keep in step.
+func TestTheRailCarriesOneAdminRow(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	body := fetchAs(t, srv, "/admin/pending", session).Body.String()
+	rail := body[strings.Index(body, `<nav class="sidebar"`):]
+	rail = rail[:strings.Index(rail, "</nav>")]
+
+	if !strings.Contains(rail, ">Admin area<") {
+		t.Error("the rail does not offer the admin area")
+	}
+	for _, screen := range []string{"Pending results", "Activity log", "Diagnostics"} {
+		if strings.Contains(rail, ">"+screen+"<") {
+			t.Errorf("the rail lists %q, which the page's own strip carries", screen)
 		}
 	}
 
-	if !strings.Contains(header, `<a class="brand" href="/today">`) {
-		t.Error("the wordmark does not link to Today")
-	}
-
-	// And the desktop row and the narrow row are the same list.
-	mobile := body[strings.Index(body, `class="views-mobile"`):]
-	mobile = mobile[:strings.Index(mobile, "</nav>")]
-	for _, view := range []string{"Today", "Leaderboard", "Months", "Grid", "Players"} {
-		if !strings.Contains(mobile, ">"+view+"<") {
-			t.Errorf("the narrow row is missing %q", view)
-		}
+	// And that strip is on the page.
+	if !strings.Contains(body, `class="pill-nav"`) {
+		t.Error("the admin screen has no tab strip")
 	}
 }

@@ -504,6 +504,25 @@ func hrefFor(t *testing.T, body, text string) string {
 	return html.UnescapeString(rest[:strings.Index(rest, `"`)])
 }
 
+// hrefForName is hrefFor for a control whose name is its aria-label rather
+// than text in the page — an icon link, such as one of the three theme
+// settings.
+func hrefForName(t *testing.T, body, name string) string {
+	t.Helper()
+	at := strings.Index(body, `aria-label="`+name+`"`)
+	if at < 0 {
+		t.Fatalf("no control named %q on the page", name)
+	}
+	tag := body[strings.LastIndex(body[:at], "<a "):]
+	tag = tag[:strings.Index(tag, ">")]
+	j := strings.Index(tag, `href="`)
+	if j < 0 {
+		t.Fatalf("control %q has no href", name)
+	}
+	rest := tag[j+len(`href="`):]
+	return html.UnescapeString(rest[:strings.Index(rest, `"`)])
+}
+
 // The controls have to work on the authenticated board too, not only on the
 // shared one. They were built from the share prefix, which is empty on
 // /leaderboard, so every control pointed at "/" — the login route — and doing

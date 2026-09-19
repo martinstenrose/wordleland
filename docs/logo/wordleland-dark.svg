@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 34" width="34" height="34" role="img" aria-labelledby="t">
+  <title id="t">Wordleland</title>
+  <!-- The app mark, for a dark background: a 3x3 grid solving on the
+       diagonal — three guesses in at the top left, two in the middle, one at
+       the bottom right. The fills are the flat sRGB equivalents of the
+       board's own score ramp in dark mode (internal/web/static/app.css),
+       which runs the other way: a strong fill is bright here and deep in
+       light mode. Nothing here is translucent: a logo is drawn against a
+       background it does not know. -->
+  <rect x=".5" y=".5" width="33" height="33" rx="7.5" fill="#312a23" stroke="#292420"/>
+  <g>
+    <rect x="4"  y="4"  width="8" height="8" rx="2" fill="#156f41"/>
+    <rect x="13" y="4"  width="8" height="8" rx="2" fill="#403933"/>
+    <rect x="22" y="4"  width="8" height="8" rx="2" fill="#403933"/>
+
+    <rect x="4"  y="13" width="8" height="8" rx="2" fill="#403933"/>
+    <rect x="13" y="13" width="8" height="8" rx="2" fill="#3bb974"/>
+    <rect x="22" y="13" width="8" height="8" rx="2" fill="#403933"/>
+
+    <rect x="4"  y="22" width="8" height="8" rx="2" fill="#403933"/>
+    <rect x="13" y="22" width="8" height="8" rx="2" fill="#403933"/>
+    <rect x="22" y="22" width="8" height="8" rx="2" fill="#56db8f"/>
+  </g>
+</svg>

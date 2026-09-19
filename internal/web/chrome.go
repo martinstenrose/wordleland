@@ -12,6 +12,19 @@ import (
 // themeCookie remembers a light/dark/system choice.
 const themeCookie = "wordleland_theme"
 
+// sidebarCookie remembers whether the rail is collapsed to its icons.
+const sidebarCookie = "wordleland_sidebar"
+
+// The two rail widths. Both are stored explicitly, for the reason the theme
+// settings are: so that the attribute on <html> always names which one is in
+// force rather than leaving the stylesheet to infer it from an absence.
+const (
+	sidebarWide   = "wide"
+	sidebarNarrow = "narrow"
+)
+
+func validSidebar(v string) bool { return v == sidebarWide || v == sidebarNarrow }
+
 // The three theme settings. "system" is a real stored value rather than the
 // absence of one, so that choosing it explicitly is distinguishable from
 // never having chosen — and so the attribute on <html> always says which of
@@ -66,8 +79,25 @@ type chrome struct {
 	// views, or sign-in for an anonymous visitor to the privacy page.
 	TodayHref string
 
-	// Tabs is the same list for the narrow layout, with Today restored.
-	Tabs []chromeOpt
+	// Shell is whether this page draws the application shell — the rail, the
+	// top bar, the main column — around its content. An error page does not:
+	// that is chrome for a stranger, and a full navigation wrapped around
+	// "there is nothing at this address" offers the rest of the app to
+	// somebody who has not got it. Every other page does, including the
+	// signed-out ones, where the rail carries the wordmark and nothing else.
+	Shell bool
+
+	// Sidebar is "wide" or "narrow" and lands on <html> beside the theme,
+	// which is what the stylesheet keys the rail's width off.
+	Sidebar string
+
+	// SidebarToggle is the collapse/expand control: a link back to this URL
+	// with the other width, exactly as the two switchers are.
+	SidebarToggle chromeOpt
+
+	// ThemeNext is the theme the single-button control moves to, for a bar
+	// too narrow to carry all three.
+	ThemeNext chromeOpt
 
 	// Subtitle sits under the wordmark where the page has something to put
 	// there — the design's "N days". Blank elsewhere rather than costing a
@@ -108,6 +138,27 @@ func (c chrome) SignedIn() bool { return c.User != nil && !c.ReadOnly }
 // IsAdmin reports whether the admin entries belong in the account menu.
 func (c chrome) IsAdmin() bool { return c.SignedIn() && c.User.IsAdmin }
 
+// SidebarRows is the rail's contents: the views, then the admin area for an
+// admin. One row for the area rather than five: which screen inside it you
+// are on is the strip at the top of that screen's job, and the rail is for
+// where in the application you are.
+//
+// Built here rather than in newChrome because it depends on the session,
+// which newChrome resolves after it builds Nav.
+func (c chrome) SidebarRows() []chromeOpt {
+	rows := make([]chromeOpt, 0, len(c.Nav)+1)
+	rows = append(rows, c.Nav...)
+	if c.IsAdmin() {
+		rows = append(rows, chromeOpt{
+			Code:  "admin",
+			Label: c.T.T("nav.admin"),
+			Href:  "/admin/players",
+			On:    c.AdminTab != "",
+		})
+	}
+	return rows
+}
+
 // AdminTabs feeds the pill-nav shared by every admin screen. The four
 // destinations are fixed, unlike Nav's — there is no admin page that can be
 // absent — so this builds them from AdminTab rather than the caller passing
@@ -134,26 +185,23 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 		T:         t,
 		Lang:      t.locale,
 		Theme:     s.themeFor(w, r),
+		Sidebar:   s.sidebarFor(w, r),
+		Shell:     true,
 		ReadOnly:  readOnly,
 	}
 
 	// The views are built whatever page this is, with none marked current
 	// when the page is not one of them. Settings and the admin area are
-	// still inside the app, and dropping the pills there left the top bar
+	// still inside the app, and dropping the views there left the chrome
 	// looking like a different site. Pages reached before a session exists
 	// clear them again in signedOutChrome.
-	{
-		for _, v := range navViews {
-			c.Nav = append(c.Nav, chromeOpt{
-				Code:  v,
-				Label: t.T("nav.view." + v),
-				Href:  viewPath(prefix, v),
-				On:    v == view,
-			})
-		}
-		// The narrow layout scrolls the same pills rather than offering a
-		// different set, so there is one list to keep correct.
-		c.Tabs = c.Nav
+	for _, v := range navViews {
+		c.Nav = append(c.Nav, chromeOpt{
+			Code:  v,
+			Label: t.T("nav.view." + v),
+			Href:  viewPath(prefix, v),
+			On:    v == view,
+		})
 	}
 
 	// The wordmark's subtitle. Built here rather than by each page: five
@@ -174,7 +222,7 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 			On:    code == c.Lang,
 		})
 	}
-	for _, theme := range []string{themeLight, themeDark, themeSystem} {
+	for _, theme := range []string{themeLight, themeSystem, themeDark} {
 		c.Themes = append(c.Themes, chromeOpt{
 			Code:  theme,
 			Label: t.T("theme." + theme),
@@ -184,6 +232,34 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 	}
 	c.ThemeLabel = t.T("theme.label") + ": " + t.T("theme."+c.Theme)
 	c.LangLabel = t.T("lang.label") + ": " + s.catalogues[c.Lang]["locale.name"]
+
+	// A bar too narrow for three theme buttons gets one that moves to the
+	// next setting, in the order the three are offered in.
+	order := []string{themeLight, themeSystem, themeDark}
+	for i, theme := range order {
+		if theme != c.Theme {
+			continue
+		}
+		next := order[(i+1)%len(order)]
+		c.ThemeNext = chromeOpt{
+			Code:  next,
+			Label: t.T("theme.cycle", t.T("theme."+c.Theme), t.T("theme."+next)),
+			Href:  urlWith(r, "theme", next),
+		}
+		break
+	}
+
+	// Collapsing the rail is a per-device preference like the theme, and it
+	// travels the same way: a link back to this URL with the other width,
+	// remembered in a cookie. A script flipping a class would save the round
+	// trip and would also put script between a reader and a control that
+	// already works without it.
+	toggle := chromeOpt{Code: sidebarNarrow, Label: t.T("nav.collapse")}
+	if c.Sidebar == sidebarNarrow {
+		toggle = chromeOpt{Code: sidebarWide, Label: t.T("nav.expand")}
+	}
+	toggle.Href = urlWith(r, "sidebar", toggle.Code)
+	c.SidebarToggle = toggle
 
 	if user, ok := authenticated(r); ok && !readOnly {
 		c.User = &user
@@ -219,6 +295,29 @@ func (s *Server) themeFor(w http.ResponseWriter, r *http.Request) string {
 		return c.Value
 	}
 	return themeSystem
+}
+
+// sidebarFor resolves the rail's width exactly as themeFor resolves the
+// theme, and for the same reason: it is a property of the device in front of
+// the reader rather than of the account, so it lives in a cookie and the
+// control that sets it is an ordinary link.
+func (s *Server) sidebarFor(w http.ResponseWriter, r *http.Request) string {
+	if requested := r.URL.Query().Get("sidebar"); validSidebar(requested) {
+		http.SetCookie(w, &http.Cookie{
+			Name:     sidebarCookie,
+			Value:    requested,
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   s.secureCookies,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge:   365 * 24 * 60 * 60,
+		})
+		return requested
+	}
+	if c, err := r.Cookie(sidebarCookie); err == nil && validSidebar(c.Value) {
+		return c.Value
+	}
+	return sidebarWide
 }
 
 // urlWith returns the current URL with one query parameter set.
@@ -272,7 +371,9 @@ func (s *Server) signedOutChrome(w http.ResponseWriter, r *http.Request, token s
 	// No views: every one of them needs a session, so offering them here
 	// would be offering a round trip back to this page. And no subtitle:
 	// how much history exists is not for a visitor who has not signed in.
-	c.Nav, c.Tabs = nil, nil
+	// The rail itself stays — emptied to the wordmark, it is the one piece
+	// of the shell that says which application this is.
+	c.Nav = nil
 	c.Subtitle = ""
 	// The account menu has nothing to show yet, and on the two-factor step
 	// there is a session that is deliberately not yet an identity.

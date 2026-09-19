@@ -181,7 +181,7 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 		}
 		row.FormText = formatScore(ch.T, row.Form)
 		row.DeltaText, row.DeltaDirection = formatDelta(ch.T, row.Delta)
-		row.SparkPath = template.HTML(sparkPath(row.Series, sparkWidth, sparkHeight))
+		row.SparkPath = template.HTML(sparkPath(row.Series, sparkWidth, sparkHeight, 0))
 		row.HasSpark = hasSparkline(row.Series)
 		rows = append(rows, row)
 	}

@@ -17,10 +17,10 @@ func (s *Server) handlePrivacy(w http.ResponseWriter, r *http.Request) {
 	_, signedIn := authenticated(r)
 	ch := s.newChrome(w, r, "", "", !signedIn)
 	if !signedIn {
-		// newChrome always builds the view pills; with no prefix they point
-		// at "/today" and friends, which redirect a stranger straight to
-		// login. signedOutChrome drops them for the same reason.
-		ch.Nav, ch.Tabs = nil, nil
+		// newChrome always builds the views; with no prefix they point at
+		// "/today" and friends, which redirect a stranger straight to login.
+		// signedOutChrome drops them for the same reason.
+		ch.Nav = nil
 		// The brand stays clickable without a detour through requireAuth.
 		ch.TodayHref = "/"
 	}

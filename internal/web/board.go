@@ -215,7 +215,7 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boa
 		Prefix:     prefix,
 		BoardPath:  boardPath,
 		Query:      query,
-		GroupPath:  template.HTML(sparkPath(board.GroupSeries, sparkWidth, sparkHeight)),
+		GroupPath:  template.HTML(sparkPath(board.GroupSeries, sparkWidth, sparkHeight, 0)),
 		MinGames:   stats.MinGames,
 		FormWindow: stats.FormWindow,
 	}
@@ -258,7 +258,7 @@ func (s *Server) newBoardRow(p stats.Player, prefix string, t translator, traits
 		AverageText: formatScore(t, p.Average),
 		FormText:    formatScore(t, p.Form),
 		StreakText:  "—",
-		SparkPath:   template.HTML(sparkPath(p.Series, sparkWidth, sparkHeight)),
+		SparkPath:   template.HTML(sparkPath(p.Series, sparkWidth, sparkHeight, 0)),
 		HasSpark:    hasSparkline(p.Series),
 		Href:        prefix + "/p/" + p.Slug,
 		LastFive:    cells[len(cells)-5:],
