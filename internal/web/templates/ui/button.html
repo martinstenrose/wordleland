@@ -1,9 +1,10 @@
-{{/* A link styled as a button. Wraps the existing btn-primary treatment —
-     the only button style app.css defines — rather than inventing a second
-     one nobody asked for. Not wired into any page yet — see
+{{/* A link styled as a control. Wraps `.btn`, the filled accent — "this
+     control does the thing" — rather than inventing a second one nobody
+     asked for; see the controls block in app.css for the four combinations
+     and what each means. Not wired into any page yet — see
      internal/web/templates/README.md. Data: {Href string; Content
      template.HTML}. Content, not a plain Label, because the one existing
      call site (the read-only bar's sign-in link, app/topbar.html) pairs an
      icon with text; the caller composes that HTML and is responsible for
      its safety, same as any other template.HTML value in this codebase. */}}
-{{define "button"}}<a class="btn-primary" href="{{.Href}}">{{.Content}}</a>{{end}}
+{{define "button"}}<a class="btn" href="{{.Href}}">{{.Content}}</a>{{end}}

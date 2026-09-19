@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -674,5 +675,148 @@ func TestEveryFrameCarriesTheMainRegion(t *testing.T) {
 		if got := strings.Count(body, `<main id="main">`); got != 1 {
 			t.Errorf("%s renders %d main regions, want exactly one", path, got)
 		}
+	}
+}
+
+// Every control on every screen is one of four things, and the four are told
+// apart by two classes.
+//
+// They were not. A filled green anchor and a filled green button were 32px
+// and 36px and stood side by side; "Discard" wore .link.danger and came out
+// accent green, because .link.danger is only red inside the account menu;
+// "Cancel" was an underlined green link in one place and an outlined button
+// in another; and the control that rotates a two-factor secret — which
+// silences every app holding the old one — was filled green while the one
+// that rotates the share slug was outlined red.
+//
+// This pins the vocabulary rather than any one screen: a <button> or an
+// action anchor carries .btn, and .link never lands on a button.
+func TestEveryControlIsOneOfTheFour(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	session := signIn(t, srv, admin.ID)
+
+	// A <button> that is a control never wears the prose-link treatment.
+	// (The account menu's rows are navigation and are drawn by being in the
+	// menu, whatever element they are — see .account-menu in app.css.)
+	button := regexp.MustCompile(`<button[^>]*class="([^"]*)"`)
+	for _, path := range []string{
+		"/", "/forgot-password", "/settings", "/settings/account", "/settings/security",
+		"/admin/settings", "/admin/settings?confirm=slug", "/admin/pending", "/admin/players/harda",
+	} {
+		body := fetchAs(t, srv, path, session).Body.String()
+		for _, m := range button.FindAllStringSubmatch(body, -1) {
+			classes := strings.Fields(m[1])
+			if slices.Contains(classes, "link") {
+				t.Errorf("%s: a button is styled as prose: %q", path, m[1])
+			}
+			// Everything but the account menu's own row and the icon-only
+			// controls the script builds is a .btn.
+			if slices.Contains(classes, "btn") || slices.Contains(classes, "danger") {
+				continue
+			}
+			t.Errorf("%s: a button carries no control class: %q", path, m[1])
+		}
+	}
+
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+
+	// One box for anchors and buttons alike, which is what stops two of them
+	// standing side by side at different heights.
+	box := cssRule(t, css, ".btn {")
+	for _, want := range []string{"height: 36px", "font-size: var(--text-sm)", "border-radius: var(--radius-md)"} {
+		if !strings.Contains(box, want) {
+			t.Errorf("the control box is missing %q", want)
+		}
+	}
+
+	// Four combinations, and each has to actually differ from the others.
+	tones := map[string]string{
+		".btn {":                  "var(--color-accent)",
+		".btn.secondary {":        "var(--color-text-16)",
+		".btn.danger {":           "var(--color-danger)",
+		".btn.secondary.danger {": "var(--color-danger-40)",
+	}
+	for selector, want := range tones {
+		if rule := cssRule(t, css, selector); !strings.Contains(rule, want) {
+			t.Errorf("%s does not take %s: %s", selector, want, rule)
+		}
+	}
+
+	// And the one that used to be a lie: .link is a prose treatment, so
+	// nothing pairs it with the danger tone outside the account menu.
+	if strings.Contains(css, ".link.danger") {
+		t.Error("app.css still gives .link a danger tone; a prose link is not a control")
+	}
+}
+
+// The three acts that cannot be undone read the same as each other: an
+// outlined red control opens the question, and a filled red one commits it.
+//
+// Rotating a two-factor secret was the odd one out — filled green, the tone
+// this app uses for "safe, and the ordinary thing to do here", on a control
+// that silences every authenticator app holding the old secret and cancels
+// the recovery codes.
+func TestADestructiveActAsksBeforeItActs(t *testing.T) {
+	srv := testServer(t)
+	// seedLogin rather than seedBoard: this needs an account that can
+	// actually sign in, and a share slug for the rotation to be offered.
+	seedLogin(t, srv, "admin@example.tld", true)
+	if _, _, err := store.EnsureShareSlug(context.Background(), srv.db); err != nil {
+		t.Fatal(err)
+	}
+	_, cookies := login(t, srv, "admin@example.tld", testPassword)
+	_, cookies = enrol(t, srv, cookies)
+
+	// The openers.
+	for _, tt := range []struct{ page, opens string }{
+		{"/admin/settings", "/admin/settings?confirm=slug"},
+		{"/settings/security", "/enroll-totp"},
+	} {
+		rec, _ := getWith(t, srv, tt.page, cookies)
+		body := rec.Body.String()
+		at := strings.Index(body, `href="`+tt.opens)
+		if at < 0 {
+			t.Errorf("%s does not offer %s at all", tt.page, tt.opens)
+			continue
+		}
+		opener := body[strings.LastIndex(body[:at], "<a "):at]
+		if !strings.Contains(opener, "btn secondary danger") {
+			t.Errorf("%s: the control opening %s is not an outlined danger: %s", tt.page, tt.opens, opener)
+		}
+	}
+
+	// And the presses that commit them, each inside the question it answers,
+	// with a Cancel beside it rather than a prose link at the foot: declining
+	// a form is a control too.
+	for _, tt := range []struct{ page, want string }{
+		{"/admin/settings?confirm=slug", `class="btn danger"`},
+		{"/enroll-totp", `class="btn danger"`},
+	} {
+		rec, _ := getWith(t, srv, tt.page, cookies)
+		if !strings.Contains(rec.Body.String(), tt.want) {
+			t.Errorf("%s is not committed by a filled danger control (%s)", tt.page, tt.want)
+		}
+	}
+
+	rec, _ := getWith(t, srv, "/enroll-totp", cookies)
+	if !strings.Contains(rec.Body.String(), `<a class="btn secondary" href="/settings/security">`) {
+		t.Error("the replacement has no Cancel beside the control it declines")
+	}
+
+	// A first enrolment is not destructive and is not toned as though it
+	// were: the same control, before there is anything to lose. It has
+	// nothing to decline either, so its one button fills the card.
+	seedLogin(t, srv, "player@example.tld", false)
+	_, plain := login(t, srv, "player@example.tld", testPassword)
+	rec, _ = getWith(t, srv, "/settings/security", plain)
+	body := rec.Body.String()
+	at := strings.Index(body, `href="/enroll-totp"`)
+	if at < 0 {
+		t.Fatal("an account without two-factor is not offered it")
+	}
+	if opener := body[strings.LastIndex(body[:at], "<a "):at]; strings.Contains(opener, "danger") {
+		t.Errorf("setting a first secret up is toned as destructive: %s", opener)
 	}
 }

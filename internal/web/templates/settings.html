@@ -44,7 +44,7 @@
             <label for="name">{{.T.T "settings.displayName"}}</label>
             <input type="text" id="name" name="name" value="{{.Form.Name}}" required>
             <p class="hint">{{.T.T "settings.displayNameHint"}}</p>
-            <div class="actions"><button type="submit">{{.T.T "settings.saveName"}}</button></div>
+            <div class="actions"><button class="btn" type="submit">{{.T.T "settings.saveName"}}</button></div>
           </form>
         {{else}}
           <p class="hint">{{.T.T "settings.noPlayer"}}</p>
@@ -63,7 +63,7 @@
           <label for="email">{{.T.T "signin.email"}}</label>
           <input type="email" id="email" name="email" value="{{.Form.Email}}" required autocomplete="email">
           <p class="hint">{{.T.T "settings.emailHint"}}</p>
-          <div class="actions"><button type="submit">{{.T.T "settings.changeEmail"}}</button></div>
+          <div class="actions"><button class="btn" type="submit">{{.T.T "settings.changeEmail"}}</button></div>
         </form>
 
         <h2 class="section">{{.T.T "settings.password"}}</h2>
@@ -76,7 +76,7 @@
           <input type="password" id="password" name="password" required autocomplete="new-password"
                  placeholder="{{.T.T "reset.minimum"}}">
           <p class="hint">{{.T.T "settings.passwordHint"}}</p>
-          <div class="actions"><button type="submit">{{.T.T "settings.updatePassword"}}</button></div>
+          <div class="actions"><button class="btn" type="submit">{{.T.T "settings.updatePassword"}}</button></div>
         </form>
       {{end}}
 
@@ -104,12 +104,16 @@
                the word for its close button, so the script holds no copy of
                its own. Without the script it is an ordinary link to an
                ordinary page, which is what it was. */}}
-          <a class="btn-primary" href="/enroll-totp"
+          {{/* Setting a first secret up is safe and is what this screen is
+               for; rotating one is neither — it silences every app holding
+               the old secret and cancels the recovery codes — so the same
+               control changes tone with what it is about to do. */}}
+          <a class="btn{{if .HasTOTP}} secondary danger{{end}}" href="/enroll-totp"
              data-modal data-modal-close="{{.T.T "action.close"}}">
             {{if .HasTOTP}}{{.T.T "settings.totp.replace"}}{{else}}{{.T.T "settings.totp.setUp"}}{{end}}
           </a>
           {{if and .HasTOTP (not .TOTPRequired) (not .ConfirmDisable)}}
-            <a class="secondary danger" href="/settings/security?confirm=totp">{{.T.T "settings.totp.disable"}}</a>
+            <a class="btn secondary danger" href="/settings/security?confirm=totp">{{.T.T "settings.totp.disable"}}</a>
           {{end}}
         </div>
 
@@ -128,8 +132,8 @@
                 <input type="password" id="totp-off-password" name="password"
                        autocomplete="current-password" required>
                 <div class="actions">
-                  <button type="submit" class="danger">{{.T.T "settings.totp.disable.confirm"}}</button>
-                  <a class="secondary" href="/settings/security">{{.T.T "admin.cancel"}}</a>
+                  <button type="submit" class="btn danger">{{.T.T "settings.totp.disable.confirm"}}</button>
+                  <a class="btn secondary" href="/settings/security">{{.T.T "admin.cancel"}}</a>
                 </div>
               </form>
             </div>
@@ -151,7 +155,12 @@
           <p class="hint">{{.T.T "settings.recovery.help"}}</p>
           <form method="post" action="/settings/recovery-codes">
             <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <div class="actions"><button type="submit">{{.T.T "settings.recovery.generate"}}</button></div>
+            {{/* Outlined red: generating a set cancels the one before it, and
+                 a sheet somebody printed stops working the moment this is
+                 pressed. One press and no question, like discarding a held
+                 result — the new codes are on the next screen, so there is
+                 nothing to recover from between the two. */}}
+            <div class="actions"><button class="btn secondary danger" type="submit">{{.T.T "settings.recovery.generate"}}</button></div>
           </form>
         {{end}}
       {{end}}

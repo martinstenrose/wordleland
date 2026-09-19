@@ -180,14 +180,14 @@
       {{/* aria-label carries the accessible name on its own, since the
            label text — the only other source of one — hides on a narrow
            screen where the bar has no room to spare for it. */}}
-      <a class="btn-primary" href="/" aria-label="{{.T.T "nav.signIn"}}">
+      <a class="btn" href="/" aria-label="{{.T.T "nav.signIn"}}">
         <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
           <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M14 3h4.4A1.6 1.6 0 0120 4.6v14.8A1.6 1.6 0 0118.4 21H14"/>
             <path d="M10 7.5L14.5 12 10 16.5M14.5 12H3.5"/>
           </g>
         </svg>
-        <span class="btn-primary-label">{{.T.T "nav.signIn"}}</span>
+        <span class="btn-label">{{.T.T "nav.signIn"}}</span>
       </a>
     {{else if .SignedIn}}
       <details class="account" name="menu-group">
@@ -207,7 +207,7 @@
           <hr>
           <form method="post" action="/logout">
             <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <button class="link danger" type="submit">{{.T.T "nav.signOut"}}</button>
+            <button class="danger" type="submit">{{.T.T "nav.signOut"}}</button>
           </form>
         </div>
       </details>

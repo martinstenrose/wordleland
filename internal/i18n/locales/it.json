@@ -449,7 +449,6 @@
   "enrol.replace.sub": "Scansiona questo con la tua app di autenticazione, o con tutte quelle che vuoi usare, perché leggono tutte lo stesso segreto. Il segreto che hai ora smette di funzionare quando confermi questo.",
   "enrol.replace.password": "La tua password",
   "enrol.replace.codesGone": "Cambiarlo annulla anche i codici di recupero. Generane una nuova serie dopo.",
-  "enrol.replace.back": "← Torna alle impostazioni",
   "admin.counts": "%d giocatori · %d con un accesso · %d senza",
   "admin.editPlayer": "Modifica giocatore",
   "admin.lastScore": "Ultimo risultato",

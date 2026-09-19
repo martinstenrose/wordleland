@@ -19,9 +19,13 @@
       </div>
       {{range .Rows}}
         <a class="admin-row{{if .Selected}} on{{end}}" href="{{.Href}}">
+          {{/* No trait badge. A trait is a reading of how somebody plays, and
+               this list is for renaming people, retiring them and attaching
+               logins — none of which it bears on. It also cost the name
+               column the width it needs: at the split layout's narrower end
+               the badge sat on top of the name it was about. */}}
           <span class="admin-name">
             <span class="player">{{.Name}}</span>
-            {{if .Trait}}{{template "trait" .}}{{end}}
           </span>
           <span class="right num">{{$.T.Integer .Games}}</span>
           <span class="right num">{{.Average}}</span>
@@ -86,8 +90,8 @@
                an empty selection. */}}
 
           <div class="actions">
-            <button type="submit">{{$.T.T "admin.save"}}</button>
-            <a class="link" href="/admin/players">{{$.T.T "admin.cancel"}}</a>
+            <button class="btn" type="submit">{{$.T.T "admin.save"}}</button>
+            <a class="btn secondary" href="/admin/players">{{$.T.T "admin.cancel"}}</a>
           </div>
         </form>
 
@@ -102,7 +106,7 @@
               <input type="email" id="adm-invite" name="invite_email"
                      value="{{if .Pending}}{{.Pending.Email}}{{end}}"
                      placeholder="{{$.T.T "signin.emailPlaceholder"}}" required>
-              <button type="submit" class="secondary">{{$.T.T "admin.invite"}}</button>
+              <button type="submit" class="btn secondary">{{$.T.T "admin.invite"}}</button>
             </span>
 
             {{/* The language the invitation is written in, and the one the

@@ -366,7 +366,9 @@ var onPageChange = (function () {
 
     var close = document.createElement("button");
     close.type = "button";
-    close.className = "raised-close";
+    // The dialog's one control, and it does the thing: the filled accent,
+    // like any other. See the controls block in app.css.
+    close.className = "btn raised-close";
     // The template carries the word, so this file holds no copy of its own and
     // needs no knowledge of which language the page is in.
     close.textContent = note.dataset.raise;
@@ -438,6 +440,9 @@ var onPageChange = (function () {
 
     var button = document.createElement("button");
     button.type = "button";
+    // Filled accent: copying the link is safe and is what somebody is here
+    // for. The control beside it rotates the slug and is toned for that.
+    button.className = "btn";
     button.textContent = row.dataset.copyLabel;
     // First in the row: copying is what somebody is usually here to do, and
     // the control beside it rotates the slug for everybody in the group.

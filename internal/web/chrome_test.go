@@ -706,7 +706,7 @@ func TestSharedBarOffersSignIn(t *testing.T) {
 	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
 	bar := body[strings.Index(body, "topbar-controls"):strings.Index(body, "</header>")]
 
-	for _, want := range []string{`class="btn-primary"`, "Sign in", "<svg"} {
+	for _, want := range []string{`class="btn"`, "Sign in", "<svg"} {
 		if !strings.Contains(bar, want) {
 			t.Errorf("the shared bar is missing %q", want)
 		}
@@ -718,7 +718,7 @@ func TestSharedBarOffersSignIn(t *testing.T) {
 	// Signed in, there is nothing to sign in to.
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 	in := fetchAs(t, srv, "/today", signIn(t, srv, admin.ID)).Body.String()
-	if strings.Contains(in[:strings.Index(in, "</header>")], "btn-primary") {
+	if strings.Contains(in[:strings.Index(in, "</header>")], `class="btn"`) {
 		t.Error("a signed-in reader is offered a sign-in button")
 	}
 }
@@ -789,12 +789,12 @@ func TestSignInButtonDropsItsLabelOnMobile(t *testing.T) {
 	if !strings.Contains(body, `aria-label="Sign in"`) {
 		t.Fatal("the sign-in button has no accessible name to fall back on")
 	}
-	if !strings.Contains(body, `<span class="btn-primary-label">Sign in</span>`) {
+	if !strings.Contains(body, `<span class="btn-label">Sign in</span>`) {
 		t.Fatal("the sign-in button's label is not its own element to hide")
 	}
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	if !strings.Contains(css, ".btn-primary-label { display: none; }") {
+	if !strings.Contains(css, ".btn-label { display: none; }") {
 		t.Error("no rule hides the sign-in label on a narrow screen")
 	}
 }

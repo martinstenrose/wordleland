@@ -34,15 +34,25 @@
       <input type="password" id="password" name="password"
              autocomplete="current-password" required>
     {{end}}
-    <div class="actions"><button class="block" type="submit">{{.T.T "enrol.submit"}}</button></div>
+    {{/* Declining a form is a control, not a link to somewhere else, so a
+         replacement gets a Cancel beside the button it declines — and the
+         one it declines stops being full width to make room for it. A first
+         enrolment has nothing to decline: its one button fills the card, and
+         the way out of the whole flow is the prose link at the foot. */}}
+    <div class="actions">
+      {{if .Replacing}}
+        <button class="btn danger" type="submit">{{.T.T "enrol.submit"}}</button>
+        <a class="btn secondary" href="/settings/security">{{.T.T "admin.cancel"}}</a>
+      {{else}}
+        <button class="btn block" type="submit">{{.T.T "enrol.submit"}}</button>
+      {{end}}
+    </div>
   </form>
 
-  <div class="signin-foot">
-    {{if .Replacing}}
-      <a class="link" href="/settings/security">{{.T.T "enrol.replace.back"}}</a>
-    {{else}}
+  {{if not .Replacing}}
+    <div class="signin-foot">
       <a class="link" href="/">{{.T.T "forgot.back"}}</a>
-    {{end}}
-  </div>
+    </div>
+  {{end}}
 </section>
 {{end}}
