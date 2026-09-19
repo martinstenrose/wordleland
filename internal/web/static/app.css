@@ -33,6 +33,11 @@
   /* The one place the design system leaves the brand hue rather than
      brightening it: the hover state of a plain prose link. */
   --color-accent-2: oklch(.72 .14 55);
+  /* The same hue, at the strength a chip's 11px uppercase needs to clear
+     4.5:1, and at the tint its ground is struck from. Second place gets
+     the palette's second colour rather than a third one invented for it. */
+  --color-accent-2-strong: oklch(.78 .13 55);
+  --color-accent-2-14: oklch(.72 .14 55 / .14);
 
   /* Destructive, and broken. The old single-hue palette had no red to give
      these, so signing out and a failed diagnostic both borrowed the accent —
@@ -163,6 +168,8 @@
   --color-accent: oklch(.55 .13 155);
   --color-accent-strong: oklch(.47 .14 155);
   --color-accent-2: oklch(.62 .13 55);
+  --color-accent-2-strong: oklch(.52 .13 55);
+  --color-accent-2-14: oklch(.62 .13 55 / .14);
   --color-danger: oklch(.55 .15 25);
   --color-better: var(--color-accent);
   --color-worse: var(--color-danger);
@@ -221,6 +228,8 @@
     --color-accent: oklch(.55 .13 155);
     --color-accent-strong: oklch(.47 .14 155);
     --color-accent-2: oklch(.62 .13 55);
+    --color-accent-2-strong: oklch(.52 .13 55);
+    --color-accent-2-14: oklch(.62 .13 55 / .14);
     --color-danger: oklch(.55 .15 25);
     --color-better: var(--color-accent);
     --color-worse: var(--color-danger);
@@ -1593,14 +1602,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   .callouts { margin: 0; grid-template-columns: minmax(0, 1fr); }
   .months-table .bar-cell { display: none; }
 
-  /* One chip survives: the winner's. A name and a pill beside it do not both
-     fit in every cell this narrow, and the rank column already says who came
-     second — but nothing else in a row says whether this is a month somebody
-     won or one somebody is still leading, and that is what this chip alone
-     carries. Two attempts at marking all three instead, in colour and then in
-     medals, were both a decoration standing in for a fact the rank column had
-     already given. */
-  .months-table .medal:not(.win) { display: none; }
 }
 
 /* ---- Sortable headers -------------------------------------------------- */
@@ -2711,10 +2712,14 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   text-transform: uppercase;
   padding: 3px 8px;
   border-radius: var(--radius-pill);
-  background: var(--color-accent-14);
-  color: var(--color-accent-strong);
+  /* Second place by default, the winner's below: there is one runner-up chip
+     and several kinds of win — winner, joint winner, leading — so the class
+     marks the rarer case. */
+  background: var(--color-accent-2-14);
+  color: var(--color-accent-2-strong);
   white-space: nowrap;
 }
+.medal.win { background: var(--color-accent-14); color: var(--color-accent-strong); }
 .mark-cell.podium { background: var(--score-4); color: var(--color-text-80); }
 
 /* ---- ui/ component primitives -----------------------------------------

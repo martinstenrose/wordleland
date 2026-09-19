@@ -59,13 +59,10 @@
         <tr>
           <td class="right num muted">{{$.T.Integer .Rank}}</td>
           <td>
-            {{/* The chip names the place in words. A phone keeps the
-                 winner's and drops the rest: the rank column already says
-                 who came second, but nothing else in the row says whether
-                 this is a month somebody won or one somebody is leading —
-                 which is the whole of what this chip is for. The class is
-                 what lets app.css tell the two apart, since the width that
-                 decides it is not something the server knows. */}}
+            {{/* The chip names the place in words, at every width. The class
+                 separates a win from a second place so the two can be told
+                 apart by colour as well as by the word — the brand hue for
+                 a win, the palette's second for the runner-up. */}}
             <span class="admin-name">
               <a class="player" href="{{.Href}}">{{.Name}}</a>
               {{if .Medal}}<span class="medal{{if .Winner}} win{{end}}">{{.Medal}}</span>{{end}}

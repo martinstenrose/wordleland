@@ -1361,33 +1361,32 @@ func TestTraitBadgesAreOnlyWhereTheyMeanSomething(t *testing.T) {
 	}
 }
 
-// A phone keeps the winner's chip and drops the rest.
-//
-// The rank column already says who came second. What nothing else in the row
-// says is whether this is a month somebody won or one somebody is still
-// leading, and that is the whole of what this chip is for — so it is the one
-// that survives the width. Two attempts at marking all three instead, a name
-// written in gold, silver and bronze and then a medal, were both a decoration
-// standing in for a fact the rank column had already given.
-func TestOnlyTheWinnersChipSurvivesAPhone(t *testing.T) {
+// A win and a second place are told apart by colour as well as by the word:
+// the brand hue for the win, the palette's second colour for the runner-up.
+// Neither is a third hue invented for the purpose, and both clear 4.5:1 on
+// their own theme's surface at the 11px uppercase a chip is set in.
+func TestAWinAndASecondPlaceAreDifferentTones(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 
 	body := fetchAs(t, srv, "/months", signIn(t, srv, admin.ID)).Body.String()
-	// The winner's chip is marked so the stylesheet can tell it apart. The
-	// width that decides this is not something the server knows, so both are
-	// rendered and neither is chosen here.
 	if !strings.Contains(body, `<span class="medal win">`) {
-		t.Error("the winner's chip is not marked as the winner's")
-	}
-	if !strings.Contains(body, `<td class="right num muted">1</td>`) {
-		t.Error("the rank column is not a plain figure")
+		t.Error("a win is not marked apart from a second place")
 	}
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	if !strings.Contains(css, ".months-table .medal:not(.win) { display: none; }") {
-		t.Error("a phone does not drop the chips that are not the winner's")
+	chip := cssRule(t, css, ".medal {")
+	if !strings.Contains(chip, "var(--color-accent-2-strong)") {
+		t.Error("the runner-up chip does not take the palette's second colour")
+	}
+	if !strings.Contains(css, ".medal.win { background: var(--color-accent-14); color: var(--color-accent-strong); }") {
+		t.Error("a win does not take the brand hue")
+	}
+	// Both chips show at every width now: the word is what they are for, and
+	// a phone has room for one of them beside a name.
+	if strings.Contains(css, ".months-table .medal") {
+		t.Error("a phone still drops one of the chips")
 	}
 	// The two marks this replaced are gone rather than left unread.
 	for _, gone := range []string{"--color-gold", "medal-mark", "medal-gold"} {
