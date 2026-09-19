@@ -83,19 +83,30 @@
   --color-accent-22: oklch(.68 .14 155 / .22);
   --color-accent-14: oklch(.68 .14 155 / .14);
 
-  /* Score ramp: the fill behind a guess count. The design system draws it
-     light-first and opaque, stepping one hue from a solved-in-1 down to a
-     near-canvas tint; this is that ramp mirrored for a dark canvas, since
-     its pale end would glare here. --score-ink is the text that stays
-     legible on the strong fills and --score-ink-alt the text for the weak
-     ones — which way round they read flips with the theme, because a fill
-     that is bright here is deep in light mode. */
-  --score-1: oklch(.72 .15 155);
-  --score-2: oklch(.62 .13 155);
-  --score-3: oklch(.5 .1 155);
-  --score-4: oklch(.38 .06 155);
+  /* Score ramp: the fill behind a guess count, one step per guess, plus
+     --score-x for a miss. The design system draws it light-first and opaque,
+     stepping one hue from a solved-in-1 down to a near-canvas tint; this is
+     that ramp mirrored for a dark canvas, since its pale end would glare
+     here. A miss sits off the ramp on the danger hue, because it is not a
+     seventh guess — it is the other outcome.
+
+     Three inks, because no single one reads across a ramp this wide:
+     --score-ink for the strong end (tiers 1-2), --score-ink-alt for the weak
+     end (3-6), and --score-x-ink for the miss, whose fill is neither. Which
+     of the first two is the pale colour flips with the theme, because a fill
+     that is bright here is deep in light mode. The tier the boundary falls
+     after is the same in both, which is what lets one set of rules paint
+     both themes. */
+  --score-1: oklch(.8 .16 155);
+  --score-2: oklch(.7 .15 155);
+  --score-3: oklch(.48 .11 155);
+  --score-4: oklch(.4 .08 155);
+  --score-5: oklch(.33 .05 155);
+  --score-6: oklch(.27 .03 155);
+  --score-x: oklch(.5 .17 25);
   --score-ink: oklch(.19 .012 65);
   --score-ink-alt: oklch(.95 .006 65);
+  --score-x-ink: oklch(.99 .004 25);
 
   /* Elevation. No extra hairline ring: every consumer here already draws
      its own 1px border, and adding a second ring on top of that would
@@ -141,12 +152,16 @@
   --color-better: var(--color-accent);
   --color-worse: var(--color-danger);
   --shadow-elevated: 0 1px 2px oklch(.22 .012 65 / .06), 0 4px 12px oklch(.22 .012 65 / .05);
-  --score-1: oklch(.48 .17 155);
-  --score-2: oklch(.58 .15 155);
-  --score-3: oklch(.78 .09 155);
-  --score-4: oklch(.86 .06 155);
+  --score-1: oklch(.4 .16 155);
+  --score-2: oklch(.5 .15 155);
+  --score-3: oklch(.72 .1 155);
+  --score-4: oklch(.82 .07 155);
+  --score-5: oklch(.89 .04 155);
+  --score-6: oklch(.95 .02 155);
+  --score-x: oklch(.48 .17 25);
   --score-ink: oklch(.99 .004 155);
   --score-ink-alt: oklch(.22 .02 155);
+  --score-x-ink: oklch(.99 .004 25);
   --color-text-80: oklch(.22 .012 65 / .86);
   --color-text-75: oklch(.22 .012 65 / .84);
   --color-text-70: oklch(.22 .012 65 / .8);
@@ -193,12 +208,16 @@
     --color-better: var(--color-accent);
     --color-worse: var(--color-danger);
     --shadow-elevated: 0 1px 2px oklch(.22 .012 65 / .06), 0 4px 12px oklch(.22 .012 65 / .05);
-    --score-1: oklch(.48 .17 155);
-    --score-2: oklch(.58 .15 155);
-    --score-3: oklch(.78 .09 155);
-    --score-4: oklch(.86 .06 155);
+    --score-1: oklch(.4 .16 155);
+    --score-2: oklch(.5 .15 155);
+    --score-3: oklch(.72 .1 155);
+    --score-4: oklch(.82 .07 155);
+    --score-5: oklch(.89 .04 155);
+    --score-6: oklch(.95 .02 155);
+    --score-x: oklch(.48 .17 25);
     --score-ink: oklch(.99 .004 155);
     --score-ink-alt: oklch(.22 .02 155);
+    --score-x-ink: oklch(.99 .004 25);
     --color-text-80: oklch(.22 .012 65 / .86);
     --color-text-75: oklch(.22 .012 65 / .84);
     --color-text-70: oklch(.22 .012 65 / .8);
@@ -624,9 +643,9 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .cell.t2 { background: var(--score-2); color: var(--score-ink); border-color: var(--score-2); }
 .cell.t3 { background: var(--score-3); color: var(--score-ink-alt); border-color: var(--score-3); }
 .cell.t4 { background: var(--score-4); color: var(--score-ink-alt); border-color: var(--score-4); }
-.cell.t5 { background: var(--color-text-08); color: var(--color-text-80); border-color: var(--color-text-06); }
-.cell.t6 { background: transparent; color: var(--color-text-60); border-color: var(--color-text-16); }
-.cell.t7 { background: var(--color-text-02); color: var(--color-text-35); border-color: var(--color-text-08); }
+.cell.t5 { background: var(--score-5); color: var(--score-ink-alt); border-color: var(--score-5); }
+.cell.t6 { background: var(--score-6); color: var(--score-ink-alt); border-color: var(--score-6); }
+.cell.t7 { background: var(--score-x); color: var(--score-x-ink); border-color: var(--score-x); }
 
 /* A played cell opens its own result on tap. The <details> fills the cell
    by absolute position rather than a stretch/align rule, since .cell's own
@@ -1250,9 +1269,9 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .cal.t2 { background: var(--score-2); }
 .cal.t3 { background: var(--score-3); }
 .cal.t4 { background: var(--score-4); }
-.cal.t5 { background: var(--color-text-08); }
-.cal.t6 { background: var(--color-text-08); }
-.cal.t7 { background: var(--color-text-02); box-shadow: inset 0 0 0 1px var(--color-text-08); }
+.cal.t5 { background: var(--score-5); }
+.cal.t6 { background: var(--score-6); }
+.cal.t7 { background: var(--score-x); }
 
 .rank-chart { display: block; overflow: visible; margin-top: 4px; }
 .rank-chart .player { fill: none; stroke: var(--color-accent-strong); stroke-width: 2; }

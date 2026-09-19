@@ -457,6 +457,51 @@ func TestStylesheetIsWhole(t *testing.T) {
 	}
 }
 
+// A guess count is the one number on the board a reader takes in without
+// reading it, so every outcome gets its own fill. Four of the seven used to,
+// and a 5, a 6 and a miss all fell through to the grey text ramp — which made
+// the three outcomes worth telling apart at a glance the three that looked
+// alike. Each tier naming its own token is what stops that closing up again.
+func TestEveryScoreTierHasItsOwnFill(t *testing.T) {
+	srv := testServer(t)
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+
+	fills := map[string]string{}
+	for tier, token := range map[string]string{
+		"t1": "--score-1", "t2": "--score-2", "t3": "--score-3", "t4": "--score-4",
+		"t5": "--score-5", "t6": "--score-6", "t7": "--score-x",
+	} {
+		for _, selector := range []string{".cell." + tier, ".cal." + tier} {
+			rule, ok := ruleFor(css, selector)
+			if !ok {
+				t.Errorf("the stylesheet has no rule for %s", selector)
+				continue
+			}
+			if !strings.Contains(rule, "background: var("+token+")") {
+				t.Errorf("%s is not filled with %s: %s", selector, token, rule)
+			}
+		}
+		fills[token] = tier
+	}
+	if len(fills) != 7 {
+		t.Errorf("tiers share a fill token: %v", fills)
+	}
+}
+
+// ruleFor returns the declarations of the first rule for exactly this
+// selector, so a test can assert on one rule rather than on the whole file.
+func ruleFor(css, selector string) (string, bool) {
+	for _, at := range []string{selector + " {", selector + "{"} {
+		if i := strings.Index(css, at); i >= 0 {
+			rest := css[i+len(at):]
+			if end := strings.Index(rest, "}"); end >= 0 {
+				return strings.TrimSpace(rest[:end]), true
+			}
+		}
+	}
+	return "", false
+}
+
 // The stylesheet asks for a typeface this app serves itself. A font that 404s
 // is invisible in every test that only reads markup: the page still renders,
 // in the fallback, and nobody notices until they look at one. The embed is

@@ -34,8 +34,9 @@ muddy midpoints an `rgba` ramp gives over a tinted ground.
 | `--color-better`, `--color-worse` | A form delta trending down (an improvement) or up. The design system spends the accent itself on "better" and `--color-danger` on "worse" rather than finding a fourth hue, so these are defined as aliases — named anyway, so that the rules drawing a trend keep saying "better" and "worse" rather than "accent". The ▼/▲ printed beside them repeats the meaning, so colour is never the only carrier |
 | `--color-text-NN` | One colour at NN% opacity, used for borders, dividers, muted text, and faint hover fills. There is no separate token per role because there never was a consistent one — "border", "muted text" and "faint hover" already meant "text colour at some opacity". The design system spells the same thing with two tokens (`--border`, `--muted`); its `--border` is this ramp's `--color-text-12` over this surface, arrived at from the other direction |
 | `--color-accent-NN` | Same idea over the accent hue — the "on" state of pickers, focus rings, hover fills |
-| `--score-1` … `--score-4` | The guess-count fill ramp (`.cell.t1`–`.t7`, `.cal.t1`–`.t7`) |
-| `--score-ink`, `--score-ink-alt` | The text colour that stays legible on a score fill: `--score-ink` on the strong end, `--score-ink-alt` on the weak one. Which of the two is the pale colour flips between themes, because a fill that is bright on a dark canvas is deep on a light one |
+| `--score-1` … `--score-6` | The guess-count fill ramp, one step per guess (`.cell.t1`–`.t6`, `.cal.t1`–`.t6`) |
+| `--score-x` | A miss (`.cell.t7`, `.cal.t7`). Off the ramp, on the danger hue: a miss is not a seventh guess, it is the other outcome |
+| `--score-ink`, `--score-ink-alt`, `--score-x-ink` | The text colour that stays legible on a score fill: `--score-ink` on the strong end (tiers 1–2), `--score-ink-alt` on the weak end (3–6), `--score-x-ink` on the miss. Which of the first two is the pale colour flips between themes, because a fill that is bright on a dark canvas is deep on a light one; the tier the boundary falls after is the same in both, which is what lets one set of rules paint both themes |
 
 **Why `--color-canvas` and `--color-surface` are two tokens:** every page is
 a full layout of cards on a page background, so the card itself needs a
@@ -59,6 +60,15 @@ that a strong fill is *bright* in dark mode and *deep* in light mode. That is
 also why `--score-ink` and `--score-ink-alt` swap which of them is the pale
 colour between the two blocks. The fills are opaque in both, so a tile's
 border is its own fill; there is no separate border token for a tier.
+
+Both ends of the ramp are pulled a little further apart than the design system
+draws them, so that the ink sitting on each fill clears 4.5:1. Every tier
+carries a digit at 11px, which is the content rather than decoration, and the
+design's own tier-2 green put white text at about 3.2:1.
+
+Before this ramp existed there were four tiers, and a 5, a 6 and a miss all
+landed in the grey text ramp — so the three outcomes a player most wants to
+tell apart at a glance were the three that looked alike.
 
 ## Shadow
 
