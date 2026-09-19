@@ -5,6 +5,34 @@
 // rendered form already, and this file only adds a shortcut or a nicety on
 // top of it.
 
+// The one thing in this file outside an IIFE: a registry the page switcher
+// at the bottom runs after it has replaced the document's body.
+//
+// An enhancement that delegates from the document needs nothing here — its
+// listener outlives every element it will ever fire for. These are the ones
+// that hold on to a particular element, which after a switch is a node that
+// is no longer in the page. A function registered here runs now and again
+// after every switch, so it has to be safe to run more than once: look the
+// elements up each time, and register document-level listeners outside it.
+var onPageChange = (function () {
+  "use strict";
+  var fns = [];
+  function register(fn) {
+    fns.push(fn);
+    fn();
+  }
+  register.rerun = function () {
+    for (var i = 0; i < fns.length; i++) {
+      try {
+        fns[i]();
+      } catch (err) {
+        // One enhancement failing must not cost the reader the others.
+      }
+    }
+  };
+  return register;
+})();
+
 // Progressive enhancements for native <details> controls: dismiss topbar
 // menus on outside clicks and nudge informational popups back on screen.
 // Opening, summary-click closing and exclusivity still work without JS.
@@ -126,15 +154,11 @@
 (function () {
   "use strict";
 
-  var overlay = document.getElementById("search-overlay");
-  if (!overlay) return; // No search on this page — signed out only.
-
-  var button = document.querySelector(".search-btn");
-  var input = overlay.querySelector(".search-overlay-input");
-  var results = overlay.querySelector(".search-overlay-results");
-  // Set from chrome's SearchPath — "/search" signed in, "/share/<slug>/search"
-  // on the read-only view — so this file never hardcodes which one applies.
-  var searchPath = overlay.dataset.searchPath;
+  // Looked up again after every page switch: the overlay on the page now is
+  // not the node this closed over when the file first ran. Null on a page
+  // with no search — signed out only.
+  var overlay = null;
+  var button, input, results, searchPath;
 
   // Guards against a slow request for an earlier keystroke landing after a
   // faster one for a later keystroke — without this, typing quickly can
@@ -169,18 +193,11 @@
   }
 
   var debounce;
-  input.addEventListener("input", function () {
-    var query = input.value;
-    clearTimeout(debounce);
-    debounce = setTimeout(function () { fetchResults(query); }, 120);
-  });
 
-  button.addEventListener("click", function (event) {
-    event.preventDefault(); // The link still has a real href; only override it once script has run.
-    open();
-  });
-
+  // The shortcut belongs to the document, not to the overlay, so it is
+  // registered once and reads whichever overlay is on the page when it fires.
   document.addEventListener("keydown", function (event) {
+    if (!overlay) return;
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
       event.preventDefault();
       overlay.hidden ? open() : close();
@@ -189,32 +206,57 @@
     if (!overlay.hidden && event.key === "Escape") close();
   });
 
-  overlay.addEventListener("click", function (event) {
-    if (event.target === overlay) close(); // The backdrop, not the box inside it.
-  });
-
-  // Arrow keys move a .current marker among the rendered result links;
-  // Enter follows whichever one currently carries it, or the first result
-  // when nothing has been highlighted yet.
-  input.addEventListener("keydown", function (event) {
-    var links = results.querySelectorAll("a");
-    if (!links.length) return;
-
-    if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Enter") return;
-    event.preventDefault();
-
-    var current = results.querySelector("a.current");
-    var index = current ? Array.prototype.indexOf.call(links, current) : -1;
-
-    if (event.key === "Enter") {
-      (current || links[0]).click();
+  onPageChange(function () {
+    overlay = document.getElementById("search-overlay");
+    button = document.querySelector(".search-btn");
+    if (!overlay || !button) {
+      overlay = null;
       return;
     }
+    input = overlay.querySelector(".search-overlay-input");
+    results = overlay.querySelector(".search-overlay-results");
+    // Set from chrome's SearchPath — "/search" signed in,
+    // "/share/<slug>/search" on the read-only view — so this file never
+    // hardcodes which one applies.
+    searchPath = overlay.dataset.searchPath;
+    input.addEventListener("input", function () {
+      var query = input.value;
+      clearTimeout(debounce);
+      debounce = setTimeout(function () { fetchResults(query); }, 120);
+    });
 
-    index = event.key === "ArrowDown" ? (index + 1) % links.length : (index - 1 + links.length) % links.length;
-    if (current) current.classList.remove("current");
-    links[index].classList.add("current");
-    links[index].scrollIntoView({ block: "nearest" });
+    button.addEventListener("click", function (event) {
+      event.preventDefault(); // The link still has a real href; only override it once script has run.
+      open();
+    });
+
+    overlay.addEventListener("click", function (event) {
+      if (event.target === overlay) close(); // The backdrop, not the box inside it.
+    });
+
+    // Arrow keys move a .current marker among the rendered result links;
+    // Enter follows whichever one currently carries it, or the first result
+    // when nothing has been highlighted yet.
+    input.addEventListener("keydown", function (event) {
+      var links = results.querySelectorAll("a");
+      if (!links.length) return;
+
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Enter") return;
+      event.preventDefault();
+
+      var current = results.querySelector("a.current");
+      var index = current ? Array.prototype.indexOf.call(links, current) : -1;
+
+      if (event.key === "Enter") {
+        (current || links[0]).click();
+        return;
+      }
+
+      index = event.key === "ArrowDown" ? (index + 1) % links.length : (index - 1 + links.length) % links.length;
+      if (current) current.classList.remove("current");
+      links[index].classList.add("current");
+      links[index].scrollIntoView({ block: "nearest" });
+    });
   });
 })();
 
@@ -235,40 +277,45 @@
 (function () {
   "use strict";
 
-  var toggle = document.querySelector(".nav-collapse");
-  if (!toggle) return; // Signed out, or a page with no rail.
   if (!window.fetch) return; // Without it the link is still the whole feature.
 
-  toggle.addEventListener("click", function (event) {
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-      return;
-    }
-    event.preventDefault();
+  // Bound again after every page switch: the rail on the page now is not the
+  // one this was bound to.
+  onPageChange(function () {
+    var toggle = document.querySelector(".nav-collapse");
+    if (!toggle) return; // Signed out, or a page with no rail.
 
-    var root = document.documentElement;
-    var next = root.getAttribute("data-sidebar") === "narrow" ? "wide" : "narrow";
+    toggle.addEventListener("click", function (event) {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      event.preventDefault();
 
-    // Read both before anything moves: one is the width being applied, which
-    // is what the server has to be told, and the other is where the link
-    // points afterwards. Taking them in the wrong order stores the width the
-    // reader just left.
-    var applied = next === "narrow" ? toggle.dataset.hrefNarrow : toggle.dataset.hrefWide;
-    var other = next === "narrow" ? toggle.dataset.hrefWide : toggle.dataset.hrefNarrow;
+      var root = document.documentElement;
+      var next = root.getAttribute("data-sidebar") === "narrow" ? "wide" : "narrow";
 
-    root.setAttribute("data-sidebar", next);
+      // Read both before anything moves: one is the width being applied, which
+      // is what the server has to be told, and the other is where the link
+      // points afterwards. Taking them in the wrong order stores the width the
+      // reader just left.
+      var applied = next === "narrow" ? toggle.dataset.hrefNarrow : toggle.dataset.hrefWide;
+      var other = next === "narrow" ? toggle.dataset.hrefWide : toggle.dataset.hrefNarrow;
 
-    // Point the link at the other width, for the next press and for anyone
-    // who opens it in a tab of its own.
-    if (other) toggle.setAttribute("href", other);
+      root.setAttribute("data-sidebar", next);
 
-    // The label now showing is the one describing the next press, so the
-    // tooltip comes from the DOM rather than from a copy kept here.
-    var label = toggle.querySelector(".nav-label .to-" + (next === "narrow" ? "wide" : "narrow"));
-    if (label) toggle.setAttribute("title", label.textContent.trim());
+      // Point the link at the other width, for the next press and for anyone
+      // who opens it in a tab of its own.
+      if (other) toggle.setAttribute("href", other);
 
-    // HEAD rather than GET: the handler still runs and still sets the cookie,
-    // and a page's worth of HTML is not worth transferring to discard.
-    if (applied) fetch(applied, { method: "HEAD", credentials: "same-origin" }).catch(function () {});
+      // The label now showing is the one describing the next press, so the
+      // tooltip comes from the DOM rather than from a copy kept here.
+      var label = toggle.querySelector(".nav-label .to-" + (next === "narrow" ? "wide" : "narrow"));
+      if (label) toggle.setAttribute("title", label.textContent.trim());
+
+      // HEAD rather than GET: the handler still runs and still sets the cookie,
+      // and a page's worth of HTML is not worth transferring to discard.
+      if (applied) fetch(applied, { method: "HEAD", credentials: "same-origin" }).catch(function () {});
+    });
   });
 })();
 
@@ -292,55 +339,58 @@
 (function () {
   "use strict";
 
-  var note = document.querySelector("[data-raise]");
-  if (!note) return;
+  // A page switched in may carry an outcome of its own to raise.
+  onPageChange(function () {
+    var note = document.querySelector("[data-raise]");
+    if (!note) return;
 
-  var returnTo = document.activeElement;
+    var returnTo = document.activeElement;
 
-  var backdrop = document.createElement("div");
-  backdrop.className = "raised-backdrop";
+    var backdrop = document.createElement("div");
+    backdrop.className = "raised-backdrop";
 
-  var panel = document.createElement("div");
-  panel.className = "raised-panel";
-  panel.setAttribute("role", "dialog");
-  panel.setAttribute("aria-modal", "true");
+    var panel = document.createElement("div");
+    panel.className = "raised-panel";
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-modal", "true");
 
-  var body = document.createElement("p");
-  body.className = "raised-body";
-  body.textContent = note.textContent.trim();
+    var body = document.createElement("p");
+    body.className = "raised-body";
+    body.textContent = note.textContent.trim();
 
-  var close = document.createElement("button");
-  close.type = "button";
-  close.className = "raised-close";
-  // The template carries the word, so this file holds no copy of its own and
-  // needs no knowledge of which language the page is in.
-  close.textContent = note.dataset.raise;
+    var close = document.createElement("button");
+    close.type = "button";
+    close.className = "raised-close";
+    // The template carries the word, so this file holds no copy of its own and
+    // needs no knowledge of which language the page is in.
+    close.textContent = note.dataset.raise;
 
-  panel.appendChild(body);
-  panel.appendChild(close);
-  backdrop.appendChild(panel);
+    panel.appendChild(body);
+    panel.appendChild(close);
+    backdrop.appendChild(panel);
 
-  // The note goes, rather than staying behind the panel saying the same thing
-  // twice to a screen reader.
-  note.remove();
-  document.body.appendChild(backdrop);
-  close.focus();
+    // The note goes, rather than staying behind the panel saying the same thing
+    // twice to a screen reader.
+    note.remove();
+    document.body.appendChild(backdrop);
+    close.focus();
 
-  function dismiss() {
-    backdrop.remove();
-    document.removeEventListener("keydown", onKey);
-    if (returnTo && document.contains(returnTo) && returnTo.focus) returnTo.focus();
-  }
+    function dismiss() {
+      backdrop.remove();
+      document.removeEventListener("keydown", onKey);
+      if (returnTo && document.contains(returnTo) && returnTo.focus) returnTo.focus();
+    }
 
-  function onKey(event) {
-    if (event.key === "Escape") dismiss();
-  }
+    function onKey(event) {
+      if (event.key === "Escape") dismiss();
+    }
 
-  close.addEventListener("click", dismiss);
-  backdrop.addEventListener("click", function (event) {
-    if (event.target === backdrop) dismiss();
+    close.addEventListener("click", dismiss);
+    backdrop.addEventListener("click", function (event) {
+      if (event.target === backdrop) dismiss();
+    });
+    document.addEventListener("keydown", onKey);
   });
-  document.addEventListener("keydown", onKey);
 })();
 
 // The share slug: copying it, and rotating it without leaving the page.
@@ -404,7 +454,7 @@
     });
   }
 
-  mountCopy();
+  onPageChange(mountCopy);
   if (!window.fetch) return; // Without it every control is still a real one.
 
   // Swaps in the card from a response, and puts the copy button back on it.
@@ -477,185 +527,276 @@
   });
 })();
 
-// The leaderboard's ranking menu, applied without the round trip.
+// Switching pages without the flash.
 //
-// Every row in that menu is a link that flips one rule and keeps the rest of
-// the query, and that is the whole feature: it works with this file absent,
-// disabled, or failing to load. What following one costs is a page load, and
-// with it the open menu — so setting two rules means opening the menu twice.
+// Every link in the application is a real link to a real URL, and following
+// one works with this file absent, disabled, or failing to load. That is the
+// whole feature and none of it is built here. What a full page load costs is
+// the flash: the document is torn down and drawn again, and the bar, the rail
+// and the wordmark — identical on every page — go white and come back. On a
+// phone that reads as the application blinking each time it is touched.
 //
-// This swaps the card in place instead, the same "?partial=1" trick the ⌘K
-// overlay and the roster already use, and leaves the menu open on the row
-// that was just pressed. Nothing is decided here that the server did not
-// decide: the replacement markup is the board the link pointed at, rendered
-// by the same template, so a rule applied this way and a rule applied by
-// following the link land on identical pages.
+// This fetches the page the link points at and puts it in place instead.
 //
-// A modified click — a new tab, a new window — is left alone to do what was
-// asked of it.
-(function () {
-  "use strict";
-
-  if (!window.fetch) return; // Without it the link is still the whole feature.
-
-  document.addEventListener("click", function (event) {
-    var link = event.target.closest(".ranking-panel a");
-    if (!link) return;
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-      return;
-    }
-
-    var card = link.closest("section.card");
-    var panel = link.closest(".ranking-panel");
-    if (!card || !panel) return; // Markup changed underneath us; let the link navigate.
-
-    // Where in the menu the press landed, so focus can be put back on the
-    // same row once the replacement has been drawn. The rows are rebuilt,
-    // not moved, so the index is the only handle that survives.
-    var rows = Array.prototype.slice.call(panel.querySelectorAll("a"));
-    var index = rows.indexOf(link);
-
-    event.preventDefault();
-    var url = link.href;
-
-    fetch(url + (url.indexOf("?") === -1 ? "?" : "&") + "partial=1", { credentials: "same-origin" })
-      .then(function (response) { return response.ok ? response.text() : null; })
-      .then(function (html) {
-        if (html === null) {
-          window.location.href = url;
-          return;
-        }
-        var wrapper = document.createElement("div");
-        wrapper.innerHTML = html;
-        var replacement = wrapper.querySelector("section.card");
-        if (!replacement) {
-          window.location.href = url;
-          return;
-        }
-        card.replaceWith(replacement);
-        history.replaceState(null, "", url);
-
-        // The board arrives with its menu shut, because that is how a board
-        // reached by following the link should arrive. Here it was already
-        // open and the reader may well have a second rule to set.
-        var menu = replacement.querySelector("details.ranking");
-        if (!menu) return;
-        menu.open = true;
-        var next = menu.querySelectorAll(".ranking-panel a")[index];
-        if (next) next.focus();
-      })
-      .catch(function () {
-        // Pure enhancement: fall back to the link's real navigation.
-        window.location.href = url;
-      });
-  });
-})();
-
-// The player page's roster, applied without the round trip.
+// The whole body is replaced, not just the content. The rail's highlight, the
+// theme and language links (each of which is the current URL with one
+// parameter changed) and the title all belong to the page being moved to, and
+// patching the handful known to differ is a list that goes stale the first
+// time somebody adds a control to the bar. What arrives here is the server's
+// own rendering of that URL, so a page reached this way and a page reached by
+// following the link are the same page — which is also why the pages that
+// used to answer "?partial=1" for this no longer need to.
 //
-// Every row in that menu is a link to a player's page, and that is the whole
-// feature: it works with this file absent, disabled, or failing to load. What
-// following one costs is a page load, and the roster is the one control on
-// the page a reader uses repeatedly — comparing two people means two full
-// loads of a page that is mostly charts.
+// It replaces two enhancements that each did this for one route: the board's
+// ranking menu and the player roster. Both survive as the focus rules below,
+// which are the only part that was ever specific to them.
 //
-// This swaps the card in place instead, the same "?partial=1" trick the
-// ranking menu and the ⌘K overlay already use. Unlike the ranking menu the
-// roster is then closed rather than left open: the reader asked for a player,
-// not for a second one, and an open roster would cover the page they just
-// arrived at. Focus moves to the bar, which is where the roster is.
-//
-// This one changes the path, not the query, so the history entry is a real
-// one: pushState, and a popstate listener to put back whichever player the
-// reader went back to. The entry the page loaded on is marked on the first
-// swap, so returning to it is a swap like any other; anything older than that
-// belongs to someone else's page and is reloaded rather than guessed at.
-//
-// A modified click — a new tab, a new window — is left alone to do what was
-// asked of it.
+// Anything it cannot do it hands back to the browser: a modified click, a
+// link out of the application, a reply that is not HTML, markup that is not a
+// document, a request that fails. The fallback is always the navigation that
+// was asked for, which is what would have happened anyway.
 (function () {
   "use strict";
 
   if (!window.fetch || !window.history || !history.pushState) return;
+  if (!window.DOMParser || !window.AbortController) return;
+  if (!document.body || !document.body.replaceChildren) return;
 
-  var marked = false; // Whether this page's own entry carries our state yet.
+  var parser = new DOMParser();
+  var inFlight = null; // The request being waited on, if any.
+  var marked = false; // Whether the entry this page loaded on is one of ours.
+  var slow; // The timer that admits a page is taking a while.
 
-  // draw replaces the visible card with the one at url, and reports whether
-  // it managed to. Everything that can go wrong — a network failure, a
-  // sign-in redirect, markup that changed shape under us — ends as a real
-  // navigation, which is what would have happened without this file.
-  function draw(url, after) {
-    var card = document.querySelector("main section.card");
-    if (!card) return Promise.resolve(false);
+  // Where each of our history entries was scrolled to. Keyed by a number kept
+  // in the entry's own state, because a URL is not unique in a history: the
+  // same board can be three entries back and two entries forward.
+  var scrolls = {};
+  var entry = 0;
+  var nextEntry = 1;
 
-    return fetch(url + (url.indexOf("?") === -1 ? "?" : "&") + "partial=1", {
-      credentials: "same-origin",
-    })
-      .then(function (response) { return response.ok ? response.text() : null; })
-      .then(function (html) {
-        if (html === null) return false;
-        var wrapper = document.createElement("div");
-        wrapper.innerHTML = html;
-        var replacement = wrapper.querySelector("section.card");
-        if (!replacement) return false;
-        card.replaceWith(replacement);
+  function waiting(on) {
+    clearTimeout(slow);
+    if (!on) {
+      document.documentElement.removeAttribute("data-loading");
+      return;
+    }
+    // Only once it has taken long enough that silence would read as the
+    // press having done nothing. A page off a local network never gets here.
+    slow = setTimeout(function () {
+      document.documentElement.setAttribute("data-loading", "");
+    }, 120);
+  }
 
-        // The tab is the other place the player's name is written, and the
-        // card that just arrived is the only thing that knows it.
-        var name = replacement.querySelector(".switcher-label");
-        if (name && document.title.indexOf("—") !== -1) {
-          document.title = name.textContent + document.title.slice(document.title.indexOf(" —"));
-        }
-        if (after) after(replacement);
+  // apply puts a fetched document in place of this one, and reports whether
+  // it was a document at all — a reply that parses to an empty body is a
+  // sign-in page served as a fragment, or an error page from something in
+  // front of the application, and either is better navigated to for real.
+  function apply(html) {
+    var doc = parser.parseFromString(html, "text/html");
+    if (!doc || !doc.body || !doc.body.firstChild) return false;
+
+    // The attributes the server decides for the whole document: the reader's
+    // language, their theme, and how wide the rail is. Following a theme link
+    // is an ordinary navigation, so this is how the theme actually changes.
+    var root = document.documentElement;
+    var incoming = doc.documentElement;
+    ["lang", "data-theme", "data-sidebar"].forEach(function (name) {
+      var value = incoming.getAttribute(name);
+      if (value === null) root.removeAttribute(name);
+      else root.setAttribute(name, value);
+    });
+    document.title = doc.title;
+
+    // The body's own attributes as well as its children. There are none
+    // today; a page that grows one would otherwise keep the last page's.
+    Array.prototype.slice.call(document.body.attributes).forEach(function (attr) {
+      if (!doc.body.hasAttribute(attr.name)) document.body.removeAttribute(attr.name);
+    });
+    Array.prototype.forEach.call(doc.body.attributes, function (attr) {
+      document.body.setAttribute(attr.name, attr.value);
+    });
+
+    document.body.replaceChildren.apply(
+      document.body,
+      Array.prototype.slice.call(doc.body.childNodes)
+    );
+    onPageChange.rerun();
+    return true;
+  }
+
+  // Focus has to be put somewhere: the element that was clicked is about to
+  // stop existing, and focus left on a departing node lands on the body,
+  // which puts a keyboard back at the start of the page with nothing to say
+  // it moved. A real navigation resets focus too — this only aims it better.
+  function focusMain() {
+    var main = document.getElementById("main");
+    if (!main) return;
+    // tabindex only for as long as the focus lasts, so the region never
+    // becomes a tab stop of its own.
+    main.setAttribute("tabindex", "-1");
+    main.focus();
+    main.addEventListener("blur", function () { main.removeAttribute("tabindex"); }, { once: true });
+  }
+
+  // Where focus goes instead, for the three controls that are a place in the
+  // page rather than a step out of it. Each returns false if the page that
+  // arrived does not have what it was looking for, and the main region takes
+  // over.
+  function focusRule(link) {
+    var ranking = link.closest(".ranking-panel");
+    if (ranking) {
+      // A board reached by following this link arrives with its menu shut,
+      // which is right for a link. Here the menu was open and the reader may
+      // well have a second rule to set.
+      var index = Array.prototype.indexOf.call(ranking.querySelectorAll("a"), link);
+      return function () {
+        var menu = document.querySelector("details.ranking");
+        if (!menu) return false;
+        menu.open = true;
+        var row = menu.querySelectorAll(".ranking-panel a")[index];
+        if (row) row.focus();
         return true;
+      };
+    }
+    if (link.closest(".switcher-panel")) {
+      // The roster, and the admin area's section bar. The reader asked for a
+      // page, not for the list again, so the menu stays shut and the bar —
+      // which is the control they just used — keeps the focus.
+      return function () {
+        var bar = document.querySelector("details.switcher > summary");
+        if (!bar) return false;
+        bar.focus();
+        return true;
+      };
+    }
+    if (link.closest(".sidebar, .drawer")) {
+      // A rail row: the same row in the new rail, so the next Tab is the next
+      // view rather than the top of the page.
+      var href = link.getAttribute("href");
+      return function () {
+        // The rail and the drawer render the same rows, and whichever of the
+        // two this width does not use is hidden — focusing a hidden element
+        // silently does nothing, which would leave focus on the body.
+        var rows = document.querySelectorAll(".sidebar a[href], .drawer a[href]");
+        for (var i = 0; i < rows.length; i++) {
+          if (rows[i].getAttribute("href") === href && rows[i].getClientRects().length) {
+            rows[i].focus();
+            return true;
+          }
+        }
+        return false;
+      };
+    }
+    return null;
+  }
+
+  // go fetches url and, if what comes back is a page, puts it in place.
+  // commit is what to do with the history and the scroll once it is there:
+  // pushing an entry for a press, restoring one for a Back.
+  function go(url, commit, focus) {
+    if (inFlight) inFlight.abort();
+    var controller = new AbortController();
+    inFlight = controller;
+    waiting(true);
+
+    fetch(url, {
+      credentials: "same-origin",
+      headers: { Accept: "text/html" },
+      signal: controller.signal,
+    })
+      .then(function (response) {
+        var type = response.headers.get("content-type") || "";
+        if (type.indexOf("text/html") === -1) return null;
+        return response.text().then(function (html) {
+          // A redirect is where the reader actually ended up — a sign-in
+          // page, most often — so that is the address to record.
+          return { html: html, url: response.redirected ? response.url : url };
+        });
       })
-      .catch(function () { return false; });
+      .then(function (result) {
+        if (inFlight !== controller) return; // A later press won.
+        inFlight = null;
+        waiting(false);
+        if (result === null || !apply(result.html)) {
+          window.location.href = url;
+          return;
+        }
+        commit(result.url);
+        if (!focus || !focus()) focusMain();
+      })
+      .catch(function (err) {
+        if (err && err.name === "AbortError") return;
+        waiting(false);
+        window.location.href = url;
+      });
+  }
+
+  // Which links this can take over. Everything else is left alone, and left
+  // alone means the browser does exactly what the markup asked for.
+  function swappable(link) {
+    if (link.target && link.target !== "_self") return false;
+    if (link.hasAttribute("download")) return false;
+    if (link.dataset.reload !== undefined) return false; // The opt-out.
+    if (link.origin !== window.location.origin) return false; // Also catches mailto:.
+    if (link.pathname.indexOf("/static/") === 0) return false;
+
+    var href = link.getAttribute("href");
+    if (!href || href.charAt(0) === "#") return false; // An anchor in this page.
+    // This page with a fragment on it: the browser's own scroll, not a fetch.
+    if (link.pathname === window.location.pathname &&
+        link.search === window.location.search && link.hash) {
+      return false;
+    }
+    return true;
   }
 
   document.addEventListener("click", function (event) {
-    var link = event.target.closest(".switcher-panel a");
-    if (!link) return;
+    // Registered last in this file, so an enhancement that has already taken
+    // this press — the search button, the rail's collapse, the share slug —
+    // has said so by now.
+    if (event.defaultPrevented) return;
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
       return;
     }
-    // Only the roster: the admin area's bar is the same control over a
-    // handful of pages that share nothing but the bar itself, and swapping
-    // one of those in would leave the rail pointing somewhere else.
-    if (!/\/p\/[^/]+$/.test(link.pathname)) return;
 
-    var menu = link.closest("details.switcher");
-    if (!menu) return; // Markup changed underneath us; let the link navigate.
+    var link = event.target.closest("a[href]");
+    if (!link || !swappable(link)) return;
 
     event.preventDefault();
     var url = link.href;
+    var focus = focusRule(link);
 
+    // The entry this page loaded on is marked on the first switch, so coming
+    // back to it later is a switch like any other.
     if (!marked) {
-      history.replaceState({ wl: "player" }, "", location.href);
+      history.replaceState({ wl: entry }, "", window.location.href);
       marked = true;
     }
+    scrolls[entry] = window.scrollY;
 
-    draw(url, function (replacement) {
-      var bar = replacement.querySelector("details.switcher > summary");
-      if (bar) bar.focus();
-    }).then(function (ok) {
-      if (!ok) {
-        window.location.href = url;
-        return;
-      }
-      history.pushState({ wl: "player" }, "", url);
-    });
+    var to = nextEntry++;
+    go(url, function (finalURL) {
+      history.pushState({ wl: to }, "", finalURL);
+      entry = to;
+      // A press is a new page, and a new page starts at the top.
+      window.scrollTo(0, 0);
+    }, focus);
   });
 
   window.addEventListener("popstate", function (event) {
-    if (!marked) return; // Nothing here was swapped, so nothing here is stale.
-    if (!event.state || event.state.wl !== "player") {
-      // Older than anything this file drew. The address bar already says
+    if (!marked) return; // Nothing here was switched, so nothing here is stale.
+    if (!event.state || typeof event.state.wl !== "number") {
+      // Older than anything this ever drew. The address bar already says
       // where we are; a reload is the honest way to agree with it.
       window.location.reload();
       return;
     }
-    draw(location.href, null).then(function (ok) {
-      if (!ok) window.location.reload();
-    });
+
+    scrolls[entry] = window.scrollY; // The page being left, before it goes.
+    var to = event.state.wl;
+    go(window.location.href, function () {
+      entry = to;
+      window.scrollTo(0, scrolls[to] || 0);
+    }, null);
   });
 })();

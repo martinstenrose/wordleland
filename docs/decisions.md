@@ -90,9 +90,22 @@ over a fixed set of days everybody had, so a day not played is a failure —
 without that, the way to win a month is to play only your good days, and
 eleven cherry-picked games beat thirty honest ones. The denominator is every
 concluded calendar day from the month's first puzzle, even if nobody posted
-on one of them. It still follows *count X as 7*, because with a failure worth
-nothing there is no number an absence could take either. Today's puzzle is
-not a miss while there is still time to play it.
+on one of them. Today's puzzle is not a miss while there is still time to
+play it.
+
+**The two counting rules are independent, and used not to be.** Counting
+absences was gated behind counting X as 7, on the reasoning that with a
+failure worth nothing there is no number an absence could take either. There
+is. Seven is what a Wordle is worth when it was not solved, and whether
+somebody attempted it is a separate question from whether they turned up: "a
+failure does not count against you, but not playing does" is a rule somebody
+can want, and it was not expressible.
+
+All three places that fill in an absence follow the same rule, so all three
+changed together — the board's toggle, the month's own denominator, and
+Today's thirty-day form window. Leaving the last two gated would have meant
+one query string producing a board that counts absences beside a month table
+that quietly does not.
 
 **A month has no minimum-games threshold.** Every concluded day a player
 missed already scores as 7, so a short appearance is penalised by the monthly
@@ -428,8 +441,10 @@ from it:
   a cookie set by following a link — the same mechanism the theme has used all
   along.
 
-  Collapsing the rail is the one place script is worth adding on top, and it
-  is added the way this repository allows: the link is the whole feature and
+  Collapsing the rail was the first place script was worth adding on top, and
+  it set the pattern the rest followed — see *Switching pages in place*,
+  below. It is added the way this repository allows: the link is the whole
+  feature and
   still works on its own, and `app.js` only saves the round trip, flipping the
   width attribute on `<html>` and telling the server in the background. It
   renders nothing — the wording, the arrow and the accessible name all follow
@@ -458,6 +473,139 @@ server-rendered can add them. It is therefore marked up as the disclosure it
 is and not as a modal dialog. None of that is verifiable here: this project has
 no headless browser, and adding one is a dependency that needs its own
 argument, so the drawer's behaviour is checked by looking at it.
+
+## A card's heading is the control that changes it
+
+Two places used a strip of tabs above a title: the five admin screens, and
+the roster of everybody on the board above a player's page. Both said the
+same word twice — highlighted in the strip, then as the heading underneath —
+and in both the strip was the half that did not fit. Five admin sections
+wrapped to a second row on a phone; fourteen names scrolled sideways. A
+heading is one line at every width whatever is behind it.
+
+So the heading became the control, and the title that repeated the
+highlighted tab is gone because the heading now carries it. `pill-nav` keeps
+the callers where the row genuinely fits — the activity filters, the grid's
+time spans — and lost the two where it never would.
+
+One partial draws both cases. They are the same control, differing only in
+what each row carries (a section has an icon and sometimes a count; a player
+has a rank and an average) and in what sits beside the heading (a glyph, or
+initials); two partials would be two things to keep in step. Each is built
+from the list that already existed — `AdminTabs`, and the board — so there is
+still one place that knows what the admin area contains and one that knows
+who plays.
+
+The roster is the case the design set out as the harder one, and the reason
+its rows carry figures at all: fourteen bare names in an arbitrary order is a
+list you have to read, and the same names in the board's order with its
+figures beside them is the leaderboard in miniature, which you can aim at
+before reading. Both figures are withheld below the ranking threshold, as
+they are everywhere else — this menu would otherwise be the one place an
+average over three puzzles slipped out, and the place nobody would think to
+look.
+
+## Today is the day's result, then what it means
+
+The front page opened on a headline, a row of tiles for whoever had won, and
+a wrapping strip of name-and-score pairs. The strip said who had played and
+nothing else: not who was ahead, and not whether a 4 was a good day for that
+person or a bad one. Both are answered by figures the page already had — the
+standing so far, and the distance from that player's own average — and
+neither was being shown.
+
+So the day became a list, best first, and the rest of the page was cut to
+make room for it. What went, and why:
+
+- **The hero tiles.** The winner's row is one row among the rest now, drawn
+  the same way. Two drawings of the same result, one of them larger, is a
+  headline for a number already in the list.
+- **The three podium cards, and the six-column table under them.** They gave
+  three people a paragraph each and everybody else a line, which made the
+  table read as an afterthought — and the unlabelled figure beside a name
+  meant a game count in the cards and a streak in the table. One row shape
+  for everybody is shorter, reads down, and settles that by construction.
+- **The trait badge and Last Five**, with them: the same argument the
+  leaderboard and Months had already won. These are rows of figures about a
+  window, and the name column is for the name.
+- **A round trip.** The players the board does not rank were fetched with
+  `?benched=1` and swapped in by script. The list is small and was always
+  going to be rendered, so fetching it was work spent avoiding a
+  `<details>`.
+
+Two rules in the new list are worth stating. A miss says "missed" rather than
+a distance from an average, because it is off the scale the average is
+measured on and "▲ 2.61" would invent one. And a player the board does not
+rank is in the day like everybody else but holds no position among the
+ranked: numbering them would push everyone below down a place for the wrong
+reason.
+
+On a wide screen the results and the form stand side by side, which is what
+makes the two lists' measurements load-bearing — a row in one has to sit
+level with the row beside it, so they share one rule rather than two that
+agree today. The same argument runs through the tables: the board, Months and
+the season table under it each measured their own rank column, so three
+tables about the same roster put the names in three different places. One
+token holds that width now, and the table with no rank takes it as an indent.
+
+The column labels over Today's two lists are their own strings rather than
+the board's. The board's headings live in a wide table that scrolls; here
+"Durchschnitt" over a 72px column wraps, one list's header grows taller than
+the other's, and every row below it is out of step. The widths are the
+longest label in any of the five languages, measured rather than guessed.
+
+## Switching pages in place, and what that says about the script rule
+
+AGENTS.md's rule is that script is for what cannot exist without it. This
+work roughly tripled `app.js`, and that is worth explaining, because it is
+not a change of rule.
+
+Nothing the script adds is a feature. Every link is still a link to a real
+URL, every menu a `<details>`, every form a form that posts, and each works
+with `app.js` absent, disabled or failing to load — which is also how each
+enhancement is written: it takes a press the markup had already handled, and
+saves the round trip. What is added is never the thing, only the absence of a
+reload.
+
+The page switcher is the general case. Following a link cost a full page
+load: the document torn down and drawn again, with the bar, the rail and the
+wordmark — identical on every page — going white and coming back. On a phone
+that reads as the application blinking each time it is touched.
+
+Two decisions inside it are the ones worth keeping.
+
+**The whole body is replaced, not just the content.** The rail's highlight,
+the theme and language links — each of which is the current URL with one
+parameter changed — and the title all belong to the page being moved to.
+Patching the handful known to differ is a list that goes stale the first time
+somebody adds a control to the bar. Replacing the body means what arrives is
+the server's own rendering of that URL, so a page reached by script and a
+page reached by following the link are the same page. It is also the only
+version that gets an error page right: that frame has no rail, and replacing
+only the content would have left one behind.
+
+**One mechanism, not one per route.** Two pages used to answer `?partial=1`
+with their card alone, so that the board's ranking menu and the player roster
+could each swap in place. Both are the general case now, and the parameter is
+search's alone — the one place it still means something, because the ⌘K
+overlay wants a list of hits rather than a page.
+
+What it costs is a constraint on every enhancement written from here. An
+enhancement that delegates from the document is unaffected; one that holds on
+to a particular element is holding a node that a switch throws away. The four
+that do — search, the rail's collapse, the raised outcome, the copy button —
+register with a re-init registry that runs them again after every switch, and
+so must be safe to run more than once.
+
+None of that is verifiable in this repository, for the reason the drawer
+above is not: there is no headless browser here, and adding one is a
+dependency that needs its own argument. That Back restores both the page and
+its scroll, that focus lands somewhere a reader can use it, and that no page
+is ever actually reloaded were checked by driving a real browser, not by
+anything that runs in CI. What *is* pinned here is the part that is easy to
+break by moving code: the switcher's click listener has to be the last one
+registered, because several enhancements take a press by calling
+`preventDefault` and the switcher stands down when one of them has.
 
 ## Deliberately not built
 
