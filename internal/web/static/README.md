@@ -112,11 +112,24 @@ rendered before/after is the wrong tradeoff to make blind.
 
 ## Fonts and transitions
 
-`--font-body` and `--font-mono` are the two font stacks. The monospace stack
-had quietly drifted into two different forms (some rules omitted
-`SFMono-Regular`); both now share one token. `--transition-fast` (`.12s ease`)
-tokenizes the settings switch's two transition rules, which were already
-identical but repeated by hand.
+`--font-body` is Manrope, the design system's typeface, and `fonts/` holds it.
+It is served from here rather than from a font CDN: a page that reaches a
+third party to finish rendering is a page this app does not control, and one
+more party watching whoever reads the board. One variable file carries the
+whole 200–800 range, so a bold costs no second request; `font-display: swap`
+because the board reads fine in the fallback and a blocked paint is worse than
+a reflow. The file is the design system's own, renamed from its upstream
+`Manrope[wght].ttf` only to keep brackets out of a URL, and `Manrope-OFL.txt`
+beside it is the licence the OFL requires to travel with it.
+
+It is a 165 KB `.ttf`. A `.woff2` would be roughly a third of that, but
+producing one needs a font toolchain, and a build step is the thing this
+directory exists to avoid.
+
+`--font-mono` is the monospace stack, which had quietly drifted into two
+different forms (some rules omitted `SFMono-Regular`); both now share one
+token. `--transition-fast` (`.12s ease`) tokenizes the settings switch's two
+transition rules, which were already identical but repeated by hand.
 
 ## One deliberate non-token
 

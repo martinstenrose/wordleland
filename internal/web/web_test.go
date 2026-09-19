@@ -457,6 +457,31 @@ func TestStylesheetIsWhole(t *testing.T) {
 	}
 }
 
+// The stylesheet asks for a typeface this app serves itself. A font that 404s
+// is invisible in every test that only reads markup: the page still renders,
+// in the fallback, and nobody notices until they look at one. The embed is
+// the thing that breaks — a file added to static/ but not reachable through
+// it — so this asks the server for the bytes the @font-face names.
+func TestTheTypefaceIsServed(t *testing.T) {
+	srv := testServer(t)
+
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+	const src = "/static/fonts/manrope-variable.ttf"
+	if !strings.Contains(css, src) {
+		t.Fatalf("the stylesheet does not reference %s", src)
+	}
+
+	rec := fetchAs(t, srv, src, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("%s = %d", src, rec.Code)
+	}
+	// An sfnt file starts with a version tag; 0x00010000 is TrueType outlines,
+	// which is what format("truetype-variations") promises the browser.
+	if got := rec.Body.Bytes(); len(got) < 4 || !bytes.Equal(got[:4], []byte{0x00, 0x01, 0x00, 0x00}) {
+		t.Errorf("%s is not a TrueType file (%d bytes, starts %x)", src, len(got), got[:min(4, len(got))])
+	}
+}
+
 // Every table must have as many header cells as its rows have cells, and
 // any column hidden on a narrow screen must be hidden in both — the header
 // carrying the class as well as the cells. The months table shipped with a

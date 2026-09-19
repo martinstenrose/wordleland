@@ -1,3 +1,21 @@
+/* Manrope is the design system's typeface, served from here rather than from
+   a font CDN: a page that reaches out to a third party to finish rendering is
+   one this app does not control and one more party watching whoever reads the
+   board. The variable font is the whole 200–800 range in one file, so there
+   is no second request for a bold. `swap` because the board is readable in
+   the fallback and a blocked paint is worse than a reflow.
+
+   The file is the design system's own, renamed from its upstream
+   "Manrope[wght].ttf" only to keep brackets out of a URL. Its licence sits
+   beside it; the OFL requires that copy to travel with the font. */
+@font-face {
+  font-family: "Manrope";
+  src: url("/static/fonts/manrope-variable.ttf") format("truetype-variations");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Design tokens. The palette, the type scale and the radius scale come from
    the Stenröse design system; internal/web/static/README.md records what each
    token is for, which values were derived here rather than taken from it, and
@@ -84,7 +102,7 @@
      double it rather than sharpen it. */
   --shadow-elevated: 0 1px 2px oklch(0 0 0 / .3), 0 8px 24px oklch(0 0 0 / .35);
 
-  --font-body: "Inter", system-ui, sans-serif;
+  --font-body: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Border radius. --radius-xs/-sm are consolidated from a handful of
