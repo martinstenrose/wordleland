@@ -1,12 +1,7 @@
 {{define "title"}}{{.T.T "pending.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<section class="card">
-  {{template "admin-tabs" .}}
-
-  <div class="card-head">
-    <h1>{{.T.T "pending.title"}}</h1>
-    <p class="kicker">{{.T.T "pending.counts" .Open .Count}}</p>
-  </div>
+<section class="card card-bar">
+  {{template "switcher" .Section}}
 
   {{if eq .Notice "assigned"}}<p class="note">{{.T.T "pending.assigned"}}</p>{{end}}
   {{if eq .Notice "discarded"}}<p class="note">{{.T.T "pending.discarded"}}</p>{{end}}

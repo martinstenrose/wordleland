@@ -123,6 +123,13 @@ func (s *Server) handleAdminPending(w http.ResponseWriter, r *http.Request) {
 		page.Rows = append(page.Rows, row)
 	}
 
+	// The counts this section is read for, and the one worth seeing before
+	// the menu is opened: senders still waiting to be claimed.
+	page.Section.Hint = page.T.T("pending.counts", page.Open, page.Count)
+	if page.Open > 0 {
+		page.Section.Badge = page.T.Integer(page.Open)
+	}
+
 	if !s.issueChromeToken(w, r, &page.chrome) {
 		return
 	}

@@ -70,10 +70,6 @@ type playerPage struct {
 
 	Query boardQuery
 
-	// Picker is every player on the board, so the panel can be swapped
-	// without going back to it — which is what the design's tab strip does.
-	Picker []playerTab
-
 	// Charts. FormPath and GroupPath share one coordinate space so the two
 	// lines can be read against each other.
 	FormPath  template.HTML
@@ -101,13 +97,12 @@ type playerPage struct {
 	RankPathDashed template.HTML
 
 	// Figures pre-formatted the same way the board formats them.
-	AverageText    string
-	FormText       string
-	DeltaText      string
-	DeltaClass     string
-	HardModeShare  string
-	LastPlayedText string
-	ReasonKey      string
+	AverageText   string
+	FormText      string
+	DeltaText     string
+	DeltaClass    string
+	HardModeShare string
+	ReasonKey     string
 
 	// ChartNoteKey explains why the charts are absent, when they are. It is
 	// empty for a player whose charts render.
@@ -121,13 +116,6 @@ type playerPage struct {
 type playerStat struct {
 	Label string
 	Value string
-}
-
-// playerTab is one name in the picker.
-type playerTab struct {
-	Label string
-	Href  string
-	On    bool
 }
 
 // chartGridline is one horizontal rule, the score it marks, and where that
@@ -167,21 +155,14 @@ func (s *Server) handlePlayers(w http.ResponseWriter, r *http.Request, prefix, b
 	// "Players" and made the strip look like it had already been used. Asking
 	// is one tap, and it is the honest answer to a view with no subject yet.
 	page := playersPage{chrome: s.newChrome(w, r, prefix, viewPlayers, readOnly)}
-	for _, group := range [][]stats.Player{board.Ranked, board.Unranked} {
-		for _, p := range group {
-			page.Picker = append(page.Picker, playerTab{
-				Label: p.Name, Href: prefix + "/p/" + p.Slug,
-			})
-		}
-	}
+	page.Section = page.playerSwitcher(board, prefix, nil)
 	s.render(w, r, http.StatusOK, "players.html", page)
 }
 
-// playersPage is the players view with nobody chosen: the strip, and an
-// invitation to pick from it.
+// playersPage is the players view with nobody chosen: the bar, and an
+// invitation to open it.
 type playersPage struct {
 	chrome
-	Picker []playerTab
 }
 
 func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, prefix, boardPath string, readOnly bool) {
@@ -245,13 +226,7 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, pref
 	page.RankPath = template.HTML(path)
 	page.RankPathDashed = template.HTML(dashedPath)
 
-	for _, group := range [][]stats.Player{board.Ranked, board.Unranked} {
-		for _, p := range group {
-			page.Picker = append(page.Picker, playerTab{
-				Label: p.Name, Href: prefix + "/p/" + p.Slug, On: p.ID == player.ID,
-			})
-		}
-	}
+	page.Section = ch.playerSwitcher(board, prefix, &player)
 
 	page.DeltaText, page.DeltaClass = formatDelta(t, player.Delta)
 
@@ -268,10 +243,6 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, pref
 		{Label: t.T("board.column.average"), Value: formatScore(t, player.Average)},
 		{Label: t.T("player.currentStreak"), Value: streak},
 		{Label: t.T("board.column.rank"), Value: rank},
-	}
-
-	if player.LastPlayed != nil {
-		page.LastPlayedText = player.LastPlayed.Format(time.DateOnly)
 	}
 
 	// The derived figures are withheld below the ranking threshold, on this
@@ -308,6 +279,16 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, pref
 		page.CSRFToken = token
 	}
 
+	// "?partial=1" asks for just the card, the same way board.go's ranking
+	// menu and search.go's overlay reuse their own pages — see app.js — so
+	// picking a name from the roster can swap the panel in without a full
+	// reload while still working from a plain link when script is absent.
+	// This page's "content" block is the card, so there is no second
+	// template to keep in step with the first.
+	if r.URL.Query().Get("partial") == "1" {
+		s.renderBlock(w, r, http.StatusOK, "player.html", "content", page)
+		return
+	}
 	s.render(w, r, http.StatusOK, "player.html", page)
 }
 

@@ -457,31 +457,31 @@ func TestPlayersViewOpensOnThePickerWithNobodyChosen(t *testing.T) {
 	}
 	body := rec.Body.String()
 
-	if strings.Contains(body, "<h1>Normalb") {
+	if strings.Contains(body, `<h1 class="switcher-label">Normalb`) {
 		t.Error("the players view still opens on the top-ranked player")
 	}
 	if !strings.Contains(body, "Choose a player to show") {
 		t.Error("nothing asks the reader to pick")
 	}
-	// Every player is in the picker, ranked and not.
+	// Every player is in the roster menu, ranked and not.
 	for _, want := range []string{"/p/harda", "/p/normala", "/p/thin", "/p/lapsed"} {
 		if !strings.Contains(body, want) {
-			t.Errorf("the picker is missing %s", want)
+			t.Errorf("the roster is missing %s", want)
 		}
 	}
 	// And none of them is marked current, because none of them is.
-	if strings.Contains(body, `class="pill-nav-item on"`) {
-		t.Error("the picker marks a player nobody chose")
+	if strings.Contains(body, "switcher-row on") {
+		t.Error("the roster marks a player nobody chose")
 	}
 
-	// Following one lands on that player, with the strip still there and
-	// the choice marked.
+	// Following one lands on that player, with the bar still there and the
+	// choice marked.
 	chosen := fetchAs(t, srv, "/share/"+slug+"/p/harda", nil).Body.String()
-	if !strings.Contains(chosen, "<h1>Harda") {
+	if !strings.Contains(chosen, `<h1 class="switcher-label">Harda`) {
 		t.Error("following a name did not show that player")
 	}
-	if !strings.Contains(chosen, `class="pill-nav-item on"`) {
-		t.Error("the picker does not mark the player being shown")
+	if !strings.Contains(chosen, "switcher-row on") {
+		t.Error("the roster does not mark the player being shown")
 	}
 }
 

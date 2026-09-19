@@ -27,7 +27,7 @@ func TestAdminScreensShareTheirChrome(t *testing.T) {
 
 	for _, path := range []string{"/admin/players", "/admin/pending", "/admin/activity"} {
 		body := fetchAs(t, srv, path, session).Body.String()
-		start := strings.Index(body, `<section class="card"`)
+		start := strings.Index(body, `<section class="card`)
 		if start < 0 {
 			t.Fatalf("%s has no card section", path)
 		}
@@ -286,12 +286,57 @@ func TestTheRailCarriesOneAdminRow(t *testing.T) {
 	}
 	for _, screen := range []string{"Pending results", "Activity log", "Diagnostics"} {
 		if strings.Contains(rail, ">"+screen+"<") {
-			t.Errorf("the rail lists %q, which the page's own strip carries", screen)
+			t.Errorf("the rail lists %q, which the page's own bar carries", screen)
 		}
 	}
 
-	// And that strip is on the page.
-	if !strings.Contains(body, `class="pill-nav"`) {
-		t.Error("the admin screen has no tab strip")
+	// And that bar is on the page — the heading, which is also the control
+	// that changes which section the card is.
+	if !strings.Contains(body, `<details class="switcher menu" name="menu-group">`) {
+		t.Error("the admin screen has no section bar")
+	}
+	if !strings.Contains(body, `<h1 class="switcher-label">Pending results</h1>`) {
+		t.Error("the bar does not carry the section's name as the page's heading")
+	}
+}
+
+// Every admin screen carries the bar, including the one that is not a section
+// of its own.
+//
+// The activity detail is the sixth admin screen and the easy one to forget:
+// it is a row of the activity log opened up, so it has a subject of its own
+// and does not appear in the list the other five are built from. Losing the
+// bar there would leave one screen with no way back out of it except the
+// browser's own, which is the failure this pins.
+func TestEveryAdminScreenCarriesTheSectionBar(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	// The five sections, each naming itself.
+	screens := map[string]string{
+		"/admin/settings":    "Settings",
+		"/admin/players":     "Players",
+		"/admin/pending":     "Pending results",
+		"/admin/activity":    "Activity log",
+		"/admin/diagnostics": "Diagnostics",
+	}
+
+	// And the detail, which reports the section it was opened from while
+	// keeping its own heading below the bar.
+	list := fetchAs(t, srv, "/admin/activity", session).Body.String()
+	if href := regexp.MustCompile(`/admin/activity/(\d+)`).FindString(list); href != "" {
+		screens[href] = "Activity log"
+	}
+
+	for path, section := range screens {
+		body := fetchAs(t, srv, path, session).Body.String()
+		if n := strings.Count(body, `<details class="switcher menu"`); n != 1 {
+			t.Errorf("%s renders %d section bars, want exactly one", path, n)
+			continue
+		}
+		if !strings.Contains(body, `<h1 class="switcher-label">`+section+`</h1>`) {
+			t.Errorf("%s: the bar does not say you are in %q", path, section)
+		}
 	}
 }

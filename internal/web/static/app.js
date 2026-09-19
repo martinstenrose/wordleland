@@ -592,3 +592,112 @@
       });
   });
 })();
+
+// The player page's roster, applied without the round trip.
+//
+// Every row in that menu is a link to a player's page, and that is the whole
+// feature: it works with this file absent, disabled, or failing to load. What
+// following one costs is a page load, and the roster is the one control on
+// the page a reader uses repeatedly — comparing two people means two full
+// loads of a page that is mostly charts.
+//
+// This swaps the card in place instead, the same "?partial=1" trick the
+// ranking menu and the ⌘K overlay already use. Unlike the ranking menu the
+// roster is then closed rather than left open: the reader asked for a player,
+// not for a second one, and an open roster would cover the page they just
+// arrived at. Focus moves to the bar, which is where the roster is.
+//
+// This one changes the path, not the query, so the history entry is a real
+// one: pushState, and a popstate listener to put back whichever player the
+// reader went back to. The entry the page loaded on is marked on the first
+// swap, so returning to it is a swap like any other; anything older than that
+// belongs to someone else's page and is reloaded rather than guessed at.
+//
+// A modified click — a new tab, a new window — is left alone to do what was
+// asked of it.
+(function () {
+  "use strict";
+
+  if (!window.fetch || !window.history || !history.pushState) return;
+
+  var marked = false; // Whether this page's own entry carries our state yet.
+
+  // draw replaces the visible card with the one at url, and reports whether
+  // it managed to. Everything that can go wrong — a network failure, a
+  // sign-in redirect, markup that changed shape under us — ends as a real
+  // navigation, which is what would have happened without this file.
+  function draw(url, after) {
+    var card = document.querySelector("main section.card");
+    if (!card) return Promise.resolve(false);
+
+    return fetch(url + (url.indexOf("?") === -1 ? "?" : "&") + "partial=1", {
+      credentials: "same-origin",
+    })
+      .then(function (response) { return response.ok ? response.text() : null; })
+      .then(function (html) {
+        if (html === null) return false;
+        var wrapper = document.createElement("div");
+        wrapper.innerHTML = html;
+        var replacement = wrapper.querySelector("section.card");
+        if (!replacement) return false;
+        card.replaceWith(replacement);
+
+        // The tab is the other place the player's name is written, and the
+        // card that just arrived is the only thing that knows it.
+        var name = replacement.querySelector(".switcher-label");
+        if (name && document.title.indexOf("—") !== -1) {
+          document.title = name.textContent + document.title.slice(document.title.indexOf(" —"));
+        }
+        if (after) after(replacement);
+        return true;
+      })
+      .catch(function () { return false; });
+  }
+
+  document.addEventListener("click", function (event) {
+    var link = event.target.closest(".switcher-panel a");
+    if (!link) return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+    // Only the roster: the admin area's bar is the same control over a
+    // handful of pages that share nothing but the bar itself, and swapping
+    // one of those in would leave the rail pointing somewhere else.
+    if (!/\/p\/[^/]+$/.test(link.pathname)) return;
+
+    var menu = link.closest("details.switcher");
+    if (!menu) return; // Markup changed underneath us; let the link navigate.
+
+    event.preventDefault();
+    var url = link.href;
+
+    if (!marked) {
+      history.replaceState({ wl: "player" }, "", location.href);
+      marked = true;
+    }
+
+    draw(url, function (replacement) {
+      var bar = replacement.querySelector("details.switcher > summary");
+      if (bar) bar.focus();
+    }).then(function (ok) {
+      if (!ok) {
+        window.location.href = url;
+        return;
+      }
+      history.pushState({ wl: "player" }, "", url);
+    });
+  });
+
+  window.addEventListener("popstate", function (event) {
+    if (!marked) return; // Nothing here was swapped, so nothing here is stale.
+    if (!event.state || event.state.wl !== "player") {
+      // Older than anything this file drew. The address bar already says
+      // where we are; a reload is the honest way to agree with it.
+      window.location.reload();
+      return;
+    }
+    draw(location.href, null).then(function (ok) {
+      if (!ok) window.location.reload();
+    });
+  });
+})();

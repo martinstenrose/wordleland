@@ -707,6 +707,8 @@ func TestPartialNeverSurvivesIntoALink(t *testing.T) {
 		// urlWith builds.
 		{path: "/today?partial=1", cookie: session},
 		{path: "/today?benched=1&partial=1", cookie: session},
+		// The player page: the roster's own rows.
+		{path: "/share/" + slug + "/p/harda?partial=1"},
 	} {
 		body := fetchAs(t, srv, tt.path, tt.cookie).Body.String()
 		if strings.Contains(body, "partial=1") || strings.Contains(body, "partial=") {

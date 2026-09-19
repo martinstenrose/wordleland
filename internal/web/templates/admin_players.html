@@ -1,13 +1,8 @@
 {{define "title"}}{{.T.T "admin.players.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<section class="card">
-  {{template "admin-tabs" .}}
+<section class="card card-bar">
+  {{template "switcher" .Section}}
   {{template "admin-warning" .}}
-
-  <div class="card-head">
-    <h1>{{.T.T "admin.players.title"}}</h1>
-    <p class="kicker">{{.T.T "admin.counts" .Count .Linked .Unlinked}}</p>
-  </div>
 
   {{if eq .Notice "saved"}}<p class="note">{{.T.T "admin.saved"}}</p>{{end}}
   {{if eq .Notice "invited"}}<p class="note">{{.T.T "admin.inviteSent"}}</p>{{end}}
