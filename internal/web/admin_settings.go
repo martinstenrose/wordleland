@@ -11,16 +11,26 @@ import (
 // settingRow is one line of the environment table: the variable's name, what
 // it came to, and how to draw it.
 //
-// Value is already worded for the reader — "Configured", "Not set" — because
-// the words are translated and config.Setting deliberately carries a kind
-// instead of a phrase. Muted marks the ones that are a state rather than a
-// value, so the table reads at a glance: real values in full ink, the
-// placeholders a step back.
+// Value is already worded for the reader — "Not set", "Enabled" — because the
+// words are translated and config.Setting deliberately carries a kind instead
+// of a phrase.
 type settingRow struct {
 	Name  string
 	Value string
 	Mono  bool
+
+	// Muted greys the value, and marks one thing only: that there is no
+	// value here. It used to grey three states — unset, off, and a secret
+	// — which put "Configured" in the same visual class as "Not set" while
+	// meaning the opposite of it, and made the column unsweepable for the
+	// one question it is worth sweeping for.
 	Muted bool
+
+	// Redacted marks a value that exists and is deliberately not shown. It
+	// draws as a run of dots at full strength: something is here, and it is
+	// not for this screen. Value then carries the sentence that says so,
+	// for a reader who cannot see the dots.
+	Redacted bool
 }
 
 type adminSettingsPage struct {
@@ -90,11 +100,14 @@ func envRows(t translator, settings []config.Setting) []settingRow {
 		case config.SettingValue:
 			row.Value = set.Value
 		case config.SettingSecret:
-			row.Value, row.Muted = t.T("admin.settings.configured"), true
+			row.Value, row.Redacted = t.T("admin.settings.redacted"), true
 		case config.SettingOn:
 			row.Value = t.T("admin.settings.enabled")
 		case config.SettingOff:
-			row.Value, row.Muted = t.T("admin.settings.disabled"), true
+			// Off is a state, not an absence: a switch that is off is as
+			// much an answer as one that is on, and DEMO_MODE off is an
+			// answer somebody is specifically here to check.
+			row.Value = t.T("admin.settings.disabled")
 		default:
 			row.Value, row.Muted = t.T("admin.settings.notSet"), true
 		}

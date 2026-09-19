@@ -31,8 +31,22 @@ func TestTheSettingsScreenNamesEveryVariableThisAppReads(t *testing.T) {
 			t.Errorf("%s is not on the settings screen", name)
 		}
 	}
-	if !strings.Contains(body, "Configured") {
-		t.Error("a secret that is set is not reported as configured")
+	// A secret that is set draws as a run of dots at full strength, not as a
+	// greyed word: greying it would put it in the same visual class as "Not
+	// set", which is the opposite of what it means. Grey marks one thing on
+	// this table — that there is no value at all.
+	if !strings.Contains(body, `class="env-redacted"`) {
+		t.Error("a secret that is set is not shown as a redacted value")
+	}
+	if !strings.Contains(body, "Set, and never shown here.") {
+		t.Error("nothing says what the dots stand for, so they carry it alone")
+	}
+	if strings.Contains(cellAround(t, body, `class="env-redacted"`), "muted") {
+		t.Error("a secret is greyed, which says it is not set")
+	}
+	// Grey is still doing its one job: marking the rows with no value.
+	if !strings.Contains(cellAround(t, body, "Not set"), "muted") {
+		t.Error("an unset variable is not greyed, so the column cannot be swept")
 	}
 	if !strings.Contains(body, "Set via environment variable") {
 		t.Error("nothing says these cannot be changed here")
@@ -200,4 +214,20 @@ func TestAnOutcomeIsRenderedBeforeAnyScriptRunsIt(t *testing.T) {
 	if strings.Contains(bad, "data-raise") {
 		t.Error("an error was marked to be raised into a panel")
 	}
+}
+
+// cellAround returns the <dd> that contains needle, so an assertion about one
+// row of the environment table cannot pass on another row's markup.
+func cellAround(t *testing.T, body, needle string) string {
+	t.Helper()
+	at := strings.Index(body, needle)
+	if at < 0 {
+		t.Fatalf("no %q on the page", needle)
+	}
+	open := strings.LastIndex(body[:at], "<dd>")
+	close := strings.Index(body[at:], "</dd>")
+	if open < 0 || close < 0 {
+		t.Fatalf("%q is not inside a table cell", needle)
+	}
+	return body[open : at+close]
 }

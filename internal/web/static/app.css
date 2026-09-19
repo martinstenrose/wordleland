@@ -2376,6 +2376,11 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
    heading the table, so a row read on its own still says so. */
 .env-fields dd { display: flex; align-items: center; gap: 8px; }
 .env-value { min-width: 0; overflow-wrap: anywhere; }
+/* A redacted value, drawn wide enough to read as a run rather than as an
+   ellipsis. The dots are a fixed eight, not the secret's own length: a
+   length is itself something about a secret, and this screen is not the
+   place to give it away. */
+.env-redacted { font-family: var(--font-mono); letter-spacing: .12em; }
 .env-lock { flex: none; display: flex; color: var(--color-text-35); }
 .badge.on {
   background: var(--color-accent-14);

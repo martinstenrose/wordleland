@@ -50,7 +50,18 @@
       <div>
         <dt>{{.Name}}</dt>
         <dd>
-          <span class="env-value{{if .Muted}} muted{{end}}">{{if .Mono}}<code>{{.Value}}</code>{{else}}{{.Value}}{{end}}</span>
+          <span class="env-value{{if .Muted}} muted{{end}}">
+            {{if .Redacted}}
+              {{/* Dots rather than a word, at full strength rather than
+                   greyed: there is a value here, and greying it would say
+                   the opposite. The sentence behind them is the accessible
+                   name, so nothing is carried by the glyphs alone — and it
+                   is on the title too, for a reader who wonders. */}}
+              <span class="env-redacted" title="{{.Value}}" aria-hidden="true">••••••••</span>
+              <span class="visually-hidden">{{.Value}}</span>
+            {{else if .Mono}}<code>{{.Value}}</code>
+            {{else}}{{.Value}}{{end}}
+          </span>
           {{/* One lock per row, as the design has it: the point is that
                nothing in this table can be typed over, and a note at the top
                alone leaves each row looking editable. */}}
