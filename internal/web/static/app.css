@@ -1593,14 +1593,14 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   .callouts { margin: 0; grid-template-columns: minmax(0, 1fr); }
   .months-table .bar-cell { display: none; }
 
-  /* The chip goes, and nothing takes its place. A name and a pill beside it
-     do not both fit in a table cell this narrow, and of the two the name is
-     the one that has to be there — but the rows are already in rank order
-     with the rank in the column beside them, and whether the month is still
-     running is said in full in the head above. Two attempts at replacing it
-     with a mark, in colour and then in medals, were both a decoration
-     standing in for a fact that was never missing. */
-  .months-table .medal { display: none; }
+  /* One chip survives: the winner's. A name and a pill beside it do not both
+     fit in every cell this narrow, and the rank column already says who came
+     second — but nothing else in a row says whether this is a month somebody
+     won or one somebody is still leading, and that is what this chip alone
+     carries. Two attempts at marking all three instead, in colour and then in
+     medals, were both a decoration standing in for a fact the rank column had
+     already given. */
+  .months-table .medal:not(.win) { display: none; }
 }
 
 /* ---- Sortable headers -------------------------------------------------- */

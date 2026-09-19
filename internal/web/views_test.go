@@ -1361,33 +1361,35 @@ func TestTraitBadgesAreOnlyWhereTheyMeanSomething(t *testing.T) {
 	}
 }
 
-// A phone gets no mark for the top three at all, and does not need one: the
-// rows are in rank order with the rank in the column beside them, and whether
-// the month is still running is said in full in the head above the table.
+// A phone keeps the winner's chip and drops the rest.
 //
-// Two attempts at replacing the chip stood here before — a name written in
-// gold, silver and bronze, then a medal — and both were a decoration standing
-// in for a fact that was never missing.
-func TestTheMonthsChipIsDroppedRatherThanReplacedOnAPhone(t *testing.T) {
+// The rank column already says who came second. What nothing else in the row
+// says is whether this is a month somebody won or one somebody is still
+// leading, and that is the whole of what this chip is for — so it is the one
+// that survives the width. Two attempts at marking all three instead, a name
+// written in gold, silver and bronze and then a medal, were both a decoration
+// standing in for a fact the rank column had already given.
+func TestOnlyTheWinnersChipSurvivesAPhone(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 
 	body := fetchAs(t, srv, "/months", signIn(t, srv, admin.ID)).Body.String()
-	// The chip is in the markup and hidden by width, so nothing about it is
-	// decided on the server.
-	if !strings.Contains(body, `class="medal"`) {
-		t.Error("the chip is gone from the markup rather than hidden by width")
+	// The winner's chip is marked so the stylesheet can tell it apart. The
+	// width that decides this is not something the server knows, so both are
+	// rendered and neither is chosen here.
+	if !strings.Contains(body, `<span class="medal win">`) {
+		t.Error("the winner's chip is not marked as the winner's")
 	}
-	// And the rank is a plain figure, which is what the reader is left with.
 	if !strings.Contains(body, `<td class="right num muted">1</td>`) {
 		t.Error("the rank column is not a plain figure")
 	}
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	if !strings.Contains(css, ".months-table .medal { display: none; }") {
-		t.Error("the chip is not hidden on a phone")
+	if !strings.Contains(css, ".months-table .medal:not(.win) { display: none; }") {
+		t.Error("a phone does not drop the chips that are not the winner's")
 	}
+	// The two marks this replaced are gone rather than left unread.
 	for _, gone := range []string{"--color-gold", "medal-mark", "medal-gold"} {
 		if strings.Contains(css, gone) {
 			t.Errorf("%q survives with nothing reading it", gone)

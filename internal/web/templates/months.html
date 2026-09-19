@@ -59,14 +59,16 @@
         <tr>
           <td class="right num muted">{{$.T.Integer .Rank}}</td>
           <td>
-            {{/* The chip names the place in words, at a width that has room
-                 for them. A phone has neither the room nor the need: the
-                 rows are in rank order with the rank in the column beside
-                 them, and whether the month is running is said in full
-                 above the table. */}}
+            {{/* The chip names the place in words. A phone keeps the
+                 winner's and drops the rest: the rank column already says
+                 who came second, but nothing else in the row says whether
+                 this is a month somebody won or one somebody is leading —
+                 which is the whole of what this chip is for. The class is
+                 what lets app.css tell the two apart, since the width that
+                 decides it is not something the server knows. */}}
             <span class="admin-name">
               <a class="player" href="{{.Href}}">{{.Name}}</a>
-              {{if .Medal}}<span class="medal">{{.Medal}}</span>{{end}}
+              {{if .Medal}}<span class="medal{{if .Winner}} win{{end}}">{{.Medal}}</span>{{end}}
             </span>
           </td>
           <td class="bar-cell">{{template "progress-bar" (dict "Percent" .BarPercent "Win" .Winner "Compact" true)}}</td>
