@@ -1191,8 +1191,20 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   color: var(--color-text);
   border-bottom: 0;
   border-radius: var(--radius-md);
-  padding: 10px 12px;
+  /* The same room .confirm gives its own question. These two are boxes
+     rather than the full-bleed band a plain note is, and a box wants more
+     than a band does at the same edge. */
+  padding: 14px 16px;
 }
+/* A direct child of a card inherits the card's gutter as padding, which the
+   shorthand above throws away — so the box spanned the card edge to edge
+   while the heading under it sat 22px in, and the 16px inside it read as
+   cramped by comparison. The gutter is a margin here instead, so the box
+   lines up with everything else in the card. Scoped to that case: in an auth
+   card or the settings panel the note already sits inside a padded column,
+   and insetting it again would step it off the form beside it. */
+.card > .note.error,
+.card > .note.warn { margin: 14px var(--space-card); }
 .note.error { background: var(--color-danger-08); box-shadow: inset 0 0 0 1px var(--color-danger); }
 .note.warn { background: var(--color-accent-2-14); box-shadow: inset 0 0 0 1px var(--color-accent-2); }
 
