@@ -10,11 +10,15 @@ import (
 
 // monthRow is one player's month, pre-formatted.
 type monthRow struct {
-	Rank    int
-	Name    string
-	Medal   string
-	Href    string
-	Average string
+	Rank  int
+	Name  string
+	Medal string
+	// MedalTone is "gold", "silver" or "bronze" for the top three, empty
+	// below them. A phone has no room for the chip beside a name, so it
+	// writes the name in that colour instead — see medalTone.
+	MedalTone string
+	Href      string
+	Average   string
 	// BarPercent scales the average against the worst on the board, so the
 	// bars compare players within the month rather than against a fixed
 	// scale that would leave them all nearly full.
@@ -226,6 +230,7 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 		case p.Rank == 2 && !page.Running:
 			row.Medal = ch.T.T("months.medal.runnerUp")
 		}
+		row.MedalTone = medalTone(p.Rank)
 		page.Rows = append(page.Rows, row)
 	}
 	for _, p := range m.Thin {
@@ -278,6 +283,26 @@ const (
 	barFloor   = 3.0
 	barCeiling = 5.2
 )
+
+// medalTone is the colour a phone writes a top-three name in, in place of the
+// chip it has no room for.
+//
+// It reads the rank rather than the medal above, which is what gives a shared
+// win the shape a podium has: two golds, and then a bronze. Competition
+// ranking already numbers a tie 1, 1, 3 (see stats/months.go), so there is no
+// second place for a silver to go to — and inventing one would name a
+// runner-up the data does not.
+func medalTone(rank int) string {
+	switch rank {
+	case 1:
+		return "gold"
+	case 2:
+		return "silver"
+	case 3:
+		return "bronze"
+	}
+	return ""
+}
 
 func monthRowFor(p stats.MonthPlayer, prefix string, winners []stats.MonthPlayer, t translator) monthRow {
 	row := monthRow{

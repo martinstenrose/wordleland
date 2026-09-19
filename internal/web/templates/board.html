@@ -62,8 +62,12 @@
         {{end}}
         <tr{{if not .Ranked}} class="unranked"{{end}}>
           <td class="num">{{if .Ranked}}{{$.T.Integer .Rank}}{{else}}—{{end}}</td>
+          {{/* The name, and the reason an unranked player is unranked. No
+               trait: a trait is a reading of a whole history and this column
+               is a name, and the board already carries eight columns of the
+               same reading in numbers. It stays on a player's own page, on
+               Today's form cards and in the admin roster. */}}
           <td class="name"><a class="player" href="{{.Href}}">{{.Name}}</a>
-            {{if and .Trait (not .ReasonKey)}}<span class="board-trait">{{template "trait" .}}</span>{{end}}
             {{if .ReasonKey}}{{template "reason" (dict "Label" ($t.T .ReasonKey) "Why" .Why)}}{{end}}
           </td>
           <td class="right num strong">{{.AverageText}}</td>

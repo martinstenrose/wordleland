@@ -1334,24 +1334,69 @@ func TestEveryBanterHasDetails(t *testing.T) {
 	}
 }
 
-// Traits are a reading of a player's whole history, and Months is about one
-// month at a time: a badge saying "Late finisher" beside a September average
-// claims the two are related, and they are not. They belong on the board and
-// on a player's own page, which is where they stayed.
-func TestMonthsCarriesNoTraitBadges(t *testing.T) {
+// Traits are a reading of a player's whole history. Months is about one month
+// at a time, so a badge saying "Late finisher" beside a September average
+// claims a relation that is not there; and the leaderboard already carries
+// eight columns of the same reading in numbers, where the name column is for
+// the name. Both dropped them.
+func TestTraitBadgesAreOnlyWhereTheyMeanSomething(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	session := signIn(t, srv, admin.ID)
+
+	for _, path := range []string{"/months", "/leaderboard"} {
+		if strings.Contains(fetchAs(t, srv, path, session).Body.String(), `class="trait"`) {
+			t.Errorf("%s carries a trait badge", path)
+		}
+	}
+
+	// Still where they belong, so this cannot pass by the badge having been
+	// deleted everywhere: a player's own page, and Today's form table.
+	for _, path := range []string{"/p/harda", "/today"} {
+		if !strings.Contains(fetchAs(t, srv, path, session).Body.String(), `class="trait"`) {
+			t.Errorf("%s lost its trait badges too", path)
+		}
+	}
+}
+
+// A phone has no room for a name and a chip beside it in a table cell, so the
+// month's top three are written in gold, silver and bronze instead. A shared
+// win is two golds and then a bronze: competition ranking numbers a tie
+// 1, 1, 3, and there is no second place for a silver to go to.
+func TestTheMonthsTopThreeAreColouredForAPhone(t *testing.T) {
+	for _, tt := range []struct {
+		rank int
+		want string
+	}{
+		{1, "gold"}, {2, "silver"}, {3, "bronze"}, {4, ""}, {0, ""},
+	} {
+		if got := medalTone(tt.rank); got != tt.want {
+			t.Errorf("medalTone(%d) = %q, want %q", tt.rank, got, tt.want)
+		}
+	}
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 
-	months := fetchAs(t, srv, "/months", signIn(t, srv, admin.ID)).Body.String()
-	if strings.Contains(months, `class="trait"`) {
-		t.Error("a trait badge is back on the months view")
+	body := fetchAs(t, srv, "/months", signIn(t, srv, admin.ID)).Body.String()
+	if !strings.Contains(body, "medal-gold") {
+		t.Error("the month's leader is not coloured")
+	}
+	// The chip is still in the markup: app.css shows one or the other by
+	// width, so neither is rendered conditionally on the server.
+	if !strings.Contains(body, `class="medal"`) {
+		t.Error("the chip is gone from the markup rather than hidden by width")
 	}
 
-	// And still where they belong, so this test cannot pass by the badge
-	// having been deleted everywhere.
-	board := fetchAs(t, srv, "/leaderboard", signIn(t, srv, admin.ID)).Body.String()
-	if !strings.Contains(board, `class="trait"`) {
-		t.Error("the board lost its trait badges too")
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+	for _, want := range []string{
+		".months-table .medal { display: none; }",
+		".months-table .player.medal-bronze { color: var(--color-bronze);",
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("the phone rules are missing %q", want)
+		}
 	}
 }

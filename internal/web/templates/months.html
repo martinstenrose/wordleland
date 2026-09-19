@@ -59,8 +59,11 @@
         <tr>
           <td class="right num muted">{{$.T.Integer .Rank}}</td>
           <td>
+            {{/* The chip names the place; the colour says it again in the
+                 space a phone actually has. app.css shows one or the other,
+                 never both. */}}
             <span class="admin-name">
-              <a class="player" href="{{.Href}}">{{.Name}}</a>
+              <a class="player{{if .MedalTone}} medal-{{.MedalTone}}{{end}}" href="{{.Href}}">{{.Name}}</a>
               {{if .Medal}}<span class="medal">{{.Medal}}</span>{{end}}
             </span>
           </td>

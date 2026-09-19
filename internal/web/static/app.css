@@ -120,6 +120,15 @@
      is not a score and should not be pinned to that ramp. */
   --color-on-accent: oklch(.19 .012 65);
 
+  /* A podium, for the month's top three. Written on a name rather than drawn
+     as a medal: at this size a coloured disc is a dot, and the three shades
+     that make a podium legible are the same three that make three dots hard
+     to tell apart. Each clears 4.5:1 on its own theme's surface — checked,
+     not assumed. */
+  --color-gold: oklch(.84 .13 85);
+  --color-silver: oklch(.8 .015 265);
+  --color-bronze: oklch(.74 .1 45);
+
   /* Elevation. No extra hairline ring: every consumer here already draws
      its own 1px border, and adding a second ring on top of that would
      double it rather than sharpen it. */
@@ -178,6 +187,9 @@
   --score-ink-alt: oklch(.22 .02 155);
   --score-x-ink: oklch(.99 .004 25);
   --color-on-accent: oklch(.99 .004 155);
+  --color-gold: oklch(.52 .12 80);
+  --color-silver: oklch(.52 .02 265);
+  --color-bronze: oklch(.5 .1 45);
   --color-text-80: oklch(.22 .012 65 / .86);
   --color-text-75: oklch(.22 .012 65 / .84);
   --color-text-70: oklch(.22 .012 65 / .8);
@@ -236,6 +248,9 @@
     --score-ink-alt: oklch(.22 .02 155);
     --score-x-ink: oklch(.99 .004 25);
     --color-on-accent: oklch(.99 .004 155);
+    --color-gold: oklch(.52 .12 80);
+    --color-silver: oklch(.52 .02 265);
+    --color-bronze: oklch(.5 .1 45);
     --color-text-80: oklch(.22 .012 65 / .86);
     --color-text-75: oklch(.22 .012 65 / .84);
     --color-text-70: oklch(.22 .012 65 / .8);
@@ -1551,6 +1566,15 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   .today-out { padding-left: 0; border-left: 0; }
   .callouts { margin: 0; grid-template-columns: minmax(0, 1fr); }
   .months-table .bar-cell { display: none; }
+
+  /* The chip goes and the colour arrives. A name and a pill beside it do not
+     both fit in a table cell on a phone, and of the two the name is the one
+     that has to be there. Gold, silver, bronze — one each, except where a
+     month was shared, which is two golds and then a bronze. */
+  .months-table .medal { display: none; }
+  .months-table .player.medal-gold { color: var(--color-gold); font-weight: 600; }
+  .months-table .player.medal-silver { color: var(--color-silver); font-weight: 600; }
+  .months-table .player.medal-bronze { color: var(--color-bronze); font-weight: 600; }
 }
 
 /* ---- Sortable headers -------------------------------------------------- */
@@ -2173,7 +2197,21 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
    between its own sections (.panels, above), just drawn as a border
    instead of a background gap, since this is a single block, not a grid. */
 .season { border-top: 1px solid var(--color-text-10); padding-top: 20px; padding-bottom: 4px; }
-.season-table .mark-col { width: 34px; }
+/* Every month column is exactly the mark plus its gutters — 22 + 6 + 6 — and
+   the mark is centred in it.
+   It was 34px wide while .board's own 12px side padding made the narrowest
+   the cell could be 46px. A table cannot be narrower than its content, so the
+   browser took the 34px as a hint and squeezed the padding by whatever each
+   column could spare: the mark then sat at a different offset in every one,
+   and a grid of places read as a grid that had slipped. The last column keeps
+   the card's gutter, so the row does not end flush against the edge. */
+.season-table .mark-col {
+  width: 34px;
+  padding-left: 6px;
+  padding-right: 6px;
+  text-align: center;
+}
+.season-table .mark-col:last-child { padding-right: var(--space-card); }
 .mark-cell {
   display: inline-grid;
   place-items: center;
