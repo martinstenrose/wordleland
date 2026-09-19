@@ -57,23 +57,13 @@
     <tbody>
       {{range .Rows}}
         <tr>
-          {{/* The medal lives in the rank column, not beside the name: the
-               names are different lengths, so trailing them put the medals
-               at six different offsets down a column that is meant to read
-               as a podium. Here every cell is the same width.
-
-               It comes first so that app.css can hide the figure beside it
-               with an adjacent-sibling rule — on a phone the medal is the
-               rank, and printing both would say it twice. The figure is
-               hidden from the eye rather than removed, because the medal is
-               aria-hidden and something has to carry the placing. */}}
-          <td class="right num muted">
-            {{if .MedalIcon}}<span class="medal-mark" aria-hidden="true">{{.MedalIcon}}</span>{{end}}<span class="rank-num">{{$.T.Integer .Rank}}</span>
-          </td>
+          <td class="right num muted">{{$.T.Integer .Rank}}</td>
           <td>
             {{/* The chip names the place in words, at a width that has room
-                 for words. A phone gets the medal in the rank column
-                 instead — see the cell above. */}}
+                 for them. A phone has neither the room nor the need: the
+                 rows are in rank order with the rank in the column beside
+                 them, and whether the month is running is said in full
+                 above the table. */}}
             <span class="admin-name">
               <a class="player" href="{{.Href}}">{{.Name}}</a>
               {{if .Medal}}<span class="medal">{{.Medal}}</span>{{end}}

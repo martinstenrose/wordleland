@@ -1593,26 +1593,14 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   .callouts { margin: 0; grid-template-columns: minmax(0, 1fr); }
   .months-table .bar-cell { display: none; }
 
-  /* The chip goes and the medal arrives. A name and a pill beside it do not
-     both fit in a table cell on a phone, and of the two the name is the one
-     that has to be there. One medal each for the top three, except where a
-     month was shared, which is two golds and then a bronze. */
+  /* The chip goes, and nothing takes its place. A name and a pill beside it
+     do not both fit in a table cell this narrow, and of the two the name is
+     the one that has to be there — but the rows are already in rank order
+     with the rank in the column beside them, and whether the month is still
+     running is said in full in the head above. Two attempts at replacing it
+     with a mark, in colour and then in medals, were both a decoration
+     standing in for a fact that was never missing. */
   .months-table .medal { display: none; }
-  .months-table .medal-mark { display: inline; }
-  /* On a phone the medal is the rank, so the figure beside it would say the
-     same thing twice. Hidden from the eye and not from a screen reader: the
-     medal is aria-hidden, so this is what carries the placing. */
-  .months-table .medal-mark + .rank-num {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-    border: 0;
-  }
 }
 
 /* ---- Sortable headers -------------------------------------------------- */
@@ -2730,8 +2718,6 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   color: var(--color-text-42);
 }
 .season-head .small { text-transform: none; letter-spacing: 0; }
-/* Shown only where the chip is not — see the phone rules further down. */
-.medal-mark { display: none; font-size: var(--text-md); line-height: 1; }
 .medal {
   display: inline-flex;
   align-items: center;

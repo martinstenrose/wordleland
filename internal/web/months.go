@@ -10,15 +10,11 @@ import (
 
 // monthRow is one player's month, pre-formatted.
 type monthRow struct {
-	Rank  int
-	Name  string
-	Medal string
-	// MedalIcon is a medal for each of the top three, empty below them. A
-	// phone has no room for the chip beside a name and shows this instead —
-	// see medalIcon.
-	MedalIcon string
-	Href      string
-	Average   string
+	Rank    int
+	Name    string
+	Medal   string
+	Href    string
+	Average string
 	// BarPercent scales the average against the worst on the board, so the
 	// bars compare players within the month rather than against a fixed
 	// scale that would leave them all nearly full.
@@ -230,7 +226,6 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 		case p.Rank == 2 && !page.Running:
 			row.Medal = ch.T.T("months.medal.runnerUp")
 		}
-		row.MedalIcon = medalIcon(p.Rank)
 		page.Rows = append(page.Rows, row)
 	}
 	for _, p := range m.Thin {
@@ -283,34 +278,6 @@ const (
 	barFloor   = 3.0
 	barCeiling = 5.2
 )
-
-// medalIcon is the mark a phone shows beside a top-three name, in place of the
-// chip it has no room for.
-//
-// It reads the rank rather than the medal above, which is what gives a shared
-// win the shape a podium has: two golds, and then a bronze. Competition
-// ranking already numbers a tie 1, 1, 3 (see stats/months.go), so there is no
-// second place for a silver to go to — and inventing one would name a
-// runner-up the data does not.
-//
-// These are the one place this project spends an emoji rather than drawing a
-// glyph, and the reason the flags in the language menu were drawn does not
-// apply: a medal is three characters that every platform this is read on has
-// had since 2016, where a flag needs a pair of regional indicators most
-// desktops still will not join. Nothing is carried by them alone — the rank
-// is a column of the same row, in figures — so a platform that renders them
-// as tofu loses decoration rather than meaning.
-func medalIcon(rank int) string {
-	switch rank {
-	case 1:
-		return "🥇"
-	case 2:
-		return "🥈"
-	case 3:
-		return "🥉"
-	}
-	return ""
-}
 
 func monthRowFor(p stats.MonthPlayer, prefix string, winners []stats.MonthPlayer, t translator) monthRow {
 	row := monthRow{

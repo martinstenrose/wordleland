@@ -1361,58 +1361,37 @@ func TestTraitBadgesAreOnlyWhereTheyMeanSomething(t *testing.T) {
 	}
 }
 
-// A phone has no room for a name and a chip beside it in a table cell, so the
-// month's top three carry a medal instead. A shared win is two golds and then
-// a bronze: competition ranking numbers a tie 1, 1, 3, and there is no second
-// place for a silver to go to.
-func TestTheMonthsTopThreeCarryAMedalOnAPhone(t *testing.T) {
-	for _, tt := range []struct {
-		rank int
-		want string
-	}{
-		{1, "🥇"}, {2, "🥈"}, {3, "🥉"}, {4, ""}, {0, ""},
-	} {
-		if got := medalIcon(tt.rank); got != tt.want {
-			t.Errorf("medalIcon(%d) = %q, want %q", tt.rank, got, tt.want)
-		}
-	}
-
+// A phone gets no mark for the top three at all, and does not need one: the
+// rows are in rank order with the rank in the column beside them, and whether
+// the month is still running is said in full in the head above the table.
+//
+// Two attempts at replacing the chip stood here before — a name written in
+// gold, silver and bronze, then a medal — and both were a decoration standing
+// in for a fact that was never missing.
+func TestTheMonthsChipIsDroppedRatherThanReplacedOnAPhone(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 
 	body := fetchAs(t, srv, "/months", signIn(t, srv, admin.ID)).Body.String()
-	// In the rank column, immediately before the figure it stands in for: the
-	// names are different lengths, so trailing them put the medals at six
-	// different offsets down a column meant to read as a podium.
-	if !strings.Contains(body,
-		`<span class="medal-mark" aria-hidden="true">🥇</span><span class="rank-num">1</span>`) {
-		t.Error("the medal is not in the rank column, ahead of the figure it replaces")
-	}
-	// The figure is always rendered: the medal is aria-hidden, so that is
-	// what carries the placing once the eye stops seeing it.
-	if strings.Count(body, `class="rank-num"`) < 3 {
-		t.Error("the rank figures are not rendered, so a hidden medal says nothing")
-	}
-	// The chip is still in the markup: app.css shows one or the other by
-	// width, so neither is rendered conditionally on the server.
+	// The chip is in the markup and hidden by width, so nothing about it is
+	// decided on the server.
 	if !strings.Contains(body, `class="medal"`) {
 		t.Error("the chip is gone from the markup rather than hidden by width")
 	}
+	// And the rank is a plain figure, which is what the reader is left with.
+	if !strings.Contains(body, `<td class="right num muted">1</td>`) {
+		t.Error("the rank column is not a plain figure")
+	}
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	for _, want := range []string{
-		".months-table .medal { display: none; }",
-		".months-table .medal-mark { display: inline; }",
-		".months-table .medal-mark + .rank-num {",
-	} {
-		if !strings.Contains(css, want) {
-			t.Errorf("the phone rules are missing %q", want)
-		}
+	if !strings.Contains(css, ".months-table .medal { display: none; }") {
+		t.Error("the chip is not hidden on a phone")
 	}
-	// And the colours they replace are gone rather than left unused.
-	if strings.Contains(css, "--color-gold") {
-		t.Error("the podium colour tokens survive with nothing reading them")
+	for _, gone := range []string{"--color-gold", "medal-mark", "medal-gold"} {
+		if strings.Contains(css, gone) {
+			t.Errorf("%q survives with nothing reading it", gone)
+		}
 	}
 }
 
