@@ -151,6 +151,7 @@
   --text-md: 16px;
   --text-lg: 18px;
   --text-xl: 22px;
+  --text-2xl: 28px;
   --line-tight: 1.1;
 
   --transition-fast: .12s ease;
@@ -2595,7 +2596,6 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   font-size: var(--text-xl);
   font-weight: 700;
   letter-spacing: -.015em;
-  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

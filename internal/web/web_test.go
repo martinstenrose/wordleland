@@ -892,6 +892,14 @@ func TestThePageTitleDoesNotMoveBetweenPages(t *testing.T) {
 				t.Errorf("%s does not carry %s the way .card-head h1 does: %s", rule, want, got)
 			}
 		}
+		// Line height included, and by leaving it alone rather than by
+		// matching a number. A shorter one moves the glyphs up inside a box
+		// whose top still lines up, and takes the subtitle under them with
+		// it — 1.2 here put the line under a title that is a menu 8px above
+		// the line under a title that is not.
+		if strings.Contains(got, "line-height") {
+			t.Errorf("%s sets a line height .card-head h1 does not: %s", rule, got)
+		}
 	}
 	// And one box around it. The bar and Today's head both take .card-head's
 	// own vertical padding and the card's gutter.
@@ -982,5 +990,33 @@ func TestTheSectionBarStepsToItsNeighbours(t *testing.T) {
 	page, _ := getWith(t, only, "/players/solo", alone)
 	if strings.Contains(page.Body.String(), "switcher-step") {
 		t.Error("a roster of one offers a step with nowhere to go")
+	}
+}
+
+// Every custom property the stylesheet reads is one the stylesheet defines.
+//
+// An undefined one is invisible: the declaration is simply dropped, the
+// property falls back to whatever it inherits, and the page renders — wrongly
+// and without complaint. --text-2xl was asked for in exactly one place and
+// had never been defined, so Today's headline spent several commits at the
+// body's 14px while looking like a deliberate size.
+//
+// --pct is the one exception and is named rather than pattern-matched: the
+// progress bar sets it inline, per instance, which is the whole reason it is
+// a property and not a width.
+func TestEveryTokenTheStylesheetReadsIsOneItDefines(t *testing.T) {
+	srv := testServer(t)
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+
+	defined := map[string]bool{"--pct": true}
+	for _, m := range regexp.MustCompile(`(--[a-z0-9-]+)\s*:`).FindAllStringSubmatch(css, -1) {
+		defined[m[1]] = true
+	}
+	seen := map[string]bool{}
+	for _, m := range regexp.MustCompile(`var\((--[a-z0-9-]+)`).FindAllStringSubmatch(css, -1) {
+		if !defined[m[1]] && !seen[m[1]] {
+			seen[m[1]] = true
+			t.Errorf("%s is read but never defined; every rule using it is silently dropped", m[1])
+		}
 	}
 }
