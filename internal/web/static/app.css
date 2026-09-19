@@ -1,76 +1,88 @@
-/* Design tokens. See internal/web/static/README.md for the rationale
-   behind every value, and for why the alpha ramp is expressed as steps
-   rather than named roles. */
+/* Design tokens. The palette, the type scale and the radius scale come from
+   the Stenröse design system; internal/web/static/README.md records what each
+   token is for, which values were derived here rather than taken from it, and
+   why the alpha ramp is expressed as steps rather than named roles. */
 :root {
   /* Surfaces, darkest to lightest. */
-  --color-canvas: #0f111c;
-  --color-surface: #161826;
-  --color-surface-raised: #232532;
+  --color-canvas: oklch(.19 .012 65);
+  --color-surface: oklch(.235 .014 65);
+  --color-surface-raised: oklch(.29 .016 65);
 
-  --color-text: #e9e9ed;
-  --color-accent: #9184d9;
-  --color-accent-strong: #b5abfc;
+  --color-text: oklch(.95 .006 65);
+  --color-accent: oklch(.68 .14 155);
+  --color-accent-strong: oklch(.78 .13 155);
 
-  /* Trend, the one place in the palette that is not the accent hue: a form
-     delta says which way a player is going, and the accent ramp has no way
-     to say "down" from "up". Green and red carry it, and the arrow beside
-     them carries it again for anyone who cannot tell the two apart. */
-  --color-better: #5fd39b;
-  --color-worse: #f2818a;
+  /* The one place the design system leaves the brand hue rather than
+     brightening it: the hover state of a plain prose link. */
+  --color-accent-2: oklch(.72 .14 55);
+
+  /* Destructive, and broken. The old single-hue palette had no red to give
+     these, so signing out and a failed diagnostic both borrowed the accent —
+     which made them look like emphasis rather than a warning. */
+  --color-danger: oklch(.65 .15 25);
+
+  /* Trend, where a form delta says which way a player is going. A delta down
+     is an improvement, and the design system spends the accent itself on it
+     rather than a fourth hue; up is the danger red. The ▼/▲ printed beside
+     them carries the same meaning again for anyone who cannot tell the two
+     apart. Named rather than used directly so the rules that draw a trend
+     keep saying "better" and "worse". */
+  --color-better: var(--color-accent);
+  --color-worse: var(--color-danger);
 
   /* Text-alpha overlays: borders, dividers, muted text and hover fills all
      draw from one colour at varying opacity rather than a named token per
      role, since that is what "border", "muted text" and "faint hover"
-     already were before this reorganisation. Every step here is
-     consumed somewhere — internal/web/static/README.md lists where. */
-  --color-text-80: rgba(233,233,237,.8);
-  --color-text-75: rgba(233,233,237,.75);
-  --color-text-70: rgba(233,233,237,.7);
-  --color-text-60: rgba(233,233,237,.6);
-  --color-text-55: rgba(233,233,237,.55);
-  --color-text-50: rgba(233,233,237,.5);
-  --color-text-45: rgba(233,233,237,.45);
-  --color-text-42: rgba(233,233,237,.42);
-  --color-text-40: rgba(233,233,237,.4);
-  --color-text-35: rgba(233,233,237,.35);
-  --color-text-30: rgba(233,233,237,.3);
-  --color-text-25: rgba(233,233,237,.25);
-  --color-text-20: rgba(233,233,237,.2);
-  --color-text-16: rgba(233,233,237,.16);
-  --color-text-12: rgba(233,233,237,.12);
-  --color-text-10: rgba(233,233,237,.1);
-  --color-text-08: rgba(233,233,237,.08);
-  --color-text-07: rgba(233,233,237,.07);
-  --color-text-06: rgba(233,233,237,.06);
-  --color-text-04: rgba(233,233,237,.04);
-  --color-text-02: rgba(233,233,237,.02);
+     already meant. The steps are the design system's --border and --muted
+     arrived at from the other direction: --color-text-12 over this surface
+     is its --border. Every step here is consumed somewhere —
+     internal/web/static/README.md lists where. */
+  --color-text-80: oklch(.95 .006 65 / .8);
+  --color-text-75: oklch(.95 .006 65 / .75);
+  --color-text-70: oklch(.95 .006 65 / .7);
+  --color-text-60: oklch(.95 .006 65 / .6);
+  --color-text-55: oklch(.95 .006 65 / .55);
+  --color-text-50: oklch(.95 .006 65 / .5);
+  --color-text-45: oklch(.95 .006 65 / .45);
+  --color-text-42: oklch(.95 .006 65 / .42);
+  --color-text-40: oklch(.95 .006 65 / .4);
+  --color-text-35: oklch(.95 .006 65 / .35);
+  --color-text-30: oklch(.95 .006 65 / .3);
+  --color-text-25: oklch(.95 .006 65 / .25);
+  --color-text-20: oklch(.95 .006 65 / .2);
+  --color-text-16: oklch(.95 .006 65 / .16);
+  --color-text-12: oklch(.95 .006 65 / .12);
+  --color-text-10: oklch(.95 .006 65 / .1);
+  --color-text-08: oklch(.95 .006 65 / .08);
+  --color-text-06: oklch(.95 .006 65 / .06);
+  --color-text-04: oklch(.95 .006 65 / .04);
+  --color-text-02: oklch(.95 .006 65 / .02);
 
-  --color-accent-80: rgba(145,132,217,.8);
-  --color-accent-60: rgba(145,132,217,.6);
-  --color-accent-50: rgba(145,132,217,.5);
-  --color-accent-45: rgba(145,132,217,.45);
-  --color-accent-22: rgba(145,132,217,.22);
-  --color-accent-14: rgba(145,132,217,.14);
+  --color-accent-80: oklch(.68 .14 155 / .8);
+  --color-accent-60: oklch(.68 .14 155 / .6);
+  --color-accent-50: oklch(.68 .14 155 / .5);
+  --color-accent-45: oklch(.68 .14 155 / .45);
+  --color-accent-22: oklch(.68 .14 155 / .22);
+  --color-accent-14: oklch(.68 .14 155 / .14);
 
-  /* Score ramp, ported from the artboard's own CELL map. A 1 is the
-     strongest fill and a failure barely a tint; --score-ink and
-     --score-ink-alt are the text colours that stay legible on top of
-     them. --score-ink matches --color-surface exactly here — a solved-in-1
-     fill is bright enough that the card's own background reads as the
-     text colour on top of it. */
-  --score-1: #b5abfc;
-  --score-2: rgba(181,171,252,.82);
-  --score-3: rgba(150,138,224,.55);
-  --score-3-border: rgba(150,138,224,.2);
-  --score-4: rgba(145,132,217,.26);
-  --score-4-border: rgba(145,132,217,.12);
-  --score-ink: var(--color-surface);
-  --score-ink-alt: #f5f4ff;
+  /* Score ramp: the fill behind a guess count. The design system draws it
+     light-first and opaque, stepping one hue from a solved-in-1 down to a
+     near-canvas tint; this is that ramp mirrored for a dark canvas, since
+     its pale end would glare here. --score-ink is the text that stays
+     legible on the strong fills and --score-ink-alt the text for the weak
+     ones — which way round they read flips with the theme, because a fill
+     that is bright here is deep in light mode. */
+  --score-1: oklch(.72 .15 155);
+  --score-2: oklch(.62 .13 155);
+  --score-3: oklch(.5 .1 155);
+  --score-4: oklch(.38 .06 155);
+  --score-ink: oklch(.19 .012 65);
+  --score-ink-alt: oklch(.95 .006 65);
 
   /* Elevation. No extra hairline ring: every consumer here already draws
      its own 1px border, and adding a second ring on top of that would
      double it rather than sharpen it. */
-  --shadow-elevated: 0 16px 40px rgba(0,0,0,.65);
+  --shadow-elevated: 0 1px 2px oklch(0 0 0 / .3), 0 8px 24px oklch(0 0 0 / .35);
 
   --font-body: "Inter", system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -80,70 +92,69 @@
   --radius-xs: 3px;
   --radius-sm: 6px;
   --radius-md: 8px;
-  --radius-lg: 14px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
   --radius-pill: 999px;
   --radius-circle: 50%;
 
-  /* Type scale, consolidated from clusters of near-identical sizes that
-     had no reason to differ (see the README). */
-  --text-2xs: .62rem;
-  --text-xs: .68rem;
-  --text-sm: .74rem;
-  --text-md: .8rem;
+  /* Type scale. The steps above --text-base arrive with the rules that
+     consume them rather than ahead of them. */
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 14px;
   --line-tight: 1.1;
 
   --transition-fast: .12s ease;
 
   /* The card gutter. Table cells and the full-bleed panels carry it
      themselves; everything else inherits it from the rule below. */
-  --space-card: 22.4px;
+  --space-card: 22px;
 }
 
 :root[data-theme="light"] {
-  --color-canvas: #cfd3e5;
-  --color-surface: #f3f5fe;
-  --color-surface-raised: #e4e7f5;
-  --color-text: #292b31;
-  --color-accent: #5d5294;
-  --color-accent-strong: #5d5294;
-  --color-better: #1c7a53;
-  --color-worse: #b3283c;
-  --shadow-elevated: 0 10px 28px rgba(41,43,49,.14);
-  --score-1: #5d5294;
-  --score-2: rgba(93,82,148,.85);
-  --score-3: rgba(121,108,191,.6);
-  --score-3-border: rgba(121,108,191,.25);
-  --score-4: rgba(145,132,217,.3);
-  --score-4-border: rgba(145,132,217,.18);
-  --score-ink: #f5f4ff;
-  --score-ink-alt: #f5f4ff;
-  --color-text-80: rgba(41,43,49,.86);
-  --color-text-75: rgba(41,43,49,.84);
-  --color-text-70: rgba(41,43,49,.8);
-  --color-text-60: rgba(41,43,49,.74);
-  --color-text-55: rgba(41,43,49,.7);
-  --color-text-50: rgba(41,43,49,.66);
-  --color-text-45: rgba(41,43,49,.62);
-  --color-text-42: rgba(41,43,49,.61);
-  --color-text-40: rgba(41,43,49,.6);
-  --color-text-35: rgba(41,43,49,.55);
-  --color-text-30: rgba(41,43,49,.45);
-  --color-text-25: rgba(41,43,49,.4);
-  --color-text-20: rgba(41,43,49,.34);
-  --color-text-16: rgba(41,43,49,.16);
-  --color-text-12: rgba(41,43,49,.12);
-  --color-text-10: rgba(41,43,49,.1);
-  --color-text-08: rgba(41,43,49,.08);
-  --color-text-07: rgba(41,43,49,.07);
-  --color-text-06: rgba(41,43,49,.06);
-  --color-text-04: rgba(41,43,49,.04);
-  --color-text-02: rgba(41,43,49,.02);
-  --color-accent-80: rgba(93,82,148,.8);
-  --color-accent-60: rgba(93,82,148,.6);
-  --color-accent-50: rgba(93,82,148,.5);
-  --color-accent-45: rgba(93,82,148,.45);
-  --color-accent-22: rgba(93,82,148,.22);
-  --color-accent-14: rgba(93,82,148,.14);
+  --color-canvas: oklch(.97 .006 65);
+  --color-surface: oklch(.995 .004 65);
+  --color-surface-raised: oklch(.94 .008 65);
+  --color-text: oklch(.22 .012 65);
+  --color-accent: oklch(.55 .13 155);
+  --color-accent-strong: oklch(.47 .14 155);
+  --color-accent-2: oklch(.62 .13 55);
+  --color-danger: oklch(.55 .15 25);
+  --color-better: var(--color-accent);
+  --color-worse: var(--color-danger);
+  --shadow-elevated: 0 1px 2px oklch(.22 .012 65 / .06), 0 4px 12px oklch(.22 .012 65 / .05);
+  --score-1: oklch(.48 .17 155);
+  --score-2: oklch(.58 .15 155);
+  --score-3: oklch(.78 .09 155);
+  --score-4: oklch(.86 .06 155);
+  --score-ink: oklch(.99 .004 155);
+  --score-ink-alt: oklch(.22 .02 155);
+  --color-text-80: oklch(.22 .012 65 / .86);
+  --color-text-75: oklch(.22 .012 65 / .84);
+  --color-text-70: oklch(.22 .012 65 / .8);
+  --color-text-60: oklch(.22 .012 65 / .74);
+  --color-text-55: oklch(.22 .012 65 / .7);
+  --color-text-50: oklch(.22 .012 65 / .66);
+  --color-text-45: oklch(.22 .012 65 / .62);
+  --color-text-42: oklch(.22 .012 65 / .61);
+  --color-text-40: oklch(.22 .012 65 / .6);
+  --color-text-35: oklch(.22 .012 65 / .55);
+  --color-text-30: oklch(.22 .012 65 / .45);
+  --color-text-25: oklch(.22 .012 65 / .4);
+  --color-text-20: oklch(.22 .012 65 / .34);
+  --color-text-16: oklch(.22 .012 65 / .16);
+  --color-text-12: oklch(.22 .012 65 / .12);
+  --color-text-10: oklch(.22 .012 65 / .1);
+  --color-text-08: oklch(.22 .012 65 / .08);
+  --color-text-06: oklch(.22 .012 65 / .06);
+  --color-text-04: oklch(.22 .012 65 / .04);
+  --color-text-02: oklch(.22 .012 65 / .02);
+  --color-accent-80: oklch(.55 .13 155 / .8);
+  --color-accent-60: oklch(.55 .13 155 / .6);
+  --color-accent-50: oklch(.55 .13 155 / .5);
+  --color-accent-45: oklch(.55 .13 155 / .45);
+  --color-accent-22: oklch(.55 .13 155 / .22);
+  --color-accent-14: oklch(.55 .13 155 / .14);
 }
 
 /* "system" is a stored choice, not the absence of one, so the attribute on
@@ -153,50 +164,49 @@
 @media (prefers-color-scheme: light) {
   :root[data-theme="system"],
   :root:not([data-theme]) {
-    --color-canvas: #cfd3e5;
-    --color-surface: #f3f5fe;
-    --color-surface-raised: #e4e7f5;
-    --color-text: #292b31;
-    --color-accent: #5d5294;
-    --color-accent-strong: #5d5294;
-    --color-better: #1c7a53;
-    --color-worse: #b3283c;
-    --shadow-elevated: 0 10px 28px rgba(41,43,49,.14);
-    --score-1: #5d5294;
-    --score-2: rgba(93,82,148,.85);
-    --score-3: rgba(121,108,191,.6);
-    --score-3-border: rgba(121,108,191,.25);
-    --score-4: rgba(145,132,217,.3);
-    --score-4-border: rgba(145,132,217,.18);
-    --score-ink: #f5f4ff;
-    --score-ink-alt: #f5f4ff;
-    --color-text-80: rgba(41,43,49,.86);
-    --color-text-75: rgba(41,43,49,.84);
-    --color-text-70: rgba(41,43,49,.8);
-    --color-text-60: rgba(41,43,49,.74);
-    --color-text-55: rgba(41,43,49,.7);
-    --color-text-50: rgba(41,43,49,.66);
-    --color-text-45: rgba(41,43,49,.62);
-    --color-text-42: rgba(41,43,49,.61);
-    --color-text-40: rgba(41,43,49,.6);
-    --color-text-35: rgba(41,43,49,.55);
-    --color-text-30: rgba(41,43,49,.45);
-    --color-text-25: rgba(41,43,49,.4);
-    --color-text-20: rgba(41,43,49,.34);
-    --color-text-16: rgba(41,43,49,.16);
-    --color-text-12: rgba(41,43,49,.12);
-    --color-text-10: rgba(41,43,49,.1);
-    --color-text-08: rgba(41,43,49,.08);
-    --color-text-07: rgba(41,43,49,.07);
-    --color-text-06: rgba(41,43,49,.06);
-    --color-text-04: rgba(41,43,49,.04);
-    --color-text-02: rgba(41,43,49,.02);
-    --color-accent-80: rgba(93,82,148,.8);
-    --color-accent-60: rgba(93,82,148,.6);
-    --color-accent-50: rgba(93,82,148,.5);
-    --color-accent-45: rgba(93,82,148,.45);
-    --color-accent-22: rgba(93,82,148,.22);
-    --color-accent-14: rgba(93,82,148,.14);
+    --color-canvas: oklch(.97 .006 65);
+    --color-surface: oklch(.995 .004 65);
+    --color-surface-raised: oklch(.94 .008 65);
+    --color-text: oklch(.22 .012 65);
+    --color-accent: oklch(.55 .13 155);
+    --color-accent-strong: oklch(.47 .14 155);
+    --color-accent-2: oklch(.62 .13 55);
+    --color-danger: oklch(.55 .15 25);
+    --color-better: var(--color-accent);
+    --color-worse: var(--color-danger);
+    --shadow-elevated: 0 1px 2px oklch(.22 .012 65 / .06), 0 4px 12px oklch(.22 .012 65 / .05);
+    --score-1: oklch(.48 .17 155);
+    --score-2: oklch(.58 .15 155);
+    --score-3: oklch(.78 .09 155);
+    --score-4: oklch(.86 .06 155);
+    --score-ink: oklch(.99 .004 155);
+    --score-ink-alt: oklch(.22 .02 155);
+    --color-text-80: oklch(.22 .012 65 / .86);
+    --color-text-75: oklch(.22 .012 65 / .84);
+    --color-text-70: oklch(.22 .012 65 / .8);
+    --color-text-60: oklch(.22 .012 65 / .74);
+    --color-text-55: oklch(.22 .012 65 / .7);
+    --color-text-50: oklch(.22 .012 65 / .66);
+    --color-text-45: oklch(.22 .012 65 / .62);
+    --color-text-42: oklch(.22 .012 65 / .61);
+    --color-text-40: oklch(.22 .012 65 / .6);
+    --color-text-35: oklch(.22 .012 65 / .55);
+    --color-text-30: oklch(.22 .012 65 / .45);
+    --color-text-25: oklch(.22 .012 65 / .4);
+    --color-text-20: oklch(.22 .012 65 / .34);
+    --color-text-16: oklch(.22 .012 65 / .16);
+    --color-text-12: oklch(.22 .012 65 / .12);
+    --color-text-10: oklch(.22 .012 65 / .1);
+    --color-text-08: oklch(.22 .012 65 / .08);
+    --color-text-06: oklch(.22 .012 65 / .06);
+    --color-text-04: oklch(.22 .012 65 / .04);
+    --color-text-02: oklch(.22 .012 65 / .02);
+    --color-accent-80: oklch(.55 .13 155 / .8);
+    --color-accent-60: oklch(.55 .13 155 / .6);
+    --color-accent-50: oklch(.55 .13 155 / .5);
+    --color-accent-45: oklch(.55 .13 155 / .45);
+    --color-accent-22: oklch(.55 .13 155 / .22);
+    --color-accent-14: oklch(.55 .13 155 / .14);
   }
 }
 
@@ -208,7 +218,7 @@ body {
   background: var(--color-canvas);
   color: var(--color-text);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: var(--text-base);
   line-height: 1.55;
 }
 
@@ -219,12 +229,12 @@ main { max-width: 1160px; margin: 0 auto; }
   padding: 28px 0 6px;
 }
 .footer-link {
-  font-size: var(--text-md); color: var(--color-text-45); text-decoration: none;
+  font-size: var(--text-sm); color: var(--color-text-45); text-decoration: none;
 }
 .footer-link:hover, .footer-link:focus-visible { color: var(--color-text-75); }
 .footer-gh {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: var(--text-md); color: var(--color-text-45); text-decoration: none;
+  font-size: var(--text-sm); color: var(--color-text-45); text-decoration: none;
 }
 .footer-gh:hover, .footer-gh:focus-visible { color: var(--color-text-75); }
 
@@ -267,7 +277,7 @@ main { max-width: 1160px; margin: 0 auto; }
   border-radius: var(--radius-md);
   text-decoration: none;
   color: var(--color-text);
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   font-weight: 500;
   letter-spacing: -.01em;
 }
@@ -281,8 +291,12 @@ main { max-width: 1160px; margin: 0 auto; }
 
 .link {
   background: none; border: 0; padding: 0; cursor: pointer;
-  font: inherit; font-size: 14px; color: var(--color-accent);
+  font: inherit; font-size: var(--text-base); color: var(--color-accent);
 }
+/* The one hover the design system takes off the brand hue rather than
+   brightening it. It applies to prose links only: every link that is really
+   a control — a nav row, a menu row, a player name — carries its own. */
+.link:hover { color: var(--color-accent-2); }
 
 .card {
   background: var(--color-surface);
@@ -336,20 +350,20 @@ main { max-width: 1160px; margin: 0 auto; }
 .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .seg { display: inline-flex; border: 1px solid var(--color-text-12); border-radius: var(--radius-md); overflow: hidden; }
 .seg-opt {
-  padding: 6px 12px; font-size: var(--text-md); text-decoration: none;
+  padding: 6px 12px; font-size: var(--text-sm); text-decoration: none;
   color: var(--color-text-50);
 }
 .seg-opt + .seg-opt { border-left: 1px solid var(--color-text-12); }
 .seg-opt.on { color: var(--color-accent-strong); background: var(--color-accent-14); box-shadow: inset 0 0 0 1px var(--color-accent-50); }
 .toggle {
-  padding: 6px 11px; font-size: var(--text-md); text-decoration: none;
+  padding: 6px 11px; font-size: var(--text-sm); text-decoration: none;
   border: 1px solid var(--color-text-12); border-radius: var(--radius-md); color: var(--color-text-50);
 }
 .toggle.on { color: var(--color-accent-strong); border-color: var(--color-accent-50); background: var(--color-accent-14); }
 .toggle.moot.on { opacity: .5; }
 
 .note, .empty {
-  padding: 14px var(--space-card); font-size: var(--text-md); color: var(--color-text-50);
+  padding: 14px var(--space-card); font-size: var(--text-sm); color: var(--color-text-50);
   background: var(--color-surface-raised); border-bottom: 1px solid var(--color-text-10);
 }
 .empty { padding: 40px var(--space-card); text-align: center; font-size: 14px; }
@@ -369,7 +383,7 @@ main { max-width: 1160px; margin: 0 auto; }
    the same cell with a space between them in the markup, and that space
    is a break point too — a narrow Form column wrapped the whole cell
    between the score and the arrow, not just inside the delta. */
-.board td.num { color: var(--color-text-60); font-size: var(--text-md); white-space: nowrap; }
+.board td.num { color: var(--color-text-60); font-size: var(--text-sm); white-space: nowrap; }
 .board td.strong { color: var(--color-text); font-size: 17px; font-weight: 500; }
 
 .player { color: inherit; text-decoration: none; font-size: 15px; font-weight: 500; }
@@ -438,7 +452,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 /* ---- Player detail ---------------------------------------------------- */
 
 .section {
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   text-transform: uppercase;
   letter-spacing: .08em;
   color: var(--color-text-50);
@@ -479,7 +493,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   gap: 12px;
   flex-wrap: wrap;
   margin-bottom: 14px;
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--color-text-42);
@@ -581,7 +595,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
   border: 1px solid transparent;
   background: var(--color-text-06);
@@ -590,8 +604,8 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .cell.gap { color: var(--color-text-25); background: transparent; border-color: var(--color-text-06); }
 .cell.t1 { background: var(--score-1); color: var(--score-ink); border-color: var(--score-1); }
 .cell.t2 { background: var(--score-2); color: var(--score-ink); border-color: var(--score-2); }
-.cell.t3 { background: var(--score-3); color: var(--score-ink-alt); border-color: var(--score-3-border); }
-.cell.t4 { background: var(--score-4); color: var(--color-text); border-color: var(--score-4-border); }
+.cell.t3 { background: var(--score-3); color: var(--score-ink-alt); border-color: var(--score-3); }
+.cell.t4 { background: var(--score-4); color: var(--score-ink-alt); border-color: var(--score-4); }
 .cell.t5 { background: var(--color-text-08); color: var(--color-text-80); border-color: var(--color-text-06); }
 .cell.t6 { background: transparent; color: var(--color-text-60); border-color: var(--color-text-16); }
 .cell.t7 { background: var(--color-text-02); color: var(--color-text-35); border-color: var(--color-text-08); }
@@ -638,7 +652,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 .form { display: grid; gap: 6px; margin-top: 8px; }
 .form label {
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   text-transform: uppercase;
   letter-spacing: .06em;
   color: var(--color-text-50);
@@ -657,7 +671,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 }
 .form input[type="text"]:focus,
 .form select:focus { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
-.form .hint { margin: 0; font-size: var(--text-md); color: var(--color-text-45); }
+.form .hint { margin: 0; font-size: var(--text-sm); color: var(--color-text-45); }
 .form .check {
   display: flex;
   align-items: center;
@@ -751,7 +765,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 }
 .account-who { display: flex; align-items: center; gap: 10px; padding: 9px 10px 11px; }
 .account-id { display: flex; flex-direction: column; min-width: 0; }
-.account-name { font-size: var(--text-md); font-weight: 500; }
+.account-name { font-size: var(--text-sm); font-weight: 500; }
 .account-email { font-size: var(--text-xs); color: var(--color-text-50); overflow-wrap: anywhere; }
 .account-menu hr { height: 1px; border: 0; background: var(--color-text-08); margin: 6px 2px; }
 .account-menu a,
@@ -760,13 +774,13 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   width: 100%;
   text-align: left;
   padding: 8px 10px;
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   color: var(--color-text-80);
   text-decoration: none;
   border-radius: var(--radius-sm);
 }
 .account-menu a:hover, .account-menu .link:hover { background: var(--color-text-06); }
-.account-menu .danger { color: var(--color-accent-strong); }
+.account-menu .danger { color: var(--color-danger); }
 
 /* ---- Sign-in ---------------------------------------------------------- */
 
@@ -794,7 +808,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   border-radius: var(--radius-md);
 }
 .signin h1 { font-size: 1.8rem; letter-spacing: -.02em; line-height: var(--line-tight); margin: 0; }
-.signin-sub { margin: 11px 0 0; font-size: var(--text-md); line-height: 1.5; color: var(--color-text-55); max-width: 44ch; }
+.signin-sub { margin: 11px 0 0; font-size: var(--text-sm); line-height: 1.5; color: var(--color-text-55); max-width: 44ch; }
 .signin-form { max-width: 340px; margin-top: 20px; }
 .signin-form input[type="email"],
 .signin-form input[type="password"] {
@@ -857,7 +871,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .today-hero { display: flex; gap: 30px; align-items: flex-end; flex-wrap: wrap; margin-top: 16px; }
 .today-line { flex: 1; min-width: 260px; }
 .today h1 { font-size: 2rem; line-height: var(--line-tight); letter-spacing: -.02em; margin: 0; max-width: 18ch; }
-.today-sub { margin: 10px 0 0; font-size: var(--text-md); color: var(--color-text-55); }
+.today-sub { margin: 10px 0 0; font-size: var(--text-sm); color: var(--color-text-55); }
 
 .hero-row { display: flex; gap: 5px; list-style: none; margin: 0; padding: 0; }
 .hero-row .cell { width: 40px; height: 48px; border-radius: var(--radius-sm); }
@@ -867,7 +881,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .chip.dashed { border: 1px dashed var(--color-text-20); background: transparent; color: var(--color-text-50); }
 
 .today-filed { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 20px 0 0; padding: 0 var(--space-card); }
-.today-filed li { display: flex; align-items: center; gap: 7px; font-size: var(--text-md); }
+.today-filed li { display: flex; align-items: center; gap: 7px; font-size: var(--text-sm); }
 .today-filed a { color: var(--color-text-80); text-decoration: none; }
 .today-filed a:hover { color: var(--color-text); }
 .today-filed .cell { width: 24px; height: 24px; border-radius: var(--radius-sm); font-size: var(--text-sm); }
@@ -1001,7 +1015,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
    cannot push the row of chips to three times its height. */
 .month-chip-head {
   display: block;
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--color-text-45);
@@ -1077,7 +1091,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .grid-controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 
 .legend { display: flex; align-items: center; gap: 4px; }
-.cell.tiny { width: 20px; height: 20px; border-radius: var(--radius-xs); font-size: var(--text-2xs); }
+.cell.tiny { width: 20px; height: 20px; border-radius: var(--radius-xs); font-size: var(--text-xs); }
 
 /* The board's compact form strip: the same score cells as everywhere else,
    sized down to fit a table column. */
@@ -1126,7 +1140,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   padding: 6px 0;
   border-bottom: 1px solid var(--color-text-06);
 }
-.grid-rail .player { font-size: var(--text-md); }
+.grid-rail .player { font-size: var(--text-sm); }
 
 /* The grid scrolls inside its own box so the page never scrolls sideways. */
 /* The bottom padding keeps the last row off the card edge rather than
@@ -1153,7 +1167,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   background: var(--color-surface-raised);
   border-bottom: 1px solid var(--color-text-12);
   padding: 8px 2px;
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
   font-weight: 400;
   color: var(--color-text-45);
   text-align: center;
@@ -1290,7 +1304,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   gap: 9px;
   padding: 8px 10px;
   border-radius: var(--radius-sm);
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   color: var(--color-text-70);
   text-decoration: none;
 }
@@ -1390,7 +1404,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   flex-direction: column;
   background: var(--color-surface);
   border: 1px solid var(--color-text-12);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   box-shadow: var(--shadow-elevated);
   overflow: hidden;
 }
@@ -1442,12 +1456,12 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   gap: 14px;
   padding: 11px var(--space-card);
   border-bottom: 1px solid var(--color-text-06);
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 .activity-head {
   border-bottom: 1px solid var(--color-text-10);
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--color-text-42);
@@ -1482,24 +1496,24 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   border-bottom: 1px solid var(--color-text-06);
 }
 .detail-fields dt {
-  font-size: var(--text-2xs); letter-spacing: .08em; text-transform: uppercase;
+  font-size: var(--text-xs); letter-spacing: .08em; text-transform: uppercase;
   color: var(--color-text-42); align-self: baseline;
 }
-.detail-fields dd { margin: 0; font-size: var(--text-md); min-width: 0; overflow-wrap: anywhere; }
+.detail-fields dd { margin: 0; font-size: var(--text-sm); min-width: 0; overflow-wrap: anywhere; }
 .detail-from { color: var(--color-text-40); text-decoration: line-through; }
 .detail-arrow { color: var(--color-text-35); margin: 0 6px; }
 .detail-to { color: var(--color-text); }
 
 .detail-raw { padding: 12px var(--space-card); border-top: 1px solid var(--color-text-06); }
 .detail-raw summary {
-  cursor: pointer; font-size: var(--text-2xs); letter-spacing: .08em;
+  cursor: pointer; font-size: var(--text-xs); letter-spacing: .08em;
   text-transform: uppercase; color: var(--color-text-42);
 }
 .detail-raw pre {
   margin: 10px 0 0; padding: 12px; border-radius: var(--radius-md);
   background: var(--color-text-04); border: 1px solid var(--color-text-10);
   font-family: var(--font-mono);
-  font-size: var(--text-md); color: var(--color-text-70);
+  font-size: var(--text-sm); color: var(--color-text-70);
   overflow-x: auto;
 }
 .detail-actions { padding: 0 var(--space-card) 20px; }
@@ -1507,8 +1521,10 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 /* Diagnostics reuses the detail list, and adds only a tone: a figure that
    is fine, one worth a look, and one that means scores were lost. */
 .diag-value { color: var(--color-text); }
-.diag-value.warn { color: var(--color-accent-strong); }
-.diag-value.bad { color: var(--color-accent-strong); font-weight: 500; }
+/* Two states, two colours, which the single-hue palette could not tell
+   apart: something worth a look, and something broken. */
+.diag-value.warn { color: var(--color-accent-2); }
+.diag-value.bad { color: var(--color-danger); font-weight: 500; }
 .diag-hint { display: block; margin-top: 3px; font-size: var(--text-sm); color: var(--color-text-45); }
 
 @media (max-width: 720px) {
@@ -1534,7 +1550,7 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   margin-top: 5px;
 }
 .pending-identity dt {
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--color-text-42);
@@ -1544,7 +1560,7 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
    distinguish, while wrapping keeps the complete value visible on mobile. */
 .pending-identity .num {
   font-family: var(--font-mono);
-  font-size: var(--text-md); color: var(--color-text-55);
+  font-size: var(--text-sm); color: var(--color-text-55);
 }
 
 @media (max-width: 520px) {
@@ -1559,7 +1575,7 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   border: 1px solid var(--color-text-10);
   background: var(--color-text-04);
   font-family: var(--font-mono);
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   color: var(--color-text-80);
 }
 .pending-row .hint { margin: 6px 0 0; }
@@ -1644,7 +1660,7 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   height: 32px;
   padding: 0 16px;
   border-radius: var(--radius-md);
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   font-weight: 500;
   color: var(--color-accent-strong);
   background: transparent;
@@ -1792,7 +1808,7 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 .secret { margin: 6px 0 0; }
 .secret code {
   font-family: var(--font-mono);
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   letter-spacing: .06em;
   word-break: break-all;
   color: var(--color-text-80);
@@ -1832,7 +1848,7 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 .admin-row:hover { background: var(--color-text-06); }
 .admin-row.on { background: var(--color-accent-14); }
 .admin-head {
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--color-text-42);
@@ -1875,7 +1891,7 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   border-radius: 0;
   padding: 0 12px 0 2px;
   font-family: var(--font-mono);
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
 }
 
 /* A checkbox drawn as a switch: the control is still a checkbox, so it
@@ -1926,7 +1942,7 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   letter-spacing: normal;
   font-weight: 400;
 }
-.switch-label { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: var(--text-md); }
+.switch-label { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: var(--text-sm); }
 .switch-label .hint { margin: 0; }
 
 .admin-linked { display: flex; align-items: center; gap: 10px; margin: 8px 0 4px; }
@@ -1943,7 +1959,7 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 .actions button.secondary,
 .inline-field button {
   font: inherit;
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   font-weight: 500;
   color: var(--color-text-80);
   background: transparent;
@@ -1966,14 +1982,14 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   margin-bottom: 10px;
   padding-left: var(--space-card);
   padding-right: var(--space-card);
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--color-text-42);
 }
 .season-head .small { text-transform: none; letter-spacing: 0; }
 .medal {
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
   letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--color-accent-strong);
@@ -1996,7 +2012,7 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   border-bottom: 1px solid var(--color-text-10);
 }
 .pill-nav-item {
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   padding: 6px 11px;
   border-radius: var(--radius-sm);
   text-decoration: none;
@@ -2028,7 +2044,7 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 .stat-list-figure { display: flex; gap: 26px; flex: none; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
 .stat-list-figure > div { flex: none; }
 .stat-list-figure dt {
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--color-text-42);
@@ -2038,8 +2054,8 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 
 .stat-list-row { display: grid; gap: 8px; }
 .stat-list-row > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.stat-list-row dt { font-size: var(--text-md); color: var(--color-text-60); }
-.stat-list-row dd { margin: 0; font-size: var(--text-md); }
+.stat-list-row dt { font-size: var(--text-sm); color: var(--color-text-60); }
+.stat-list-row dd { margin: 0; font-size: var(--text-sm); }
 
 .stat-list-admin {
   display: flex;
@@ -2049,7 +2065,7 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   border-top: 1px solid var(--color-text-08);
 }
 .stat-list-admin dt {
-  font-size: var(--text-2xs);
+  font-size: var(--text-xs);
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--color-text-42);
