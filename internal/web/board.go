@@ -330,7 +330,7 @@ func (s *Server) newBoardRow(p stats.Player, prefix string, t translator, traits
 		StreakText:  "—",
 		SparkPath:   template.HTML(sparkPath(p.Series, sparkWidth, sparkHeight, 0)),
 		HasSpark:    hasSparkline(p.Series),
-		Href:        prefix + "/p/" + p.Slug,
+		Href:        prefix + "/players/" + p.Slug,
 		LastFive:    cells[len(cells)-5:],
 	}
 

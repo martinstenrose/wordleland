@@ -96,12 +96,12 @@ func TestShareBoardMirrorsTheAuthenticatedOne(t *testing.T) {
 			t.Errorf("share board does not mention %s", slugName)
 		}
 	}
-	// Player links stay under the share prefix: following /p/... directly
+	// Player links stay under the share prefix: following /players/... directly
 	// would send an anonymous visitor into authenticated routing.
-	if strings.Contains(body, `href="/p/`) {
+	if strings.Contains(body, `href="/players/`) {
 		t.Error("the share board links into authenticated routing")
 	}
-	if !strings.Contains(body, `href="/share/`+slug+`/p/`) {
+	if !strings.Contains(body, `href="/share/`+slug+`/players/`) {
 		t.Error("the share board does not link players under its own prefix")
 	}
 	// And it offers no authenticated surface.
@@ -138,7 +138,7 @@ func TestSwedishBoardLocalisesDisplayedNumbers(t *testing.T) {
 // lands on that player's cells rather than anywhere on the page.
 func rowFor(t *testing.T, body, slug string) string {
 	t.Helper()
-	i := strings.Index(body, "/p/"+slug+`"`)
+	i := strings.Index(body, "/players/"+slug+`"`)
 	if i < 0 {
 		t.Fatalf("no row for %s", slug)
 	}
@@ -466,7 +466,7 @@ func TestUnknownPathsUnderTheSharePrefixAre404(t *testing.T) {
 
 	for _, path := range []string{
 		"/share/" + slug + "/utter/nonsense",
-		"/share/" + slug + "/p/nobody",
+		"/share/" + slug + "/players/nobody",
 	} {
 		if got := fetch(t, srv, path).Code; got != http.StatusNotFound {
 			t.Errorf("GET %s = %d, want 404", path, got)
@@ -661,8 +661,7 @@ func TestPartialIsOnlyForTheCardsAScriptBorrows(t *testing.T) {
 		"/share/" + slug + "/board",
 		"/share/" + slug + "/board?mode=hard&",
 		"/share/" + slug + "/months",
-		"/share/" + slug + "/p/harda",
-		"/share/" + slug + "/players",
+		"/share/" + slug + "/players/harda",
 	} {
 		sep := "?"
 		if strings.Contains(path, "?") {
@@ -754,7 +753,7 @@ func TestPartialNeverSurvivesIntoALink(t *testing.T) {
 		{path: "/today?partial=1", cookie: session},
 		{path: "/today?benched=1&partial=1", cookie: session},
 		// The player page: the roster's own rows.
-		{path: "/share/" + slug + "/p/harda?partial=1"},
+		{path: "/share/" + slug + "/players/harda?partial=1"},
 		// The enrolment card, which is fetched with the parameter on and
 		// carries a theme and a language link of its own.
 		{path: "/enroll-totp?partial=1", cookie: session},

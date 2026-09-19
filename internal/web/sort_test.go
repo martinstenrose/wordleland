@@ -111,12 +111,12 @@ func TestSortingKeepsTheNotRankedGroupSeparate(t *testing.T) {
 			t.Fatalf("%s: no not-ranked divider", path)
 		}
 		for _, thin := range []string{"thin", "lapsed"} {
-			if strings.Index(body, "/p/"+thin) < divider {
+			if strings.Index(body, "/players/"+thin) < divider {
 				t.Errorf("%s: %s appears above the divider", path, thin)
 			}
 		}
 		for _, ranked := range []string{"harda", "normalb"} {
-			if strings.Index(body, "/p/"+ranked) > divider {
+			if strings.Index(body, "/players/"+ranked) > divider {
 				t.Errorf("%s: %s fell below the divider", path, ranked)
 			}
 		}

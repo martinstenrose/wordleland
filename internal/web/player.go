@@ -150,19 +150,16 @@ func (s *Server) handlePlayers(w http.ResponseWriter, r *http.Request, prefix, b
 		return
 	}
 
-	// The strip and nothing under it. It used to open on whoever was top of
-	// the board, which put one player's page behind a link that says
-	// "Players" and made the strip look like it had already been used. Asking
-	// is one tap, and it is the honest answer to a view with no subject yet.
-	page := playersPage{chrome: s.newChrome(w, r, prefix, viewPlayers, readOnly)}
-	page.Section = page.playerSwitcher(board, prefix, nil)
-	s.render(w, r, http.StatusOK, "players.html", page)
-}
-
-// playersPage is the players view with nobody chosen: the bar, and an
-// invitation to open it.
-type playersPage struct {
-	chrome
+	// Open on whoever leads the board rather than on an empty page asking
+	// which player to show. That question had one answer nearly every time,
+	// and it cost a tap to give it; the roster is one press away in the bar
+	// either way, and the bar now shows which player is up rather than
+	// looking like a control that has not been used yet.
+	first := board.Ranked
+	if len(first) == 0 {
+		first = board.Unranked
+	}
+	http.Redirect(w, r, prefix+"/players/"+first[0].Slug, http.StatusSeeOther)
 }
 
 func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, prefix, boardPath string, readOnly bool) {

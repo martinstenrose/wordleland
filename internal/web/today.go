@@ -217,7 +217,7 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 func (s *Server) calloutFor(c stats.Callout, prefix string, t translator) calloutView {
 	view := calloutView{Kind: c.Kind, Key: "callout." + c.Kind}
 	if c.Slug != "" {
-		view.Href = prefix + "/p/" + c.Slug
+		view.Href = prefix + "/players/" + c.Slug
 	}
 
 	switch c.Kind {
@@ -285,7 +285,7 @@ func todayResults(t translator, today stats.Today, board stats.Board, prefix str
 	for _, e := range today.Filed {
 		row := todayResultRow{
 			Name:  e.Name,
-			Href:  prefix + "/p/" + e.Slug,
+			Href:  prefix + "/players/" + e.Slug,
 			Label: "X",
 			Tone:  7,
 		}

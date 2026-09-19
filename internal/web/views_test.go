@@ -197,7 +197,7 @@ func TestMonthsRanksPlayers(t *testing.T) {
 	}
 	// Thin has fewer than ten games. That still excludes them on the main
 	// board, but the monthly view now ranks every scorable appearance.
-	if !strings.Contains(table, "/p/thin") {
+	if !strings.Contains(table, "/players/thin") {
 		t.Error("a player below ten games is missing from the monthly ranking")
 	}
 }
@@ -257,7 +257,7 @@ func TestSharedViewsExposeNoAuthenticatedSurface(t *testing.T) {
 		if strings.Contains(body, "/logout") {
 			t.Errorf("%s offers sign-out", path)
 		}
-		if strings.Contains(body, `href="/p/`) || strings.Contains(body, `href="/leaderboard`) {
+		if strings.Contains(body, `href="/players/`) || strings.Contains(body, `href="/leaderboard`) {
 			t.Errorf("%s links into authenticated routing", path)
 		}
 	}
@@ -338,7 +338,7 @@ func TestGridRendersDaysByPlayers(t *testing.T) {
 		t.Error("the grid did not render")
 	}
 	// A player with games is a column; the never-played one is not.
-	if !strings.Contains(body, "/p/harda") {
+	if !strings.Contains(body, "/players/harda") {
 		t.Error("a player with games is missing from the grid")
 	}
 	// The rail carries an average, labelled with the window it covers
@@ -433,56 +433,49 @@ func TestGridInactiveToggle(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(ctx, srv.db)
 
 	hidden := fetchAs(t, srv, "/share/"+slug+"/grid", nil).Body.String()
-	if strings.Contains(hidden, "/p/ghost") {
+	if strings.Contains(hidden, "/players/ghost") {
 		t.Error("a player with no games is a column by default")
 	}
 
 	// The label carries a count, so the control is found by its class.
 	href := strings.ReplaceAll(hrefOfClass(t, hidden, "toggle"), "&amp;", "&")
 	shown := fetchAs(t, srv, href, nil).Body.String()
-	if !strings.Contains(shown, "/p/ghost") {
+	if !strings.Contains(shown, "/players/ghost") {
 		t.Error("following the toggle did not show them")
 	}
 }
 
-// The Players view is a picker with nobody chosen yet: it used to open on
-// whoever was top of the board, which put one player's page behind a link
-// that says "Players" and made the strip look like it had already been used.
-func TestPlayersViewOpensOnThePickerWithNobodyChosen(t *testing.T) {
+// The players view opens on whoever leads the board.
+//
+// It used to open on an empty page asking which player to show. That question
+// had one answer nearly every time and it cost a tap to give it; the roster is
+// one press away in the bar either way, and the bar now names the player it is
+// showing rather than looking like a control that has not been used yet.
+func TestThePlayersViewOpensOnTheLeader(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	rec := fetchAs(t, srv, "/share/"+slug+"/players", nil)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("players = %d", rec.Code)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("players = %d, want a redirect", rec.Code)
 	}
-	body := rec.Body.String()
+	if got := rec.Header().Get("Location"); got != "/share/"+slug+"/players/normalb" {
+		t.Errorf("players opens on %q, want the top of the board", got)
+	}
 
-	if strings.Contains(body, `<h1 class="switcher-label">Normalb`) {
-		t.Error("the players view still opens on the top-ranked player")
+	body := fetchAs(t, srv, "/share/"+slug+"/players/normalb", nil).Body.String()
+	if !strings.Contains(body, `<h1 class="switcher-label">Normalb`) {
+		t.Error("the leader's page is not what opened")
 	}
-	if !strings.Contains(body, "Choose a player to show") {
-		t.Error("nothing asks the reader to pick")
-	}
-	// Every player is in the roster menu, ranked and not.
-	for _, want := range []string{"/p/harda", "/p/normala", "/p/thin", "/p/lapsed"} {
+	// Every player is still one press away, ranked and not, with the one
+	// being shown marked.
+	for _, want := range []string{"/players/harda", "/players/normala", "/players/thin", "/players/lapsed"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the roster is missing %s", want)
 		}
 	}
-	// And none of them is marked current, because none of them is.
-	if strings.Contains(body, "switcher-row on") {
-		t.Error("the roster marks a player nobody chose")
-	}
-
-	// Following one lands on that player, with the bar still there and the
-	// choice marked.
-	chosen := fetchAs(t, srv, "/share/"+slug+"/p/harda", nil).Body.String()
-	if !strings.Contains(chosen, `<h1 class="switcher-label">Harda`) {
-		t.Error("following a name did not show that player")
-	}
-	if !strings.Contains(chosen, "switcher-row on") {
+	if !strings.Contains(body, "switcher-row on") {
 		t.Error("the roster does not mark the player being shown")
 	}
 }
@@ -494,7 +487,7 @@ func TestPlayerDetailHighlightsThePlayersTab(t *testing.T) {
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
-	body := fetchAs(t, srv, "/share/"+slug+"/p/harda", nil).Body.String()
+	body := fetchAs(t, srv, "/share/"+slug+"/players/harda", nil).Body.String()
 	rail, ok := sectionOf(body, `<nav class="sidebar"`, "</nav>")
 	if !ok {
 		t.Fatal("the rail is missing")
@@ -574,7 +567,7 @@ func TestTraitsAppearAndExplainThemselves(t *testing.T) {
 
 	// seedBoard's hard-mode regulars have several earned descriptions. The
 	// one shown rotates with the puzzle, but it must always explain itself.
-	page := fetchAs(t, srv, "/share/"+slug+"/p/harda", nil).Body.String()
+	page := fetchAs(t, srv, "/share/"+slug+"/players/harda", nil).Body.String()
 	if !strings.Contains(page, `class="trait"`) {
 		t.Error("a regular with earned descriptions has no trait")
 	}
@@ -583,7 +576,7 @@ func TestTraitsAppearAndExplainThemselves(t *testing.T) {
 	}
 
 	// And one who has played three games is a newcomer, not a purist.
-	thin := fetchAs(t, srv, "/share/"+slug+"/p/thin", nil).Body.String()
+	thin := fetchAs(t, srv, "/share/"+slug+"/players/thin", nil).Body.String()
 	if !strings.Contains(thin, "New here") {
 		t.Error("a player with few games has the wrong trait")
 	}
@@ -627,7 +620,7 @@ func TestNoTraitWhenNothingIsEarned(t *testing.T) {
 	}
 	slug, _, _ := store.EnsureShareSlug(ctx, srv.db)
 
-	body := fetchAs(t, srv, "/share/"+slug+"/p/ordinary", nil).Body.String()
+	body := fetchAs(t, srv, "/share/"+slug+"/players/ordinary", nil).Body.String()
 	if strings.Contains(body, `class="trait"`) {
 		start := strings.Index(body, `class="trait"`)
 		t.Errorf("a player who has earned nothing was given a trait anyway: %.120s", body[start:])
@@ -642,7 +635,7 @@ func TestTraitsAreLocalised(t *testing.T) {
 
 	// Thin has too little data, so its fixed newcomer trait does not rotate
 	// with the current puzzle as active players' earned traits do.
-	sv := fetchAs(t, srv, "/share/"+slug+"/p/thin?lang=sv", nil).Body.String()
+	sv := fetchAs(t, srv, "/share/"+slug+"/players/thin?lang=sv", nil).Body.String()
 	if !strings.Contains(sv, "Nykomling") {
 		t.Error("the Swedish page has no trait")
 	}
@@ -713,7 +706,7 @@ func TestGridHidesRetiredPlayersUntilToggled(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(ctx, srv.db)
 
 	hidden := fetchAs(t, srv, "/share/"+slug+"/grid", nil).Body.String()
-	if strings.Contains(hidden, "/p/harda") {
+	if strings.Contains(hidden, "/players/harda") {
 		t.Error("a player who has left the group is still a column")
 	}
 	if !strings.Contains(hidden, "Show inactive") {
@@ -721,7 +714,7 @@ func TestGridHidesRetiredPlayersUntilToggled(t *testing.T) {
 	}
 
 	shown := fetchAs(t, srv, "/share/"+slug+"/grid?inactive=1", nil).Body.String()
-	if !strings.Contains(shown, "/p/harda") {
+	if !strings.Contains(shown, "/players/harda") {
 		t.Error("the toggle did not bring them back")
 	}
 }
@@ -1041,7 +1034,7 @@ func TestTraitExplanationIsReachableWithoutHover(t *testing.T) {
 	for _, path := range []string{
 		"/share/" + slug + "/",
 		"/share/" + slug + "/months",
-		"/share/" + slug + "/p/harda",
+		"/share/" + slug + "/players/harda",
 	} {
 		body := fetchAs(t, srv, path, nil).Body.String()
 		if !strings.Contains(body, "trait-pop") {
@@ -1140,7 +1133,7 @@ func TestGridRanksOverTheSelectedWindow(t *testing.T) {
 		// window around the link: a fixed slice reaches into its neighbour
 		// and reports somebody else's rank.
 		for _, entry := range strings.Split(body, "<li>") {
-			if !strings.Contains(entry, "/p/"+slug+`"`) {
+			if !strings.Contains(entry, "/players/"+slug+`"`) {
 				continue
 			}
 			if m := rank.FindStringSubmatch(entry); m != nil {
@@ -1210,17 +1203,17 @@ func TestGridColumnsStayInNameOrder(t *testing.T) {
 	// columns do not.
 	for _, span := range []string{"90", "all"} {
 		body := fetchAs(t, srv, "/grid?span="+span, session).Body.String()
-		if strings.Index(head(body), "/p/adam") > strings.Index(head(body), "/p/zoe") {
+		if strings.Index(head(body), "/players/adam") > strings.Index(head(body), "/players/zoe") {
 			t.Errorf("span=%s orders the columns by rank rather than by name", span)
 		}
 	}
 
 	recent := rail(fetchAs(t, srv, "/grid?span=90", session).Body.String())
-	if strings.Index(recent, "/p/adam") > strings.Index(recent, "/p/zoe") {
+	if strings.Index(recent, "/players/adam") > strings.Index(recent, "/players/zoe") {
 		t.Error("over the last 90 days the rail puts Adam below Zoe, though he averages better")
 	}
 	all := rail(fetchAs(t, srv, "/grid?span=all", session).Body.String())
-	if strings.Index(all, "/p/zoe") > strings.Index(all, "/p/adam") {
+	if strings.Index(all, "/players/zoe") > strings.Index(all, "/players/adam") {
 		t.Error("over the whole history the rail puts Zoe below Adam, though she averages better")
 	}
 }
@@ -1356,7 +1349,7 @@ func TestTraitBadgesAreOnlyWhereTheyMeanSomething(t *testing.T) {
 	// Still where they belong, so this cannot pass by the badge having been
 	// deleted everywhere: a player's own page, where the reading is of that
 	// player and of nothing else.
-	if !strings.Contains(fetchAs(t, srv, "/p/harda", session).Body.String(), `class="trait"`) {
+	if !strings.Contains(fetchAs(t, srv, "/players/harda", session).Body.String(), `class="trait"`) {
 		t.Error("a player's own page lost its trait badge too")
 	}
 }

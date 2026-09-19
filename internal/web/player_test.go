@@ -40,7 +40,7 @@ func TestPlayerPageShowsTheSameFiguresAsTheBoard(t *testing.T) {
 	board := fetch(t, srv, "/share/"+slug+"/board").Body.String()
 	row := rowFor(t, board, "harda")
 
-	rec := fetch(t, srv, "/share/"+slug+"/p/harda")
+	rec := fetch(t, srv, "/share/"+slug+"/players/harda")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("player page = %d", rec.Code)
 	}
@@ -66,13 +66,13 @@ func TestPlayerPageHonoursTheFilter(t *testing.T) {
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
-	if got := fetch(t, srv, "/share/"+slug+"/p/normala").Code; got != http.StatusOK {
+	if got := fetch(t, srv, "/share/"+slug+"/players/normala").Code; got != http.StatusOK {
 		t.Errorf("unfiltered player page = %d, want 200", got)
 	}
-	if got := fetch(t, srv, "/share/"+slug+"/p/normala?mode=hard").Code; got != http.StatusNotFound {
+	if got := fetch(t, srv, "/share/"+slug+"/players/normala?mode=hard").Code; got != http.StatusNotFound {
 		t.Errorf("player page under mode=hard = %d, want 404 — the board excludes them", got)
 	}
-	if got := fetch(t, srv, "/share/"+slug+"/p/harda?mode=hard").Code; got != http.StatusOK {
+	if got := fetch(t, srv, "/share/"+slug+"/players/harda?mode=hard").Code; got != http.StatusOK {
 		t.Errorf("hard-mode player page under mode=hard = %d, want 200", got)
 	}
 }
@@ -83,8 +83,8 @@ func TestUnknownPlayerIs404(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	for _, path := range []string{
-		"/share/" + slug + "/p/nobody",
-		"/share/" + slug + "/p/NotASlug",
+		"/share/" + slug + "/players/nobody",
+		"/share/" + slug + "/players/NotASlug",
 	} {
 		if got := fetch(t, srv, path).Code; got != http.StatusNotFound {
 			t.Errorf("GET %s = %d, want 404", path, got)
@@ -99,7 +99,7 @@ func TestThinPlayerGetsScoresRatherThanCharts(t *testing.T) {
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
-	page := withoutRoster(fetch(t, srv, "/share/"+slug+"/p/thin").Body.String())
+	page := withoutRoster(fetch(t, srv, "/share/"+slug+"/players/thin").Body.String())
 
 	if strings.Contains(page, "3.00") {
 		t.Error("a player below the ranking threshold is showing a computed average")
@@ -124,7 +124,7 @@ func TestRecentStripCellsOpenAPopupWithThePuzzleDetail(t *testing.T) {
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
-	page := fetch(t, srv, "/share/"+slug+"/p/harda").Body.String()
+	page := fetch(t, srv, "/share/"+slug+"/players/harda").Body.String()
 
 	// harda plays every one of the 26 puzzles in the fixture's window, all
 	// hard mode, all in 3 guesses — so every cell in the strip opens.
@@ -160,7 +160,7 @@ func TestCalendarSquaresOpenAPopupWithTheResult(t *testing.T) {
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
-	page := fetch(t, srv, "/share/"+slug+"/p/harda").Body.String()
+	page := fetch(t, srv, "/share/"+slug+"/players/harda").Body.String()
 	calendar, ok := sectionOf(page, `<ol class="calendar">`, "</ol>")
 	if !ok {
 		t.Fatal("the calendar is missing")
@@ -205,7 +205,7 @@ func TestPlayerPageWithNoGamesExplainsItself(t *testing.T) {
 	}
 	slug, _, _ := store.EnsureShareSlug(ctx, srv.db)
 
-	page := fetch(t, srv, "/share/"+slug+"/p/newcomer").Body.String()
+	page := fetch(t, srv, "/share/"+slug+"/players/newcomer").Body.String()
 	if !strings.Contains(page, "No results yet for this player") {
 		t.Errorf("a player with no games gets no explanation:\n%s", page)
 	}
@@ -221,7 +221,7 @@ func TestSharedPlayerPageExposesNoAuthenticatedSurface(t *testing.T) {
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
-	page := fetch(t, srv, "/share/"+slug+"/p/harda").Body.String()
+	page := fetch(t, srv, "/share/"+slug+"/players/harda").Body.String()
 	if strings.Contains(page, "/logout") {
 		t.Error("the shared player page offers sign-out")
 	}
@@ -239,14 +239,14 @@ func TestAuthenticatedPlayerPageRequiresASession(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 
-	if got := fetchAs(t, srv, "/p/harda", nil).Code; got != http.StatusSeeOther {
-		t.Errorf("anonymous GET /p/harda = %d, want a redirect to login", got)
+	if got := fetchAs(t, srv, "/players/harda", nil).Code; got != http.StatusSeeOther {
+		t.Errorf("anonymous GET /players/harda = %d, want a redirect to login", got)
 	}
 
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
-	page := fetchAs(t, srv, "/p/harda", signIn(t, srv, admin.ID))
+	page := fetchAs(t, srv, "/players/harda", signIn(t, srv, admin.ID))
 	if page.Code != http.StatusOK {
-		t.Fatalf("signed-in GET /p/harda = %d", page.Code)
+		t.Fatalf("signed-in GET /players/harda = %d", page.Code)
 	}
 	// The design gives the panel no back-link: the bar above it — the name,
 	// which is also the control that opens the roster — is how you move
@@ -268,7 +268,7 @@ func TestLapsedPlayerIsNotCalledThin(t *testing.T) {
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
-	page := fetch(t, srv, "/share/"+slug+"/p/lapsed").Body.String()
+	page := fetch(t, srv, "/share/"+slug+"/players/lapsed").Body.String()
 	if strings.Contains(page, "Too few puzzles") {
 		t.Error("a player with a long history is described as having too few puzzles")
 	}
@@ -362,14 +362,14 @@ func TestTheRosterWithholdsFiguresBelowTheThreshold(t *testing.T) {
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
-	page := fetch(t, srv, "/share/"+slug+"/p/harda").Body.String()
+	page := fetch(t, srv, "/share/"+slug+"/players/harda").Body.String()
 	i := strings.Index(page, `<div class="switcher-panel">`)
 	if i < 0 {
 		t.Fatal("the player page has no roster")
 	}
 	menu := page[i : i+strings.Index(page[i:], "</details>")]
 
-	row := menu[strings.Index(menu, "/p/thin"):]
+	row := menu[strings.Index(menu, "/players/thin"):]
 	row = row[:strings.Index(row, "</a>")]
 	if !strings.Contains(row, `<span class="switcher-avg num">—</span>`) {
 		t.Errorf("the roster gives a player below the threshold an average: %s", row)
@@ -378,7 +378,7 @@ func TestTheRosterWithholdsFiguresBelowTheThreshold(t *testing.T) {
 		t.Errorf("the roster gives an unranked player a rank: %s", row)
 	}
 	// And a ranked one still has both, or the dash above means nothing.
-	ranked := menu[strings.Index(menu, "/p/harda"):]
+	ranked := menu[strings.Index(menu, "/players/harda"):]
 	ranked = ranked[:strings.Index(ranked, "</a>")]
 	if strings.Contains(ranked, "—") {
 		t.Errorf("a ranked player's figures are withheld too: %s", ranked)

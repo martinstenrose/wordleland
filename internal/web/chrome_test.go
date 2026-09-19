@@ -27,11 +27,11 @@ func TestEveryPageCarriesThemeAndLocale(t *testing.T) {
 		{path: "/"},
 		{path: "/forgot-password"},
 		{path: "/share/" + slug + "/"},
-		{path: "/share/" + slug + "/p/harda"},
+		{path: "/share/" + slug + "/players/harda"},
 		{path: "/share/" + slug + "/today"},
 		{path: "/share/" + slug + "/months"},
 		{path: "/leaderboard", cookie: session},
-		{path: "/p/harda", cookie: session},
+		{path: "/players/harda", cookie: session},
 		{path: "/today", cookie: session},
 		{path: "/months", cookie: session},
 		{path: "/admin/players", cookie: session},
@@ -346,7 +346,7 @@ func TestTheShellIsDrawnOncePerPage(t *testing.T) {
 	_, session := adminSession(t, srv)
 
 	for _, path := range []string{
-		"/today", "/leaderboard", "/months", "/grid", "/players", "/search",
+		"/today", "/leaderboard", "/months", "/grid", "/players/harda", "/search",
 		"/settings", "/privacy", "/admin/players", "/admin/pending",
 		"/admin/activity", "/admin/diagnostics",
 	} {
@@ -545,8 +545,8 @@ func TestRenderedPagesHaveBalancedContainers(t *testing.T) {
 		{path: "/share/" + slug + "/today?benched=1"},
 		{path: "/share/" + slug + "/months"},
 		{path: "/share/" + slug + "/grid"},
-		{path: "/share/" + slug + "/p/harda"},
-		{path: "/share/" + slug + "/p/thin"},
+		{path: "/share/" + slug + "/players/harda"},
+		{path: "/share/" + slug + "/players/thin"},
 		{path: "/leaderboard", cookie: session},
 		{path: "/admin/players", cookie: session},
 		{path: "/admin/players/harda", cookie: session},

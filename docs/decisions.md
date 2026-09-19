@@ -547,6 +547,43 @@ from the list that already existed — `AdminTabs`, and the board — so there i
 still one place that knows what the admin area contains and one that knows
 who plays.
 
+The heading starts where every other page's heading starts, and that is the
+point of the shape rather than a detail of it. A card whose title is a menu
+had carried a glyph in front of it — a section icon, a player's initials — and
+that pushed the heading 45px past where a card-head puts one, so moving
+between the Leaderboard and Players moved the title. One heading treatment and
+one box around it settles that; the icons stay in the list, where they are
+scanned rather than decorative, and the line under the heading takes the same
+`kicker` treatment every other subtitle has.
+
+Today is the exception and is meant to be. Every other title answers "where am
+I"; the front page's job is to say what happened today, so the date is its
+kicker and the day's result is its heading, set larger than a page name
+because it is not one. Naming it "Today" above them was tried and taken out
+again: it is a title telling a reader something the rail has already
+highlighted.
+
+The arrows beside the heading are the other half: the section or the player
+next door is one press away without opening the list to find it. They wrap at
+both ends, so neither is ever a disabled control — the ends of five sections
+or fourteen names are not a boundary anybody is trying to respect.
+
+The players view opens on whoever leads the board. It used to open on an empty
+page asking which player to show — the honest answer, at the time, to a view
+with no subject — and in use the question had one answer nearly every time and
+cost a tap to give it. The roster is one press away in the bar either way, and
+the bar now names the player it is showing rather than looking like a control
+nobody has used yet.
+
+A player's page lives at `/players/{slug}`, not at `/p/{slug}`. The short path
+was the only single-letter segment in the application and the only place the
+concept was spelled differently from the `/admin/players/{slug}` beside it;
+plural also puts the collection and its members under one path, which is what
+`/players` redirecting into one of them already implies. The old path answers
+with a permanent redirect, under the share prefix as well as without it,
+because player links get pasted into the group chat and a link somebody
+already holds should not die for a rename.
+
 The roster is the case the design set out as the harder one, and the reason
 its rows carry figures at all: fourteen bare names in an arbitrary order is a
 list you have to read, and the same names in the board's order with its

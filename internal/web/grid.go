@@ -181,7 +181,7 @@ func (s *Server) handleGrid(w http.ResponseWriter, r *http.Request, prefix, boar
 func gridColumnFor(prefix string, p stats.Player, t translator) gridColumn {
 	col := gridColumn{
 		Name: p.Name, Short: shortName(p.Name),
-		Href: prefix + "/p/" + p.Slug, Form: formatScore(t, p.Average),
+		Href: prefix + "/players/" + p.Slug, Form: formatScore(t, p.Average),
 	}
 	if p.Ranked() {
 		col.Rank = t.Integer(p.Rank)

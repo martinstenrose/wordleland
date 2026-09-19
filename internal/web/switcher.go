@@ -1,9 +1,7 @@
 package web
 
 import (
-	"strings"
 	"time"
-	"unicode"
 
 	"github.com/martinstenrose/wordleland/internal/stats"
 )
@@ -31,11 +29,15 @@ type switcher struct {
 	// waiting to be claimed, so far.
 	Badge string
 
-	// Code picks the glyph beside the label, and Initials the avatar in its
-	// place. A section has an icon, a player has initials, and neither has
-	// both.
-	Code     string
-	Initials string
+	// The neighbours on either side, for the step arrows: one press to the
+	// section or the player next door, without opening the list to find
+	// them. Both wrap, so neither is ever absent while there is more than
+	// one to step between — the ends of a list of five sections or fourteen
+	// names are not a boundary anybody is trying to respect.
+	//
+	// Empty on a page with nothing selected, where there is no "next".
+	PrevHref, PrevLabel string
+	NextHref, NextLabel string
 
 	Items []switcherItem
 }
@@ -83,11 +85,34 @@ func (c chrome) adminSwitcher() switcher {
 			Code:  code,
 		})
 		if tab.On {
-			out.Label, out.Code = tab.Label, code
+			out.Label = tab.Label
 			out.Hint = c.T.T("admin." + code + ".hint")
 		}
 	}
+	out.step(c.T)
 	return out
+}
+
+// step fills in the neighbours on either side of whichever item is current.
+//
+// It wraps rather than stopping at the ends, which is why neither arrow is
+// ever the disabled control a first or last item would otherwise need. With
+// nothing selected there is no next: the arrows are left off entirely.
+func (s *switcher) step(t translator) {
+	at := -1
+	for i, item := range s.Items {
+		if item.On {
+			at = i
+			break
+		}
+	}
+	if at < 0 || len(s.Items) < 2 {
+		return
+	}
+	prev := s.Items[(at-1+len(s.Items))%len(s.Items)]
+	next := s.Items[(at+1)%len(s.Items)]
+	s.PrevHref, s.PrevLabel = prev.Href, t.T("switcher.previous", prev.Label)
+	s.NextHref, s.NextLabel = next.Href, t.T("switcher.next", next.Label)
 }
 
 // adminCodeFor names a section for the icon dispatch. The href is the one
@@ -121,12 +146,9 @@ func adminCodeFor(href string) string {
 // on is the player being shown, or nil on the roster page where nobody has
 // been chosen yet.
 func (c chrome) playerSwitcher(board stats.Board, prefix string, on *stats.Player) switcher {
-	out := switcher{Label: c.T.T("nav.view.players"), Code: "players"}
+	out := switcher{Label: c.T.T("nav.view.players")}
 	if on != nil {
-		out.Label, out.Initials = on.Name, initialsOf(on.Name)
-		// The avatar replaces the section glyph: a player is a who, not a
-		// what, and two of them side by side would say neither.
-		out.Code = ""
+		out.Label = on.Name
 		if on.Ranked() {
 			out.Hint = c.T.T("player.rank", on.Rank)
 		} else {
@@ -145,7 +167,7 @@ func (c chrome) playerSwitcher(board stats.Board, prefix string, on *stats.Playe
 			// and this menu would be the one place it slipped out.
 			row := switcherItem{
 				Label: p.Name,
-				Href:  prefix + "/p/" + p.Slug,
+				Href:  prefix + "/players/" + p.Slug,
 				Rank:  "—",
 				Avg:   "—",
 			}
@@ -158,28 +180,6 @@ func (c chrome) playerSwitcher(board stats.Board, prefix string, on *stats.Playe
 			out.Items = append(out.Items, row)
 		}
 	}
-	if on == nil {
-		out.Hint = c.T.T("players.count", len(out.Items))
-	}
+	out.step(c.T)
 	return out
-}
-
-// initialsOf is the avatar's text: one letter, or two when the name has a
-// second word to take one from.
-//
-// Names here are whatever the group typed — "Lars", "Anna-Karin", "Jo" — so
-// this counts runes rather than bytes and gives up quietly on anything it
-// cannot read, leaving an empty avatar rather than a broken one.
-func initialsOf(name string) string {
-	out := make([]rune, 0, 2)
-	for _, word := range strings.Fields(name) {
-		for _, r := range word {
-			out = append(out, unicode.ToUpper(r))
-			break
-		}
-		if len(out) == 2 {
-			break
-		}
-	}
-	return string(out)
 }

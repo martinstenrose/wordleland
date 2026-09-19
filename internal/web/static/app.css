@@ -1532,9 +1532,13 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
    which is why every block here is styled as a box in its own right rather
    than as a step down a column. */
 
-.today-head { padding-top: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--color-text-10); }
+/* .card-head's own vertical padding, so the title starts at the same height
+   here as on every other page. */
+.today-head { padding-top: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--color-text-10); }
 .today .kicker .accent { color: var(--color-accent); letter-spacing: .14em; text-transform: uppercase; }
-.today h1 { font-size: var(--text-2xl); line-height: var(--line-tight); letter-spacing: -.02em; margin: 8px 0 0; max-width: 18ch; }
+/* Larger than a page title, because it is not one: it is the day's result,
+   and on the front page that is the thing to read first. */
+.today h1 { margin: 8px 0 0; font-size: var(--text-2xl); line-height: var(--line-tight); letter-spacing: -.02em; max-width: 18ch; }
 .today-headline { min-width: 0; }
 .today-status { min-width: 0; }
 
@@ -2545,60 +2549,84 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
    to a second row on a phone, and a roster of fourteen scrolled sideways. A
    heading is one line at every width whatever is behind it. */
 
-.switcher { position: relative; border-bottom: 1px solid var(--color-text-10); }
-.switcher > summary { list-style: none; cursor: pointer; }
-.switcher > summary::-webkit-details-marker { display: none; }
-.switcher > summary:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: -2px; }
-
+/* The bar is the card's own head: same box as .card-head, same gutter, same
+   heading size and weight, so that moving between a page whose title is a
+   menu and a page whose title is just a title does not move the title. The
+   glyph this used to carry — a section icon, a player's initials — is gone
+   for the same reason: it pushed the heading 45px past where every other
+   page starts one. The icons are still in the list, where they are read
+   rather than decorative. */
 .switcher-bar {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 13px var(--space-card);
+  gap: 10px;
+  padding: 16px var(--space-card);
+  border-bottom: 1px solid var(--color-text-10);
 }
-.switcher > summary:hover .switcher-bar,
-.switcher[open] .switcher-bar { background: var(--color-text-04); }
+/* The bar is what the menu hangs off, not the title: the title stops short
+   of the step arrows, and a menu that stopped there with them beside it
+   would be a panel pinned to half a bar. Explicitly static, because .menu —
+   which this also carries, for the shared exclusivity — is relative. */
+.switcher { position: static; flex: 1; min-width: 0; }
+.switcher > summary { list-style: none; cursor: pointer; }
+.switcher > summary::-webkit-details-marker { display: none; }
+.switcher > summary:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 2px; border-radius: var(--radius-sm); }
 
-.switcher-mark { flex: none; display: flex; color: var(--color-accent); }
-/* A player has initials where a section has a glyph. Same box either way, so
-   the heading beside it starts in the same place on both. */
-.switcher-avatar {
-  width: 34px;
-  height: 34px;
-  flex: none;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-circle);
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-text-12);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--color-text-50);
+/* The press target is padded, and then pulled back by the same amount, so
+   the control has somewhere to shade on hover while its text still starts on
+   the gutter. */
+.switcher-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px;
+  margin: -5px -8px;
+  border-radius: var(--radius-md);
 }
+.switcher > summary:hover .switcher-title,
+.switcher[open] .switcher-title { background: var(--color-text-04); }
 
 .switcher-id { flex: 1; min-width: 0; }
-.switcher-title { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.switcher-line { display: flex; align-items: center; gap: 4px; min-width: 0; }
+/* .card-head h1's own size and weight. */
 .switcher-label {
   margin: 0;
-  font-size: var(--text-lg);
-  font-weight: 800;
+  font-size: var(--text-xl);
+  font-weight: 700;
   letter-spacing: -.015em;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.switcher-title .chevron { flex: none; color: var(--color-text-50); }
-.switcher[open] .switcher-title .chevron { transform: rotate(180deg); }
+.switcher-line .chevron { flex: none; color: var(--color-text-50); }
+.switcher[open] .switcher-line .chevron { transform: rotate(180deg); }
+/* .kicker carries the treatment — uppercase, 11px, the letter-spacing — so
+   the line under a title that is a menu reads as the line under a title that
+   is not. All this adds is the truncation a one-line bar needs. */
 .switcher-hint {
   display: block;
-  font-size: var(--text-xs);
-  color: var(--color-text-40);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .switcher-badges { flex: none; display: flex; align-items: center; gap: 6px; }
+
+/* One press to the section or the player next door. Outside the summary,
+   because inside it every press would also toggle the menu. */
+.switcher-steps { flex: none; display: flex; gap: 6px; }
+.switcher-step {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-text-12);
+  color: var(--color-text-45);
+}
+.switcher-step:hover { color: var(--color-text); border-color: var(--color-text-25); }
+.switcher-step:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
 
 /* Stretched to the card's edges on a phone, because that is the room there
    is; a column of its own on a wider one, where a menu as wide as the card
@@ -2606,9 +2634,12 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 .switcher-panel {
   position: absolute;
   z-index: 30;
-  top: calc(100% - 6px);
-  left: 10px;
-  right: 10px;
+  /* Lined up with the title's own press box — the gutter, less the padding
+     that box is pulled back by — so the menu opens under the word that
+     opened it. */
+  top: calc(100% - 10px);
+  left: calc(var(--space-card) - 8px);
+  right: calc(var(--space-card) - 8px);
   max-height: 300px;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -2638,10 +2669,10 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 .switcher-row-badge { flex: none; font-size: var(--text-xs); font-weight: 700; color: var(--color-accent-2-strong); }
 
 @media (min-width: 721px) {
-  .switcher-label { font-size: var(--text-xl); letter-spacing: -.02em; }
-  .switcher-hint { font-size: var(--text-sm); color: var(--color-text-50); }
-  .switcher-avatar { width: 36px; height: 36px; }
-  .switcher-panel { left: 16px; right: auto; width: 330px; max-height: 320px; }
+  /* Still hung off the control's own press box, just no longer stretched:
+     a menu as wide as the card would be a line of text with a tick a long
+     way from it. */
+  .switcher-panel { right: auto; width: 330px; max-height: 320px; }
 }
 
 /* ---- Settings ---------------------------------------------------------- */
