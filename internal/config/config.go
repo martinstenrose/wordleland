@@ -24,10 +24,28 @@ import (
 // -db flag exists only so a binary can run outside a container.
 const DefaultDBPath = "/data/db.sqlite"
 
-// ListenAddr is fixed. Port 8080 rather than 80 because the distroless nonroot
+// ListenAddr is where the server listens in the container, and the default
+// everywhere else. Port 8080 rather than 80 because the distroless nonroot
 // base runs as UID 65532, and binding below 1024 would require root or
 // CAP_NET_BIND_SERVICE for no benefit.
+//
+// A deployment does not change this — a port mapping decides what the outside
+// sees. `serve -port` exists for the same reason `-db` does: so that a binary
+// run outside a container can take a port that is free on the machine it is
+// sharing.
 const ListenAddr = ":8080"
+
+// ListenAddrFor turns a port number into an address to listen on, or returns
+// the default when none was asked for.
+func ListenAddrFor(port int) (string, error) {
+	if port == 0 {
+		return ListenAddr, nil
+	}
+	if port < 1 || port > 65535 {
+		return "", fmt.Errorf("port %d is not a port number", port)
+	}
+	return ":" + strconv.Itoa(port), nil
+}
 
 // totpKeyLen is the AES-256 key length required for TOTP secret encryption.
 const totpKeyLen = 32

@@ -80,11 +80,21 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 	// binary itself rather than curl.
 	healthcheck := fs.Bool("healthcheck", false,
 		"probe the local health endpoint and exit; used by the container healthcheck")
+	// Like -db: for a binary run outside a container, where 8080 may already
+	// belong to something else on the machine. A deployment leaves it alone
+	// and maps the port from outside.
+	port := fs.Int("port", 0, "port to listen on (default "+config.ListenAddr+")")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	addr, err := config.ListenAddrFor(*port)
+	if err != nil {
+		return err
+	}
 	if *healthcheck {
-		health.Run("http://127.0.0.1" + config.ListenAddr + "/healthz")
+		// The probe has to knock on the port this invocation was told to use,
+		// not the default, or a server on another one looks dead.
+		health.Run("http://127.0.0.1" + addr + "/healthz")
 	}
 
 	// Read before the logger exists: an unrecognised LOG_LEVEL is a startup
@@ -215,7 +225,7 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 	srv.SetBridge(supervisor)
 
 	httpSrv := &http.Server{
-		Addr:              config.ListenAddr,
+		Addr:              addr,
 		Handler:           srv.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
@@ -256,7 +266,7 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 
 	errCh := make(chan error, 1)
 	go func() {
-		logger.Info("listening", "addr", config.ListenAddr)
+		logger.Info("listening", "addr", addr)
 		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
