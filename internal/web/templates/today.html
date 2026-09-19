@@ -1,45 +1,92 @@
 {{define "title"}}{{.T.T "today.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-{{/* One card. The day's figures are one thing — what happened, what it means,
-     who is in form — and three cards with gaps between them said they were
-     three. Rules between the parts instead. */}}
+{{/* One card, four blocks: what the day is, what happened, what it means, and
+     who is in form. Rules between them rather than gaps, because they are one
+     thing.
+
+     The order in this file is the order a phone reads them in — today's
+     scores, then the callouts, then form. On a wide screen the stylesheet
+     lays the same four blocks out as a grid instead, putting the callouts
+     under the header as one strip and standing the results and the form side
+     by side. Same markup, so there is one page to keep correct. */}}
 <section class="card today">
   <div class="today-head">
-    <p class="kicker">
-      <span class="accent">{{.T.T "player.puzzle" (.T.Puzzle .PuzzleNo)}}</span>
-      <span class="muted">{{.DateLong}}</span>
-    </p>
-
-    <div class="today-hero">
-      <div class="today-line">
-        <h1>{{.T.T .HeadlineKey .HeadlineArgs}}</h1>
-        <p class="today-sub">{{.T.TN "today.filed" .FiledCount}} {{.T.T "today.ofExpected" .Expected}}</p>
-      </div>
-
-      {{if .Hero}}
-        <ol class="hero-row" aria-hidden="true">
-          {{range .Hero}}<li class="cell{{if .Played}} t{{.Tone}}{{else}} gap{{end}}"></li>{{end}}
-        </ol>
-      {{end}}
-
-      {{if .Missing}}
-        <div class="today-out">
-          <p class="kicker">{{.T.T "today.stillOut"}}</p>
-          <ul class="chips">{{range .Missing}}<li>{{template "chip" (dict "Label" . "Dashed" true)}}</li>{{end}}</ul>
-        </div>
-      {{end}}
+    {{/* Two groups, so a wide screen can stand them beside each other: what
+         day it is on the left, how far through it the group is on the
+         right. */}}
+    <div class="today-headline">
+      <p class="kicker">
+        <span class="accent">{{.T.T "player.puzzle" (.T.Puzzle .PuzzleNo)}}</span>
+        <span class="muted">{{.DateLong}}</span>
+      </p>
+      <h1>{{.T.T .HeadlineKey .HeadlineArgs}}</h1>
     </div>
 
-    {{if .Filed}}
-      <ul class="today-filed">
-        {{range .Filed}}
-          <li><a href="{{.Href}}">{{.Name}}</a>
-            <span class="cell t{{.Tone}}">{{.Label}}</span>
+    <div class="today-status">
+      {{/* The bar is the figure; the label beside it is the same figure for
+           anyone who would rather read it, and the aria-label is the
+           sentence, since "8/9" is not one. */}}
+      <div class="today-progress">
+        <span class="today-track" role="img" aria-label="{{.T.T "today.progress" .FiledCount .Expected}}">
+          {{template "progress-bar" (dict "Percent" .FiledPercent)}}
+        </span>
+        <span class="today-count num">{{.T.Integer .FiledCount}}/{{.T.Integer .Expected}}</span>
+      </div>
+
+      {{if .Missing}}
+        {{/* Who has not filed is worth a count all day and worth names only
+             when somebody asks. No name= : this is content on the page, not
+             one of the topbar menus, and joining their group would make
+             opening it close the drawer. */}}
+        <details class="today-out">
+          <summary>
+            <span>{{.T.TN "today.stillToSubmit" (len .Missing)}}</span>
+            {{template "chevron-down" .}}
+          </summary>
+          <ul class="chips">{{range .Missing}}<li>{{template "chip" (dict "Label" . "Dashed" true)}}</li>{{end}}</ul>
+        </details>
+      {{end}}
+    </div>
+  </div>
+
+  {{if .Results}}
+    <div class="today-results">
+      {{/* Two headings, one per width. The hint names the right-hand figures
+           on a phone, where there is no room for a row of column labels; the
+           labels themselves take over on a wide screen, where the two lists
+           stand side by side and both read as the tables they are. */}}
+      <div class="today-list-head">
+        <p class="kicker">{{.T.T "today.results"}}</p>
+        <span class="today-list-hint">{{.T.T "today.hint.vsOwnAverage"}}</span>
+      </div>
+      <div class="result-row head">
+        <span class="result-pos">{{.T.T "board.column.rank"}}</span>
+        {{/* The score column is a 30px square; no word fits over it in any of
+             the five languages, and the tile beside a name needs none. The
+             cell stays so the columns under it still line up. */}}
+        <span class="result-score"></span>
+        <span class="result-name">{{.T.T "board.column.player"}}</span>
+        <span class="result-figures">
+          <span class="result-delta">{{.T.T "today.column.vsAvg"}}</span>
+          <span class="result-avg">{{.T.T "today.column.avg"}}</span>
+        </span>
+      </div>
+
+      <ol class="result-rows">
+        {{range .Results}}
+          <li class="result-row">
+            <span class="result-pos num">{{.Pos}}</span>
+            <span class="cell t{{.Tone}} result-score">{{.Label}}</span>
+            <a class="player result-name" href="{{.Href}}">{{.Name}}</a>
+            <span class="result-figures">
+              <span class="result-delta delta {{.DeltaDirection}}">{{.DeltaText}}</span>
+              <span class="result-avg">{{.AvgLabel}}</span>
+            </span>
           </li>
         {{end}}
-      </ul>
-    {{end}}
-  </div>
+      </ol>
+    </div>
+  {{end}}
 
   {{if .Callouts}}
     <div class="callouts">
@@ -54,82 +101,59 @@
     </div>
   {{end}}
 
-  {{if .Leaders}}
+  {{if .Form}}
     <div class="today-form">
-      <p class="kicker">{{.T.T "today.formTable"}}</p>
-      <div class="podium">
-        {{range .Leaders}}
-          <div class="podium-card">
-            <div class="podium-head">
-              <a class="player" href="{{.Href}}">{{.Name}}</a>
-              {{template "rank-pop" (dict "Row" . "Class" "muted small" "Prefix" "#" "T" $.T)}}
-            </div>
-            <p class="podium-figure">{{.FormText}}
-              {{if .DeltaText}}<span class="delta {{.DeltaDirection}}">{{.DeltaText}}</span>{{end}}
-            </p>
-            {{if .HasSpark}}
-              <svg class="podium-spark" viewBox="0 0 140 30" preserveAspectRatio="none" aria-hidden="true">
-                {{template "spark-grid"}}
-                <path class="player" d="{{.SparkPath}}"/>
-              </svg>
-            {{end}}
-            <div class="podium-last-five">
-              <p class="kicker">{{$.T.T "board.column.lastFive"}}</p>
-              {{template "last-five" .LastFive}}
-            </div>
-            <p class="muted small">
-              {{if .Trait}}{{template "trait" .}} · {{end}}{{$.T.TN "today.formGames" .FormGames}}
-            </p>
-          </div>
-        {{end}}
+      <div class="today-list-head">
+        <p class="kicker">{{.T.T "today.formTable"}}</p>
+        <span class="today-list-hint">{{.T.T "today.hint.avgTrend"}}</span>
+      </div>
+      <div class="form-row head">
+        <span class="form-rank">{{.T.T "board.column.rank"}}</span>
+        <span class="form-name">{{.T.T "board.column.player"}}</span>
+        <span class="form-spark">{{.T.T "today.column.trend"}}</span>
+        <span class="form-avg">{{.T.T "today.column.form"}}</span>
+        <span class="form-delta">{{.T.T "today.column.vsAvg"}}</span>
       </div>
 
-      {{if .Rest}}
-        {{/* Same table shell as the Leaderboard (board.html): a real
-             table sizes the player column to its content and stretches
-             to the card's full width, instead of a column fighting the
-             others for space. */}}
-        <div class="table-scroll">
-          <table class="board">
-            <thead>
-              <tr>
-                <th title="{{.T.T "today.rankColumn"}}">{{.T.T "board.column.rank"}}</th>
-                <th>{{.T.T "board.column.player"}}</th>
-                <th class="right">{{.T.T "board.column.form"}}</th>
-                <th class="right spark-col">{{.T.T "board.column.last30"}}</th>
-                <th class="right window-col" title="{{.T.T "board.column.windowGamesTitle"}}">{{.T.T "board.column.windowGames"}}</th>
-                <th class="right">{{.T.T "board.column.lastFive"}}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {{range .Rest}}
-                <tr>
-                  <td class="num">{{template "rank-pop" (dict "Row" . "T" $.T)}}</td>
-                  <td><a class="player" href="{{.Href}}">{{.Name}}</a>
-                    {{if .Trait}}<span class="board-trait">{{template "trait" .}}</span>{{end}}
-                  </td>
-                  <td class="right num">
-                    {{.FormText}}
-                    {{if .DeltaText}}<span class="delta {{.DeltaDirection}}">{{.DeltaText}}</span>{{end}}
-                  </td>
-                  <td class="right spark-col">
-                    {{if .HasSpark}}
-                      <svg viewBox="0 0 140 30" preserveAspectRatio="none" aria-hidden="true">
-                        {{template "spark-grid"}}
-                        <path class="player" d="{{.SparkPath}}"/>
-                      </svg>
-                    {{end}}
-                  </td>
-                  <td class="right num window-col">{{$.T.Integer .FormGames}}</td>
-                  <td class="right">{{template "last-five" .LastFive}}</td>
-                </tr>
+      <ol class="form-rows">
+        {{range .Form}}
+          <li class="form-row">
+            {{template "rank-pop" (dict "Row" . "Class" "form-rank" "T" $.T)}}
+            <a class="player form-name" href="{{.Href}}">{{.Name}}</a>
+            <span class="form-spark">
+              {{if .HasSpark}}
+                <svg viewBox="0 0 140 30" preserveAspectRatio="none" aria-hidden="true">
+                  {{template "spark-grid"}}
+                  <path class="player" d="{{.SparkPath}}"/>
+                </svg>
               {{end}}
-            </tbody>
-          </table>
-        </div>
+            </span>
+            <span class="form-avg num">{{.FormText}}</span>
+            <span class="form-delta delta {{.DeltaDirection}}">{{.DeltaText}}</span>
+          </li>
+        {{end}}
+      </ol>
+
+      {{if .Benched}}
+        <details class="today-bench">
+          <summary>
+            <span>{{.T.TN "today.benched" .BenchedCount}}</span>
+            {{template "chevron-down" .}}
+          </summary>
+          <ol class="form-rows bench-rows">
+            {{$t := .T}}
+            {{range .Benched}}
+              <li class="form-row">
+                <span class="form-rank num">—</span>
+                <a class="player form-name" href="{{.Href}}">{{.Name}}</a>
+                {{if .ReasonKey}}{{template "reason" (dict "Label" ($t.T .ReasonKey) "Why" .Why)}}{{end}}
+                <span class="form-avg num">{{$t.TN "today.benchedGames" .Games}}</span>
+              </li>
+            {{end}}
+          </ol>
+        </details>
       {{end}}
 
-      {{template "bench-section" .}}
       <footer class="card-foot">
         <span>{{.T.T "today.formNote"}}</span>
       </footer>
@@ -142,15 +166,12 @@
 
 {{/* Form rank, with overall rank in parentheses: two number columns side
      by side cost more width than the second number is worth, and on a
-     phone the second one was hidden outright. Shared between the table
-     rows and the podium cards' top three, so both read the same figure
-     the same way. The popup names both — joining the shared name="popup"
-     group (see base.html) — so the parentheses need no guessing. No
-     title=: a hover tooltip repeating the popup is one of them spare, and
-     the popup works on a phone. Data: {Row todayFormRow; T translator;
-     Class string (optional, e.g. the podium's "muted small"); Prefix
-     string (optional — the podium's leading "#", absent in the table
-     where the column header already carries it)}. */}}
+     phone the second one was hidden outright. The popup names both —
+     joining the shared name="popup" group (see base.html) — so the
+     parentheses need no guessing. No title=: a hover tooltip repeating the
+     popup is one of them spare, and the popup works on a phone. Data:
+     {Row todayFormRow; T translator; Class string (optional); Prefix
+     string (optional — absent where a column header already carries it)}. */}}
 {{define "rank-pop"}}
 <details class="rank-pop{{with .Class}} {{.}}{{end}}" name="popup">
   <summary>{{.Prefix}}{{.Row.FormRankText}} <span class="rank-overall">({{.T.Integer .Row.Rank}})</span></summary>
@@ -158,33 +179,4 @@
     {{template "stat-list" (dict "Variant" "row" "Items" .Row.RankDetail)}}
   </div>
 </details>
-{{end}}
-
-{{/* Its own block, not folded into "content": app.js fetches this alone
-     through renderBlock (see today.go's "?partial=1") so clicking the
-     toggle swaps benched players in without reloading the page. The plain
-     link underneath still works with no script at all. */}}
-{{define "bench-section"}}
-<div class="bench-section">
-  {{if .BenchedCount}}
-    <p class="bench-toggle">
-      <a class="toggle{{if .ShowBenched}} on{{end}}" href="{{.BenchedHref}}">{{.T.TN "today.benched" .BenchedCount}}</a>
-    </p>
-  {{end}}
-
-  {{if .Benched}}
-    <div class="bench">
-      {{$t := .T}}
-      {{range .Benched}}
-        <div class="bench-card">
-          <div class="bench-head">
-            <a class="player" href="{{.Href}}">{{.Name}}</a>
-            {{if .ReasonKey}}{{template "reason" (dict "Label" ($t.T .ReasonKey) "Why" .Why)}}{{end}}
-          </div>
-          <p class="muted small">{{$t.TN "today.benchedGames" .Games}}{{if .LastSeenText}} · {{.LastSeenText}}{{end}}</p>
-        </div>
-      {{end}}
-    </div>
-  {{end}}
-</div>
 {{end}}
