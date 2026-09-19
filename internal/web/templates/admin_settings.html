@@ -13,17 +13,17 @@
   <div class="settings-section">
     <h2 class="section flush">{{.T.T "admin.settings.slug"}}</h2>
     {{if .Slug}}
-      {{/* The slug on its own line, because it is the part that identifies
-           this link and the part that changes — and because a whole URL on a
-           phone is a string with no good break in it. It used to be the whole
-           link wrapped to fit, which broke mid-slug and shredded the one
-           thing here worth reading. */}}
+      {{/* The slug, and only the slug: it is what identifies this link and
+           the part that changes, and a whole URL on a phone is a string with
+           no good place to break. It was printed in full underneath and
+           wrapped mid-slug, which shredded the one thing here worth reading.
+
+           Not a link: following it would leave the admin area for the
+           board's public face, which is not what a reader of this screen is
+           reaching for. The address is had from the copy button beside it,
+           and reconstructed from APP_URL in the table below if that button
+           is not there. */}}
       <p class="share-slug"><code>{{.Slug}}</code></p>
-      {{/* The link itself stays, one line that scrolls rather than wraps.
-           Without a script there is no copy button, and an admin still needs
-           something to select; it also answers whether APP_URL is the public
-           origin or something left over from a local run. */}}
-      <p class="share-url"><a href="{{.ShareURL}}">{{.ShareURL}}</a></p>
       <p class="hint">{{.T.T "admin.settings.slugHint"}}</p>
 
       {{if .Confirming}}

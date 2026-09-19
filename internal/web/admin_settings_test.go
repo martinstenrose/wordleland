@@ -250,15 +250,16 @@ func TestTheShareLinkIsSelectableAndTheCopyButtonIsNot(t *testing.T) {
 	body := fetchAs(t, srv, "/admin/settings", session).Body.String()
 	want := "https://wordle.example.tld/share/" + slug + "/"
 
-	// The slug on its own, which is what identifies the link and the only
-	// part of it short enough to read on a phone.
+	// The slug alone is what is printed: a whole URL on a phone is a string
+	// with no good place to break, and it used to wrap mid-slug.
 	if !strings.Contains(body, `<p class="share-slug"><code>`+slug+`</code></p>`) {
-		t.Error("the slug is not shown on its own")
+		t.Error("the slug is not shown alone")
 	}
-	// And the whole link, as a link: without a script that is what there is
-	// to select, and it doubles as a way to see what a reader of it sees.
-	if !strings.Contains(body, `<a href="`+want+`">`+want+`</a>`) {
-		t.Error("the whole link is not on the page to be selected")
+	// The URL itself is nowhere on the page but the copy target: it is had
+	// from the button, not read.
+	if strings.Count(body, want) != 1 {
+		t.Errorf("the share URL appears %d times, want once: the copy target",
+			strings.Count(body, want))
 	}
 	// Nothing in that row is a button: the only control the server puts
 	// there is the link to the replace question.
@@ -296,9 +297,9 @@ func TestNoCopyControlWithoutAnOrigin(t *testing.T) {
 	if strings.Contains(body, "data-copy=") {
 		t.Error("a copy control is offered for a link that is only a path")
 	}
-	// The path is still shown: it is what somebody needs, just without the
-	// origin in front of it.
-	if !strings.Contains(body, `class="share-url"`) {
-		t.Error("the link is not shown at all")
+	// The slug is still shown, and still the link: it is what somebody needs
+	// to reconstruct the address, and APP_URL is in the table below.
+	if !strings.Contains(body, `class="share-slug"`) {
+		t.Error("the slug is not shown at all")
 	}
 }
