@@ -1,4 +1,25 @@
-{{define "mark"}}<span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>{{end}}
+{{/* The mark, drawn as the logo files in docs/logo/ draw it: one plate and
+     nine tiles, lit on the diagonal — three guesses in at the top left, two
+     in the middle, one at the bottom right. It was nine spans in a CSS grid,
+     which drifted from the drawn version on the two things the eye actually
+     reads at this size, the gap between tiles and how round they are.
+
+     The fills are tokens rather than the hex the exported files carry, so the
+     mark follows the theme the way everything else does. */}}
+{{define "mark"}}
+<svg class="mark" width="30" height="30" viewBox="0 0 34 34" aria-hidden="true">
+  <rect class="mark-plate" x=".5" y=".5" width="33" height="33" rx="7.5"/>
+  <rect class="t3" x="4"  y="4"  width="8" height="8" rx="2"/>
+  <rect x="13" y="4"  width="8" height="8" rx="2"/>
+  <rect x="22" y="4"  width="8" height="8" rx="2"/>
+  <rect x="4"  y="13" width="8" height="8" rx="2"/>
+  <rect class="t2" x="13" y="13" width="8" height="8" rx="2"/>
+  <rect x="22" y="13" width="8" height="8" rx="2"/>
+  <rect x="4"  y="22" width="8" height="8" rx="2"/>
+  <rect x="13" y="22" width="8" height="8" rx="2"/>
+  <rect class="t1" x="22" y="22" width="8" height="8" rx="2"/>
+</svg>
+{{end}}
 
 {{/* The switchers are links, the drawer and the account menu are <details>.
      Nothing here needs JavaScript for opening, summary-click closing or
@@ -72,7 +93,7 @@
   <summary class="menu-btn lang-btn" aria-label="{{.LangLabel}}" title="{{.LangLabel}}">
     {{template "globe-icon" .}}
     <span class="lang-code">{{.Lang}}</span>
-    {{template "chevron" .}}
+    {{template "chevron-down" .}}
   </summary>
   <div class="menu-panel">
     <p class="kicker">{{.T.T "lang.label"}}</p>

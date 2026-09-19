@@ -107,6 +107,13 @@
   --score-ink-alt: oklch(.95 .006 65);
   --score-x-ink: oklch(.99 .004 25);
 
+  /* What is legible on a field of --color-accent. It tracks the accent
+     rather than the text ramp: the accent is light in this theme and deep
+     in the other, so the ink on it has to turn over with it. The score
+     ramp's own ink happens to land on the same two values, but an avatar
+     is not a score and should not be pinned to that ramp. */
+  --color-on-accent: oklch(.19 .012 65);
+
   /* Elevation. No extra hairline ring: every consumer here already draws
      its own 1px border, and adding a second ring on top of that would
      double it rather than sharpen it. */
@@ -164,6 +171,7 @@
   --score-ink: oklch(.99 .004 155);
   --score-ink-alt: oklch(.22 .02 155);
   --score-x-ink: oklch(.99 .004 25);
+  --color-on-accent: oklch(.99 .004 155);
   --color-text-80: oklch(.22 .012 65 / .86);
   --color-text-75: oklch(.22 .012 65 / .84);
   --color-text-70: oklch(.22 .012 65 / .8);
@@ -219,6 +227,7 @@
     --score-ink: oklch(.99 .004 155);
     --score-ink-alt: oklch(.22 .02 155);
     --score-x-ink: oklch(.99 .004 25);
+    --color-on-accent: oklch(.99 .004 155);
     --color-text-80: oklch(.22 .012 65 / .86);
     --color-text-75: oklch(.22 .012 65 / .84);
     --color-text-70: oklch(.22 .012 65 / .8);
@@ -288,9 +297,8 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   flex-direction: column;
   background: var(--color-canvas);
   border: 1px solid var(--color-text-10);
-  border-right: 0;
   border-bottom: 0;
-  border-radius: var(--radius-lg) 0 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 .sidebar {
@@ -305,6 +313,10 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   padding: 6px 14px 12px;
   background: var(--color-surface);
   overflow-y: auto;
+  transition: width .15s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar { transition: none; }
 }
 .nav-rows { display: flex; flex-direction: column; gap: 2px; }
 .nav-row {
@@ -325,6 +337,12 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 .nav-row.on { background: var(--color-accent-14); color: var(--color-accent-strong); font-weight: 600; }
 .nav-row .nav-icon { flex: none; }
 .nav-collapse { margin-top: auto; color: var(--color-text-45); }
+/* The control says what pressing it will do, so the half that describes the
+   width already in force is the half to hide. Keyed off <html> rather than
+   rendered by the server, so app.js flipping that attribute is enough to
+   bring the wording, the arrow and the accessible name with it. */
+:root[data-sidebar="narrow"] .to-narrow,
+:root[data-sidebar="wide"] .to-wide { display: none; }
 
 /* Collapsed to its icons. The labels are hidden from the eye and not from a
    screen reader: display:none would leave every row an icon with no
@@ -387,8 +405,11 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
    would be a click spent on nothing. */
 .theme-track {
   display: inline-flex;
+  align-items: center;
   gap: 2px;
-  padding: 2px;
+  height: 32px;
+  box-sizing: border-box;
+  padding: 1px;
   border-radius: var(--radius-pill);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-text-12);
@@ -431,7 +452,7 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
    draws are a blue-and-yellow cross and a blue-and-red one, and at 16px
    telling them apart is a second look; the code is not. The flags stay in
    the menu below, where there is room to read them. */
-.lang-btn {
+.topbar-controls .lang-btn {
   height: 32px;
   gap: 6px;
   padding: 0 10px;
@@ -439,7 +460,7 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   background: var(--color-surface-raised);
   border-color: var(--color-text-12);
 }
-.lang-btn:hover { background: var(--color-text-08); }
+.topbar-controls .lang-btn:hover { background: var(--color-text-08); }
 .lang-code {
   font-size: var(--text-xs);
   font-weight: 600;
@@ -460,14 +481,54 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 @media (max-width: 860px) {
   .sidebar { display: none; }
   .drawer { display: block; }
-  /* The shell is the page alone, and the well's turned corner with it: there
-     is no rail beside it to turn away from. */
-  .shell-main { border: 0; border-radius: 0; }
   /* The mark keeps its place; the words beside it do not fit a phone's bar
      next to everything else it has to hold. */
   .topbar .brand-id { display: none; }
   .theme-track { display: none; }
   .topbar-controls .theme-cycle { display: inline-flex; }
+
+  /* The mark and the menu hold the left; everything else goes to the right,
+     as one group. Search sits in the middle of the bar at desktop width,
+     where there is room for a field; on a phone it is an icon like its
+     neighbours and belongs with them. */
+  .topbar-lead { flex: 1; }
+  .topbar-search { flex: none; }
+
+  /* The mark is the whole of the left here, so the breathing room the
+     wordmark needs beside it on a wide bar is just a wider gutter. */
+  .topbar .brand { padding: 0; }
+
+  /* One size, one tint and one ink for every round control in the bar: on a
+     phone the search control is an icon among icons rather than the one wide
+     field it is at desktop width, so it stops taking the page's ground and
+     joins them. */
+  .topbar .drawer-btn,
+  .topbar-controls .theme-cycle,
+  .topbar-search .search-btn {
+    width: 34px;
+    height: 34px;
+  }
+  .topbar-search .search-btn {
+    padding: 0;
+    justify-content: center;
+    border-radius: var(--radius-circle);
+    background: var(--color-surface-raised);
+    border-color: var(--color-text-12);
+    color: var(--color-text);
+  }
+
+  /* The language control loses its word and its chevron and becomes another
+     of them: a phone's bar has no room for a pill, and the menu it opens
+     names both languages in full. */
+  .topbar-controls .lang-btn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+  }
+  .topbar-controls .lang-btn .lang-code,
+  .topbar-controls .lang-btn .chevron { display: none; }
 
   /* Open, a dim hangs off the summary over everything below the bar. Clicking
      it is clicking the control again — no script, and no second close button
@@ -550,7 +611,6 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 .card > table,
 .card > .table-scroll,
 .card > .callouts,
-.card > .month-chips,
 .card > .panels,
 .card > .admin-split,
 .card > .grid-wrap,
@@ -579,6 +639,11 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   margin: 2px 0 0; font-size: var(--text-xs); font-weight: 600;
   text-transform: uppercase; letter-spacing: .08em; color: var(--color-text-40);
 }
+/* A kicker that names the thing the block is about rather than labelling a
+   field. The two rules further down match .accent inside Today and inside a
+   callout; this one matches it on the kicker itself, which is how the month
+   detail asks for it. */
+.kicker.accent { color: var(--color-accent); }
 
 .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .seg { display: inline-flex; border: 1px solid var(--color-text-12); border-radius: var(--radius-md); overflow: hidden; }
@@ -977,24 +1042,15 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
    The artboard floats this as a fixed chip; here it sits in the topbar,
    which is where the home link already was. */
-.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--color-text); }
-.brand:hover .mark { border-color: var(--color-accent-60); }
+.brand { display: inline-flex; align-items: center; gap: 9px; text-decoration: none; color: var(--color-text); }
+.brand:hover .mark-plate { stroke: var(--color-accent-60); }
 
-.mark {
-  display: grid;
-  grid-template-columns: repeat(3, 8px);
-  grid-template-rows: repeat(3, 8px);
-  gap: 2.5px;
-  padding: 4px;
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-text-08);
-  flex: none;
-}
-.mark i { border-radius: var(--radius-xs); background: var(--color-text-08); border: 1px solid var(--color-text-06); }
-.mark i:nth-child(1) { background: var(--score-3); border-color: transparent; }
-.mark i:nth-child(5) { background: var(--score-2); border-color: transparent; }
-.mark i:nth-child(9) { background: var(--score-1); border-color: transparent; }
+.mark { display: block; flex: none; }
+.mark-plate { fill: var(--color-surface-raised); stroke: var(--color-text-08); }
+.mark rect { fill: var(--color-text-08); }
+.mark .t3 { fill: var(--score-3); }
+.mark .t2 { fill: var(--score-2); }
+.mark .t1 { fill: var(--score-1); }
 
 /* ---- Chrome: switchers and the account menu --------------------------- */
 
@@ -1016,8 +1072,8 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   place-items: center;
   font-size: var(--text-sm);
   font-weight: 600;
-  background: var(--score-3);
-  color: var(--score-ink-alt);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
   flex: none;
 }
 
@@ -1111,8 +1167,24 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 /* ---- View switcher ---------------------------------------------------- */
 
-.brand-id { display: flex; flex-direction: column; line-height: var(--line-tight); }
-.brand-sub { font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; color: var(--color-text-45); }
+/* The wordmark carries the weight the design gives it — extrabold over a
+   semibold line of small caps. It was one step of medium for both, which at
+   this size read as a label rather than as the name of the thing. */
+.brand-id { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.brand-id > span:first-child {
+  font-size: var(--text-md);
+  font-weight: 800;
+  letter-spacing: -.015em;
+  line-height: 1.15;
+}
+.brand-sub {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--color-text-45);
+  white-space: nowrap;
+}
 
 .views { display: contents; }
 
@@ -1246,23 +1318,31 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 /* A row of separate cards rather than tiles on a shared slab. The slab was a
    1px-gap background standing in for dividers, which with two months in the
    season showed as an empty grey band across the rest of the card. */
+/* The gutter is on the row itself rather than inherited from .card > *,
+   because this row scrolls: padding on the scroll container holds at both
+   ends of the scroll, where a parent's padding would leave the first chip
+   flush against the card's edge as soon as it moved. */
 .month-chips {
   display: flex;
   gap: 8px;
   list-style: none;
   margin: 16px 0 0;
-  padding: 0;
+  padding: 0 var(--space-card);
   overflow-x: auto;
   scroll-snap-type: x proximity;
   scrollbar-width: thin;
 }
+/* Sized by what is in them, with a floor — a row of small boxes, as the
+   design draws it. They were a quarter of the row each, which on a wide card
+   made four boxes the width of the table under them. */
 .month-chips li {
-  flex: 0 0 max(11rem, calc(25% - 6px));
+  flex: none;
   scroll-snap-align: start;
 }
 .month-chip {
   display: block;
-  padding: 10px 14px 11px;
+  min-width: 128px;
+  padding: 9px 13px;
   background: var(--color-surface);
   border: 1px solid var(--color-text-12);
   border-radius: var(--radius-md);
@@ -1272,14 +1352,14 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 }
 .month-chip:hover { background: var(--color-text-04); }
 .month-chip.on { background: var(--color-accent-14); border-color: var(--color-accent-50); }
+.month-chip.on .month-chip-head,
+.month-chip.on .month-winner { color: var(--color-accent-strong); }
 /* Two lines, and only two: an abbreviated month keeps the head on one line
    and the name is clipped rather than wrapped, so a long winner or a tie
    cannot push the row of chips to three times its height. */
 .month-chip-head {
   display: block;
   font-size: var(--text-xs);
-  letter-spacing: .08em;
-  text-transform: uppercase;
   color: var(--color-text-45);
   white-space: nowrap;
 }
@@ -1287,33 +1367,34 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 4px;
   min-width: 0;
 }
 .month-winner {
-  font-size: 1.05rem;
-  font-weight: 500;
+  font-size: var(--text-sm);
+  font-weight: 600;
   letter-spacing: -.015em;
   white-space: nowrap;
 }
 .month-chip-win .num { font-size: var(--text-sm); color: var(--color-text-50); flex: none; }
 
+/* The month's own summary, on the card's surface like everything else on it.
+   It was a tinted band with a rule under it, which made the one block that is
+   only a summary look like a second card wedged into the first. */
 .month-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 26px;
   flex-wrap: wrap;
-  padding-top: 22px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--color-text-10);
-  background: var(--color-surface-raised);
+  padding-top: 20px;
+  padding-bottom: 8px;
 }
 .month-head-main { min-width: 0; }
 .month-head p { margin: 0 0 8px; }
 .month-head p:last-child { margin-bottom: 0; }
 
-.month-winner-name { font-size: 2rem; font-weight: 500; letter-spacing: -.02em; line-height: var(--line-tight); margin: 6px 0 8px; }
+.month-winner-name { font-size: var(--text-xl); font-weight: 700; letter-spacing: -.015em; line-height: var(--line-tight); margin: 6px 0 8px; }
 
 /* The table scrolls inside its own box rather than the page scrolling
    sideways, and the headings keep to one line: a wrapped "3 or better"
@@ -1476,18 +1557,28 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 /* A week per column, a weekday per row — filled down each column, which is
    what grid-auto-flow: column gives with a fixed row count. */
-.calendar-wrap { overflow-x: auto; padding-bottom: 4px; }
+.calendar-wrap { padding-bottom: 4px; }
+/* The weeks share the panel's width rather than running off the side of it:
+   a column per week, each as wide as the space allows, and the squares take
+   their height from it. It scrolled horizontally before, which put half a
+   player's history behind a gesture. */
 .calendar {
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(7, 13px);
+  grid-auto-columns: minmax(0, 1fr);
+  grid-template-rows: repeat(7, auto);
   gap: 3px;
-  width: max-content;
+  width: 100%;
   list-style: none;
   margin: 0;
   padding: 0;
 }
-.cal { width: 13px; height: 13px; border-radius: var(--radius-xs); background: var(--color-text-06); }
+.cal {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius-xs);
+  background: var(--color-text-06);
+}
 .cal.pad { background: transparent; }
 .cal.miss { background: transparent; box-shadow: inset 0 0 0 1px var(--color-text-08); }
 .cal.t1 { background: var(--score-1); }
@@ -1538,7 +1629,11 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   gap: 7px;
   padding: 0 9px;
   border-radius: var(--radius-sm);
-  color: var(--color-text-70);
+  /* Full ink. These are controls, not captions: the design draws every glyph
+     in the bar at text strength and lets the tint behind it carry the
+     distinction instead. The search control is the one exception and sets
+     its own, quieter, ink below. */
+  color: var(--color-text);
   border: 1px solid transparent;
 }
 .menu-btn:hover { background: var(--color-text-06); color: var(--color-text); }
@@ -1594,6 +1689,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   border-radius: var(--radius-md);
   background: var(--color-canvas);
   border-color: var(--color-text-10);
+  color: var(--color-text-45);
   text-decoration: none;
 }
 .search-btn:hover { border-color: var(--color-text-16); }

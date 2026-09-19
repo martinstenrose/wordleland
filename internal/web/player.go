@@ -213,7 +213,7 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, pref
 
 		Distribution: distributionBars(player, t),
 		Recent:       recentCells(player, results, board.CurrentPuzzle, t),
-		Calendar:     buildCalendar(results, player.ID),
+		Calendar:     buildCalendar(ch.T, results, player.ID),
 		CalendarRows: weekdays,
 	}
 
@@ -442,7 +442,13 @@ type calendarDay struct {
 	Filled bool
 	Played bool
 	Tone   int
-	Title  string
+	// Title is the hover text for a day with nothing to open: the padding
+	// squares have none, and a day not played has only its date to give.
+	Title string
+	// Detail is the popup body for a day that was played — which puzzle,
+	// when, and what it took. The square itself is blank, so unlike the
+	// recent strip's cells this popup carries the result as well.
+	Detail string
 }
 
 // buildCalendar lays a player's history out as weeks by weekdays.
@@ -450,7 +456,7 @@ type calendarDay struct {
 // The grid starts on the Monday of the first week played, so every column is
 // a whole week and the rows line up as weekdays throughout. Days before that
 // Monday and after the last result are padding rather than absences.
-func buildCalendar(results []store.BoardResult, playerID int64) []calendarDay {
+func buildCalendar(t translator, results []store.BoardResult, playerID int64) []calendarDay {
 	byDay := make(map[string]store.BoardResult)
 	var first, last time.Time
 	for _, r := range results {
@@ -483,13 +489,22 @@ func buildCalendar(results []store.BoardResult, playerID int64) []calendarDay {
 			if r.Solved {
 				day.Tone = r.Guesses
 			}
-			day.Title = d.Format(time.DateOnly)
+			day.Detail = puzzleDate(t, r.PuzzleNo, d.Format(time.DateOnly)) + " · " + guessesText(t, r)
 		} else if day.Filled {
 			day.Title = d.Format(time.DateOnly)
 		}
 		days = append(days, day)
 	}
 	return days
+}
+
+// guessesText says what a result took, for a popup that has room for words
+// where the tile it hangs off has room only for a digit.
+func guessesText(t translator, r store.BoardResult) string {
+	if !r.Solved {
+		return t.T("player.notSolved")
+	}
+	return t.TN("player.guesses", r.Guesses)
 }
 
 // monthRank is one point on the rank-by-month chart.

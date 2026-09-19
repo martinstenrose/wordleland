@@ -1,10 +1,11 @@
 {{define "admin-warning"}}
-{{if .AdminWarning}}
-  {{/* Shown across the admin area, not only where it is computed: the
-       container used to go unhealthy and tell you, and a page you have to
-       open is not a replacement for that. */}}
+{{if .AdminWarning.Text}}
+  {{/* Raised on the way into the area rather than only where it is computed:
+       the container used to go unhealthy and tell you, and a page you have to
+       open is not a replacement for that. The link goes wherever the warning
+       is actually dealt with — see adminWarningFor. */}}
   <p class="note warn" role="status">
-    {{.AdminWarning}} <a href="/admin/diagnostics">{{.T.T "diag.title"}} →</a>
+    {{.AdminWarning.Text}} <a href="{{.AdminWarning.Href}}">{{.AdminWarning.Label}} →</a>
   </p>
 {{end}}
 {{end}}

@@ -417,3 +417,36 @@ func TestBootstrapAdminEmailIsNormalized(t *testing.T) {
 		t.Errorf("AdminEmail = %q, want it normalized", cfg.AdminEmail)
 	}
 }
+
+// The listen port is fixed in a deployment and pickable outside one, so that
+// a binary run on a machine where 8080 is taken has somewhere to go.
+func TestListenAddrFor(t *testing.T) {
+	tests := []struct {
+		port    int
+		want    string
+		wantErr bool
+	}{
+		{0, ListenAddr, false},
+		{8099, ":8099", false},
+		{1, ":1", false},
+		{65535, ":65535", false},
+		{-1, "", true},
+		{65536, "", true},
+	}
+	for _, tt := range tests {
+		got, err := ListenAddrFor(tt.port)
+		if tt.wantErr {
+			if err == nil {
+				t.Errorf("ListenAddrFor(%d) = %q, want an error", tt.port, got)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("ListenAddrFor(%d): %v", tt.port, err)
+			continue
+		}
+		if got != tt.want {
+			t.Errorf("ListenAddrFor(%d) = %q, want %q", tt.port, got, tt.want)
+		}
+	}
+}

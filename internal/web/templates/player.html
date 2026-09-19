@@ -82,11 +82,24 @@
           <span>{{.T.T "player.calendar"}}</span>
           <span class="muted small">{{.T.T "player.longestStreak"}} {{.Player.LongestStreak}}</span>
         </div>
+        {{/* A day that was played opens a popup, joining the shared
+             name="popup" group (see base.html) — the same control the recent
+             strip's cells carry. The square is blank, so this one names the
+             result as well as the puzzle: there is no digit on the tile to
+             read it off. A day not played has only its date, which is a
+             title= rather than something to open. */}}
         <div class="calendar-wrap">
-          <ol class="calendar" aria-hidden="true">
+          <ol class="calendar">
             {{range .Calendar}}
               <li class="cal{{if not .Filled}} pad{{else if .Played}} t{{.Tone}}{{else}} miss{{end}}"
-                  {{if .Title}}title="{{.Title}}"{{end}}></li>
+                  {{if .Title}}title="{{.Title}}"{{end}}>
+                {{if .Played}}
+                  <details class="cell-pop" name="popup">
+                    <summary aria-label="{{.Detail}}"></summary>
+                    <p class="cell-popup popup-panel">{{.Detail}}</p>
+                  </details>
+                {{end}}
+              </li>
             {{end}}
           </ol>
         </div>

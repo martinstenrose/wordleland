@@ -27,22 +27,28 @@
      theme-icon dispatches on the theme. Drawn to the same recipe as
      everything else here: a 24-unit box, no fill, 1.7 stroke, round joins.
 
-     Today is a house rather than the sun the design draws it with. The sun is
-     already the light theme's glyph, and the two controls are a hand's width
-     apart in the same chrome — the identical mistake the search-hit gear
-     avoids below. A house is also honest: Today is where a reader lands. */}}
+     Today and Months are both calendars and sit next to each other, so they
+     are drawn to differ the way the design's own pair does: Today marks one
+     day and hangs from nothing, Months carries the two binding posts and
+     marks none. At 19px that is the difference a reader actually sees. */}}
 {{define "nav-icon"}}
   <svg class="nav-icon" width="19" height="19" viewBox="0 0 24 24" aria-hidden="true">
     <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
       {{if eq . "today"}}
-        <path d="M3.6 10.8L12 4l8.4 6.8"/>
-        <path d="M6 9.6V20h12V9.6"/>
+        <rect x="3.5" y="4.5" width="17" height="16" rx="2"/>
+        <path d="M3.5 9.6h17"/>
+        <rect x="7.2" y="12.4" width="4.6" height="4.4" rx="1" fill="currentColor" stroke="none"/>
       {{else if eq . "board"}}
         <path d="M4 20V10M10 20V4M16 20V13M3 20h18"/>
       {{else if eq . "months"}}
         <path d="M4 5.5h16v15H4zM4 10h16M8 3v4M16 3v4"/>
       {{else if eq . "grid"}}
-        <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>
+        {{/* Four separate tiles, not a window pane. The gap is nominally 5
+             units for a visual 3: this stroke is centred on the path, so each
+             square grows half a stroke on every side and eats the gap from
+             both directions. The font these are drawn against strokes inside
+             the shape and needs no such allowance. */}}
+        <path d="M4 4h5.5v5.5H4zM14.5 4H20v5.5h-5.5zM4 14.5h5.5V20H4zM14.5 14.5H20V20h-5.5z"/>
       {{else if eq . "players"}}
         <circle cx="9" cy="8.5" r="3"/>
         <path d="M3.4 19.6c0-3 2.5-5.1 5.6-5.1s5.6 2.1 5.6 5.1"/>
@@ -62,16 +68,23 @@
 {{define "menu-icon"}}<svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>{{end}}
 
 {{/* A panel with its divider, and a chevron pointing the way the rail is
-     about to move. The code is the width being switched to, not the one in
-     force, so the arrow shows the outcome rather than the state. */}}
+     about to move — the outcome rather than the state. Both arrows are drawn
+     and app.css shows the one that applies, keyed off the rail's own width on
+     <html>: that is an attribute app.js already flips to collapse the rail,
+     so the arrow follows without being told. */}}
 {{define "collapse-icon"}}
   <svg class="nav-icon" width="19" height="19" viewBox="0 0 24 24" aria-hidden="true">
     <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
       <path d="M4 5.5h16v13H4zM9.5 5.5v13"/>
-      {{if eq . "narrow"}}<path d="M15 10l-2 2 2 2"/>{{else}}<path d="M13 10l2 2-2 2"/>{{end}}
+      <path class="to-narrow" d="M15 10l-2 2 2 2"/>
+      <path class="to-wide" d="M13 10l2 2-2 2"/>
     </g>
   </svg>
 {{end}}
+
+{{/* The larger of the two: a chevron on a control someone presses, rather
+     than the hairline one that trails a caption. */}}
+{{define "chevron-down"}}<svg class="chevron" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>{{end}}
 
 {{define "chevron"}}<svg class="chevron" width="9" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>{{end}}
 
