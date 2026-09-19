@@ -478,6 +478,34 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   .theme-track { display: none; }
   .topbar-controls .theme-cycle { display: inline-flex; }
 
+  /* The mark and the menu hold the left; everything else goes to the right,
+     as one group. Search sits in the middle of the bar at desktop width,
+     where there is room for a field; on a phone it is an icon like its
+     neighbours and belongs with them. */
+  .topbar-lead { flex: 1; }
+  .topbar-search { flex: none; }
+
+  /* One size for every round control in the bar. */
+  .topbar .drawer-btn,
+  .topbar-controls .theme-cycle,
+  .search-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  /* The language control loses its word and its chevron and becomes another
+     of them: a phone's bar has no room for a pill, and the menu it opens
+     names both languages in full. */
+  .topbar-controls .lang-btn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+  }
+  .topbar-controls .lang-btn .lang-code,
+  .topbar-controls .lang-btn .chevron { display: none; }
+
   /* Open, a dim hangs off the summary over everything below the bar. Clicking
      it is clicking the control again — no script, and no second close button
      to keep in step with the first. The button itself stays put and shows a
