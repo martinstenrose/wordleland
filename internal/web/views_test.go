@@ -1320,3 +1320,25 @@ func TestEveryBanterHasDetails(t *testing.T) {
 		}
 	}
 }
+
+// Traits are a reading of a player's whole history, and Months is about one
+// month at a time: a badge saying "Late finisher" beside a September average
+// claims the two are related, and they are not. They belong on the board and
+// on a player's own page, which is where they stayed.
+func TestMonthsCarriesNoTraitBadges(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+
+	months := fetchAs(t, srv, "/months", signIn(t, srv, admin.ID)).Body.String()
+	if strings.Contains(months, `class="trait"`) {
+		t.Error("a trait badge is back on the months view")
+	}
+
+	// And still where they belong, so this test cannot pass by the badge
+	// having been deleted everywhere.
+	board := fetchAs(t, srv, "/leaderboard", signIn(t, srv, admin.ID)).Body.String()
+	if !strings.Contains(board, `class="trait"`) {
+		t.Error("the board lost its trait badges too")
+	}
+}

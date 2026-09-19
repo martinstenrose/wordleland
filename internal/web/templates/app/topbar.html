@@ -50,27 +50,6 @@
      side, and on a narrow one a single link to the next of them — no
      disclosure to open, and one fewer thing that can be open at a time. */}}
 
-{{/* Flags are drawn rather than fetched: an emoji flag does not render on
-     every platform, and an image would be a request to somewhere. Only the
-     two locales Wordleland supports are here — a generic "any flag" icon
-     set belongs in ui/, this hardcoded pair does not. */}}
-{{define "flag"}}
-  {{if eq . "sv"}}
-    <svg width="16" height="11" viewBox="0 0 16 10" aria-hidden="true">
-      <rect width="16" height="10" fill="#005293"/>
-      <rect x="5" width="2" height="10" fill="#fecb00"/>
-      <rect y="4" width="16" height="2" fill="#fecb00"/>
-    </svg>
-  {{else}}
-    <svg width="16" height="11" viewBox="0 0 16 10" aria-hidden="true">
-      <rect width="16" height="10" fill="#012169"/>
-      <path d="M0 0l16 10M16 0L0 10" stroke="#fff" stroke-width="2"/>
-      <path d="M8 0v10M0 5h16" stroke="#fff" stroke-width="3.4"/>
-      <path d="M8 0v10M0 5h16" stroke="#c8102e" stroke-width="2"/>
-    </svg>
-  {{end}}
-{{end}}
-
 {{/* Three links in a track on a wide bar; on a narrow one the track gives way
      to a single link carrying the setting in force, which moves to the next.
      Both are in the markup and app.css decides which is shown, so neither
@@ -98,8 +77,11 @@
   <div class="menu-panel">
     <p class="kicker">{{.T.T "lang.label"}}</p>
     {{range .Languages}}
+      {{/* The name of the language, in that language, and nothing else.
+           Flags were drawn here and have gone: a flag is a country, not a
+           language, and at 16px two of the ones this app offers are a blue
+           field with a cross on it. The word is never a second look. */}}
       <a class="menu-row{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>
-        {{template "flag" .Code}}
         <span>{{.Label}}</span>
         <span class="menu-check" aria-hidden="true">{{if .On}}✓{{end}}</span>
       </a>
