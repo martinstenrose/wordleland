@@ -31,6 +31,12 @@ type settingRow struct {
 	// not for this screen. Value then carries the sentence that says so,
 	// for a reader who cannot see the dots.
 	Redacted bool
+
+	// Default marks a value nobody chose — see config.Setting.Default. It
+	// greys with the unset rows, because the question this column is swept
+	// for is whether anybody has set a thing, and it carries a tag saying
+	// what it is, because unlike them it does have a value in force.
+	Default bool
 }
 
 type adminSettingsPage struct {
@@ -103,7 +109,7 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 func envRows(t translator, settings []config.Setting) []settingRow {
 	rows := make([]settingRow, 0, len(settings))
 	for _, set := range settings {
-		row := settingRow{Name: set.Name, Mono: set.Mono}
+		row := settingRow{Name: set.Name, Mono: set.Mono, Default: set.Default, Muted: set.Default}
 		switch set.Kind {
 		case config.SettingValue:
 			row.Value = set.Value
@@ -113,11 +119,13 @@ func envRows(t translator, settings []config.Setting) []settingRow {
 			row.Value = t.T("admin.settings.enabled")
 		case config.SettingOff:
 			// Off is a state, not an absence: a switch that is off is as
-			// much an answer as one that is on, and DEMO_MODE off is an
-			// answer somebody is specifically here to check.
+			// much an answer as one that is on. Whether anybody chose it is
+			// a separate question, and Default above is what answers it.
 			row.Value = t.T("admin.settings.disabled")
 		default:
 			row.Value, row.Muted = t.T("admin.settings.notSet"), true
+			// Nothing set and nothing in force: there is no default to name.
+			row.Default = false
 		}
 		rows = append(rows, row)
 	}

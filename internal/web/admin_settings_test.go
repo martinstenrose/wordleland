@@ -48,7 +48,7 @@ func TestTheSettingsScreenNamesEveryVariableThisAppReads(t *testing.T) {
 	if !strings.Contains(cellAround(t, body, "Not set"), "muted") {
 		t.Error("an unset variable is not greyed, so the column cannot be swept")
 	}
-	if !strings.Contains(body, "Set via environment variable") {
+	if !strings.Contains(body, "Not editable here") {
 		t.Error("nothing says these cannot be changed here")
 	}
 }

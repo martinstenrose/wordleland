@@ -165,3 +165,45 @@ func TestMaskTailKeepsNothingOfAnEmptyValue(t *testing.T) {
 		t.Errorf("maskTail(%q, 9) = %q, want the whole of a value shorter than the keep", "abc", got)
 	}
 }
+
+// A default is a third thing, and the screen used to show it as the first.
+// "Not set" and a value somebody typed are easy to tell apart; a default sits
+// between them — nothing was chosen, and yet something is in force — and
+// reporting it as a choice hides the question an admin is usually here to
+// ask, which is whether anybody has set this at all.
+func TestADefaultedValueSaysSo(t *testing.T) {
+	cfg := &Config{LogLevel: slog.LevelInfo}
+
+	t.Setenv("LOG_LEVEL", "")
+	t.Setenv("DEMO_MODE", "")
+	settings := cfg.Settings(nil)
+	for _, name := range []string{"LOG_LEVEL", "DEMO_MODE", "TZ"} {
+		if got := find(t, settings, name); !got.Default {
+			t.Errorf("%s is not marked as a default, though nothing set it", name)
+		}
+	}
+	// Still reported, because it is what the process is doing: a default is
+	// not an absence.
+	if got := find(t, settings, "LOG_LEVEL"); got.Kind != SettingValue || got.Value != "info" {
+		t.Errorf("LOG_LEVEL = %q (kind %v), want the default in force", got.Value, got.Kind)
+	}
+	if got := find(t, settings, "DEMO_MODE"); got.Kind != SettingOff {
+		t.Errorf("DEMO_MODE: kind = %v, want SettingOff", got.Kind)
+	}
+
+	// Set it, and it stops being a default — the value is the same either
+	// way, so the flag is the only thing carrying the difference.
+	t.Setenv("LOG_LEVEL", "info")
+	if got := find(t, cfg.Settings(nil), "LOG_LEVEL"); got.Default {
+		t.Error("LOG_LEVEL is marked a default though the environment sets it")
+	}
+}
+
+// Nothing set and nothing in force: there is no default to name.
+func TestAnUnsetValueIsNotADefault(t *testing.T) {
+	for _, s := range (&Config{}).Settings(nil) {
+		if s.Kind == SettingUnset && s.Default {
+			t.Errorf("%s is both unset and defaulted", s.Name)
+		}
+	}
+}

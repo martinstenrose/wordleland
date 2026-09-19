@@ -2387,6 +2387,16 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
    place to give it away. */
 .env-redacted { font-family: var(--font-mono); letter-spacing: .12em; }
 .env-lock { flex: none; display: flex; color: var(--color-text-35); }
+/* Says a value is in force and that nobody chose it. Quiet enough to read as
+   an annotation on the value rather than as part of it. */
+.env-default {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--color-text-35);
+  border: 1px solid var(--color-text-10);
+  border-radius: var(--radius-xs);
+  padding: 1px 5px;
+}
 .badge.on {
   background: var(--color-accent-14);
   border-color: transparent;
