@@ -338,3 +338,39 @@ func TestTheShareSectionIsScopedAndStillWorksWithoutAScript(t *testing.T) {
 		t.Error("a control carries an inline handler")
 	}
 }
+
+// The rotation posts what the form declares, which is url-encoded.
+//
+// It posted the FormData it is built from, which is multipart — and Go's
+// ParseForm does not read a multipart body. PostForm came back empty, the
+// CSRF token went missing, and the server answered correctly with "the form
+// expired": a valid token, rejected, because the request was not the one the
+// markup described.
+//
+// Asserted against the script's text because there is no other way to catch
+// it here, and "body: new FormData(form)" is exactly the simplification
+// somebody would make.
+func TestTheRotationPostsWhatTheFormDeclares(t *testing.T) {
+	srv := testServer(t)
+	script := fetchAs(t, srv, "/static/app.js", nil).Body.String()
+
+	if !strings.Contains(script, "body: new URLSearchParams(new FormData(form))") {
+		t.Error("the rotation does not post url-encoded, so its CSRF token will not arrive")
+	}
+	if strings.Contains(script, "body: new FormData(") {
+		t.Error("a fetch posts multipart, which Go's ParseForm leaves unread")
+	}
+
+	// And the form it reads really does declare that encoding — an enctype
+	// on it would make the script the wrong one rather than the right one.
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+	if _, _, err := store.EnsureShareSlug(context.Background(), srv.db); err != nil {
+		t.Fatalf("EnsureShareSlug: %v", err)
+	}
+	asked := fetchAs(t, srv, "/admin/settings?confirm=slug", session).Body.String()
+	form := asked[strings.Index(asked, `<form method="post" action="/admin/settings/slug"`):]
+	if strings.Contains(form[:strings.Index(form, ">")], "enctype") {
+		t.Error("the form declares an enctype the script does not send")
+	}
+}

@@ -1177,7 +1177,24 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   border: 0;
 }
 .actions button:hover { background: var(--color-accent-strong); }
-.note.error { color: var(--color-text); box-shadow: inset 0 0 0 1px var(--color-accent-50); border-radius: var(--radius-md); padding: 10px 12px; }
+/* Something went wrong, and something needs a look. Both were drawn in the
+   brand hue, because the palette had no red or amber when they were written
+   — the same reason --color-danger's own note gives for signing out and a
+   failed diagnostic having borrowed the accent. A green ring around "the form
+   expired" tells a reader the opposite of what the words do.
+
+   The tones are the ones already carrying these meanings: danger for a
+   failure, the second accent for a warning, which is what .diag-value.warn
+   has always used. */
+.note.error,
+.note.warn {
+  color: var(--color-text);
+  border-bottom: 0;
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+.note.error { background: var(--color-danger-08); box-shadow: inset 0 0 0 1px var(--color-danger); }
+.note.warn { background: var(--color-accent-2-14); box-shadow: inset 0 0 0 1px var(--color-accent-2); }
 
 
 /* ---- The app mark ------------------------------------------------------
@@ -2481,7 +2498,9 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   user-select: all;
 }
 
-.hint.warn { color: var(--color-accent-strong); }
+/* "Running low. Generate a new set before you are locked out." — a warning,
+   and it was drawn in the brand hue. Same tone as .note.warn above. */
+.hint.warn { color: var(--color-accent-2-strong); }
 
 @media (max-width: 480px) {
   .recovery-codes { grid-template-columns: 1fr; }

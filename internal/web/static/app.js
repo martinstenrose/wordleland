@@ -493,9 +493,16 @@
     if (!form.matches(".share-section form")) return;
 
     event.preventDefault();
+    // URLSearchParams, not the FormData it is built from: FormData posts as
+    // multipart, and this form declares no enctype, so a browser submitting
+    // it sends url-encoded. The difference is not cosmetic — Go's ParseForm
+    // does not read a multipart body, leaves PostForm empty, and the CSRF
+    // token goes missing, which the server correctly answers with "the form
+    // expired". Every request this makes has to be the one the markup
+    // already described.
     fetch(form.action, {
       method: "POST",
-      body: new FormData(form),
+      body: new URLSearchParams(new FormData(form)),
       credentials: "same-origin",
     })
       .then(function (response) {
