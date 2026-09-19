@@ -1,16 +1,17 @@
 {{define "mark"}}<span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>{{end}}
 
-{{/* The switchers are links, and the account menu is a <details>. Nothing
-     here needs JavaScript for opening, summary-click closing or exclusivity — those work
-     from HTML and CSS alone, which is the point: a control that only works
-     once a script has run is a control that sometimes does not work.
-     app.js also closes topbar menus when a click lands outside them.
+{{/* The switchers are links, the drawer and the account menu are <details>.
+     Nothing here needs JavaScript for opening, summary-click closing or
+     exclusivity — those work from HTML and CSS alone, which is the point: a
+     control that only works once a script has run is a control that sometimes
+     does not work. app.js also closes topbar menus when a click lands outside
+     them.
 
      Two kinds of disclosure share this pattern, each exclusive within
      itself but not with the other — a plain <details> with a name= the
      browser uses to close the rest of its own group:
-       - name="topbar-menu": the theme picker, the language picker and the
-         account menu — a choice or an action, not just information. Each
+       - name="topbar-menu": the navigation drawer, the language picker and
+         the account menu — a choice or an action, not just information. Each
          has one fixed spot in the bar, so it anchors itself in app.css.
        - name="popup": a trait's explanation, a result cell's detail — read-
          only information with nothing to choose, and no fixed spot: either
@@ -21,7 +22,12 @@
          just without the nudge.
      A menu open and a popup open at once is fine; two menus or two popups
      open at once is not. A new one joins whichever group it actually is,
-     rather than a third name of its own. */}}
+     rather than a third name of its own.
+
+     The theme picker is not among them. It offers three fixed choices and
+     nothing else, so on a wide bar it is simply those three links side by
+     side, and on a narrow one a single link to the next of them — no
+     disclosure to open, and one fewer thing that can be open at a time. */}}
 
 {{/* Flags are drawn rather than fetched: an emoji flag does not render on
      every platform, and an image would be a request to somewhere. Only the
@@ -44,22 +50,21 @@
   {{end}}
 {{end}}
 
+{{/* Three links in a track on a wide bar; on a narrow one the track gives way
+     to a single link carrying the setting in force, which moves to the next.
+     Both are in the markup and app.css decides which is shown, so neither
+     depends on knowing the viewport server-side. */}}
 {{define "theme-picker"}}
-<details class="menu" name="topbar-menu">
-  <summary class="menu-btn" aria-label="{{.ThemeLabel}}" title="{{.ThemeLabel}}">
-    {{template "theme-icon" .Theme}}{{template "chevron" .}}
-  </summary>
-  <div class="menu-panel">
-    <p class="kicker">{{.T.T "theme.label"}}</p>
-    {{range .Themes}}
-      <a class="menu-row{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>
-        {{template "theme-icon" .Code}}
-        <span>{{.Label}}</span>
-        <span class="menu-check" aria-hidden="true">{{if .On}}✓{{end}}</span>
-      </a>
-    {{end}}
-  </div>
-</details>
+<div class="theme-track" role="group" aria-label="{{.ThemeLabel}}">
+  {{range .Themes}}
+    <a class="theme-opt{{if .On}} on{{end}}" href="{{.Href}}" title="{{.Label}}" aria-label="{{.Label}}"{{if .On}} aria-current="true"{{end}}>
+      {{template "theme-icon" .Code}}
+    </a>
+  {{end}}
+</div>
+<a class="menu-btn theme-cycle" href="{{.ThemeNext.Href}}" title="{{.ThemeNext.Label}}" aria-label="{{.ThemeNext.Label}}">
+  {{template "theme-icon" .Theme}}
+</a>
 {{end}}
 
 {{define "language-picker"}}
@@ -80,22 +85,37 @@
 </details>
 {{end}}
 
+{{/* The rail, for a screen too narrow to give it a column of its own. It is a
+     <details> for what that element already is: a button that discloses
+     something, with the open state exposed to assistive tech by the browser
+     rather than by an attribute this template would have to keep in step.
+     :target would put "#menu" in the address bar and in the back button; a
+     checkbox and label would not be focusable.
+
+     When it is open, app.css stretches the summary across the viewport behind
+     the panel, so that clicking away closes it — clicking the dim really is
+     clicking the button again. What that does not give: Esc does not close a
+     <details>, and focus is free to leave the panel for the page behind it.
+     The panel sits immediately after the summary so that at least the first
+     Tab goes into it. It is not marked up as a dialog, because with focus
+     free to leave it, saying so would be a lie. */}}
+{{define "drawer"}}
+<details class="drawer" name="topbar-menu">
+  <summary class="menu-btn drawer-btn" aria-label="{{.T.T "nav.menu"}}" title="{{.T.T "nav.menu"}}">
+    {{template "menu-icon" .}}
+  </summary>
+  <div class="drawer-panel">
+    {{template "sidebar-brand" .}}
+    <nav class="nav-rows" aria-label="{{.T.T "nav.views"}}">{{template "sidebar-rows" .}}</nav>
+  </div>
+</details>
+{{end}}
+
 {{define "topbar"}}
 <header class="topbar">
-  <nav class="topbar-nav" aria-label="{{.T.T "nav.views"}}">
-    <a class="brand" href="{{.TodayHref}}">{{template "mark" .}}
-      <span class="brand-id">
-        <span>{{.T.T "app.name"}}</span>
-        {{if .Subtitle}}<span class="brand-sub">{{.Subtitle}}</span>{{end}}
-      </span>
-    </a>
-    {{if .Nav}}
-      <span class="topbar-divider" aria-hidden="true"></span>
-      {{template "pill-nav-items" .Nav}}
-    {{end}}
-  </nav>
+  <div class="topbar-lead">
+    {{template "drawer" .}}
 
-  <div class="topbar-controls">
     {{if .SearchPath}}
       {{/* A plain link — every part of search works from this alone, with
            no script at all. app.js additionally binds ⌘K to open the
@@ -110,7 +130,7 @@
            it does. */}}
       <a class="menu-btn search-btn" href="{{.SearchPath}}" aria-label="{{.T.T "search.title"}}" aria-haspopup="dialog" aria-expanded="false" aria-controls="search-overlay">
         {{template "search-icon" .}}
-        <span class="search-label">{{.T.T "search.title"}}</span>
+        <span class="search-label">{{.T.T "search.placeholder"}}</span>
         <span class="search-shortcut js-only" aria-hidden="true">⌘K</span>
       </a>
       {{/* Hidden until app.js opens it; see the script for why this exists
@@ -126,7 +146,9 @@
         </div>
       </div>
     {{end}}
+  </div>
 
+  <div class="topbar-controls">
     {{/* Both in the bar. Theme is per-device; language belongs to the
          account and is written there when a signed-in reader picks one, so
          it follows them to another device and decides what language their
@@ -165,7 +187,6 @@
           </div>
           <hr>
           <a href="/settings">{{.T.T "nav.settings"}}</a>
-          {{if .IsAdmin}}<a href="/admin/players">{{.T.T "nav.admin"}}</a>{{end}}
           <hr>
           <form method="post" action="/logout">
             <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
@@ -176,13 +197,4 @@
     {{end}}
   </div>
 </header>
-
-{{if .Tabs}}
-  {{/* The same pills the top bar carries, scrolling under the header on a
-       narrow screen. A bottom tab bar was a second navigation to keep in
-       step with the first. */}}
-  <nav class="views-mobile" aria-label="{{.T.T "nav.views"}}">
-    {{template "pill-nav-items" .Tabs}}
-  </nav>
-{{end}}
 {{end}}

@@ -425,7 +425,8 @@ func TestStylesheetIsWhole(t *testing.T) {
 	for _, selector := range []string{
 		".topbar", ".card", ".board", ".panels", ".panel-head",
 		".month-chip", ".grid", ".signin", ".auth-card", ".menu-panel",
-		".views-mobile", ".trait", ".season", ".calendar", ".dist", ".strip",
+		".shell", ".sidebar", ".drawer", ".nav-row",
+		".trait", ".season", ".calendar", ".dist", ".strip",
 		".pill-nav", ".activity", ".pending-row",
 		".recovery-codes",
 		".account-menu", ".callout",

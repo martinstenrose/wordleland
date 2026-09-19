@@ -1,9 +1,15 @@
 # Template layout
 
 `base.html` is the page skeleton — the `<!doctype html>` shell, the
-`title`/`content` blocks every page fills in, and the footer. Every other
-file in this directory is a page (`today.html`, `board.html`, one per
-route). `ui/` and `app/` hold shared partials, split by one test:
+`title`/`content` blocks every page fills in, the footer, and the application
+shell it wraps them in. Every other file in this directory is a page
+(`today.html`, `board.html`, one per route), and a page renders only its own
+content: the rail and the bar are assembled once, in `base.html`, rather than
+each page remembering to call for them. A page that is handed
+`chrome.Shell == false` — an error page, and only that — gets the `<main>`
+without them.
+
+`ui/` and `app/` hold shared partials, split by one test:
 
 **Does rendering this need `chrome`-shaped data, or a concept specific to
 Wordleland (accounts, admin, the Wordle score ramp, the app's exact set of
@@ -28,7 +34,7 @@ read fields on a struct.
 
 | Partial | What it is |
 |---|---|
-| `theme-icon`, `chevron`, `search-icon`, `search-hit-icon` | Small inline SVG icons — `icons.html`. No app data — `search-hit-icon` takes a plain kind string ("player", "settings", "admin", or the default "page"), not a Wordleland type. |
+| `theme-icon`, `chevron`, `search-icon`, `search-hit-icon`, `nav-icon`, `menu-icon`, `collapse-icon` | Small inline SVG icons — `icons.html`. No app data — `search-hit-icon` takes a plain kind string ("player", "settings", "admin", or the default "page") and `nav-icon` a view code, not a Wordleland type. |
 | `pill-nav` | One active choice among several, as a row of pills. |
 | `progress-bar` | A filled track, with a `compact` size and a `win` fill modifier. |
 | `stat-list` | A label/value `<dl>`, in three visual variants (`figure`, `row`, `admin`). |
@@ -87,9 +93,17 @@ plain CSS-class convention: wrap a scrolling table in
 
 | File | Partials | Why `app/` |
 |---|---|---|
-| `topbar.html` | `mark`, `flag`, `theme-picker`, `language-picker`, `topbar` | The brand mark, the app's exact two-locale flag set, and every reader of `chrome` (nav items, account state, admin flag). |
+| `topbar.html` | `mark`, `flag`, `theme-picker`, `language-picker`, `drawer`, `topbar` | The brand mark, the app's exact two-locale flag set, and every reader of `chrome` (account state, search path, admin flag). |
+| `sidebar.html` | `sidebar-rows`, `sidebar-brand`, `sidebar` | The rail: the views, the admin screens nested under the admin row, the wordmark and the collapse control. |
 | `trait.html` | `trait` | A Wordle result trait and its explanation. |
-| `admin.html` | `admin-warning`, `admin-tabs` | Admin-only chrome. |
+| `admin.html` | `admin-warning` | Admin-only chrome. |
+
+The rail is rendered twice per page and defined once. `sidebar` is the column
+beside the page; `drawer` is the same rows in a panel that slides over it on a
+screen too narrow for a column, and both call `sidebar-rows`. Two lists of the
+same destinations is how one of them goes stale — the mistake the scrolling
+tab strip they replace was already built to avoid, and one the nested admin
+screens give a fresh chance to make.
 
 ## Icons
 
@@ -118,7 +132,7 @@ class it replaced pixel-for-pixel (`.pick` and `.span` had different
 padding, border and active-state treatments), and `pill-nav`'s own
 container padding/border-bottom was missing entirely for one commit
 before a browser catch fixed it. Both were reviewed and accepted in a
-browser page by page as each slice landed. A `pill-nav` caller whose
-markup doesn't fit its `<nav>` wrapper (embedded inline, or needing its
-own scroll behaviour) uses the wrapper-less `pill-nav-items` instead —
-see `topbar.html` for both cases.
+browser page by page as each slice landed. `pill-nav` also had a
+wrapper-less `pill-nav-items` alongside it, for the two callers in the top
+bar that could not take its `<nav>`; both were the view switcher, and it
+went when the views moved to the rail.

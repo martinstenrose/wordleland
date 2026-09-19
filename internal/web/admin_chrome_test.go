@@ -160,41 +160,56 @@ func TestAuthPickersSitBesideTheMark(t *testing.T) {
 	}
 }
 
-// The top bar is one thing, built in one place. It used to be assembled per
+// The chrome is one thing, built in one place. It used to be assembled per
 // page, so the subtitle beside the wordmark appeared on the five board
 // views and vanished on Settings and in the admin area.
-func TestTopBarIsIdenticalOnEveryPage(t *testing.T) {
+//
+// The drawer is cut out before comparing: it carries the rail's rows, and
+// those are meant to differ — inside the admin area the four admin screens
+// hang under the admin row. That the drawer and the rail agree is
+// TestTheDrawerCarriesTheSameRowsAsTheRail's job.
+func TestTheChromeIsIdenticalOnEveryPage(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
 
-	bars := map[string]string{}
+	chromes := map[string]string{}
 	for _, path := range []string{
 		"/today", "/leaderboard", "/months", "/grid", "/players",
 		"/settings", "/admin/players", "/admin/pending", "/admin/activity",
 		"/admin/diagnostics",
 	} {
 		body := fetchAs(t, srv, path, session).Body.String()
+
 		bar := body[strings.Index(body, `class="topbar`):]
 		bar = bar[:strings.Index(bar, "</header>")]
+		if open := strings.Index(bar, `<details class="drawer"`); open >= 0 {
+			bar = bar[:open] + bar[strings.Index(bar, "</details>")+len("</details>"):]
+		}
+		// The wordmark and its subtitle live in the rail now, and they are
+		// the part of it that must not vary.
+		brand := body[strings.Index(body, `<nav class="sidebar"`):]
+		brand = brand[:strings.Index(brand, "</a>")]
+
+		combined := bar + brand
 		// Three things are meant to differ: which view is marked current,
 		// the theme and language links, which point back at the page you
 		// are on so switching keeps you there, and the sign-out form's
 		// CSRF token: these isolated requests do not share a cookie jar.
-		bar = strings.ReplaceAll(bar, " on", "")
-		bar = strings.ReplaceAll(bar, ` aria-current="page"`, "")
-		bar = selfLink.ReplaceAllString(bar, `href="?$1`)
-		bar = csrfValue.ReplaceAllString(bar, `name="csrf_token"`)
-		bars[path] = bar
+		combined = strings.ReplaceAll(combined, " on", "")
+		combined = strings.ReplaceAll(combined, ` aria-current="page"`, "")
+		combined = selfLink.ReplaceAllString(combined, `href="?$1`)
+		combined = csrfValue.ReplaceAllString(combined, `name="csrf_token"`)
+		chromes[path] = combined
 	}
 
-	want := bars["/today"]
+	want := chromes["/today"]
 	if !strings.Contains(want, "brand-sub") {
 		t.Fatal("the wordmark has no subtitle to compare")
 	}
-	for path, got := range bars {
+	for path, got := range chromes {
 		if got != want {
-			t.Errorf("%s renders a different top bar than /today", path)
+			t.Errorf("%s renders different chrome than /today", path)
 		}
 	}
 }
@@ -209,31 +224,23 @@ func TestTopBarSubtitleIsNotShownSignedOut(t *testing.T) {
 	}
 }
 
-// One nav, shown the same way at both widths, with a brand link to Today.
-func TestNavIsOneListAndTheWordmarkLinksToToday(t *testing.T) {
+// The views live in the rail, with a brand link to Today above them.
+func TestTheRailCarriesEveryViewAndTheWordmark(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
 
 	body := fetchAs(t, srv, "/leaderboard", session).Body.String()
-	header := body[strings.Index(body, `class="topbar`):strings.Index(body, "</header>")]
+	rail := body[strings.Index(body, `<nav class="sidebar"`):]
+	rail = rail[:strings.Index(rail, "</nav>")]
 
 	for _, view := range []string{"Today", "Leaderboard", "Months", "Grid", "Players"} {
-		if !strings.Contains(header, ">"+view+"<") {
-			t.Errorf("the top bar is missing %q", view)
+		if !strings.Contains(rail, ">"+view+"<") {
+			t.Errorf("the rail is missing %q", view)
 		}
 	}
 
-	if !strings.Contains(header, `<a class="brand" href="/today">`) {
+	if !strings.Contains(rail, `<a class="brand" href="/today">`) {
 		t.Error("the wordmark does not link to Today")
-	}
-
-	// And the desktop row and the narrow row are the same list.
-	mobile := body[strings.Index(body, `class="views-mobile"`):]
-	mobile = mobile[:strings.Index(mobile, "</nav>")]
-	for _, view := range []string{"Today", "Leaderboard", "Months", "Grid", "Players"} {
-		if !strings.Contains(mobile, ">"+view+"<") {
-			t.Errorf("the narrow row is missing %q", view)
-		}
 	}
 }

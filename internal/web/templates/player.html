@@ -1,7 +1,5 @@
 {{define "title"}}{{.Player.Name}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-{{template "topbar" .}}
-
 <section class="card">
   {{if .Picker}}{{template "pill-nav" (dict "Label" (.T.T "nav.view.players") "Items" .Picker)}}{{end}}
 

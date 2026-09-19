@@ -1,0 +1,47 @@
+{{/* The rail. Two things render it: the fixed one beside the page on a wide
+     screen, and the drawer that slides over the page on a narrow one (see
+     "drawer" in topbar.html). They share "sidebar-rows" rather than each
+     listing the destinations, because two lists of the same views is how one
+     of them goes stale — the mistake the mobile tab strip this replaces was
+     already built to avoid.
+
+     Every row is a link. Nothing here needs a script to open, to mark itself
+     current, or to remember how wide it is: the rail's width is a cookie set
+     by following a link, exactly as the theme is. */}}
+
+{{define "sidebar-rows"}}
+  {{range .SidebarRows}}
+    <a class="nav-row{{if .Nested}} nested{{end}}{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>
+      {{/* The admin screens hang under the admin row and are told apart by
+           their indent, so they carry no glyph of their own. */}}
+      {{if .Code}}{{template "nav-icon" .Code}}{{end}}
+      <span class="nav-label">{{.Label}}</span>
+    </a>
+  {{end}}
+{{end}}
+
+{{/* The wordmark, which is also the way back to Today. */}}
+{{define "sidebar-brand"}}
+<a class="brand" href="{{.TodayHref}}">{{template "mark" .}}
+  <span class="brand-id nav-label">
+    <span>{{.T.T "app.name"}}</span>
+    {{if .Subtitle}}<span class="brand-sub">{{.Subtitle}}</span>{{end}}
+  </span>
+</a>
+{{end}}
+
+{{define "sidebar"}}
+<nav class="sidebar" aria-label="{{.T.T "nav.views"}}">
+  {{template "sidebar-brand" .}}
+  <div class="nav-rows">{{template "sidebar-rows" .}}</div>
+
+  {{/* Pinned to the bottom. Absent from the drawer, where the rail is
+       already at its full width and there is nothing to collapse — see the
+       rule in app.css. A link rather than a button: it is a round trip, and
+       a round trip is what lets the choice outlive the page. */}}
+  <a class="nav-row nav-collapse" href="{{.SidebarToggle.Href}}" title="{{.SidebarToggle.Label}}">
+    {{template "collapse-icon" .SidebarToggle.Code}}
+    <span class="nav-label">{{.SidebarToggle.Label}}</span>
+  </a>
+</nav>
+{{end}}

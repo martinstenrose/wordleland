@@ -1,5 +1,5 @@
 {{define "base"}}<!doctype html>
-<html lang="{{.Lang}}" data-theme="{{.Theme}}">
+<html lang="{{.Lang}}" data-theme="{{.Theme}}" data-sidebar="{{.Sidebar}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -15,9 +15,33 @@
 <noscript><style>.js-only{display:none}</style></noscript>
 </head>
 <body>
-<main>
-{{block "content" .}}{{end}}
-</main>
+{{if .Shell}}
+  {{/* The application shell: the rail, then a column holding the bar and the
+       page. Every page inside it renders only its own content — the furniture
+       is assembled once, here, rather than each page remembering to call for
+       it.
+
+       The skip link earns its place now that six navigation rows come before
+       the content on every page. */}}
+  <a class="skip-link" href="#main">{{.T.T "nav.skip"}}</a>
+  <div class="shell">
+    {{template "sidebar" .}}
+    <div class="shell-main">
+      {{template "topbar" .}}
+      <main id="main">{{block "content" .}}{{end}}</main>
+      {{template "site-footer" .}}
+    </div>
+  </div>
+{{else}}
+  {{/* No shell: an error page, which is chrome for a stranger. See the Shell
+       field's comment in chrome.go. */}}
+  <main id="main">{{template "content" .}}</main>
+  {{template "site-footer" .}}
+{{end}}
+</body>
+</html>{{end}}
+
+{{define "site-footer"}}
 <footer class="site-footer">
   <a class="footer-link" href="/privacy">{{.T.T "footer.privacy"}}</a>
   <a class="footer-gh" href="https://github.com/martinstenrose/wordleland">
@@ -28,5 +52,4 @@
     </svg>
   </a>
 </footer>
-</body>
-</html>{{end}}
+{{end}}

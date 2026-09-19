@@ -74,7 +74,6 @@
   --color-text-08: oklch(.95 .006 65 / .08);
   --color-text-06: oklch(.95 .006 65 / .06);
   --color-text-04: oklch(.95 .006 65 / .04);
-  --color-text-02: oklch(.95 .006 65 / .02);
 
   --color-accent-80: oklch(.68 .14 155 / .8);
   --color-accent-60: oklch(.68 .14 155 / .6);
@@ -181,7 +180,6 @@
   --color-text-08: oklch(.22 .012 65 / .08);
   --color-text-06: oklch(.22 .012 65 / .06);
   --color-text-04: oklch(.22 .012 65 / .04);
-  --color-text-02: oklch(.22 .012 65 / .02);
   --color-accent-80: oklch(.55 .13 155 / .8);
   --color-accent-60: oklch(.55 .13 155 / .6);
   --color-accent-50: oklch(.55 .13 155 / .5);
@@ -237,7 +235,6 @@
     --color-text-08: oklch(.22 .012 65 / .08);
     --color-text-06: oklch(.22 .012 65 / .06);
     --color-text-04: oklch(.22 .012 65 / .04);
-    --color-text-02: oklch(.22 .012 65 / .02);
     --color-accent-80: oklch(.55 .13 155 / .8);
     --color-accent-60: oklch(.55 .13 155 / .6);
     --color-accent-50: oklch(.55 .13 155 / .5);
@@ -251,7 +248,6 @@
 
 body {
   margin: 0;
-  padding: 26px var(--space-card) 40px;
   background: var(--color-canvas);
   color: var(--color-text);
   font-family: var(--font-body);
@@ -259,7 +255,7 @@ body {
   line-height: 1.55;
 }
 
-main { max-width: 1160px; margin: 0 auto; }
+main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space-card) 40px; }
 
 .site-footer {
   display: flex; align-items: center; justify-content: center; gap: 14px;
@@ -275,48 +271,192 @@ main { max-width: 1160px; margin: 0 auto; }
 }
 .footer-gh:hover, .footer-gh:focus-visible { color: var(--color-text-75); }
 
-/* One horizontal bar across the width, as the design has it: the mark and
-   the views on the left, the controls on the right. It was two separate
-   pills before. */
+/* The application shell: a rail that stays put beside a column that scrolls
+   under its own bar. Both are sticky rather than fixed, so the page is still
+   one document with one scroll position — a fixed rail with a scrollbar of
+   its own is a second place to lose your place in. */
+.shell { display: flex; align-items: flex-start; min-height: 100vh; }
+.shell-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  flex: none;
+  width: 220px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 20px 14px 14px;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-text-10);
+  overflow-y: auto;
+}
+.sidebar .brand { padding: 0 8px; margin-bottom: 18px; }
+.nav-rows { display: flex; flex-direction: column; gap: 2px; }
+.nav-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-60);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.nav-row:hover { background: var(--color-text-06); color: var(--color-text); }
+.nav-row.on { background: var(--color-accent-14); color: var(--color-accent-strong); font-weight: 600; }
+.nav-row .nav-icon { flex: none; }
+/* The admin screens hang under the admin row. A dot rather than a glyph each:
+   they are one place, and four more icons would read as four more sections.
+   The dot is also what keeps them legible once the rail is collapsed and the
+   labels go, since a row with neither would be a blank strip. */
+.nav-row.nested { padding-left: 34px; color: var(--color-text-50); font-weight: 400; }
+.nav-row.nested::before {
+  content: "";
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-circle);
+  background: currentColor;
+}
+.nav-collapse { margin-top: auto; color: var(--color-text-45); }
+
+/* Collapsed to its icons. The labels are hidden from the eye and not from a
+   screen reader: display:none would leave every row an icon with no
+   accessible name at all, which is worse than the width it saves. */
+:root[data-sidebar="narrow"] .sidebar { width: 72px; padding-left: 10px; padding-right: 10px; }
+:root[data-sidebar="narrow"] .sidebar .brand,
+:root[data-sidebar="narrow"] .sidebar .nav-row { justify-content: center; padding-left: 0; padding-right: 0; gap: 0; }
+:root[data-sidebar="narrow"] .sidebar .nav-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Gets out of the way until it is focused, which is the only time it is for
+   anybody. It earns its place now that six rows of navigation come before the
+   content of every page. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 500;
+  padding: 10px 14px;
+  border-radius: 0 0 var(--radius-md) 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-text-12);
+  color: var(--color-text);
+  text-decoration: none;
+}
+.skip-link:focus { left: 0; }
+
+/* One horizontal bar over the page column: search on the left, the controls
+   on the right, and the navigation gone from it entirely — the rail has it. */
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  max-width: 1160px;
-  margin: 0 auto 18px;
-  padding: 5px 8px 5px 5px;
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  border: 1px solid var(--color-text-12);
-  box-shadow: var(--shadow-elevated);
+  height: 56px;
+  padding: 0 var(--space-card);
+  background: var(--color-canvas);
+  border-bottom: 1px solid var(--color-text-10);
 }
-.topbar-nav {
-  flex: 0 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.topbar-controls {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.topbar-divider { width: 1px; height: 22px; background: var(--color-text-10); margin: 0 3px; flex: none; }
-.brand {
+.topbar-lead { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
+.topbar-controls { flex: none; display: flex; align-items: center; gap: 8px; }
+
+/* Three links in a track, the one in force filled. Not a menu: there are
+   three choices and they all fit, so making a reader open something first
+   would be a click spent on nothing. */
+.theme-track {
   display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  padding: 3px 9px 3px 4px;
-  border-radius: var(--radius-md);
-  text-decoration: none;
-  color: var(--color-text);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  letter-spacing: -.01em;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-text-12);
+}
+.theme-opt {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-circle);
+  color: var(--color-text-50);
+}
+.theme-opt svg { display: block; }
+.theme-opt:hover { color: var(--color-text); }
+.theme-opt.on { background: var(--color-accent); color: var(--color-canvas); }
+.theme-opt:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
+/* The same three settings for a bar with room for one control. Qualified by
+   the bar it sits in, because .menu-btn gives it a display of its own further
+   down the file and would otherwise win on source order. */
+.topbar-controls .theme-cycle { display: none; }
+
+.drawer { display: none; }
+.drawer > summary { list-style: none; cursor: pointer; }
+.drawer > summary::-webkit-details-marker { display: none; }
+
+@media (max-width: 860px) {
+  .sidebar { display: none; }
+  .drawer { display: block; }
+  .theme-track { display: none; }
+  .topbar-controls .theme-cycle { display: inline-flex; }
+
+  /* Open, the summary becomes the dim behind the panel. Clicking away is
+     then clicking the control again — no script, and no second close button
+     to keep in step with the first. The panel sits above it and takes its own
+     clicks. The icon goes: the summary is the backdrop now, not a button in
+     the bar. */
+  .drawer[open] > summary {
+    position: fixed;
+    inset: 0;
+    z-index: 390;
+    background: oklch(0 0 0 / .45);
+  }
+  .drawer[open] > summary svg { display: none; }
+  .drawer-panel { display: none; }
+  .drawer[open] > .drawer-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 400;
+    width: min(280px, 82vw);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 20px 14px;
+    background: var(--color-surface);
+    border-right: 1px solid var(--color-text-10);
+    overflow-y: auto;
+  }
+  .drawer-panel .brand { padding: 0 8px; margin-bottom: 18px; }
+  /* The drawer is already at its full width, so there is nothing here to
+     collapse. */
+  .drawer-panel .nav-collapse { display: none; }
+  /* Holds the page still behind an open drawer. Where :has() is not
+     understood the page scrolls behind it, which is untidy and not broken. */
+  body:has(.drawer[open]) { overflow: hidden; }
 }
 
 .badge {
@@ -1637,30 +1777,6 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
    the top bar keeps the mark and the controls, and the views move to their
    own scrolling row directly under it — the same pills, rather than a
    second kind of navigation to keep in step with the first. */
-.views-mobile { display: none; }
-
-@media (max-width: 720px) {
-  .views-mobile {
-    display: flex;
-    gap: 4px;
-    max-width: 1160px;
-    margin: -8px auto 16px;
-    padding: 4px;
-    border-radius: var(--radius-md);
-    background: var(--color-surface);
-    border: 1px solid var(--color-text-12);
-    box-shadow: var(--shadow-elevated);
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .views-mobile::-webkit-scrollbar { display: none; }
-  .views-mobile .pill-nav-item { flex: none; white-space: nowrap; }
-
-  /* The views leave the top bar so it does not wrap to three rows. */
-  .topbar-nav .pill-nav-item,
-  .topbar-divider { display: none; }
-}
-
 /* ---- Nicknames --------------------------------------------------------- */
 
 /* Earned from the figures rather than stored, so they come and go. Styled

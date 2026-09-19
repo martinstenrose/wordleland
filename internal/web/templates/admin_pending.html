@@ -1,9 +1,6 @@
 {{define "title"}}{{.T.T "pending.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-{{template "topbar" .}}
-
 <section class="card">
-  {{template "admin-tabs" .}}
   {{template "admin-warning" .}}
 
   <div class="card-head">

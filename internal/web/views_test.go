@@ -479,46 +479,74 @@ func TestPlayerDetailHighlightsThePlayersTab(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/p/harda", nil).Body.String()
-	i := strings.Index(body, `class="pill-nav-item on"`)
-	if i < 0 {
-		t.Fatal("no active nav tab on the player page")
+	rail, ok := sectionOf(body, `<nav class="sidebar"`, "</nav>")
+	if !ok {
+		t.Fatal("the rail is missing")
 	}
-	if !strings.Contains(body[i:i+120], "Players") {
-		t.Errorf("the active tab is not Players: %q", body[i:i+120])
+	i := strings.Index(rail, `class="nav-row on"`)
+	if i < 0 {
+		t.Fatal("no row marked current on the player page")
+	}
+	if !strings.Contains(rail[i:], ">Players<") {
+		t.Errorf("the row marked current is not Players: %q", rail[i:i+160])
 	}
 }
 
-// The narrow layout moves the views out of the top bar into their own
-// scrolling row, with Today restored: on a phone the mark is a header
-// rather than something to navigate by.
-func TestMobileNavCoversEveryView(t *testing.T) {
+// A screen too narrow for the rail gets the same rail in a drawer, off the
+// top bar. It is the same list rendered from the same partial rather than a
+// second navigation with its own destinations to keep in step — which is
+// what the scrolling tab strip it replaces was built to avoid, and what
+// nesting the admin screens gives this one a fresh chance to get wrong.
+func TestTheDrawerCarriesTheSameRowsAsTheRail(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	at := strings.Index(body, `class="views-mobile"`)
-	if at < 0 {
-		t.Fatal("the mobile view row is missing")
+
+	rail, ok := sectionOf(body, `<nav class="sidebar"`, "</nav>")
+	if !ok {
+		t.Fatal("the rail is missing")
 	}
-	bar := body[at:]
-	bar = bar[:strings.Index(bar, "</nav>")]
+	drawer, ok := sectionOf(body, `<div class="drawer-panel">`, "</details>")
+	if !ok {
+		t.Fatal("the drawer is missing")
+	}
 
 	for _, label := range []string{"Today", "Leaderboard", "Months", "Grid", "Players"} {
-		if !strings.Contains(bar, ">"+label+"<") {
-			t.Errorf("the mobile view row is missing %q", label)
+		if !strings.Contains(rail, ">"+label+"<") {
+			t.Errorf("the rail is missing %q", label)
+		}
+		if !strings.Contains(drawer, ">"+label+"<") {
+			t.Errorf("the drawer is missing %q", label)
 		}
 	}
-	// Keep the same list at both widths, Today included.
-	top := body[:at]
-	if !strings.Contains(top, ">Today<") {
-		t.Error("Today is missing from the top bar")
+
+	// Same markup, not a second kind of row with its own classes.
+	if !strings.Contains(drawer, `class="nav-row`) {
+		t.Error("the drawer does not reuse the rail's rows")
 	}
-	// It is the same pill markup as the top bar, not a second kind of
-	// navigation with its own classes to keep in step.
-	if !strings.Contains(bar, `class="pill-nav-item`) {
-		t.Error("the mobile row does not reuse the top bar's pills")
+
+	// Collapsing is the rail's own control: the drawer is already at full
+	// width, so offering it there would offer nothing.
+	if strings.Contains(drawer, "nav-collapse") {
+		t.Error("the drawer offers a collapse control")
 	}
+}
+
+// sectionOf returns the markup from the first occurrence of open up to the
+// next close after it.
+func sectionOf(body, open, close string) (string, bool) {
+	at := strings.Index(body, open)
+	if at < 0 {
+		return "", false
+	}
+	rest := body[at:]
+	end := strings.Index(rest, close)
+	if end < 0 {
+		return "", false
+	}
+	return rest[:end], true
 }
 
 // A trait is earned from the figures and explained on hover, so a player
