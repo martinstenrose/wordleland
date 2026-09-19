@@ -548,9 +548,12 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 .theme-opt.on { background: var(--color-accent); color: var(--color-canvas); }
 .theme-opt:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
 /* The same three settings for a bar with room for one control. Qualified by
-   the bar it sits in, because .menu-btn gives it a display of its own further
-   down the file and would otherwise win on source order. */
-.topbar-controls .theme-cycle { display: none; }
+   the row it sits in, because .menu-btn gives it a display of its own further
+   down the file and would otherwise win on source order. Both rows that carry
+   the pickers are named here: the application's top bar, and the much shorter
+   one at the door. */
+.topbar-controls .theme-cycle,
+.auth-controls .theme-cycle { display: none; }
 
 /* Every icon-only control in the bar is the same circle, as the design has
    it: at this size a bare icon on the canvas reads as decoration rather than
@@ -606,7 +609,8 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
      next to everything else it has to hold. */
   .topbar .brand-id { display: none; }
   .theme-track { display: none; }
-  .topbar-controls .theme-cycle { display: inline-flex; }
+  .topbar-controls .theme-cycle,
+  .auth-controls .theme-cycle { display: inline-flex; }
 
   /* The mark and the menu hold the left; everything else goes to the right,
      as one group. Search sits in the middle of the bar at desktop width,
@@ -1260,24 +1264,46 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 /* ---- Sign-in ---------------------------------------------------------- */
 
+/* The door: a card in the middle of the canvas, the wordmark in one corner
+   and the two pickers in the other. It is not the application shell with its
+   navigation removed — a rail emptied down to a wordmark is a menu with
+   nothing in it — so this is its own, much shorter, arrangement. */
+.auth-frame {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+}
+.auth-chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.auth-chrome .brand { padding: 0; }
+.auth-controls { display: flex; align-items: center; gap: 10px; }
+/* The card takes the middle, with the chrome above it and the footer below:
+   centring the whole column would leave the wordmark floating in the middle
+   of the page on a tall screen. */
+.auth-frame > main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px 0; }
+.auth-frame > .site-footer { padding: 6px 0 0; }
+
 .signin {
   display: grid;
-  grid-template-columns: 1fr 300px;
-  min-height: 440px;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
   max-width: 760px;
-  margin: 6vh auto;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   overflow: hidden;
   background: var(--color-surface);
+  border: 1px solid var(--color-text-10);
   box-shadow: var(--shadow-elevated);
 }
-.signin-main {
-  padding: 44px;
-  display: flex; flex-direction: column; justify-content: center;
-}
-.signin h1 { font-size: 1.8rem; letter-spacing: -.02em; line-height: var(--line-tight); margin: 0; }
-.signin-sub { margin: 11px 0 0; font-size: var(--text-sm); line-height: 1.5; color: var(--color-text-55); max-width: 44ch; }
-.signin-form { max-width: 340px; margin-top: 20px; }
+.signin-main { padding: 40px; }
+.signin h1 { font-size: var(--text-xl); font-weight: 700; letter-spacing: -.02em; line-height: var(--line-tight); margin: 0 0 6px; }
+.signin-sub { margin: 0 0 28px; font-size: var(--text-sm); line-height: 1.5; color: var(--color-text-55); }
+.signin-form { margin-top: 0; }
 .signin-form input[type="email"],
 .signin-form input[type="password"] {
   font: inherit;
@@ -1289,7 +1315,21 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   width: 100%;
 }
 .signin-form input:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
-.signin-foot { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+/* The button fills the column, as the design has it: it is the one thing on
+   this card there is to do. */
+.signin-form .actions { margin-top: 24px; }
+.signin-form .actions button { width: 100%; height: 44px; justify-content: center; font-size: var(--text-base); }
+/* Ruled off from the form above it: what is below is a way out rather than
+   another step. */
+.signin-foot {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-text-10);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
 
 /* On the top row beside the mark. They used to flow after the links at the
    foot of the card, and those links differ from page to page — sign-in has
@@ -1298,21 +1338,23 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
    Nothing above this row varies. */
 
 .signin-aside {
-  border-left: 1px solid var(--color-text-10);
   background: var(--color-surface-raised);
-  padding: 30px 26px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 16px;
+  padding: 40px;
 }
-.signin-aside hr { height: 1px; border: 0; background: var(--color-text-08); width: 100%; margin: 0; }
-.signin-figure { font-size: 2.1rem; font-weight: 500; letter-spacing: -.02em; line-height: 1; margin: 0; }
+.signin-aside hr { height: 1px; border: 0; background: var(--color-text-10); width: 100%; margin: 16px 0; }
+.signin-aside .kicker { margin: 0 0 8px; }
+.signin-figure { font-size: 44px; font-weight: 700; letter-spacing: -.02em; line-height: 1; margin: 0; }
+.signin-aside .signin-figure + .small { margin: 10px 0 0; }
+.signin-aside > .small:last-child { margin-top: 20px; line-height: 1.6; }
+
 @media (max-width: 720px) {
-  .signin { grid-template-columns: 1fr; margin: 0; min-height: 100dvh; border-radius: 0; box-shadow: none; }
-  .signin-main { padding: 34px 24px 30px; }
-  .signin-aside { border-left: 0; border-top: 1px solid var(--color-text-10); }
-  .chrome { gap: 6px; }
+  /* One column, and the figures go entirely. They are an invitation rather
+     than information, and on a phone they push the only thing on this page
+     there is to do below the fold. */
+  .auth-frame { padding: 16px 12px; }
+  .signin { grid-template-columns: 1fr; max-width: 380px; }
+  .signin-main { padding: 28px; }
+  .signin-aside { display: none; }
 }
 
 /* ---- View switcher ---------------------------------------------------- */

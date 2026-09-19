@@ -5,9 +5,16 @@
 shell it wraps them in. Every other file in this directory is a page
 (`today.html`, `board.html`, one per route), and a page renders only its own
 content: the rail and the bar are assembled once, in `base.html`, rather than
-each page remembering to call for them. A page that is handed
-`chrome.Shell == false` — an error page, and only that — gets the `<main>`
-without them.
+each page remembering to call for them.
+
+`chrome.Frame` picks which of three arrangements a page is wrapped in.
+`"app"` is that shell. `"auth"` is the sign-in family — the wordmark in one
+corner, the two pickers in the other, the card in the middle of the canvas and
+no navigation at all, because there is nothing yet to navigate. `"bare"` is an
+error page: the `<main>` and nothing else, since a full navigation wrapped
+around "there is nothing at this address" offers the application to somebody
+who has not got it. The last two render the footer, which every page inside
+the shell reaches through the About panel in the rail instead.
 
 `ui/` and `app/` hold shared partials, split by one test:
 

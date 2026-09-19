@@ -473,7 +473,8 @@ func TestTheAboutPanelIsOnEveryShellPageAndNeedsNoScript(t *testing.T) {
 		path   string
 		cookie *http.Cookie
 	}{
-		{path: "/"},
+		// Not "/": the sign-in family has no rail to hang this off, and
+		// reaches the same two links through the footer instead.
 		{path: "/share/" + slug + "/"},
 		{path: "/leaderboard", cookie: session},
 		{path: "/admin/settings", cookie: session},
@@ -828,5 +829,42 @@ func TestSearchButtonLabelIsPresentButFaded(t *testing.T) {
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
 	if !strings.Contains(css, ".search-label { color: var(--color-text-45); flex: 1; text-align: left; }") {
 		t.Error("the search label is not styled as faded")
+	}
+}
+
+// The door is its own arrangement, not the application shell with the
+// navigation taken out of it: a rail emptied down to a wordmark is a menu
+// with nothing in it, which reads as an app that has lost its own rather
+// than as a way in.
+func TestTheSignInFamilyHasItsOwnFrame(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+
+	for _, path := range []string{"/", "/forgot-password", "/reset-password?token=x", "/invite?token=x"} {
+		body := fetchAs(t, srv, path, nil).Body.String()
+		if !strings.Contains(body, `<div class="auth-frame">`) {
+			t.Errorf("%s is not drawn in the auth frame", path)
+		}
+		for _, gone := range []string{`class="sidebar"`, `<header class="topbar">`, `class="shell-main"`} {
+			if strings.Contains(body, gone) {
+				t.Errorf("%s still draws %s", path, gone)
+			}
+		}
+		// No rail means no About panel, so the footer is how these two
+		// links stay reachable.
+		if !strings.Contains(body, `class="site-footer"`) {
+			t.Errorf("%s reaches neither the privacy notice nor the source", path)
+		}
+	}
+
+	// The three frames are distinct, and each page gets exactly one.
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	app := fetchAs(t, srv, "/today", signIn(t, srv, admin.ID)).Body.String()
+	if !strings.Contains(app, `<div class="shell">`) || strings.Contains(app, "auth-frame") {
+		t.Error("an application page is not drawn in the application shell")
+	}
+	bare := fetchAs(t, srv, "/no/such/page", nil).Body.String()
+	if strings.Contains(bare, "auth-frame") || strings.Contains(bare, `<div class="shell">`) {
+		t.Error("an error page is drawn in a frame")
 	}
 }

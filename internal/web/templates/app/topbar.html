@@ -211,3 +211,22 @@
   </div>
 </header>
 {{end}}
+
+{{/* The sign-in family's chrome: the wordmark in one corner, the two pickers
+     in the other, and nothing between them. No search, no account menu and no
+     navigation — there is no session yet for any of them to act on — so this
+     is not the top bar with pieces removed but its own, much shorter, row.
+
+     The pickers are the same partials the bar uses, which is the point: a
+     theme or language chosen at the door is the one in force on the other
+     side of it, and there is one definition of each control rather than two
+     that drift. */}}
+{{define "auth-chrome"}}
+<header class="auth-chrome">
+  {{template "sidebar-brand" .}}
+  <div class="auth-controls">
+    {{template "theme-picker" .}}
+    {{template "language-picker" .}}
+  </div>
+</header>
+{{end}}
