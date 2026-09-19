@@ -30,6 +30,7 @@
         <p class="note" role="status" data-raise="{{.T.T "action.close"}}">
           {{if eq .Notice "name"}}{{.T.T "settings.saved.name"}}
           {{else if eq .Notice "email"}}{{.T.T "settings.saved.email"}}
+          {{else if eq .Notice "totp-off"}}{{.T.T "settings.totp.disabled"}}
           {{else}}{{.T.T "admin.saved"}}{{end}}
         </p>
       {{end}}
@@ -87,11 +88,53 @@
           {{if .TOTPRequired}}<span class="muted small">{{.T.T "settings.totp.required"}}</span>{{end}}
         </p>
         <p class="hint">{{if .HasTOTP}}{{.T.T "settings.totp.onHint"}}{{else}}{{.T.T "settings.totp.offHint"}}{{end}}</p>
+        {{/* Both controls on one row, so the safe one and the destructive one
+             are the same object in two tones rather than two rows a reader
+             has to weigh separately.
+
+             Turning it off is offered to everyone it is optional for, which
+             is everyone but an admin: the admin area is gated on it, so a
+             control to switch it off would make "required for admins" a
+             suggestion. The handler checks the same thing — this decides what
+             is offered, that decides what is allowed. */}}
         <div class="actions">
-          <a class="btn-primary" href="/enroll-totp">
+          {{/* data-modal asks app.js to open this over the settings screen
+               rather than navigating to it: setting a key up is a step in
+               what the reader is already doing, not a place to go. It carries
+               the word for its close button, so the script holds no copy of
+               its own. Without the script it is an ordinary link to an
+               ordinary page, which is what it was. */}}
+          <a class="btn-primary" href="/enroll-totp"
+             data-modal data-modal-close="{{.T.T "action.close"}}">
             {{if .HasTOTP}}{{.T.T "settings.totp.replace"}}{{else}}{{.T.T "settings.totp.setUp"}}{{end}}
           </a>
+          {{if and .HasTOTP (not .TOTPRequired) (not .ConfirmDisable)}}
+            <a class="secondary danger" href="/settings/security?confirm=totp">{{.T.T "settings.totp.disable"}}</a>
+          {{end}}
         </div>
+
+        {{if and .HasTOTP (not .TOTPRequired)}}
+          {{if .ConfirmDisable}}
+            {{/* The question, the cost of answering it, and only then the
+                 field. Filled red on the control that commits it, matching
+                 the slug rotation: outline opens a question, filled answers
+                 it. */}}
+            <div class="confirm">
+              <p class="confirm-title">{{.T.T "settings.totp.disable.title"}}</p>
+              <p class="hint">{{.T.T "settings.totp.disable.body"}}</p>
+              <form method="post" action="/settings/totp/disable" class="form">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <label for="totp-off-password">{{.T.T "enrol.replace.password"}}</label>
+                <input type="password" id="totp-off-password" name="password"
+                       autocomplete="current-password" required>
+                <div class="actions">
+                  <button type="submit" class="danger">{{.T.T "settings.totp.disable.confirm"}}</button>
+                  <a class="secondary" href="/settings/security">{{.T.T "admin.cancel"}}</a>
+                </div>
+              </form>
+            </div>
+          {{end}}
+        {{end}}
 
         {{if .HasTOTP}}
           <h2 class="section">{{.T.T "settings.recovery.title"}}</h2>

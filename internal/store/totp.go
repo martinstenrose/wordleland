@@ -100,6 +100,39 @@ func PromotePendingTOTPSecret(ctx context.Context, db *sql.DB, actor Actor, user
 	})
 }
 
+// DisableTOTP turns an account's own two-factor off, at its own request.
+//
+// Distinct from ResetUserTOTP, which an admin runs against somebody else and
+// which deletes that account's sessions: a reset is for an account that may
+// be in the wrong hands. This is somebody deciding about their own account
+// from inside it, and every session it would delete proved both factors when
+// it was granted — no weaker after this than before it, and one of them is
+// the tab the decision was made in.
+//
+// The recovery codes go, because they are minted against the secret: a sheet
+// that outlived it would be a way past a second factor the account no longer
+// has, and nobody would think to destroy it.
+func DisableTOTP(ctx context.Context, db *sql.DB, actor Actor, userID int64) error {
+	return InTx(ctx, db, func(tx *sql.Tx) error {
+		res, err := tx.ExecContext(ctx, `
+			UPDATE users
+			SET totp_secret_encrypted = NULL,
+			    totp_pending_secret_encrypted = NULL,
+			    totp_last_step = NULL
+			WHERE id = ?`, userID)
+		if err != nil {
+			return fmt.Errorf("disable 2fa: %w", err)
+		}
+		if affected, _ := res.RowsAffected(); affected == 0 {
+			return ErrUserNotFound
+		}
+		if err := DiscardRecoveryCodes(ctx, tx, userID); err != nil {
+			return err
+		}
+		return LogActivity(ctx, tx, actor, ActionUser2FADisabled, SubjectUser, &userID, nil)
+	})
+}
+
 // RecordTOTPStep stores a newly accepted step, rejecting one already used.
 //
 // This is the replay defence. A TOTP code stays valid for its whole

@@ -99,7 +99,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request, prefix str
 		Results: results,
 	}
 
-	if r.URL.Query().Get("partial") == "1" {
+	if wantsPartial(r) {
 		s.renderBlock(w, r, http.StatusOK, "search.html", "search-results", page)
 		return
 	}

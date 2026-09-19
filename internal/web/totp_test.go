@@ -514,3 +514,242 @@ func TestTOTPPageFollowsTheDesign(t *testing.T) {
 		t.Error("the page does not offer a recovery code")
 	}
 }
+
+// Rotating the secret is a thing an account with two-factor on is
+// supposed to be able to do — a new phone, a lost one — and the settings
+// screen has offered it all along. The page turned every one of those people
+// away: it refused anybody who already had a secret, which is exactly who the
+// link is for, and the redirect landed them back on Today with nothing said.
+func TestAnEnrolledAccountCanRotateItsSecret(t *testing.T) {
+	srv := testServer(t)
+	user := seedLogin(t, srv, "admin@example.tld", true)
+
+	_, cookies := login(t, srv, "admin@example.tld", testPassword)
+	first, cookies := enrol(t, srv, cookies)
+
+	// The link the settings screen offers, followed by the person it offers
+	// it to.
+	page, cookies := getWith(t, srv, "/enroll-totp", cookies)
+	if page.Code != http.StatusOK {
+		t.Fatalf("the replacement page = %d, want %d", page.Code, http.StatusOK)
+	}
+	body := page.Body.String()
+	if !strings.Contains(body, `name="password"`) {
+		t.Error("a replacement does not ask for the password")
+	}
+	if !strings.Contains(body, "Rotate your two-factor secret") {
+		t.Error("the replacement page is headed as a first enrolment")
+	}
+
+	second := secretPattern.FindStringSubmatch(body)
+	if second == nil {
+		t.Fatal("no secret on the replacement page")
+	}
+	if second[1] == first {
+		t.Error("the replacement offers the secret already in use")
+	}
+	csrf := csrfFieldPattern.FindStringSubmatch(body)
+
+	// Until it is confirmed, the secret in hand is still the one that works
+	// — which is what makes abandoning this page safe.
+	if liveSecret(t, srv, user.ID) != first {
+		t.Error("the live secret changed before the replacement was confirmed")
+	}
+
+	done := postForm(t, srv, "/enroll-totp", url.Values{
+		"csrf_token": {csrf[1]},
+		"code":       {codeFor(t, second[1], time.Now())},
+		"password":   {testPassword},
+	}, cookies)
+	if done.Code != http.StatusOK {
+		t.Fatalf("the replacement = %d, want %d\n%s", done.Code, http.StatusOK, done.Body.String())
+	}
+	// It ends where a first enrolment ends, and for a stronger reason:
+	// promotion discards the old codes with the old secret, so this is the
+	// one moment a new set can be handed over.
+	if !strings.Contains(done.Body.String(), "recovery-codes") {
+		t.Error("rotating the secret does not hand over a new set of recovery codes")
+	}
+
+	if liveSecret(t, srv, user.ID) != second[1] {
+		t.Error("the new secret is not the live one")
+	}
+}
+
+// The session is already signed in, so the password is the whole of what
+// stops a borrowed screen taking the second factor off an account — and with
+// it the recovery codes, which promotion discards along with the old secret.
+func TestReplacingAnAuthenticatorNeedsThePassword(t *testing.T) {
+	srv := testServer(t)
+	user := seedLogin(t, srv, "admin@example.tld", true)
+
+	_, cookies := login(t, srv, "admin@example.tld", testPassword)
+	first, cookies := enrol(t, srv, cookies)
+
+	page, cookies := getWith(t, srv, "/enroll-totp", cookies)
+	body := page.Body.String()
+	csrf := csrfFieldPattern.FindStringSubmatch(body)[1]
+	second := secretPattern.FindStringSubmatch(body)[1]
+
+	for _, password := range []string{"", "not-the-password"} {
+		rec := postForm(t, srv, "/enroll-totp", url.Values{
+			"csrf_token": {csrf},
+			"code":       {codeFor(t, second, time.Now())},
+			"password":   {password},
+		}, cookies)
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("password %q: status = %d, want %d", password, rec.Code, http.StatusUnauthorized)
+		}
+		if liveSecret(t, srv, user.ID) != first {
+			t.Errorf("password %q: the secret was replaced without it", password)
+		}
+	}
+}
+
+// getWith is a GET carrying a whole cookie jar, which the enrolment flow
+// needs: fetchAs takes the session alone, and the CSRF cookie matters here.
+func getWith(t *testing.T, srv *Server, path string, cookies []*http.Cookie) (*httptest.ResponseRecorder, []*http.Cookie) {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	req.RemoteAddr = clientAddr(t)
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	return rec, mergeCookies(cookies, rec.Result().Cookies())
+}
+
+// liveSecret is the account's working two-factor secret, which is stored
+// encrypted — comparing the column against a base32 string compares a cipher
+// text to a plaintext and is true of nothing.
+func liveSecret(t *testing.T, srv *Server, userID int64) string {
+	t.Helper()
+	sealed, err := store.TOTPSecret(context.Background(), srv.db, userID)
+	if err != nil {
+		t.Fatalf("TOTPSecret: %v", err)
+	}
+	secret, err := srv.cipher.Decrypt(sealed)
+	if err != nil {
+		t.Fatalf("decrypt TOTP secret: %v", err)
+	}
+	return string(secret)
+}
+
+// Two-factor is optional for a player, which has to mean they can turn it
+// off again: an account that can only ever add one has a setting it cannot
+// undo without an admin and a shell.
+func TestAPlayerCanTurnTwoFactorOff(t *testing.T) {
+	srv := testServer(t)
+	user := seedLogin(t, srv, "player@example.tld", false)
+
+	_, cookies := login(t, srv, "player@example.tld", testPassword)
+	_, cookies = enrol(t, srv, cookies)
+
+	// The control is an outlined red link that only opens the question —
+	// nothing is turned off by pressing it.
+	page, cookies := getWith(t, srv, "/settings/security", cookies)
+	if !strings.Contains(page.Body.String(), `href="/settings/security?confirm=totp"`) {
+		t.Fatal("the security screen does not offer to turn two-factor off")
+	}
+
+	asked, cookies := getWith(t, srv, "/settings/security?confirm=totp", cookies)
+	body := asked.Body.String()
+	if !strings.Contains(body, `class="confirm"`) {
+		t.Error("the question is not asked before the field that answers it")
+	}
+	if !strings.Contains(body, `action="/settings/totp/disable"`) {
+		t.Fatal("the question has no form to answer it with")
+	}
+	if !strings.Contains(body, `class="danger"`) {
+		t.Error("the control that commits it is not in the danger tone")
+	}
+	csrf := csrfFieldPattern.FindAllStringSubmatch(body, -1)
+
+	done := postForm(t, srv, "/settings/totp/disable", url.Values{
+		"csrf_token": {csrf[len(csrf)-1][1]},
+		"password":   {testPassword},
+	}, cookies)
+	if done.Code != http.StatusSeeOther {
+		t.Fatalf("turning it off = %d, want %d\n%s", done.Code, http.StatusSeeOther, done.Body.String())
+	}
+
+	reloaded, err := store.UserByID(context.Background(), srv.db, user.ID)
+	if err != nil {
+		t.Fatalf("UserByID: %v", err)
+	}
+	if reloaded.HasTOTP {
+		t.Error("two-factor is still on")
+	}
+	// The codes are minted against the secret, so they go with it rather
+	// than outliving it as a way past a factor the account no longer has.
+	if left, err := store.CountRecoveryCodes(context.Background(), srv.db, user.ID); err != nil || left != 0 {
+		t.Errorf("%d recovery codes survived the secret they were issued against", left)
+	}
+	// And the session that made the decision still works: every one of them
+	// proved both factors when it was granted.
+	if rec, _ := getWith(t, srv, "/settings/security", cookies); rec.Code != http.StatusOK {
+		t.Errorf("the session that turned it off = %d, want %d", rec.Code, http.StatusOK)
+	}
+}
+
+// The password is the whole of what stands between a borrowed screen and an
+// account with no second factor and no recovery codes.
+func TestTurningTwoFactorOffNeedsThePassword(t *testing.T) {
+	srv := testServer(t)
+	user := seedLogin(t, srv, "player@example.tld", false)
+
+	_, cookies := login(t, srv, "player@example.tld", testPassword)
+	_, cookies = enrol(t, srv, cookies)
+	csrf, cookies := getCSRF(t, srv, "/settings/security?confirm=totp", cookies)
+
+	for _, password := range []string{"", "not-the-password"} {
+		rec := postForm(t, srv, "/settings/totp/disable", url.Values{
+			"csrf_token": {csrf},
+			"password":   {password},
+		}, cookies)
+		if rec.Code == http.StatusSeeOther {
+			t.Errorf("password %q: two-factor was turned off", password)
+		}
+		reloaded, _ := store.UserByID(context.Background(), srv.db, user.ID)
+		if !reloaded.HasTOTP {
+			t.Fatalf("password %q: two-factor is off", password)
+		}
+	}
+}
+
+// The admin area is gated on two-factor, so an admin who could switch it off
+// would make "required for admins" a suggestion. The screen does not offer
+// it, and the route does not allow it either — the template decides what is
+// offered and the handler decides what is allowed, and only one of those is
+// reachable by typing a URL.
+func TestAnAdminCannotTurnTwoFactorOff(t *testing.T) {
+	srv := testServer(t)
+	user := seedLogin(t, srv, "admin@example.tld", true)
+
+	_, cookies := login(t, srv, "admin@example.tld", testPassword)
+	_, cookies = enrol(t, srv, cookies)
+
+	page, cookies := getWith(t, srv, "/settings/security?confirm=totp", cookies)
+	body := page.Body.String()
+	if strings.Contains(body, "/settings/totp/disable") {
+		t.Error("the security screen offers an admin a way to turn two-factor off")
+	}
+	// The replacement is still offered: an admin changing phones is the
+	// ordinary case, and it is the same enrolment everybody else gets.
+	if !strings.Contains(body, `href="/enroll-totp"`) {
+		t.Error("an admin is not offered a way to rotate their secret")
+	}
+
+	csrf := csrfFieldPattern.FindStringSubmatch(body)[1]
+	rec := postForm(t, srv, "/settings/totp/disable", url.Values{
+		"csrf_token": {csrf},
+		"password":   {testPassword},
+	}, cookies)
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("posting it anyway = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+	if reloaded, _ := store.UserByID(context.Background(), srv.db, user.ID); !reloaded.HasTOTP {
+		t.Error("an admin turned their two-factor off")
+	}
+}

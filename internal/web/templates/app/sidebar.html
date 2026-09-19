@@ -54,9 +54,19 @@
         {{template "shield-icon" .}}
         {{.T.T "footer.privacy"}}
       </a>
-      <a class="about-link" href="https://github.com/martinstenrose/wordleland">
+      {{/* The one link on the site that leaves it. A new tab, because the
+           rest of this panel is about the page behind it and a reader
+           following this is not finished with that page — and rel=noreferrer
+           as well as noopener, for the same reason nothing here is fetched
+           from a third party: where somebody was reading is not GitHub's to
+           know. data-reload keeps app.js's page switcher off it; the switcher
+           already ignores another origin, but this says so at the link. */}}
+      <a class="about-link" href="https://github.com/martinstenrose/wordleland"
+         target="_blank" rel="noopener noreferrer" data-reload>
         {{template "github-icon" .}}
         {{.T.T "footer.github"}}
+        <span class="visually-hidden">({{.T.T "footer.newTab"}})</span>
+        {{template "external-icon" .}}
       </a>
     </div>
   </div>

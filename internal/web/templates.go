@@ -129,6 +129,18 @@ func (s *Server) renderBlock(w http.ResponseWriter, r *http.Request, status int,
 	}
 }
 
+// wantsPartial reports whether this request asked for the page's content
+// without the page around it — see app.js, where the ⌘K overlay and the
+// enrolment dialog both put a card of somebody else's page inside their own.
+//
+// A stale "?partial=1" in a bookmark must not hand a reader a bare fragment,
+// so only the handlers that have something to offer a fragment of look at
+// this; everywhere else the parameter is inert. urlWith drops it, so it
+// cannot survive into a link either.
+func wantsPartial(r *http.Request) bool {
+	return r.URL.Query().Get("partial") == "1"
+}
+
 // errorPage is the data for error.html.
 type errorPage struct {
 	chrome
