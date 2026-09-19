@@ -158,6 +158,7 @@
   "today.headline.empty": "No results in yet today.",
   "today.formTable": "Form · last 30 days",
   "today.results": "Today's results",
+  "today.results.empty": "Results appear here as they come in.",
   "today.column.vsAvg": "Vs avg",
   "today.column.avg": "Avg",
   "today.column.form": "Form",

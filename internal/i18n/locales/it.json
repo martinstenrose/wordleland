@@ -158,6 +158,7 @@
   "today.headline.empty": "Oggi non è ancora arrivato nessun risultato.",
   "today.formTable": "Forma · ultimi 30 giorni",
   "today.results": "Risultati di oggi",
+  "today.results.empty": "I risultati compaiono qui non appena arrivano.",
   "today.column.vsAvg": "Vs media",
   "today.column.avg": "Media",
   "today.column.form": "Forma",

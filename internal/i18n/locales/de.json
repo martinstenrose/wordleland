@@ -158,6 +158,7 @@
   "today.headline.empty": "Heute sind noch keine Ergebnisse da.",
   "today.formTable": "Form · letzte 30 Tage",
   "today.results": "Heutige Ergebnisse",
+  "today.results.empty": "Ergebnisse erscheinen hier, sobald sie eintreffen.",
   "today.column.vsAvg": "Zum Ø",
   "today.column.avg": "Schnitt",
   "today.column.form": "Form",

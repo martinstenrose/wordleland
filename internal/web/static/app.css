@@ -1852,6 +1852,11 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   .today-results { grid-area: results; border-right: 1px solid var(--color-text-10); border-bottom: 0; }
   .today-form { grid-area: form; }
   .today > .empty { grid-area: form; }
+  /* Its own rule after the shared one above, so it wins the tie: the results
+     column can be empty at the same time as the form table is (a fresh
+     board, nobody ranked, nobody filed), and the two placeholders must not
+     both claim "form". */
+  .today > .results-empty { grid-area: results; border-right: 1px solid var(--color-text-10); border-bottom: 0; }
 
   /* The header's two groups, side by side: the day on the left, how far
      through it the group is on the right. */

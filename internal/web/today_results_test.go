@@ -164,6 +164,49 @@ func TestTheDaysProgressIsAFigureAndTheNamesAreADisclosure(t *testing.T) {
 	}
 }
 
+// Before today's first result lands, the results table used to disappear
+// outright — {{if .Results}} left nothing behind it, so a wide screen showed
+// a blank column beside the form table and a phone skipped straight from the
+// header to the callouts. A placeholder takes its place instead.
+func TestTheResultsTableHasAPlaceholderBeforeAnyoneFiles(t *testing.T) {
+	srv := testServer(t)
+	ctx := context.Background()
+	admin, err := store.CreateUser(ctx, srv.db, store.SystemActor(), "admin@example.tld", "hash", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actor := store.AdminActor(admin.ID)
+	current := currentPuzzle()
+
+	// Ranked, with history — but none of it reaches today.
+	for _, slug := range []string{"morning", "evening"} {
+		p, err := store.CreatePlayer(ctx, srv.db, actor, strings.ToUpper(slug[:1])+slug[1:], slug)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for puzzle := current - 25; puzzle < current; puzzle++ {
+			seedResult(t, srv, p.ID, puzzle, 3, false)
+		}
+	}
+
+	body := fetchAs(t, srv, "/today", signIn(t, srv, admin.ID)).Body.String()
+
+	if !strings.Contains(body, `<p class="empty results-empty">Results appear here as they come in.</p>`) {
+		t.Error("the results table has no placeholder before anyone has filed today")
+	}
+	if strings.Contains(body, `class="today-results"`) || strings.Contains(body, `class="result-row">`) {
+		t.Error("an empty results table still rendered its list markup")
+	}
+	// The rest of the day's emptiness is unaffected: nobody has filed, so the
+	// headline says so and both players are still named as missing.
+	if !strings.Contains(body, "No results in yet today.") {
+		t.Error("the headline does not say the day is empty")
+	}
+	if !strings.Contains(body, ">Morning<") || !strings.Contains(body, ">Evening<") {
+		t.Error("the still-to-submit list does not name both players")
+	}
+}
+
 // Everyone the board does not rank, behind a disclosure for the same reason:
 // the front page is about who is playing, and this list grows forever as
 // people drift away.

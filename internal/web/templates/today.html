@@ -91,6 +91,14 @@
         {{end}}
       </ol>
     </div>
+  {{else}}
+    {{/* Nobody has filed yet, which used to make the whole block vanish —
+         on a wide screen the results column sat blank beside the form
+         table, and on a phone the day skipped straight to the callouts
+         with no sign the table was coming. results-empty carries its own
+         grid-area rule (see app.css) so it takes the results column rather
+         than the .today > .empty default, which is the form table's. */}}
+    <p class="empty results-empty">{{.T.T "today.results.empty"}}</p>
   {{end}}
 
   {{if .Callouts}}
