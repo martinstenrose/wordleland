@@ -108,6 +108,10 @@ func (q boardQuery) with(mutate func(*boardQuery)) string {
 	for k, v := range q.raw {
 		values[k] = v
 	}
+	// See urlWith: "partial=1" is how a request was made rather than part of
+	// what is being looked at, and a control link carrying it would hand a
+	// reader a bare card the moment they followed it without a script.
+	values.Del("partial")
 
 	// Only non-default values appear, so a plain board has a clean URL.
 	set := func(key, value string, keep bool) {
@@ -326,6 +330,16 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boa
 		page.CSRFToken = token
 	}
 
+	// "?partial=1" asks for just the card, the same way today.go's bench
+	// toggle and search.go's overlay reuse their own pages — see app.js — so
+	// choosing a ranking rule can swap the board in without a full reload
+	// while still working from a plain link when script is absent. This
+	// page's "content" block is the card, so there is no second template to
+	// keep in step with the first.
+	if r.URL.Query().Get("partial") == "1" {
+		s.renderBlock(w, r, http.StatusOK, "board.html", "content", page)
+		return
+	}
 	s.render(w, r, http.StatusOK, "board.html", page)
 }
 

@@ -638,3 +638,75 @@ func TestFormDeltaPointsTheWayTheScoreMoves(t *testing.T) {
 		}
 	}
 }
+
+// "?partial=1" is the ranking menu asking for the board alone, so choosing a
+// rule can swap the card in place instead of reloading — see app.js. It is
+// the page's own "content" block, not a second template, so the two cannot
+// drift: the board a reader gets by following the link and the board they get
+// by pressing the same row with script running are the same markup.
+func TestTheBoardCanBeFetchedAsJustItsCard(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	for _, path := range []string{"/share/" + slug + "/board", "/share/" + slug + "/board?mode=hard"} {
+		full := fetch(t, srv, path)
+		partial := fetch(t, srv, path+(map[bool]string{true: "&", false: "?"}[strings.Contains(path, "?")])+"partial=1")
+		if partial.Code != http.StatusOK {
+			t.Fatalf("GET %s partial = %d", path, partial.Code)
+		}
+		body := partial.Body.String()
+
+		// The card and nothing around it.
+		if !strings.HasPrefix(strings.TrimSpace(body), `<section class="card">`) {
+			t.Errorf("%s: the partial does not start with the card", path)
+		}
+		for _, chrome := range []string{"<html", "<header class=\"topbar\">", `class="sidebar"`} {
+			if strings.Contains(body, chrome) {
+				t.Errorf("%s: the partial carries %s, so it is the whole page", path, chrome)
+			}
+		}
+		// And it is the same card the full page renders, so a rule applied
+		// through the menu cannot land somewhere the link would not.
+		card := strings.TrimSpace(body)
+		if !strings.Contains(full.Body.String(), card) {
+			t.Errorf("%s: the partial is not the card the full page renders", path)
+		}
+	}
+}
+
+// "partial=1" never survives into a rendered link.
+//
+// It says how a request was made rather than what is being looked at, and
+// every link builder here starts from the request's own query so that
+// switching one control keeps the rest. Left in, every control on a swapped-in
+// card would point at a bare fragment — and following one without a script to
+// catch the press would land a reader on markup with no page around it.
+//
+// The bench toggle on Today has had this shape since before the board did, so
+// it is checked here too.
+func TestPartialNeverSurvivesIntoALink(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	session := signIn(t, srv, admin.ID)
+
+	for _, tt := range []struct {
+		path   string
+		cookie *http.Cookie
+	}{
+		// The board: control links, sort headers and the switchers.
+		{path: "/share/" + slug + "/board?partial=1"},
+		{path: "/share/" + slug + "/board?mode=hard&sort=average&partial=1"},
+		// Today: the bench toggle, and the theme and language switchers
+		// urlWith builds.
+		{path: "/today?partial=1", cookie: session},
+		{path: "/today?benched=1&partial=1", cookie: session},
+	} {
+		body := fetchAs(t, srv, tt.path, tt.cookie).Body.String()
+		if strings.Contains(body, "partial=1") || strings.Contains(body, "partial=") {
+			t.Errorf("%s: a rendered link carries partial=", tt.path)
+		}
+	}
+}

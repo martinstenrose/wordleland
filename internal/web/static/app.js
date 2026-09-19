@@ -427,3 +427,77 @@
     });
   });
 })();
+
+// The leaderboard's ranking menu, applied without the round trip.
+//
+// Every row in that menu is a link that flips one rule and keeps the rest of
+// the query, and that is the whole feature: it works with this file absent,
+// disabled, or failing to load. What following one costs is a page load, and
+// with it the open menu — so setting two rules means opening the menu twice.
+//
+// This swaps the card in place instead, the same "?partial=1" trick the bench
+// toggle and the ⌘K overlay already use, and leaves the menu open on the row
+// that was just pressed. Nothing is decided here that the server did not
+// decide: the replacement markup is the board the link pointed at, rendered
+// by the same template, so a rule applied this way and a rule applied by
+// following the link land on identical pages.
+//
+// A modified click — a new tab, a new window — is left alone to do what was
+// asked of it.
+(function () {
+  "use strict";
+
+  if (!window.fetch) return; // Without it the link is still the whole feature.
+
+  document.addEventListener("click", function (event) {
+    var link = event.target.closest(".ranking-panel a");
+    if (!link) return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+
+    var card = link.closest("section.card");
+    var panel = link.closest(".ranking-panel");
+    if (!card || !panel) return; // Markup changed underneath us; let the link navigate.
+
+    // Where in the menu the press landed, so focus can be put back on the
+    // same row once the replacement has been drawn. The rows are rebuilt,
+    // not moved, so the index is the only handle that survives.
+    var rows = Array.prototype.slice.call(panel.querySelectorAll("a"));
+    var index = rows.indexOf(link);
+
+    event.preventDefault();
+    var url = link.href;
+
+    fetch(url + (url.indexOf("?") === -1 ? "?" : "&") + "partial=1", { credentials: "same-origin" })
+      .then(function (response) { return response.ok ? response.text() : null; })
+      .then(function (html) {
+        if (html === null) {
+          window.location.href = url;
+          return;
+        }
+        var wrapper = document.createElement("div");
+        wrapper.innerHTML = html;
+        var replacement = wrapper.querySelector("section.card");
+        if (!replacement) {
+          window.location.href = url;
+          return;
+        }
+        card.replaceWith(replacement);
+        history.replaceState(null, "", url);
+
+        // The board arrives with its menu shut, because that is how a board
+        // reached by following the link should arrive. Here it was already
+        // open and the reader may well have a second rule to set.
+        var menu = replacement.querySelector("details.ranking");
+        if (!menu) return;
+        menu.open = true;
+        var next = menu.querySelectorAll(".ranking-panel a")[index];
+        if (next) next.focus();
+      })
+      .catch(function () {
+        // Pure enhancement: fall back to the link's real navigation.
+        window.location.href = url;
+      });
+  });
+})();
