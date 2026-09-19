@@ -13,6 +13,13 @@ func TestSwedishNumbersUseCommaAndSpace(t *testing.T) {
 		{"decimal", Decimal("sv", 1234.5, 2), "1 234,50"},
 		{"English remains unchanged", Decimal("en", 1234.5, 2), "1234.50"},
 		{"catalogue arguments", Sprintf("sv", "%d pussel · %.2f", 1892, 3.5), "1 892 pussel · 3,50"},
+
+		// German, Spanish and Italian group with a full stop and put a
+		// comma before the fraction — the same shape as Swedish, a
+		// different separator.
+		{"German", Decimal("de", 1234.5, 2), "1.234,50"},
+		{"Spanish", Integer("es", 1234567), "1.234.567"},
+		{"Italian arguments", Sprintf("it", "%d · %.2f", 1892, 3.5), "1.892 · 3,50"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

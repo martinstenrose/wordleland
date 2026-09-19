@@ -1,0 +1,66 @@
+{{define "title"}}{{.T.T "admin.settings.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+<section class="card">
+  {{template "admin-tabs" .}}
+
+  <div class="card-head">
+    <h1>{{.T.T "admin.settings.title"}}</h1>
+  </div>
+
+  {{if .Notice}}<p class="note" role="status" data-raise="{{.T.T "action.close"}}">{{.Notice}}</p>{{end}}
+  {{if .Error}}<p class="note error" role="alert">{{.Error}}</p>{{end}}
+
+  <div class="settings-section">
+    <h2 class="section flush">{{.T.T "admin.settings.slug"}}</h2>
+    {{if .Slug}}
+      {{/* The origin sits back and the slug stands out: the slug is the part
+           that changes, and the part someone is here to look at. */}}
+      <p class="slug-line"><span class="muted">{{.Origin}}</span><code>{{.Slug}}</code><span class="muted">/</span></p>
+      <p class="hint">{{.T.T "admin.settings.slugHint"}}</p>
+
+      {{if .Confirming}}
+        {{/* Step two. Rotating cannot be undone and the cost lands on
+             everyone else in the group, so it is asked before it happens
+             rather than reported after. No script involved: the control
+             below is a link back to this same page with the question
+             showing. */}}
+        <div class="confirm" role="group" aria-labelledby="rotate-ask">
+          <p id="rotate-ask" class="confirm-title">{{.T.T "admin.settings.rotateAsk"}}</p>
+          <p class="hint">{{.T.T "admin.settings.rotateAskBody"}}</p>
+          <form method="post" action="/admin/settings/slug" class="actions">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <button class="danger" type="submit">{{.T.T "admin.settings.rotate"}}</button>
+            <a class="secondary" href="/admin/settings">{{.T.T "admin.cancel"}}</a>
+          </form>
+        </div>
+      {{else}}
+        <div class="actions">
+          <a class="secondary" href="/admin/settings?confirm=slug">{{.T.T "admin.settings.rotate"}}</a>
+        </div>
+      {{end}}
+    {{else}}
+      <p class="hint">{{.T.T "admin.settings.noSlug"}}</p>
+    {{end}}
+  </div>
+
+  <h2 class="section">{{.T.T "admin.settings.env"}}</h2>
+  <p class="hint">{{.T.T "admin.settings.envHint"}}</p>
+  <dl class="detail-fields env-fields">
+    {{range .Env}}
+      <div>
+        <dt>{{.Name}}</dt>
+        <dd>
+          <span class="env-value{{if .Muted}} muted{{end}}">{{if .Mono}}<code>{{.Value}}</code>{{else}}{{.Value}}{{end}}</span>
+          {{/* One lock per row, as the design has it: the point is that
+               nothing in this table can be typed over, and a note at the top
+               alone leaves each row looking editable. */}}
+          <span class="env-lock" title="{{$.T.T "admin.settings.setViaEnv"}}">
+            {{template "lock-icon" .}}
+            <span class="visually-hidden">{{$.T.T "admin.settings.setViaEnv"}}</span>
+          </span>
+        </dd>
+      </div>
+    {{end}}
+  </dl>
+</section>
+{{end}}

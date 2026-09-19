@@ -12,8 +12,6 @@ import (
 type monthRow struct {
 	Rank    int
 	Name    string
-	Trait   string
-	Why     string
 	Medal   string
 	Href    string
 	Average string
@@ -84,8 +82,6 @@ type monthsPage struct {
 // seasonRow is one player's season, pre-formatted.
 type seasonRow struct {
 	Name    string
-	Trait   string
-	Why     string
 	Href    string
 	Wins    int
 	Podiums int
@@ -161,16 +157,6 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 		page.Chips = append(page.Chips, chip)
 	}
 
-	// Traits are looked up for both the month table and the season block, so
-	// they are gathered once before either is built.
-	traits := stats.NewTraiter(board)
-	figures := map[int64]stats.Player{}
-	for _, group := range [][]stats.Player{board.Ranked, board.Unranked} {
-		for _, p := range group {
-			figures[p.ID] = p
-		}
-	}
-
 	m := months[selected]
 	page.Label = monthLabel(ch.T, m)
 	page.Running = !m.Complete(now)
@@ -240,12 +226,6 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 		case p.Rank == 2 && !page.Running:
 			row.Medal = ch.T.T("months.medal.runnerUp")
 		}
-		if f, ok := figures[p.ID]; ok {
-			if key := traits.For(f); key != "" {
-				row.Trait = ch.T.T("trait." + key)
-				row.Why = ch.T.T("trait." + key + ".why")
-			}
-		}
 		page.Rows = append(page.Rows, row)
 	}
 	for _, p := range m.Thin {
@@ -260,12 +240,6 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 		view := seasonRow{
 			Name: row.Name, Href: prefix + "/p/" + row.Slug,
 			Wins: row.Wins, Podiums: row.Podiums, Best: "—",
-		}
-		if f, ok := figures[row.ID]; ok {
-			if key := traits.For(f); key != "" {
-				view.Trait = ch.T.T("trait." + key)
-				view.Why = ch.T.T("trait." + key + ".why")
-			}
 		}
 		if row.Best != nil {
 			view.Best = ch.T.Decimal(*row.Best, 2) + " · " +

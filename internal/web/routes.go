@@ -40,6 +40,8 @@ func (s *Server) routes() http.Handler {
 	// A reader's own account. Each section posts on its own, so a rejected
 	// password does not throw away a name they also typed.
 	mux.HandleFunc("GET /settings", s.requireAuth(s.handleSettings))
+	mux.HandleFunc("GET /settings/account", s.requireAuth(s.handleSettings))
+	mux.HandleFunc("GET /settings/security", s.requireAuth(s.handleSettings))
 	mux.HandleFunc("POST /settings/name", s.requireAuth(s.handleSettingsName))
 	mux.HandleFunc("POST /settings/email", s.requireAuth(s.handleSettingsEmail))
 	mux.HandleFunc("POST /settings/password", s.requireAuth(s.handleSettingsPassword))
@@ -50,6 +52,8 @@ func (s *Server) routes() http.Handler {
 	// pulled forward because correcting a name or a link is the change the
 	// roster actually needs, and reaching for docker compose exec to rename
 	// somebody is the wrong shape of chore.
+	mux.HandleFunc("GET /admin/settings", s.requireAdmin(s.handleAdminSettings))
+	mux.HandleFunc("POST /admin/settings/slug", s.requireAdmin(s.handleAdminSlugRotate))
 	mux.HandleFunc("GET /admin/players", s.requireAdmin(s.handleAdminPlayers))
 	mux.HandleFunc("GET /admin/players/{slug}", s.requireAdmin(s.handleAdminPlayers))
 	mux.HandleFunc("POST /admin/players/{slug}", s.requireAdmin(s.handleAdminPlayerSubmit))

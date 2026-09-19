@@ -307,3 +307,88 @@ func TestUnknownLanguageIsIgnored(t *testing.T) {
 		t.Errorf("Locale = %q, want it left alone", after.Locale)
 	}
 }
+
+// Three tabs, each a page of its own. Rendering only the one that was asked
+// for is what the URL means: a reader can link to a tab, and — since a tab is
+// read from the path — a rejected form comes back where it was sent from.
+func TestSettingsRendersOneTabAtATime(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	ctx := context.Background()
+
+	user, session := settingsUser(t, srv, "harda@example.tld", "correct horse battery staple", false)
+	admin, _ := store.UserByEmail(ctx, srv.db, "admin@example.tld")
+	player, _ := store.PlayerBySlug(ctx, srv.db, "harda")
+	if _, err := store.LinkPlayer(ctx, srv.db, store.AdminActor(admin.ID), player.ID, &user.ID); err != nil {
+		t.Fatalf("LinkPlayer: %v", err)
+	}
+
+	for _, tt := range []struct {
+		path, want string
+		absent     []string
+	}{
+		{path: "/settings", want: `action="/settings/name"`,
+			absent: []string{`action="/settings/password"`, `action="/settings/email"`, "/enroll-totp"}},
+		{path: "/settings/account", want: `action="/settings/email"`,
+			absent: []string{`action="/settings/name"`, "/enroll-totp"}},
+		{path: "/settings/security", want: "/enroll-totp",
+			absent: []string{`action="/settings/name"`, `action="/settings/password"`}},
+	} {
+		body := fetchAs(t, srv, tt.path, session).Body.String()
+		if !strings.Contains(body, tt.want) {
+			t.Errorf("%s: does not carry %s", tt.path, tt.want)
+		}
+		for _, gone := range tt.absent {
+			// Not merely tidiness: a password field in the markup of a page
+			// nobody asked for is a password field a manager may still
+			// offer to fill.
+			if strings.Contains(body, gone) {
+				t.Errorf("%s: also carries %s, which belongs to another tab", tt.path, gone)
+			}
+		}
+		// The strip marks where you are.
+		if !strings.Contains(body, `aria-current="page"`) {
+			t.Errorf("%s: no tab is marked current", tt.path)
+		}
+	}
+}
+
+// A rejected form comes back on the tab it was submitted from, with what was
+// typed still in it — not on Profile, which is what a tab threaded through
+// every rejection path would eventually get wrong.
+func TestARejectedSettingsFormStaysOnItsTab(t *testing.T) {
+	srv := testServer(t)
+	_, session := settingsUser(t, srv, "reader@example.tld", "correct horse battery staple", false)
+
+	rec := postSettings(t, srv, "/settings/password", url.Values{
+		"current": {"not the password"}, "password": {"a brand new passphrase"},
+	}, session)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want 422", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `action="/settings/password"`) {
+		t.Error("the rejection came back without the form that was rejected")
+	}
+	if strings.Contains(body, `action="/settings/name"`) {
+		t.Error("the rejection came back on the profile tab")
+	}
+}
+
+// Changing the address lands back on the tab that changed it, so the notice
+// is beside the field it is about.
+func TestChangingTheAddressLandsBackOnItsTab(t *testing.T) {
+	srv := testServer(t)
+	_, session := settingsUser(t, srv, "reader@example.tld", "correct horse battery staple", false)
+	srv.mailer = auth.NewMailer("smtp.example.tld", "587", "", "", "wordle@example.tld")
+	srv.mailer.SetSender(func(string, smtp.Auth, string, []string, []byte) error { return nil })
+	srv.cfg.AppURL = "https://wordle.example.tld"
+
+	rec := postSettings(t, srv, "/settings/email", url.Values{"email": {"new@example.tld"}}, session)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want 303; body:\n%s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Location"); got != "/settings/account?notice=email" {
+		t.Errorf("Location = %q, want the account tab", got)
+	}
+}

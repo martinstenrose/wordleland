@@ -61,7 +61,6 @@
           <td>
             <span class="admin-name">
               <a class="player" href="{{.Href}}">{{.Name}}</a>
-              {{if .Trait}}{{template "trait" .}}{{end}}
               {{if .Medal}}<span class="medal">{{.Medal}}</span>{{end}}
             </span>
           </td>
@@ -100,8 +99,7 @@
               <td>
                 <span class="admin-name">
                   <a class="player" href="{{.Href}}">{{.Name}}</a>
-                  {{if .Trait}}{{template "trait" .}}{{end}}
-                </span>
+                    </span>
               </td>
               <td class="right num strong">{{$.T.Integer .Wins}}</td>
               <td class="right num muted">{{$.T.Integer .Podiums}}</td>

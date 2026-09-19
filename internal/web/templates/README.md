@@ -93,8 +93,8 @@ plain CSS-class convention: wrap a scrolling table in
 
 | File | Partials | Why `app/` |
 |---|---|---|
-| `topbar.html` | `mark`, `flag`, `theme-picker`, `language-picker`, `drawer`, `topbar` | The brand mark, the app's exact two-locale flag set, and every reader of `chrome` (account state, search path, admin flag). |
-| `sidebar.html` | `sidebar-rows`, `sidebar-brand`, `sidebar` | The rail: the views, one row for the admin area, the wordmark and the collapse control. |
+| `topbar.html` | `mark`, `theme-picker`, `language-picker`, `drawer`, `topbar` | The brand mark, and every reader of `chrome` (account state, search path, admin flag). |
+| `sidebar.html` | `sidebar-rows`, `sidebar-brand`, `about`, `sidebar` | The rail: the views, one row for the admin area, the wordmark, the About panel and the collapse control. |
 | `trait.html` | `trait` | A Wordle result trait and its explanation. |
 | `admin.html` | `admin-warning` | Admin-only chrome. |
 
@@ -105,8 +105,16 @@ same destinations is how one of them goes stale — the mistake the scrolling
 tab strip they replace was already built to avoid.
 
 The rail carries one row for the admin area, not one per screen inside it:
-where in the application you are is the rail's job, and which of the four
+where in the application you are is the rail's job, and which of the five
 admin screens you are on is `admin-tabs`', at the top of that screen.
+
+`about` is the second thing rendered twice and defined once, for the same
+reason and with one difference: it carries `name="about"` rather than joining
+the `topbar-menu` group. The drawer renders a copy, and a shared group with
+the drawer would close the drawer the copy lives in — taking the panel with
+it. It holds the privacy notice and the source link, which is where those went
+when the page footer came off; `site-footer` in `base.html` now renders on
+error pages alone, which have no rail to carry them.
 
 ## Icons
 

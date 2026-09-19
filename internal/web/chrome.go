@@ -160,19 +160,24 @@ func (c chrome) SidebarRows() []chromeOpt {
 		rows = append(rows, chromeOpt{
 			Code:  "admin",
 			Label: c.T.T("nav.admin"),
-			Href:  "/admin/players",
+			Href:  "/admin/settings",
 			On:    c.AdminTab != "",
 		})
 	}
 	return rows
 }
 
-// AdminTabs feeds the pill-nav shared by every admin screen. The four
+// AdminTabs feeds the pill-nav shared by every admin screen. The five
 // destinations are fixed, unlike Nav's — there is no admin page that can be
 // absent — so this builds them from AdminTab rather than the caller passing
 // a slice each time.
+//
+// Settings leads, and is where the rail's Admin row lands: it is the screen
+// that answers "what is this installation", which is the question someone
+// opening the area for the first time has.
 func (c chrome) AdminTabs() []chromeOpt {
 	return []chromeOpt{
+		{Label: c.T.T("admin.settings.title"), Href: "/admin/settings", On: c.AdminTab == "settings"},
 		{Label: c.T.T("admin.players.title"), Href: "/admin/players", On: c.AdminTab == "players"},
 		{Label: c.T.T("pending.title"), Href: "/admin/pending", On: c.AdminTab == "pending"},
 		{Label: c.T.T("activity.title"), Href: "/admin/activity", On: c.AdminTab == "activity"},
@@ -196,6 +201,23 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 		Sidebar:   s.sidebarFor(w, r),
 		Shell:     true,
 		ReadOnly:  readOnly,
+	}
+
+	// Every page in the shell renders one form whoever built the page did
+	// not think about: sign out, in the account menu. Issuing the token here
+	// rather than per handler is what keeps that working — Diagnostics and
+	// the activity log had no token, so their sign-out posted an empty one
+	// and came back to the page it was on, having done nothing. A handler
+	// that needs a token for a form of its own may still ask for one; the
+	// same token comes back.
+	//
+	// A failure here is not worth a 500: everything on the page still reads,
+	// and the one control that needs the token will be refused by checkCSRF
+	// rather than acting without it.
+	if token, err := s.issueCSRFToken(w, r); err == nil {
+		c.CSRFToken = token
+	} else {
+		s.logger.Error("issue csrf token", "error", err)
 	}
 
 	// The views are built whatever page this is, with none marked current
@@ -439,10 +461,11 @@ func (s *Server) adminChrome(w http.ResponseWriter, r *http.Request, tab string)
 
 	// Losing the container-level "unhealthy" signal when the services merged
 	// traded a warning that came to you for a page you have to open. This
-	// closes that: the admin area opens on Players, so a problem is said once
-	// on the way in. It used to repeat on every tab, which made it furniture
-	// rather than a warning — and said it loudest on the two pages that exist
-	// to show the same thing in full.
+	// closes that, on Players: results held for an unclaimed sender are
+	// claimed by naming the player they belong to, so that is the screen the
+	// warning is actionable on. It used to repeat on every tab, which made it
+	// furniture rather than a warning — and said it loudest on the two pages
+	// that exist to show the same thing in full.
 	if tab == "players" {
 		if fresh, err := store.ReadFreshness(r.Context(), s.db); err == nil {
 			c.AdminWarning = s.adminWarningFor(c.T, fresh, time.Now())

@@ -442,9 +442,10 @@ func TestGridInactiveToggle(t *testing.T) {
 	}
 }
 
-// The Players view is the detail panel with a picker, so the nav has
-// somewhere to point and the panel can be swapped without going back.
-func TestPlayersViewShowsThePickerAndTheLeader(t *testing.T) {
+// The Players view is a picker with nobody chosen yet: it used to open on
+// whoever was top of the board, which put one player's page behind a link
+// that says "Players" and made the strip look like it had already been used.
+func TestPlayersViewOpensOnThePickerWithNobodyChosen(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -455,9 +456,11 @@ func TestPlayersViewShowsThePickerAndTheLeader(t *testing.T) {
 	}
 	body := rec.Body.String()
 
-	// normalb tops the board, so they are who the view opens on.
-	if !strings.Contains(body, "<h1>Normalb") {
-		t.Error("the players view does not open on the top-ranked player")
+	if strings.Contains(body, "<h1>Normalb") {
+		t.Error("the players view still opens on the top-ranked player")
+	}
+	if !strings.Contains(body, "Choose a player to show") {
+		t.Error("nothing asks the reader to pick")
 	}
 	// Every player is in the picker, ranked and not.
 	for _, want := range []string{"/p/harda", "/p/normala", "/p/thin", "/p/lapsed"} {
@@ -465,9 +468,19 @@ func TestPlayersViewShowsThePickerAndTheLeader(t *testing.T) {
 			t.Errorf("the picker is missing %s", want)
 		}
 	}
-	// And the picker marks who is showing.
-	if !strings.Contains(body, `class="pill-nav-item on"`) {
-		t.Error("the picker does not mark the current player")
+	// And none of them is marked current, because none of them is.
+	if strings.Contains(body, `class="pill-nav-item on"`) {
+		t.Error("the picker marks a player nobody chose")
+	}
+
+	// Following one lands on that player, with the strip still there and
+	// the choice marked.
+	chosen := fetchAs(t, srv, "/share/"+slug+"/p/harda", nil).Body.String()
+	if !strings.Contains(chosen, "<h1>Harda") {
+		t.Error("following a name did not show that player")
+	}
+	if !strings.Contains(chosen, `class="pill-nav-item on"`) {
+		t.Error("the picker does not mark the player being shown")
 	}
 }
 
@@ -1318,5 +1331,27 @@ func TestEveryBanterHasDetails(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// Traits are a reading of a player's whole history, and Months is about one
+// month at a time: a badge saying "Late finisher" beside a September average
+// claims the two are related, and they are not. They belong on the board and
+// on a player's own page, which is where they stayed.
+func TestMonthsCarriesNoTraitBadges(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+
+	months := fetchAs(t, srv, "/months", signIn(t, srv, admin.ID)).Body.String()
+	if strings.Contains(months, `class="trait"`) {
+		t.Error("a trait badge is back on the months view")
+	}
+
+	// And still where they belong, so this test cannot pass by the badge
+	// having been deleted everywhere.
+	board := fetchAs(t, srv, "/leaderboard", signIn(t, srv, admin.ID)).Body.String()
+	if !strings.Contains(board, `class="trait"`) {
+		t.Error("the board lost its trait badges too")
 	}
 }
