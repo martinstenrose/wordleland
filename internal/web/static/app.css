@@ -592,6 +592,11 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   margin: 2px 0 0; font-size: var(--text-xs); font-weight: 600;
   text-transform: uppercase; letter-spacing: .08em; color: var(--color-text-40);
 }
+/* A kicker that names the thing the block is about rather than labelling a
+   field. The two rules further down match .accent inside Today and inside a
+   callout; this one matches it on the kicker itself, which is how the month
+   detail asks for it. */
+.kicker.accent { color: var(--color-accent); }
 
 .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .seg { display: inline-flex; border: 1px solid var(--color-text-12); border-radius: var(--radius-md); overflow: hidden; }
@@ -1318,22 +1323,23 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 }
 .month-chip-win .num { font-size: var(--text-sm); color: var(--color-text-50); flex: none; }
 
+/* The month's own summary, on the card's surface like everything else on it.
+   It was a tinted band with a rule under it, which made the one block that is
+   only a summary look like a second card wedged into the first. */
 .month-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 26px;
   flex-wrap: wrap;
-  padding-top: 22px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--color-text-10);
-  background: var(--color-surface-raised);
+  padding-top: 20px;
+  padding-bottom: 8px;
 }
 .month-head-main { min-width: 0; }
 .month-head p { margin: 0 0 8px; }
 .month-head p:last-child { margin-bottom: 0; }
 
-.month-winner-name { font-size: 2rem; font-weight: 500; letter-spacing: -.02em; line-height: var(--line-tight); margin: 6px 0 8px; }
+.month-winner-name { font-size: var(--text-xl); font-weight: 700; letter-spacing: -.015em; line-height: var(--line-tight); margin: 6px 0 8px; }
 
 /* The table scrolls inside its own box rather than the page scrolling
    sideways, and the headings keep to one line: a wrapped "3 or better"
