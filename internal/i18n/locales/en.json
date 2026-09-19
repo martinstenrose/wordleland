@@ -360,6 +360,8 @@
   "nav.settings": "Settings",
   "settings.title": "Settings",
   "settings.profile": "Profile",
+  "settings.tab.account": "Account & password",
+  "settings.tab.security": "Security",
   "settings.displayName": "Display name",
   "settings.displayNameHint": "Shown on the board and wherever you are named.",
   "settings.saveName": "Save name",

@@ -21,6 +21,12 @@ type settingsPage struct {
 	Verified     bool
 	Role         string
 
+	// Tab is which of the three sections is showing. The other two are not
+	// rendered at all rather than hidden in CSS: they are separate pages
+	// that happen to share a card, and a password field in the markup of a
+	// page nobody asked for is a password field a manager may still fill.
+	Tab string
+
 	HasTOTP bool
 	// TOTPRequired marks an admin, for whom two-factor is not optional.
 	TOTPRequired bool
@@ -43,10 +49,46 @@ type settingsForm struct {
 	Email string
 }
 
+// The three tabs, in the order the design puts them. The codes are also the
+// last path segment of the two tabs that have one, so a tab is named the same
+// way everywhere it appears.
+const (
+	settingsProfile  = "profile"
+	settingsAccount  = "account"
+	settingsSecurity = "security"
+)
+
 // handleSettings shows the signed-in reader's own account.
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	user, _ := authenticated(r)
 	s.renderSettings(w, r, user, r.URL.Query().Get("notice"), "", settingsForm{})
+}
+
+// settingsTabFor is which of the three a request belongs to, read from its
+// path rather than passed down.
+//
+// That is what keeps a rejected form on the tab it was submitted from: every
+// one of the dozen renderSettings calls below is a rejection re-rendering the
+// page, and threading a tab through all of them would be a dozen chances to
+// pass the wrong one. The path already knows.
+func settingsTabFor(path string) string {
+	switch path {
+	case "/settings/account", "/settings/email", "/settings/password":
+		return settingsAccount
+	case "/settings/security", "/settings/recovery-codes":
+		return settingsSecurity
+	default:
+		return settingsProfile
+	}
+}
+
+// SettingsTabs feeds the sub-nav inside the settings card.
+func (p settingsPage) SettingsTabs() []chromeOpt {
+	return []chromeOpt{
+		{Code: settingsProfile, Label: p.T.T("settings.profile"), Href: "/settings", On: p.Tab == settingsProfile},
+		{Code: settingsAccount, Label: p.T.T("settings.tab.account"), Href: "/settings/account", On: p.Tab == settingsAccount},
+		{Code: settingsSecurity, Label: p.T.T("settings.tab.security"), Href: "/settings/security", On: p.Tab == settingsSecurity},
+	}
 }
 
 func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, user store.User, notice, errKey string, form settingsForm) {
@@ -62,6 +104,7 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, user sto
 func (s *Server) renderSettingsStatus(w http.ResponseWriter, r *http.Request, user store.User, notice, errKey string, form settingsForm, status int) {
 	page := settingsPage{
 		chrome:       s.newChrome(w, r, "", "", false),
+		Tab:          settingsTabFor(r.URL.Path),
 		Email:        user.Email,
 		Verified:     user.EmailVerifiedAt != nil,
 		HasTOTP:      user.HasTOTP,
@@ -184,7 +227,7 @@ func (s *Server) handleSettingsEmail(w http.ResponseWriter, r *http.Request) {
 		s.renderSettings(w, r, user, "", "settings.error.failed", settingsForm{Email: email})
 		return
 	}
-	http.Redirect(w, r, "/settings?notice=email", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings/account?notice=email", http.StatusSeeOther)
 }
 
 // handleSettingsPassword changes the password, current one first.

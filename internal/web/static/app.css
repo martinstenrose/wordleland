@@ -2163,6 +2163,56 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
 }
 .avatar.big { width: 44px; height: 44px; font-size: 1rem; }
 .settings-name { font-size: var(--text-lg); font-weight: 600; letter-spacing: -.015em; }
+/* A column of tabs beside the panel, as the design has it. The card's own
+   gutter comes off here: the divider between the two has to reach the card's
+   edges, so each side carries its own padding instead. */
+.card > .settings-split {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  padding-left: 0;
+  padding-right: 0;
+}
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 12px;
+  border-right: 1px solid var(--color-text-08);
+}
+.settings-tab {
+  padding: 9px 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--color-text-50);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.settings-tab:hover { background: var(--color-text-06); color: var(--color-text); }
+.settings-tab.on { background: var(--color-surface-raised); color: var(--color-text); font-weight: 600; }
+.settings-panel { padding: 22px var(--space-card); }
+/* The forms have a column of their own now, so the old width cap would
+   narrow them twice. */
+.settings-panel .form { max-width: 26rem; }
+/* A form that opens a tab, with no heading above it to space it off. */
+.settings-panel .form.flush { margin-top: 0; }
+
+@media (max-width: 860px) {
+  /* The column becomes a strip across the top: 190px of tabs beside a form
+     leaves neither enough room on a phone. */
+  .card > .settings-split { grid-template-columns: minmax(0, 1fr); }
+  .settings-nav {
+    flex-direction: row;
+    gap: 4px;
+    padding: 10px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-text-08);
+    overflow-x: auto;
+    scroll-padding-inline: 12px;
+    scrollbar-width: thin;
+  }
+  .settings-tab { flex: none; }
+}
+
 .settings-section { padding-top: 6px; padding-bottom: 22px; border-bottom: 1px solid var(--color-text-08); }
 .settings-section:last-child { border-bottom: 0; }
 .settings-section .form { max-width: 26rem; }

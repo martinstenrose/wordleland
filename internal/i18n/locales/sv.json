@@ -360,6 +360,8 @@
   "nav.settings": "Inställningar",
   "settings.title": "Inställningar",
   "settings.profile": "Profil",
+  "settings.tab.account": "Konto och lösenord",
+  "settings.tab.security": "Säkerhet",
   "settings.displayName": "Visningsnamn",
   "settings.displayNameHint": "Visas på tavlan och överallt där du nämns.",
   "settings.saveName": "Spara namn",

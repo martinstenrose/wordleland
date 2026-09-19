@@ -40,6 +40,8 @@ func (s *Server) routes() http.Handler {
 	// A reader's own account. Each section posts on its own, so a rejected
 	// password does not throw away a name they also typed.
 	mux.HandleFunc("GET /settings", s.requireAuth(s.handleSettings))
+	mux.HandleFunc("GET /settings/account", s.requireAuth(s.handleSettings))
+	mux.HandleFunc("GET /settings/security", s.requireAuth(s.handleSettings))
 	mux.HandleFunc("POST /settings/name", s.requireAuth(s.handleSettingsName))
 	mux.HandleFunc("POST /settings/email", s.requireAuth(s.handleSettingsEmail))
 	mux.HandleFunc("POST /settings/password", s.requireAuth(s.handleSettingsPassword))
