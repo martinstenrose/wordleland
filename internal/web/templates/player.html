@@ -130,7 +130,7 @@
       <ol class="strip">
         {{range .Recent}}
           <li class="cell{{if .Played}} t{{.Tone}}{{else}} gap{{end}}"
-              {{if not .Played}}title="{{.Date}} · {{$.T.T "player.puzzle" .PuzzleNo}}"{{end}}>
+              {{if not .Played}}title="{{.Date}} · {{$.T.T "player.puzzle" ($.T.Puzzle .PuzzleNo)}}"{{end}}>
             {{if .Played}}
               {{/* The cell itself is the click target: a popup joining the
                    shared name="popup" group (see base.html). The guess

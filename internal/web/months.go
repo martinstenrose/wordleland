@@ -164,7 +164,7 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 		daysInMonth := time.Date(m.Year, m.Month+1, 0, 0, 0, 0, 0, now.Location()).Day()
 		page.Progress = ch.T.T("months.progress", now.Day(), daysInMonth)
 	}
-	page.Range = ch.T.T("months.range", m.First, m.Last)
+	page.Range = ch.T.T("months.range", ch.T.Puzzle(m.First), ch.T.Puzzle(m.Last))
 	page.PartialNote = ch.T.TN("months.fullMonth", m.Days)
 	if page.Running {
 		page.PartialNote = ch.T.TN("months.partialMonth", m.Days)

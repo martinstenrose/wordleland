@@ -39,6 +39,13 @@ func validTheme(v string) bool {
 	return v == themeSystem || v == themeLight || v == themeDark
 }
 
+// The three arrangements a page can be drawn in. See chrome.Frame.
+const (
+	frameApp  = "app"
+	frameAuth = "auth"
+	frameBare = "bare"
+)
+
 // chromeOpt is one option in a switcher: where it points, and whether it is
 // the current one.
 type chromeOpt struct {
@@ -79,13 +86,16 @@ type chrome struct {
 	// views, or sign-in for an anonymous visitor to the privacy page.
 	TodayHref string
 
-	// Shell is whether this page draws the application shell — the rail, the
-	// top bar, the main column — around its content. An error page does not:
-	// that is chrome for a stranger, and a full navigation wrapped around
-	// "there is nothing at this address" offers the rest of the app to
-	// somebody who has not got it. Every other page does, including the
-	// signed-out ones, where the rail carries the wordmark and nothing else.
-	Shell bool
+	// Frame is which of the three arrangements this page is drawn in.
+	//
+	// frameApp is the application shell: the rail, the top bar, the page
+	// well. frameAuth is the sign-in family — a card centred on the canvas,
+	// with the wordmark in one corner and the pickers in the other and no
+	// navigation at all, because there is nothing yet to navigate. frameBare
+	// is an error page: chrome for a stranger, where a full navigation
+	// wrapped around "there is nothing at this address" would be offering
+	// the rest of the application to somebody who has not got it.
+	Frame string
 
 	// Sidebar is "wide" or "narrow" and lands on <html> beside the theme,
 	// which is what the stylesheet keys the rail's width off.
@@ -199,7 +209,7 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 		Lang:      t.locale,
 		Theme:     s.themeFor(w, r),
 		Sidebar:   s.sidebarFor(w, r),
-		Shell:     true,
+		Frame:     frameApp,
 		ReadOnly:  readOnly,
 	}
 
@@ -400,13 +410,21 @@ func initialsFor(email string) string {
 func (s *Server) signedOutChrome(w http.ResponseWriter, r *http.Request, token string) chrome {
 	c := s.newChrome(w, r, "", "", false)
 	c.CSRFToken = token
-	// No views: every one of them needs a session, so offering them here
-	// would be offering a round trip back to this page. And no subtitle:
-	// how much history exists is not for a visitor who has not signed in.
-	// The rail itself stays — emptied to the wordmark, it is the one piece
-	// of the shell that says which application this is.
+	// Its own frame rather than the application shell. A rail emptied down
+	// to the wordmark is a navigation with nothing in it, which reads as an
+	// app that has lost its menu rather than as a door: the design puts the
+	// wordmark in one corner, the two pickers in the other, and the card in
+	// the middle of the canvas. Nav is cleared all the same: every view needs
+	// a session, so offering one here would be offering a round trip back to
+	// this page.
+	//
+	// The subtitle stays. It used to go, on the reasoning that how much
+	// history exists is not for a visitor who has not signed in — but the
+	// card's own panel says "398 puzzles logged over 45 days" in figures,
+	// which settles that question in the other direction, and on a phone,
+	// where that panel does not fit, this is the only place it is said.
+	c.Frame = frameAuth
 	c.Nav = nil
-	c.Subtitle = ""
 	// The account menu has nothing to show yet, and on the two-factor step
 	// there is a session that is deliberately not yet an identity.
 	c.User = nil

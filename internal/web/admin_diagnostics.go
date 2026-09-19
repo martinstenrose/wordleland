@@ -101,7 +101,7 @@ func (s *Server) freshnessRows(t translator, f store.Freshness, now time.Time) [
 
 	puzzle := diagnosticRow{Label: t.T("diag.latestPuzzle"), Value: t.T("diag.none")}
 	if f.LatestPuzzle > 0 {
-		puzzle.Value = t.T("player.puzzle", f.LatestPuzzle)
+		puzzle.Value = t.T("player.puzzle", t.Puzzle(f.LatestPuzzle))
 	}
 	rows = append(rows, puzzle)
 
@@ -253,16 +253,29 @@ type adminWarning struct {
 }
 
 // adminWarningFor pairs the warning with where it leads.
+// adminWarningFor is what the admin area raises on the way in.
+//
+// It is deliberately not diagnosticsWarning: held results are the one thing
+// that page reports and this band does not. A sender nobody has claimed yet
+// is the ordinary state of a new member's first week rather than a fault,
+// the count is on the Pending results tab where it is actually worked
+// through, and saying it again above every roster made it furniture. What
+// is left is a bridge that is down and a board that has gone quiet — both
+// genuinely wrong, and neither visible anywhere else until somebody opens
+// Diagnostics.
 func (s *Server) adminWarningFor(t translator, f store.Freshness, now time.Time) adminWarning {
-	text := s.diagnosticsWarning(t, f, now)
-	if text == "" {
-		return adminWarning{}
+	toDiagnostics := func(text string) adminWarning {
+		return adminWarning{Text: text, Href: "/admin/diagnostics", Label: t.T("diag.title")}
 	}
-	w := adminWarning{Text: text, Href: "/admin/diagnostics", Label: t.T("diag.title")}
-	if f.PendingResults > 0 {
-		w.Href, w.Label = "/admin/pending", t.T("pending.title")
+	if s.bridge != nil {
+		if alive, why := s.bridge.Alive(); !alive {
+			return toDiagnostics(why)
+		}
 	}
-	return w
+	if !f.LastResultAt.IsZero() && now.Sub(f.LastResultAt) > staleAfter {
+		return toDiagnostics(t.T("diag.warn.stale", sinceText(t, f.LastResultAt, now)))
+	}
+	return adminWarning{}
 }
 
 func (s *Server) diagnosticsWarning(t translator, f store.Freshness, now time.Time) string {

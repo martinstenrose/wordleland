@@ -123,25 +123,31 @@ func TestRosterSwitchHintIsNotUppercased(t *testing.T) {
 	}
 }
 
-// The pickers sit in the top bar, in one fixed place on every page. They used
+// The pickers sit in the chrome, in one fixed place on every page. They used
 // to flow after the links at the foot of the auth card, and those links differ
 // per page — sign-in has two, the two-factor step two others, the reset page
 // one — so the pickers sat at a different height on each and jumped when
 // moving between pages. Then they moved to a row of their own at the top of
 // each card, which fixed the jumping and left every auth page carrying its own
-// copy of the chrome; the shell carries it now, and the cards carry none.
-func TestAuthPickersAreInTheTopBarOnly(t *testing.T) {
+// copy of the chrome. The chrome carries it now, and the cards carry none —
+// the top bar inside the application, its own much shorter row at the door.
+func TestAuthPickersAreInTheChromeOnly(t *testing.T) {
 	srv := testServer(t)
 
 	for _, path := range []string{"/", "/forgot-password", "/reset-password?token=x", "/invite?token=x"} {
 		body := fetchAs(t, srv, path, nil).Body.String()
 
-		bar := strings.Index(body, `<header class="topbar">`)
+		bar := strings.Index(body, `<header class="auth-chrome">`)
 		if bar < 0 {
-			t.Errorf("%s has no top bar", path)
+			t.Errorf("%s has no chrome row", path)
 			continue
 		}
-		for _, control := range []string{`class="theme-track"`, `<details class="menu" name="topbar-menu">`} {
+		// And no application shell around it: a rail emptied to the wordmark
+		// is a navigation with nothing in it.
+		if strings.Contains(body, `class="sidebar"`) {
+			t.Errorf("%s draws the application rail", path)
+		}
+		for _, control := range []string{`class="theme-track"`, `<details class="menu" name="menu-group">`} {
 			if n := strings.Count(body, control); n != 1 {
 				t.Errorf("%s renders %s %d times, want 1", path, control, n)
 			}
@@ -206,13 +212,26 @@ func TestTheChromeIsIdenticalOnEveryPage(t *testing.T) {
 	}
 }
 
-// A visitor who has not signed in is not told how much history exists.
-func TestTopBarSubtitleIsNotShownSignedOut(t *testing.T) {
+// How much history exists is said once, beside the wordmark, and repeated in
+// figures by the card's own panel.
+//
+// This test used to assert the opposite: that a visitor who has not signed in
+// is not told the size of the board. The panel beside the sign-in form already
+// says "398 puzzles logged over 45 days", so that was never true in practice,
+// and on a phone — where the panel does not fit — the wordmark is the only
+// place it is said at all.
+func TestTheSignInPageSaysHowBigTheGroupIs(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 
-	if body := fetchAs(t, srv, "/", nil).Body.String(); strings.Contains(body, "brand-sub") {
-		t.Error("the sign-in page reports the size of the board")
+	body := fetchAs(t, srv, "/", nil).Body.String()
+	if !strings.Contains(body, "brand-sub") {
+		t.Error("the sign-in page does not say how much history there is")
+	}
+	// And a 404 still says nothing: that page is chrome for a stranger with
+	// no reason to be told anything about this installation.
+	if strings.Contains(fetchAs(t, srv, "/no/such/page", nil).Body.String(), "brand-sub") {
+		t.Error("an error page reports the size of the board")
 	}
 }
 

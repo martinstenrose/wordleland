@@ -86,6 +86,12 @@ func (t translator) Integer(value int) string {
 	return i18n.Integer(t.locale, value)
 }
 
+// Puzzle renders a puzzle number — an identifier, never grouped. See
+// i18n.Identifier.
+func (t translator) Puzzle(value int) string {
+	return i18n.Identifier(value)
+}
+
 func (t translator) Decimal(value float64, places int) string {
 	return i18n.Decimal(t.locale, value, places)
 }

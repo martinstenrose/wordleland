@@ -59,9 +59,13 @@
         <tr>
           <td class="right num muted">{{$.T.Integer .Rank}}</td>
           <td>
+            {{/* The chip names the place in words, at every width. The class
+                 separates a win from a second place so the two can be told
+                 apart by colour as well as by the word — the brand hue for
+                 a win, the palette's second for the runner-up. */}}
             <span class="admin-name">
               <a class="player" href="{{.Href}}">{{.Name}}</a>
-              {{if .Medal}}<span class="medal">{{.Medal}}</span>{{end}}
+              {{if .Medal}}<span class="medal{{if .Winner}} win{{end}}">{{.Medal}}</span>{{end}}
             </span>
           </td>
           <td class="bar-cell">{{template "progress-bar" (dict "Percent" .BarPercent "Win" .Winner "Compact" true)}}</td>
