@@ -159,7 +159,7 @@ func TestTheDaysProgressIsAFigureAndTheNamesAreADisclosure(t *testing.T) {
 	if !strings.Contains(out, ">Lapsed<") {
 		t.Error("the name is not inside the disclosure")
 	}
-	if strings.Contains(out, "benched=") || strings.Contains(body, "partial=") {
+	if strings.Contains(out, "benched=") || linkWithPartial.MatchString(body) {
 		t.Error("the names are fetched rather than rendered")
 	}
 }

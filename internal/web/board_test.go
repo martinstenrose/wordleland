@@ -7,6 +7,7 @@ import (
 	"html"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -734,6 +735,8 @@ func TestEnrolmentHandsOverItsCardForTheDialog(t *testing.T) {
 //
 // The bench toggle on Today has had this shape since before the board did, so
 // it is checked here too.
+var linkWithPartial = regexp.MustCompile(`href="[^"]*partial=`)
+
 func TestPartialNeverSurvivesIntoALink(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
@@ -758,8 +761,10 @@ func TestPartialNeverSurvivesIntoALink(t *testing.T) {
 		// carries a theme and a language link of its own.
 		{path: "/enroll-totp?partial=1", cookie: session},
 	} {
+		// A link, specifically: the palette's input asks the search route
+		// with the parameter on, which is the one place it belongs.
 		body := fetchAs(t, srv, tt.path, tt.cookie).Body.String()
-		if strings.Contains(body, "partial=1") || strings.Contains(body, "partial=") {
+		if linkWithPartial.MatchString(body) {
 			t.Errorf("%s: a rendered link carries partial=", tt.path)
 		}
 	}

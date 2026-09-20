@@ -178,9 +178,12 @@ func TestSearchOverlayDisplayYieldsToTheHiddenAttribute(t *testing.T) {
 }
 
 // app.js's search block is the only thing that can open an overlay on a
-// keystroke; this checks it is wired to the right elements and does not
-// reach into the picker menus, which are a separate concern (see
-// TestPopupPositioningScriptIsWiredUpAndScoped).
+// keystroke; the fetching once it is open is htmx's, declared on the
+// overlay's input. This checks both halves are wired to the right elements:
+// the script reaches the overlay and raises the event the input listens
+// for, and the input asks the partial results route — the same one under
+// the share prefix, see TestSharedSearchWorksUnderThePrefix — dropping a
+// reply still in flight when the next keystroke comes.
 func TestSearchOverlayScriptIsWiredUpAndScoped(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
@@ -190,22 +193,30 @@ func TestSearchOverlayScriptIsWiredUpAndScoped(t *testing.T) {
 	if strings.Count(body, `id="search-overlay"`) != 1 {
 		t.Error("expected exactly one search overlay in the page")
 	}
-	if !strings.Contains(body, `<div id="search-overlay" class="search-overlay" hidden data-search-path="/search">`) {
-		t.Error("the overlay is not hidden by default, or carries the wrong search path")
+	if !strings.Contains(body, `<div id="search-overlay" class="search-overlay" hidden>`) {
+		t.Error("the overlay is not hidden by default")
+	}
+	input, ok := sectionOf(body, `<input type="search" name="q" class="search-overlay-input"`, ">")
+	if !ok {
+		t.Fatal("the overlay has no named search input")
+	}
+	for _, attr := range []string{
+		`hx-get="/search?partial=1"`,
+		`hx-trigger="input changed delay:120ms, search-open"`,
+		`hx-target="next .search-overlay-results"`,
+		`hx-sync="this:replace"`,
+	} {
+		if !strings.Contains(input, attr) {
+			t.Errorf("the overlay's input is missing %s", attr)
+		}
 	}
 
 	script := fetchAs(t, srv, "/static/app.js", nil).Body.String()
 	if !strings.Contains(script, `getElementById("search-overlay")`) {
 		t.Error("the script does not reach the search overlay")
 	}
-	// The path comes from the overlay's own data attribute rather than
-	// being hardcoded, so the same script works under the share prefix —
-	// see TestSharedSearchWorksUnderThePrefix.
-	if !strings.Contains(script, `overlay.dataset.searchPath`) {
-		t.Error("the script does not read the overlay's search path")
-	}
-	if !strings.Contains(script, `"?partial=1&q="`) {
-		t.Error("the overlay does not fetch the partial results route")
+	if !strings.Contains(script, `htmx.trigger(input, "search-open")`) {
+		t.Error("opening the overlay does not ask htmx for the empty query's results")
 	}
 	if strings.Contains(script, `getAttribute("name") === "menu-group"`) {
 		t.Error("the search script reaches into the menu-group group, which is a separate concern")
@@ -222,6 +233,11 @@ func TestSharedSearchWorksUnderThePrefix(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/search?q=hard", nil).Body.String()
+	// The overlay's input asks the same prefixed route, so the palette
+	// works for an anonymous reader too.
+	if !strings.Contains(body, `hx-get="/share/`+slug+`/search?partial=1"`) {
+		t.Error("the overlay's input does not ask the share prefix's search route")
+	}
 	if fetchAs(t, srv, "/share/"+slug+"/search?q=hard", nil).Code != http.StatusOK {
 		t.Fatal("the shared search route is not reachable without a session")
 	}
