@@ -1657,7 +1657,10 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .callout { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
 .callout .accent { color: var(--color-accent); }
 .callout .kicker { font-size: 11px; letter-spacing: .07em; }
-.callout-text { font-size: var(--text-xs); line-height: 1.45; margin: 3px 0 0; }
+/* Body size, not the 11px the kicker and the meta line share: the sentence
+   is the callout, and at the same size as the line under it that says when,
+   it read as fine print. */
+.callout-text { font-size: var(--text-sm); line-height: 1.45; margin: 3px 0 0; }
 .callout-meta { margin: 5px 0 0; font-size: 11px; color: var(--color-text-35); font-variant-numeric: tabular-nums; }
 
 /* Form, as rows rather than three cards and a six-column table. The cards
