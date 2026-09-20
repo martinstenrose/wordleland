@@ -554,8 +554,9 @@ func follow(p *page, href string) {
 
 // Following a link never reloads the document.
 //
-// The page switcher's whole promise. A counter set on window survives a
-// switch and does not survive a load, so it is the one honest witness.
+// The whole promise of switching pages in place. A counter set on window
+// survives a switch and does not survive a load, so it is the one honest
+// witness.
 func TestBrowserFollowingALinkNeverReloads(t *testing.T) {
 	site := newSite(t)
 	p := site.open(newBrowser(t), desktopWidth)
@@ -902,8 +903,12 @@ func TestBrowserAMissingPageKeepsTheRailOff(t *testing.T) {
 	p.Navigate(site.base + "/leaderboard")
 	p.Eval(`window.__alive = 1; true`)
 
+	// htmx boosts what it has processed. Everything the server renders and
+	// everything htmx swaps in is; a link a test writes into the page is
+	// not, so it is handed over the way app.js hands over what it inserts.
 	p.Eval(`document.querySelector("main").insertAdjacentHTML("afterbegin",
-		'<a id="__missing" href="/no-such-page">nowhere</a>'); true`)
+		'<a id="__missing" href="/no-such-page">nowhere</a>');
+		htmx.process(document.getElementById("__missing")); true`)
 	p.Click("#__missing")
 	p.WaitFor(`location.pathname === "/no-such-page"`)
 	if alive := p.Number(`window.__alive || 0`); alive != 1 {
@@ -1030,5 +1035,110 @@ func TestBrowserAThemeLinkChangesTheThemeInPlace(t *testing.T) {
 	}
 	if on := p.String(`document.querySelector(".theme-track a.theme-opt.on").getAttribute("href")`); on != href {
 		t.Errorf("the theme picker marks %s, not the %s just chosen", on, href)
+	}
+}
+
+// After a switch, focus lands somewhere a reader can use.
+//
+// The element that was pressed is gone with the body it was in, and focus
+// left on a departing node falls to the body — a keyboard back at the top
+// of the page with nothing to say it moved. Three controls are a place in
+// the page rather than a step out of it and keep focus there: a rail row
+// focuses the same row in the new rail, a ranking row reopens the menu on
+// that row, the section bar keeps the focus and stays shut. Everything
+// else lands on the main region. None of this is in the markup.
+func TestBrowserFocusLandsSomewhereUsefulAfterASwitch(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), desktopWidth)
+	p.Navigate(site.base + "/today")
+
+	// The active element's href, or what it is when it has none.
+	const active = `(() => { const a = document.activeElement; if (!a) return "nothing";
+		return a.getAttribute("href") || a.id || a.tagName.toLowerCase(); })()`
+
+	for _, href := range railHrefs(p) {
+		follow(p, href)
+		p.WaitFor(fmt.Sprintf(`%s === %q`, active, href))
+	}
+
+	// A link inside the page: the main region.
+	p.Navigate(site.base + "/leaderboard")
+	p.Eval(`document.querySelector("main").__stale = true; true`)
+	p.Click(".board a.player")
+	p.WaitFor(`location.pathname.startsWith("/players/") && !(document.querySelector("main") || {}).__stale`)
+	p.WaitFor(active + ` === "main"`)
+
+	// A ranking row: the menu was open, and the reader may have a second
+	// rule to set, so it opens again on the row they chose.
+	p.Navigate(site.base + "/leaderboard")
+	p.Eval(`document.querySelector("details.ranking").open = true; document.querySelector("main").__stale = true; true`)
+	p.Click(".ranking-panel a:not(.on)")
+	p.WaitFor(`!(document.querySelector("main") || {}).__stale`)
+	p.WaitFor(`document.querySelector("details.ranking").open && document.querySelector(".ranking-panel").contains(document.activeElement)`)
+
+	// The section bar: the reader asked for a page, not the list again, so
+	// the menu stays shut and the bar keeps the focus.
+	p.Navigate(site.base + "/admin/settings")
+	p.Eval(`document.querySelector("main").__stale = true; true`)
+	p.Click(".switcher-panel a:not(.on)")
+	p.WaitFor(`!(document.querySelector("main") || {}).__stale`)
+	p.WaitFor(`document.activeElement === document.querySelector("details.switcher > summary") && !document.querySelector("details.switcher").open`)
+}
+
+// Collapsing the rail does not reload the page, and the width is remembered.
+//
+// The control is a link to this page at the other width, and following it
+// with no script is the whole feature. With script it must still not cost
+// a reload — and the server must still be told, because the next page load
+// reads the cookie and nothing else.
+func TestBrowserCollapsingTheRailIsRememberedWithoutAReload(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), desktopWidth)
+	p.Navigate(site.base + "/today")
+	p.Eval(`window.__alive = 1; true`)
+
+	before := p.String(`document.documentElement.dataset.sidebar || ""`)
+	p.Click(".nav-collapse")
+	p.WaitFor(fmt.Sprintf(`(document.documentElement.dataset.sidebar || "") !== %q`, before))
+	after := p.String(`document.documentElement.dataset.sidebar || ""`)
+	if alive := p.Number(`window.__alive || 0`); alive != 1 {
+		t.Errorf("collapsing the rail reloaded the document")
+	}
+
+	// A fresh load comes back at the width just chosen. Polled, because the
+	// request that tells the server may still be in flight.
+	deadline := time.Now().Add(4 * time.Second)
+	for {
+		p.Navigate(site.base + "/leaderboard")
+		if got := p.String(`document.documentElement.dataset.sidebar || ""`); got == after {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("a fresh load still shows the rail %q after choosing %q", before, after)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+// Posting a form does not reload the document either.
+//
+// The old switcher took links only; htmx boosts forms as well, so signing
+// out, saving a name or answering a question all arrive without the flash.
+// Sign out is the form on every page: it posts, the server redirects to
+// the sign-in card, and the card is swapped in with the same window.
+func TestBrowserSubmittingAFormDoesNotReload(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), desktopWidth)
+	p.Navigate(site.base + "/settings/account")
+	p.Eval(`window.__alive = 1; true`)
+
+	p.Eval(`document.querySelector("details.account").open = true; true`)
+	p.Click("details.account form button")
+	p.WaitFor(`location.pathname === "/" && !!document.querySelector(".auth-frame")`)
+	if alive := p.Number(`window.__alive || 0`); alive != 1 {
+		t.Errorf("signing out reloaded the document")
+	}
+	if n := p.Number(`document.querySelectorAll(".sidebar, .topbar").length`); n != 0 {
+		t.Errorf("the sign-in card arrived with %v pieces of the application's frame", n)
 	}
 }

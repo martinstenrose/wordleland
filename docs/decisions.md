@@ -705,20 +705,84 @@ overlay wants a list of hits rather than a page.
 
 What it costs is a constraint on every enhancement written from here. An
 enhancement that delegates from the document is unaffected; one that holds on
-to a particular element is holding a node that a switch throws away. The four
-that do — search, the rail's collapse, the raised outcome, the copy button —
-register with a re-init registry that runs them again after every switch, and
-so must be safe to run more than once.
+to a particular element is holding a node that a swap throws away. The ones
+that do — search, the raised outcome, the copy button — register with a
+re-init registry that runs them again after every body swap, and so must be
+safe to run more than once.
 
-None of that is verifiable in this repository, for the reason the drawer
-above is not: there is no headless browser here, and adding one is a
-dependency that needs its own argument. That Back restores both the page and
-its scroll, that focus lands somewhere a reader can use it, and that no page
-is ever actually reloaded were checked by driving a real browser, not by
-anything that runs in CI. What *is* pinned here is the part that is easy to
-break by moving code: the switcher's click listener has to be the last one
-registered, because several enhancements take a press by calling
-`preventDefault` and the switcher stands down when one of them has.
+The switcher itself was hand-written, three hundred lines of it, and is
+htmx's now — see *htmx does the fetching*, below. What it asserted by hand is
+asserted by the browser suite: no reload, Back restores the page and its
+scroll, a switched-in page starts at the top, focus lands somewhere a reader
+can use. See *What only a browser can check*.
+
+## htmx does the fetching
+
+Every enhancement above but three had the same shape: take a press the
+markup had already handled, fetch the URL it pointed at, put what came back
+in place of something, reconcile. The page switcher did it for the body, the
+share slug's rotation for a card, the palette for a list; the rail's
+collapse did the visible half first and fetched afterwards. Each was written
+by hand, and together they were most of `app.js`.
+
+htmx is that shape as a library: an attribute says what to fetch and where
+to put it, and the file does the rest — history, scroll, the request that a
+newer request should cancel. So the body is boosted (`<body hx-boost="true">`,
+in `base.html`), which is the page switcher, and the two places that swap
+something other than the body say so in their own template. `app.js` keeps
+what htmx has no attribute for.
+
+**This goes against two recorded decisions, deliberately.** AGENTS.md's
+"vanilla, no dependency", and *No new dependency, and the rule stands* below,
+which turned down a small websocket client for the tests. The rule was that
+a dependency needs a reason, and the reason here is the one above: the file
+had grown into a bespoke copy of a well-known library, and every new
+enhancement was going to add to the copy. What the rule was for still holds
+— no npm, no build step, no bundler: htmx is one file copied into `static/`
+and embedded like the stylesheet, and upgrading it is copying a newer one.
+Version 2.0.10, 0BSD. Version 4 exists and is a rewrite with a different
+extension model; the SSE extension this work also needs targets 2.x, so 2
+it is.
+
+What did not fit, because the shape is worth knowing where it ends:
+
+- **A dialog is not a swap target.** The enrolment dialog fetches a card
+  that is a template shared with a standalone page. htmx wants the dialog's
+  target on a container the card lands in, and every link inside — whose
+  job on the standalone page is to navigate — would then have needed
+  attributes undoing the container's; the form's Cancel sits inside the
+  form. So the dialog keeps its own requests, and is never handed to htmx at
+  all: nothing inside it is boosted, and every press in it is `app.js`'s.
+- **htmx boosts what it has processed.** Everything the server renders and
+  everything htmx swaps in is; a node a script inserts is not, until
+  `htmx.process` is called on it. The palette learnt this the first time a
+  hit reloaded the page it led to.
+- **htmx's listener is on the element**, so it fires before anything
+  `app.js` delegates from the document. A control `app.js` takes over — the
+  search button, the enrolment link — says `hx-boost="false"` where it is
+  rendered, or htmx fetches the page first. This replaces the old
+  constraint that the switcher's listener be registered last.
+- **Forms are boosted too.** The old switcher took links only. Opting every
+  form out would have been fighting the tool for a distinction a reader
+  cannot see, and the no-script path is a form that posts, as before.
+- **The rail's collapse lost its instant half.** It flipped the width on
+  `<html>` before asking the server; now it is one boosted link among the
+  rest and the width arrives with the page. On the networks this runs on
+  that is the same moment, and it took thirty lines and two attributes with
+  it.
+- **Back shows the page as it was left.** htmx keeps the last ten pages in
+  the tab's `sessionStorage` and restores one on Back with its scroll
+  position, which is what the browser does for a page it loaded itself. A
+  result that landed in between is not in the snapshot; a page that
+  subscribes to live results asks for what it missed the moment it is back
+  on screen.
+
+A later single-page island on one route — a stats explorer has been talked
+about — inherits the boost and the history cache. Its root says
+`hx-boost="false"` or its own links are hijacked; it mounts again on
+`htmx:load` and `htmx:historyRestore` or a restored snapshot of it is dead
+markup; and its bundle goes in `<head>`, because scripts inside a swapped
+body are not run.
 
 ## Every control is one of four things
 
@@ -1289,3 +1353,13 @@ It does not test the no-JavaScript story, which is the rest of the suite's
 job and which a browser with script disabled would only re-prove. And it
 does not run under `go test ./...`: a suite that is slow or environment-
 bound trains people to skip it, and this one's whole value is in being run.
+
+**It was the parity net it was written to be.** The front end did change
+again — the hand-written page switcher became htmx's boost, see *htmx does
+the fetching* — and the suite ran unchanged against the new script except
+where it had to be told about a rule htmx has and the old script did not
+(a link a test writes into the page has to be handed to htmx). Two
+assertions were added ahead of that change and confirmed against the old
+script first: where focus lands after a switch, and that collapsing the
+rail neither reloads nor forgets. A third, that posting a form does not
+reload either, is new behaviour and was added with it.

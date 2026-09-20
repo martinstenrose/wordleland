@@ -6,10 +6,16 @@
   {{if .Notice}}<p class="note" role="status" data-raise="{{.T.T "action.close"}}">{{.Notice}}</p>{{end}}
   {{if .Error}}<p class="note error" role="alert">{{.Error}}</p>{{end}}
 
-  {{/* share-section is app.js's hook: the whole of this block is what a
-       rotation replaces, and scoping the script to it keeps it off the admin
-       strip above, which links here too. */}}
-  <div class="settings-section share-section">
+  {{/* Rotating is three page loads without a script — ask, answer, outcome
+       — and these attributes collapse them into swaps of this card: every
+       link and form inside fetches the page it already pointed at, htmx
+       picks the card out of it and puts it in place of this one, and the
+       address follows. The card rather than the body, which every other
+       link swaps, so the outcome lands as the note inside it rather than
+       being raised into a panel: the slug visibly changed under the
+       reader's eyes, and a dialog on top of that is feedback for nothing. */}}
+  <div class="settings-section share-section"
+       hx-target="closest section.card" hx-select="section.card" hx-swap="outerHTML" hx-replace-url="true">
     <h2 class="section flush">{{.T.T "admin.settings.slug"}}</h2>
     {{if .Slug}}
       {{/* The slug, and only the slug: it is what identifies this link and

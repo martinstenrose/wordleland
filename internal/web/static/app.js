@@ -1,23 +1,30 @@
 // Independent, self-contained enhancements, each an IIFE with its own
 // header comment. Every rule from AGENTS.md's JavaScript section applies
-// to all of them: vanilla, no build step, no dependency, and each is
-// strictly additive — the feature it touches has a working, server-
-// rendered form already, and this file only adds a shortcut or a nicety on
-// top of it.
+// to all of them: no build step, and each is strictly additive — the
+// feature it touches has a working, server-rendered form already, and this
+// file only adds a shortcut or a nicety on top of it.
+//
+// The fetching and swapping is htmx's, declared where the markup is: every
+// link and form is boosted (base.html), and the few places that swap
+// something other than the body say so in their own template. What is here
+// is what htmx cannot express — a keystroke, a dialog, the clipboard, the
+// geometry of a popup — and, in the last block, the handful of things a
+// body swap leaves undone.
 
-// The one thing in this file outside an IIFE: a registry the page switcher
-// at the bottom runs after it has replaced the document's body.
+// The one thing in this file outside an IIFE: a registry the last block
+// runs after htmx has replaced the document's body.
 //
 // An enhancement that delegates from the document needs nothing here — its
 // listener outlives every element it will ever fire for. These are the ones
-// that hold on to a particular element, which after a switch is a node that
+// that hold on to a particular element, which after a swap is a node that
 // is no longer in the page. A function registered here runs now and again
-// after every switch, so it has to be safe to run more than once: look the
-// elements up each time, and register document-level listeners outside it.
-// Set by the page switcher at the bottom: re-renders the page at the current
-// URL in place, for anything that changed the account underneath it. Null
-// until then, and null for good where the switcher is not running, so every
-// caller has to have a way of coping without it.
+// after every body swap, so it has to be safe to run more than once: look
+// the elements up each time, and register document-level listeners outside
+// it.
+// Set by the last block: re-renders the page at the current URL in place,
+// for anything that changed the account underneath it. Null until then, and
+// null for good where htmx did not load, so every caller has to have a way
+// of coping without it.
 var refreshPage = null;
 
 var onPageChange = (function () {
@@ -176,7 +183,11 @@ var onPageChange = (function () {
     fetch(searchPath + "?partial=1&q=" + encodeURIComponent(query))
       .then(function (response) { return response.ok ? response.text() : ""; })
       .then(function (html) {
-        if (thisRequest === requestID) results.innerHTML = html;
+        if (thisRequest !== requestID) return;
+        results.innerHTML = html;
+        // htmx boosts what it has processed, and this list arrived by
+        // hand: without this a hit would reload the page it leads to.
+        if (window.htmx) htmx.process(results);
       })
       .catch(function () {
         // Pure enhancement: leave whatever results are already showing
@@ -266,65 +277,6 @@ var onPageChange = (function () {
   });
 })();
 
-// Collapsing the rail without the round trip.
-//
-// The control is a link and stays one: following it re-renders the page at the
-// other width and the server remembers the choice in a cookie. That is the
-// whole feature, and it works with this file absent, disabled, or failing to
-// load. What this adds is doing the visible half here — flipping the width
-// attribute on <html>, which is what the stylesheet keys the rail off — and
-// asking the server for the same URL in the background so the cookie is right
-// for the next page load. Nothing is rendered from script: the wording, the
-// arrow and the accessible name all follow that one attribute through CSS.
-//
-// If the background request fails, this page keeps the width just chosen and
-// the next one goes back to the stored width. A modified click (new tab, new
-// window) is left alone to do what was asked of it.
-(function () {
-  "use strict";
-
-  if (!window.fetch) return; // Without it the link is still the whole feature.
-
-  // Bound again after every page switch: the rail on the page now is not the
-  // one this was bound to.
-  onPageChange(function () {
-    var toggle = document.querySelector(".nav-collapse");
-    if (!toggle) return; // Signed out, or a page with no rail.
-
-    toggle.addEventListener("click", function (event) {
-      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-        return;
-      }
-      event.preventDefault();
-
-      var root = document.documentElement;
-      var next = root.getAttribute("data-sidebar") === "narrow" ? "wide" : "narrow";
-
-      // Read both before anything moves: one is the width being applied, which
-      // is what the server has to be told, and the other is where the link
-      // points afterwards. Taking them in the wrong order stores the width the
-      // reader just left.
-      var applied = next === "narrow" ? toggle.dataset.hrefNarrow : toggle.dataset.hrefWide;
-      var other = next === "narrow" ? toggle.dataset.hrefWide : toggle.dataset.hrefNarrow;
-
-      root.setAttribute("data-sidebar", next);
-
-      // Point the link at the other width, for the next press and for anyone
-      // who opens it in a tab of its own.
-      if (other) toggle.setAttribute("href", other);
-
-      // The label now showing is the one describing the next press, so the
-      // tooltip comes from the DOM rather than from a copy kept here.
-      var label = toggle.querySelector(".nav-label .to-" + (next === "narrow" ? "wide" : "narrow"));
-      if (label) toggle.setAttribute("title", label.textContent.trim());
-
-      // HEAD rather than GET: the handler still runs and still sets the cookie,
-      // and a page's worth of HTML is not worth transferring to discard.
-      if (applied) fetch(applied, { method: "HEAD", credentials: "same-origin" }).catch(function () {});
-    });
-  });
-})();
-
 // Raising an outcome to the middle of the screen.
 //
 // A change that lands somewhere else — a confirmation mailed to an address
@@ -401,11 +353,7 @@ var onPageChange = (function () {
   });
 })();
 
-// The share slug: copying it, and rotating it without leaving the page.
-//
-// Two enhancements in one place because they are one thing. A rotation
-// replaces the slug, and the copy button carries the address of the slug it
-// was built for — so whatever rebuilds one has to rebuild the other.
+// The share slug's copy button.
 //
 // Copying cannot exist without a script at all: a clipboard cannot be written
 // to from markup. That is why the button is built here rather than rendered
@@ -413,22 +361,13 @@ var onPageChange = (function () {
 // plain http to anything but localhost, which has no navigator.clipboard,
 // gets no button instead of a dead one.
 //
-// Rotating works entirely without this. The control is a link to the same
-// page with the question showing, the answer is a form that posts, and the
-// server redirects to the outcome — three page loads for one decision. This
-// swaps the card in place at each step instead. Every request it makes is the
-// one the markup already pointed at, so nothing is decided here that the
-// server did not decide, and any failure falls back to the navigation that
-// was asked for.
-//
-// The whole card is fetched rather than a "?partial=1" fragment, unlike the
-// board's ranking menu: here the card is nearly the whole page, so a partial
-// route would save almost nothing and add a branch to a handler.
-//
-// One deliberate difference from a full page load: the outcome arrives as the
-// note inside the swapped card rather than being raised into a panel. The
-// slug visibly changes under the reader's eyes, and a dialog to dismiss on
-// top of something they just watched happen is feedback for nothing.
+// Rotating the slug is not here. It is three links and a form that work
+// with no script, and the attributes on the share section in
+// admin_settings.html have htmx swap the card in place at each step. What
+// that leaves for this file is that a rotation replaces the slug, and the
+// button carries the address of the slug it was built for — so the button
+// is built again after any swap that is not the whole body, the registry
+// covering the rest.
 (function () {
   "use strict";
 
@@ -436,6 +375,7 @@ var onPageChange = (function () {
   function mountCopy() {
     var row = document.querySelector("[data-copy]");
     if (!row) return; // No link yet, or no APP_URL to make it absolute with.
+    if (row.querySelector("button")) return; // Already mounted on this row.
     if (!navigator.clipboard || !navigator.clipboard.writeText) return;
 
     var button = document.createElement("button");
@@ -466,75 +406,8 @@ var onPageChange = (function () {
   }
 
   onPageChange(mountCopy);
-  if (!window.fetch) return; // Without it every control is still a real one.
-
-  // Swaps in the card from a response, and puts the copy button back on it.
-  // Returns false when the markup was not what we expected, so the caller can
-  // fall back to a real navigation rather than leaving a half-changed page.
-  function swap(html, url) {
-    var card = document.querySelector("section.card");
-    var wrapper = document.createElement("div");
-    wrapper.innerHTML = html;
-    var replacement = wrapper.querySelector("section.card");
-    if (!card || !replacement) return false;
-
-    card.replaceWith(replacement);
-    if (url) history.replaceState(null, "", url);
-    mountCopy();
-    return true;
-  }
-
-  function load(url) {
-    fetch(url, { credentials: "same-origin" })
-      .then(function (response) { return response.ok ? response.text() : null; })
-      .then(function (html) {
-        if (html === null || !swap(html, url)) window.location.href = url;
-      })
-      .catch(function () { window.location.href = url; });
-  }
-
-  // Asking the question, and taking it back: both are links to this same page
-  // with the question showing or not.
-  document.addEventListener("click", function (event) {
-    var link = event.target.closest(".share-section a[href]");
-    if (!link) return;
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-      return;
-    }
-    event.preventDefault();
-    load(link.href);
-  });
-
-  // Answering it. The form carries its own CSRF token, so posting it as it
-  // stands is the same request the browser would have made.
-  document.addEventListener("submit", function (event) {
-    var form = event.target;
-    if (!form.matches(".share-section form")) return;
-
-    event.preventDefault();
-    // URLSearchParams, not the FormData it is built from: FormData posts as
-    // multipart, and this form declares no enctype, so a browser submitting
-    // it sends url-encoded. The difference is not cosmetic — Go's ParseForm
-    // does not read a multipart body, leaves PostForm empty, and the CSRF
-    // token goes missing, which the server correctly answers with "the form
-    // expired". Every request this makes has to be the one the markup
-    // already described.
-    fetch(form.action, {
-      method: "POST",
-      body: new URLSearchParams(new FormData(form)),
-      credentials: "same-origin",
-    })
-      .then(function (response) {
-        // The redirect has been followed, so this is the outcome page and
-        // response.url is where it landed.
-        return response.ok ? response.text().then(function (html) {
-          return { html: html, url: response.url };
-        }) : null;
-      })
-      .then(function (result) {
-        if (result === null || !swap(result.html, result.url)) form.submit();
-      })
-      .catch(function () { form.submit(); });
+  document.addEventListener("htmx:afterSettle", function (event) {
+    if (event.detail.target !== document.body) mountCopy();
   });
 })();
 
@@ -557,6 +430,17 @@ var onPageChange = (function () {
 // template, for the reason the raised outcome above is: only here is it true.
 // Focus moves in, is held inside while it is open, and goes back to the
 // control that opened it when it closes.
+//
+// This is the one enhancement that keeps its own requests rather than
+// handing them to htmx, and htmx never sees inside it. htmx wants a
+// dialog's target on a container the card lands in, and the card is a
+// template shared with the standalone page, whose links must go on
+// navigating the page — so each of them would have needed attributes undoing
+// the container's, and the form's Cancel sits inside the form. Instead the
+// card is inserted here and never handed to htmx.process, so nothing in it
+// is boosted: every press inside is this file's, and the whole exchange
+// stays where it was written. The link that opens it says hx-boost="false"
+// in settings.html so htmx leaves that press to this file too.
 (function () {
   "use strict";
 
@@ -685,6 +569,17 @@ var onPageChange = (function () {
       .catch(function () { window.location.href = url; });
   }
 
+  // Should the body be swapped under an open dialog — a live update, say —
+  // the dialog goes with it, and only the state kept here needs forgetting.
+  document.addEventListener("htmx:afterSettle", function (event) {
+    if (event.detail.target !== document.body || !backdrop) return;
+    backdrop = null;
+    panel = null;
+    changed = false;
+    document.removeEventListener("keydown", onKey);
+    document.documentElement.style.overflow = "";
+  });
+
   document.addEventListener("click", function (event) {
     if (event.defaultPrevented) return;
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
@@ -747,107 +642,39 @@ var onPageChange = (function () {
   });
 })();
 
-// Switching pages without the flash.
+// What htmx leaves to this file.
 //
-// Every link in the application is a real link to a real URL, and following
-// one works with this file absent, disabled, or failing to load. That is the
-// whole feature and none of it is built here. What a full page load costs is
-// the flash: the document is torn down and drawn again, and the bar, the rail
-// and the wordmark — identical on every page — go white and come back. On a
-// phone that reads as the application blinking each time it is touched.
-//
-// This fetches the page the link points at and puts it in place instead.
-//
-// The whole body is replaced, not just the content. The rail's highlight, the
-// theme and language links (each of which is the current URL with one
-// parameter changed) and the title all belong to the page being moved to, and
-// patching the handful known to differ is a list that goes stale the first
-// time somebody adds a control to the bar. What arrives here is the server's
-// own rendering of that URL, so a page reached this way and a page reached by
-// following the link are the same page — which is also why the pages that
-// used to answer "?partial=1" for this no longer need to.
-//
-// It replaces two enhancements that each did this for one route: the board's
-// ranking menu and the player roster. Both survive as the focus rules below,
-// which are the only part that was ever specific to them.
-//
-// Anything it cannot do it hands back to the browser: a modified click, a
-// link out of the application, a reply that is not HTML, markup that is not a
-// document, a request that fails. The fallback is always the navigation that
-// was asked for, which is what would have happened anyway.
+// Every link and form in the application is boosted — <body hx-boost="true">
+// in base.html — so following one fetches the page and puts its body in
+// place of this one. The whole body, as docs/decisions.md asks: an error
+// page arrives without the rail, a theme link arrives with the theme, and a
+// page reached this way is the server's own rendering of that URL. htmx
+// does the fetching, the swapping, the history and the scroll. Four things
+// are outside its reach and live here.
 (function () {
   "use strict";
 
-  if (!window.fetch || !window.history || !history.pushState) return;
-  if (!window.DOMParser || !window.AbortController) return;
-  if (!document.body || !document.body.replaceChildren) return;
+  if (!window.htmx || !window.DOMParser) return; // Without them every link is still a link.
 
-  var parser = new DOMParser();
-  var inFlight = null; // The request being waited on, if any.
-  var marked = false; // Whether the entry this page loaded on is one of ours.
-  var slow; // The timer that admits a page is taking a while.
-
-  // Where each of our history entries was scrolled to. Keyed by a number kept
-  // in the entry's own state, because a URL is not unique in a history: the
-  // same board can be three entries back and two entries forward.
-  var scrolls = {};
-  var entry = 0;
-  var nextEntry = 1;
-
-  function waiting(on) {
-    clearTimeout(slow);
-    if (!on) {
-      document.documentElement.removeAttribute("data-loading");
-      return;
-    }
-    // Only once it has taken long enough that silence would read as the
-    // press having done nothing. A page off a local network never gets here.
-    slow = setTimeout(function () {
-      document.documentElement.setAttribute("data-loading", "");
-    }, 120);
-  }
-
-  // apply puts a fetched document in place of this one, and reports whether
-  // it was a document at all — a reply that parses to an empty body is a
-  // sign-in page served as a fragment, or an error page from something in
-  // front of the application, and either is better navigated to for real.
-  function apply(html) {
-    var doc = parser.parseFromString(html, "text/html");
-    if (!doc || !doc.body || !doc.body.firstChild) return false;
-
-    // The attributes the server decides for the whole document: the reader's
-    // language, their theme, and how wide the rail is. Following a theme link
-    // is an ordinary navigation, so this is how the theme actually changes.
+  // 1. The attributes the server decides for the whole document — the
+  // reader's language, their theme, the rail's width — sit on <html>, which
+  // a body swap never touches. Following a theme link is an ordinary
+  // navigation, so this is how the theme actually changes.
+  document.addEventListener("htmx:beforeSwap", function (event) {
+    if (event.detail.target !== document.body || !event.detail.xhr) return;
+    var incoming = new DOMParser().parseFromString(event.detail.xhr.responseText, "text/html").documentElement;
     var root = document.documentElement;
-    var incoming = doc.documentElement;
     ["lang", "data-theme", "data-sidebar"].forEach(function (name) {
       var value = incoming.getAttribute(name);
       if (value === null) root.removeAttribute(name);
       else root.setAttribute(name, value);
     });
-    document.title = doc.title;
+  });
 
-    // The body's own attributes as well as its children. There are none
-    // today; a page that grows one would otherwise keep the last page's.
-    Array.prototype.slice.call(document.body.attributes).forEach(function (attr) {
-      if (!doc.body.hasAttribute(attr.name)) document.body.removeAttribute(attr.name);
-    });
-    Array.prototype.forEach.call(doc.body.attributes, function (attr) {
-      document.body.setAttribute(attr.name, attr.value);
-    });
-
-    document.body.replaceChildren.apply(
-      document.body,
-      Array.prototype.slice.call(doc.body.childNodes)
-    );
-    onPageChange.rerun();
-    return true;
-  }
-
-  // Focus has to be put somewhere: the element that was clicked is about to
-  // stop existing, and focus left on a departing node lands on the body,
-  // which puts a keyboard back at the start of the page with nothing to say
-  // it moved. A real navigation resets focus too — this only aims it better.
+  // 2. Focus. The element that was pressed is gone with the body it was in,
+  // and focus left on a departing node lands on the body, which puts a
+  // keyboard back at the start of the page with nothing to say it moved. A
+  // real navigation resets focus too — this only aims it better.
   function focusMain() {
     var main = document.getElementById("main");
     if (!main) return;
@@ -865,7 +692,7 @@ var onPageChange = (function () {
   // Where focus goes instead, for the three controls that are a place in the
   // page rather than a step out of it. Each returns false if the page that
   // arrived does not have what it was looking for, and the main region takes
-  // over.
+  // over. link is the anchor that was pressed, detached now but intact.
   function focusRule(link) {
     var ranking = link.closest(".ranking-panel");
     if (ranking) {
@@ -914,119 +741,45 @@ var onPageChange = (function () {
     return null;
   }
 
-  // go fetches url and, if what comes back is a page, puts it in place.
-  // commit is what to do with the history and the scroll once it is there:
-  // pushing an entry for a press, restoring one for a Back.
-  function go(url, commit, focus) {
-    if (inFlight) inFlight.abort();
-    var controller = new AbortController();
-    inFlight = controller;
-    waiting(true);
-
-    fetch(url, {
-      credentials: "same-origin",
-      headers: { Accept: "text/html" },
-      signal: controller.signal,
-    })
-      .then(function (response) {
-        var type = response.headers.get("content-type") || "";
-        if (type.indexOf("text/html") === -1) return null;
-        return response.text().then(function (html) {
-          // A redirect is where the reader actually ended up — a sign-in
-          // page, most often — so that is the address to record.
-          return { html: html, url: response.redirected ? response.url : url };
-        });
-      })
-      .then(function (result) {
-        if (inFlight !== controller) return; // A later press won.
-        inFlight = null;
-        waiting(false);
-        if (result === null || !apply(result.html)) {
-          window.location.href = url;
-          return;
-        }
-        commit(result.url);
-        if (!focus || !focus()) focusMain();
-      })
-      .catch(function (err) {
-        if (err && err.name === "AbortError") return;
-        waiting(false);
-        window.location.href = url;
-      });
+  // 3. The registry, and focus, after every body swap — a link followed, a
+  // form posted, Back or Forward, or a refresh asked for below.
+  function settled(link) {
+    onPageChange.rerun();
+    var rule = link ? focusRule(link) : null;
+    if (!rule || !rule()) focusMain();
   }
-
-  // Which links this can take over. Everything else is left alone, and left
-  // alone means the browser does exactly what the markup asked for.
-  function swappable(link) {
-    if (link.target && link.target !== "_self") return false;
-    if (link.hasAttribute("download")) return false;
-    if (link.dataset.reload !== undefined) return false; // The opt-out.
-    if (link.origin !== window.location.origin) return false; // Also catches mailto:.
-    if (link.pathname.indexOf("/static/") === 0) return false;
-
-    var href = link.getAttribute("href");
-    if (!href || href.charAt(0) === "#") return false; // An anchor in this page.
-    // This page with a fragment on it: the browser's own scroll, not a fetch.
-    if (link.pathname === window.location.pathname &&
-        link.search === window.location.search && link.hash) {
-      return false;
-    }
-    return true;
-  }
-
-  document.addEventListener("click", function (event) {
-    // Registered last in this file, so an enhancement that has already taken
-    // this press — the search button, the rail's collapse, the share slug —
-    // has said so by now.
-    if (event.defaultPrevented) return;
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-      return;
-    }
-
-    var link = event.target.closest("a[href]");
-    if (!link || !swappable(link)) return;
-
-    event.preventDefault();
-    var url = link.href;
-    var focus = focusRule(link);
-
-    // The entry this page loaded on is marked on the first switch, so coming
-    // back to it later is a switch like any other.
-    if (!marked) {
-      history.replaceState({ wl: entry }, "", window.location.href);
-      marked = true;
-    }
-    scrolls[entry] = window.scrollY;
-
-    var to = nextEntry++;
-    go(url, function (finalURL) {
-      history.pushState({ wl: to }, "", finalURL);
-      entry = to;
-      // A press is a new page, and a new page starts at the top.
-      window.scrollTo(0, 0);
-    }, focus);
+  document.addEventListener("htmx:afterSettle", function (event) {
+    if (event.detail.target !== document.body) return;
+    // requestConfig.elt is the element that made the request; detail.elt is
+    // only the one the event was raised on, which for a body swap is the body.
+    var config = event.detail.requestConfig;
+    var pressed = config && config.elt;
+    settled(pressed && pressed.tagName === "A" ? pressed : null);
   });
+  // Back and Forward: htmx puts the page back from its cache, or fetches it
+  // again, and either way the enhancements on it need running and focus needs
+  // a home. The scroll position is htmx's to restore, and it does.
+  document.addEventListener("htmx:historyRestore", function () { settled(null); });
 
   // For anything that changed the page underneath it — the enrolment dialog
   // finishing, say — without itself being a navigation.
   refreshPage = function () {
-    go(window.location.href, function () {}, null);
+    htmx.ajax("GET", window.location.href, { target: "body", swap: "innerHTML" });
   };
 
-  window.addEventListener("popstate", function (event) {
-    if (!marked) return; // Nothing here was switched, so nothing here is stale.
-    if (!event.state || typeof event.state.wl !== "number") {
-      // Older than anything this ever drew. The address bar already says
-      // where we are; a reload is the honest way to agree with it.
-      window.location.reload();
+  // 4. A request that could not be sent at all — the network is gone — is
+  // handed back to the browser as the navigation that was asked for, which
+  // is what would have happened anyway. A page that comes back is swapped
+  // whatever its status: the config in base.html has htmx treat a 404 as a
+  // page, which is what the error frame is.
+  document.addEventListener("htmx:sendError", function (event) {
+    var config = event.detail.requestConfig;
+    var pressed = config && config.elt;
+    if (pressed && pressed.tagName === "FORM") {
+      pressed.submit();
       return;
     }
-
-    scrolls[entry] = window.scrollY; // The page being left, before it goes.
-    var to = event.state.wl;
-    go(window.location.href, function () {
-      entry = to;
-      window.scrollTo(0, scrolls[to] || 0);
-    }, null);
+    var path = event.detail.pathInfo && event.detail.pathInfo.requestPath;
+    if (path) window.location.href = path;
   });
 })();

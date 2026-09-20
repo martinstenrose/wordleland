@@ -106,13 +106,6 @@ type chrome struct {
 	// works with no script at all.
 	SidebarToggle chromeOpt
 
-	// SidebarWideHref and SidebarNarrowHref are that same control's two
-	// destinations. app.js flips the rail without a round trip and needs the
-	// other one to point the link at afterwards; the server renders whichever
-	// applies now into SidebarToggle.Href for a reader with no script.
-	SidebarWideHref   string
-	SidebarNarrowHref string
-
 	// ThemeNext is the theme the single-button control moves to, for a bar
 	// too narrow to carry all three.
 	ThemeNext chromeOpt
@@ -297,17 +290,14 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 
 	// Collapsing the rail is a per-device preference like the theme, and it
 	// travels the same way: a link back to this URL with the other width,
-	// remembered in a cookie. A script flipping a class would save the round
-	// trip and would also put script between a reader and a control that
-	// already works without it.
+	// remembered in a cookie. Nothing decides the width but this handler,
+	// so a page reached with or without script shows the same rail.
 	toggle := chromeOpt{Code: sidebarNarrow, Label: t.T("nav.collapse")}
 	if c.Sidebar == sidebarNarrow {
 		toggle = chromeOpt{Code: sidebarWide, Label: t.T("nav.expand")}
 	}
 	toggle.Href = urlWith(r, "sidebar", toggle.Code)
 	c.SidebarToggle = toggle
-	c.SidebarWideHref = urlWith(r, "sidebar", sidebarWide)
-	c.SidebarNarrowHref = urlWith(r, "sidebar", sidebarNarrow)
 
 	if user, ok := authenticated(r); ok && !readOnly {
 		c.User = &user

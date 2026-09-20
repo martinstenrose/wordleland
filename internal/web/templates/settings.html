@@ -109,7 +109,7 @@
                the old secret and cancels the recovery codes — so the same
                control changes tone with what it is about to do. */}}
           <a class="btn{{if .HasTOTP}} secondary danger{{end}}" href="/enroll-totp"
-             data-modal data-modal-close="{{.T.T "action.close"}}">
+             data-modal data-modal-close="{{.T.T "action.close"}}" hx-boost="false">
             {{if .HasTOTP}}{{.T.T "settings.totp.replace"}}{{else}}{{.T.T "settings.totp.setUp"}}{{end}}
           </a>
           {{if and .HasTOTP (not .TOTPRequired) (not .ConfirmDisable)}}

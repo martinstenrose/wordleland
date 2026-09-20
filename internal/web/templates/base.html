@@ -23,7 +23,15 @@
      will not fire would be advertising a control that does not work. */}}
 <noscript><style>.js-only{display:none}</style></noscript>
 </head>
-<body>
+{{/* Every link and form is boosted: following one fetches the page and puts
+     its body in place of this one — the whole body, so an error page arrives
+     without the rail and a theme link arrives with the theme. With the
+     scripts absent, disabled or failing to load, every one is still a link
+     or a form. The two controls app.js takes over itself — the search
+     button, the enrolment link — say hx-boost="false" where they are
+     rendered; the dialog the second opens is inserted by app.js and never
+     handed to htmx, so nothing inside it is boosted. */}}
+<body hx-boost="true" hx-indicator="html">
 {{if eq .Frame "app"}}
   {{/* The application shell: a bar across the top carrying the wordmark and
        the controls, and under it the rail beside the page. Every page inside
@@ -77,7 +85,7 @@
        half of that; the parenthesis after it is the half a screen reader
        gets. */}}
   <a class="footer-gh" href="https://github.com/martinstenrose/wordleland"
-     target="_blank" rel="noopener noreferrer" data-reload>
+     target="_blank" rel="noopener noreferrer">
     {{.T.T "footer.github"}}
     <span class="visually-hidden">({{.T.T "footer.newTab"}})</span>
     {{template "external-icon" .}}

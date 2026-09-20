@@ -503,34 +503,39 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 }
 .skip-link:focus { left: 0; }
 
-/* The main region takes focus when app.js switches a page in, so that a
+/* The main region takes focus when htmx has swapped a page in, so that a
    keyboard and a screen reader both land on what just changed rather than on
    the body. It is given a tabindex only for as long as that focus lasts, so
    it is never a tab stop; the ring would only ever be reporting something
    script did, and there is nothing there to act on. */
 #main:focus { outline: none; }
 
-/* A page being fetched in the background. app.js only sets this once the
-   fetch has taken long enough that silence would read as the press having
-   done nothing — a page off a local network never shows it at all. */
-html[data-loading]::after {
+/* A page being fetched in the background. htmx puts its request class on
+   <html> for as long as a boosted request is in flight (hx-indicator on
+   the body, see base.html); the bar waits 120ms before it shows, so that
+   it appears only once silence would read as the press having done nothing
+   — a page off a local network never shows it at all. */
+html.htmx-request::after {
   content: "";
   position: fixed;
   top: 0; left: 0; right: 0;
   height: 2px;
   z-index: 100;
   background: var(--color-accent);
-  animation: page-loading 1.1s ease-in-out infinite;
+  opacity: 0;
+  animation: page-loading 1.1s ease-in-out .12s infinite;
 }
 @keyframes page-loading {
-  0%   { clip-path: inset(0 100% 0 0); }
-  50%  { clip-path: inset(0 0 0 0); }
-  100% { clip-path: inset(0 0 0 100%); }
+  0%   { opacity: 1; clip-path: inset(0 100% 0 0); }
+  50%  { opacity: 1; clip-path: inset(0 0 0 0); }
+  100% { opacity: 1; clip-path: inset(0 0 0 100%); }
 }
-/* Still a bar, still across the top, just not moving. */
+/* Still a bar, still across the top, still after the same wait, just not
+   moving. */
 @media (prefers-reduced-motion: reduce) {
-  html[data-loading]::after { animation: none; opacity: .55; }
+  html.htmx-request::after { animation: page-appear 0s .12s forwards; }
 }
+@keyframes page-appear { to { opacity: .55; } }
 
 /* One bar across the whole width: the wordmark at the left, search in the
    middle, the controls at the right. It sits above the rail rather than beside

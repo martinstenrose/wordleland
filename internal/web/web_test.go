@@ -619,48 +619,64 @@ func TestFaviconIsServed(t *testing.T) {
 	}
 }
 
-// Switching pages in place rests on two things that are easy to break by
-// moving code around, so both are pinned here.
+// Switching pages in place is htmx's: the body is boosted, so every link
+// and form fetches its page and swaps the body. Two things are easy to
+// break by moving markup around, so both are pinned here.
 //
-// The first is ordering. Several enhancements take a press by calling
-// preventDefault — the search button, the rail's collapse, the share slug —
-// and the page switcher stands down when one of them has. Listeners fire in
-// the order they are registered, so the switcher's has to be the last click
-// listener in the file; registered earlier, it would swallow every one of
-// them before its owner saw it.
+// The first is the opt-outs. htmx's listener sits on the element itself and
+// fires before anything app.js delegates from the document, so a control
+// app.js takes over — the search button, the enrolment link — has to say
+// hx-boost="false" or htmx fetches the page first and the script's press
+// lands on a body that is being replaced. The dialog that link opens needs
+// no opt-out: app.js inserts it and never hands it to htmx.
 //
 // The second is the registry. Enhancements that hold on to an element rather
 // than delegating from the document have to be run again once the body has
-// been replaced, or search, the rail's collapse and the copy button stop
+// been replaced, or search, the raised outcome and the copy button stop
 // working after the first switch.
-func TestThePageSwitcherIsRegisteredLast(t *testing.T) {
+func TestEveryLinkIsBoostedExceptTheOnesScriptTakes(t *testing.T) {
 	srv := testServer(t)
-	js := fetchAs(t, srv, "/static/app.js", nil).Body.String()
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
 
-	switcher := strings.Index(js, "// Switching pages without the flash.")
-	if switcher < 0 {
-		t.Fatal("the page switcher is gone")
+	body := fetchAs(t, srv, "/settings/security", session).Body.String()
+	if !strings.Contains(body, `<body hx-boost="true"`) {
+		t.Fatal("the body is not boosted, so every link reloads the page")
 	}
-	const listener = `document.addEventListener("click"`
-	if last := strings.LastIndex(js, listener); last < switcher {
-		t.Error("a click listener is registered after the page switcher's, so the switcher sees the press first")
-	}
-
-	if !strings.Contains(js, "onPageChange.rerun()") {
-		t.Error("the page switcher does not run the re-init registry")
-	}
-	for _, enhancement := range []string{"search-overlay", ".nav-collapse", "mountCopy", "[data-raise]"} {
-		if !strings.Contains(js, "onPageChange") {
-			t.Fatal("there is no re-init registry")
+	for _, control := range []string{`class="menu-btn search-btn"`, `data-modal`} {
+		at := strings.Index(body, control)
+		if at < 0 {
+			t.Fatalf("no %s on the security screen", control)
 		}
-		if !strings.Contains(js, enhancement) {
+		tag := body[at:]
+		tag = tag[:strings.Index(tag, ">")]
+		if !strings.Contains(tag, `hx-boost="false"`) {
+			t.Errorf("%s is boosted, so htmx takes the press before the script does", control)
+		}
+	}
+	if strings.Contains(appJS(t, srv), "htmx.process(card)") {
+		t.Error("the enrolment dialog's card is handed to htmx, so its Cancel would navigate away")
+	}
+
+	script := appJS(t, srv)
+	if !strings.Contains(script, "onPageChange.rerun()") || !strings.Contains(script, "htmx:afterSettle") {
+		t.Error("nothing runs the re-init registry after htmx has swapped the body")
+	}
+	for _, enhancement := range []string{"search-overlay", "mountCopy", "[data-raise]"} {
+		if !strings.Contains(script, enhancement) {
 			t.Errorf("%s is gone from app.js", enhancement)
 		}
 	}
 }
 
+// appJS is app.js as served.
+func appJS(t *testing.T, srv *Server) string {
+	t.Helper()
+	return fetchAs(t, srv, "/static/app.js", nil).Body.String()
+}
+
 // Every frame has one, because it is both what the skip link points at and
-// where the page switcher puts focus once a page is in place.
+// where app.js puts focus once htmx has swapped a page in.
 func TestEveryFrameCarriesTheMainRegion(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
@@ -824,7 +840,7 @@ func TestADestructiveActAsksBeforeItActs(t *testing.T) {
 // Switching a page in leaves the reader at the top of it, with the bar still
 // on screen.
 //
-// The page switcher moves focus to the main region so that a reader who
+// After a swap, app.js moves focus to the main region so that a reader who
 // cannot see the page is told it changed. Focusing an element scrolls it into
 // view, and the bar above this one is sticky — so every switched-in page
 // arrived 56px down, with the bar scrolled away, on a page nobody had
@@ -837,12 +853,13 @@ func TestSwitchingAPageLeavesItAtTheTop(t *testing.T) {
 	srv := testServer(t)
 	js := fetchAs(t, srv, "/static/app.js", nil).Body.String()
 
-	// Scoped to the switcher: everywhere else a focus is meant to bring its
-	// target into view — a dialog's close button, the next control a trapped
-	// Tab reaches, the button a closing overlay hands focus back to.
-	at := strings.Index(js, "// Switching pages without the flash.")
+	// Scoped to the block that runs after a swap: everywhere else a focus is
+	// meant to bring its target into view — a dialog's close button, the
+	// next control a trapped Tab reaches, the button a closing overlay hands
+	// focus back to.
+	at := strings.Index(js, "// What htmx leaves to this file.")
 	if at < 0 {
-		t.Fatal("the page switcher is gone")
+		t.Fatal("the after-swap block is gone")
 	}
 	switcher := js[at:]
 
