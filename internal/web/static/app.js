@@ -613,6 +613,43 @@ var onPageChange = (function () {
   });
 })();
 
+// The live stream and the browser's own page cache.
+//
+// Today and the board hold a stream open (sse-connect on <main>, see
+// base.html), and htmx's SSE extension opens and closes it as the region
+// comes and goes. What the extension cannot see is the browser keeping a
+// page that was navigated away from — a share link typed in, a sign-in
+// redirect — alive in its back-forward cache with the stream still open.
+// Six such pages and the browser has no connection left for the next
+// request to this host; the seventh visit to Today never loads. So every
+// stream is closed the moment its page is hidden, and a page brought back
+// from that cache, stale and now streamless, is loaded again: the old
+// switcher reloaded for an entry older than anything it drew, for the same
+// reason.
+(function () {
+  "use strict";
+
+  if (!window.htmx || !window.EventSource) return;
+
+  var open = [];
+  // The extension makes every source through this hook, which is what it
+  // is for.
+  var create = htmx.createEventSource;
+  htmx.createEventSource = function (url) {
+    var source = create ? create(url) : new EventSource(url, { withCredentials: true });
+    open.push(source);
+    return source;
+  };
+
+  window.addEventListener("pagehide", function () {
+    open.forEach(function (source) { source.close(); });
+    open = [];
+  });
+  window.addEventListener("pageshow", function (event) {
+    if (event.persisted && document.querySelector("[sse-connect]")) window.location.reload();
+  });
+})();
+
 // What htmx leaves to this file.
 //
 // Every link and form in the application is boosted — <body hx-boost="true">

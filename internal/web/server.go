@@ -26,8 +26,10 @@ type Server struct {
 	// localeCodes is every loaded locale, English first and the rest
 	// alphabetical, so the language switcher has a stable order that does
 	// not depend on map iteration.
-	localeCodes  []string
-	limiter      *auth.Limiter
+	localeCodes []string
+	limiter     *auth.Limiter
+	// live feeds the open event streams — see live.go.
+	live         *liveHub
 	cipher       *auth.Cipher
 	mailer       *auth.Mailer
 	hashPassword func(string) (string, error)
@@ -87,6 +89,7 @@ func New(cfg *config.Config, db *sql.DB, logger *slog.Logger) (*Server, error) {
 		logger:       logger,
 		templates:    tmpl,
 		limiter:      auth.NewLimiter(0, 0),
+		live:         newLiveHub(db, logger),
 		cipher:       cipher,
 		hashPassword: auth.HashPassword,
 		mailer: auth.NewMailer(cfg.SMTP.Host, cfg.SMTP.Port, cfg.SMTP.User,
@@ -136,6 +139,13 @@ type Bridge interface {
 // can evict its expired buckets on a schedule.
 func (s *Server) Limiter() *auth.Limiter {
 	return s.limiter
+}
+
+// Close ends every open event stream. For http.Server.RegisterOnShutdown:
+// a stream is never idle, so Shutdown would otherwise wait its whole grace
+// period for readers who are not going anywhere.
+func (s *Server) Close() {
+	s.live.Close()
 }
 
 // SetBridge attaches the bridge. Passing nil, or not calling it, means

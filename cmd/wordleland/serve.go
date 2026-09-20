@@ -262,6 +262,9 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
+	// The live streams never go idle on their own, and Shutdown below waits
+	// for idle. This ends them the moment shutdown starts.
+	httpSrv.RegisterOnShutdown(srv.Close)
 
 	var wg sync.WaitGroup
 	if supervisor != nil {

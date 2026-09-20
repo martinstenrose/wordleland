@@ -787,6 +787,75 @@ What did not fit, because the shape is worth knowing where it ends:
   subscribes to live results asks for what it missed the moment it is back
   on screen.
 
+## A result that lands appears on the pages that are open
+
+Today and the leaderboard redraw themselves when a result is filed, over a
+server-sent event stream and htmx's SSE extension. Four decisions inside it
+are the ones worth keeping.
+
+**The stream carries a mark, not HTML.** The obvious design — the server
+knows when a result lands, so it renders the fragment and pushes it — ran
+into what a fragment depends on: the reader's language, whether they are on
+the share prefix, the hard-mode filter in their URL, and a chrome that
+needs the request to issue a token and set cookies. Rendering it in a
+goroutine would have been a second template layer, or one render per open
+page per event anyway, minus the request. So the stream says only that
+something changed — the id of the last activity-log row that filed a result
+— and each page fetches its own URL again and swaps its content in place.
+One render path; the fragment is never wrong for the reader looking at it.
+The cost is a handful of small GETs per event, for a group of a dozen.
+
+**The server learns by polling, not from the bridge.** Results land from
+the bridge, from `/api/ingest`, from a claim on the pending screen and from
+the CLI in another process, and a hook in the bridge would have caught one
+of the four. Every path writes the same activity-log row in the
+transaction that writes the result, so one indexed query every two seconds
+— while anyone is listening, and not otherwise — sees all of them. The
+brief said "the server already holds the Signal websocket, so it knows";
+it does, and it is the wrong thing to know from.
+
+**A page carries the mark it was rendered at.** The stream is opened with
+`?since=<mark>`, and a stream that opens behind is caught up by one event
+at once. That is what makes a page restored from htmx's history cache, or
+a reconnect the extension makes from scratch, show what landed while it
+was away; a browser reconnecting a dropped stream sends `Last-Event-ID`,
+which is honoured the same way. Nothing is queued server-side, because
+nothing needs to be: the only fact a stream can miss is "something
+changed", and the mark says whether it did.
+
+**Two pages subscribe, and the stream is behind the same door as they
+are.** Today and the board are what people leave open; Months, the grid,
+the roster and a player's page are archives, and each subscription is a
+connection held open. `/events` sits behind `requireAuth`; the share view
+has its own copy under the slug, whose constant-time check is the whole of
+its authentication, as for every shared page — and what a stream carries is
+a number. Sixty-four streams at once is the ceiling, well above a group
+with a tab each; the sixty-fifth is told to come back. `Server.Close` ends
+every stream and is registered with the HTTP server's shutdown, because a
+stream is never idle and `Shutdown` would otherwise sit out its whole grace
+period on every restart with a tab open somewhere — the one line this work
+adds outside the view layer.
+
+Two things the browser taught, worth knowing before touching the region:
+
+- **Attributes on the region are inherited by every boosted link in it.**
+  `hx-select`, `hx-target`, `hx-push-url` on `<main>` reached the player
+  links, which then swapped the player's page into the region at the same
+  address. `hx-disinherit` on the region names what is its own.
+- **A page navigated away from keeps its stream open in the browser's
+  back-forward cache.** One more open stream per visit to Today, and at six
+  Chrome has no connection left for this host and the next visit never
+  loads. So `app.js` closes every stream on `pagehide`, and reloads a page
+  the cache brings back — it is stale and has no stream, and the old
+  switcher reloaded for an entry older than anything it drew for the same
+  reason.
+
+What it deliberately does not do: keep an open `<details>` open through a
+redraw. A rank popup or the "still to submit" list open when a result lands
+closes with the content it was part of. A result lands a handful of times a
+day; the fix — `hx-preserve` on each — is one attribute per disclosure and
+can come when somebody minds.
+
 A later single-page island on one route — a stats explorer has been talked
 about — inherits the boost and the history cache. Its root says
 `hx-boost="false"` or its own links are hijacked; it mounts again on

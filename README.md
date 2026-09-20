@@ -216,6 +216,17 @@ is the name Docker gives it externally, and using that here fails with
 
 Whatever proxy is used, set `TRUSTED_PROXIES` to match it.
 
+**Let `/events` stream.** Today and the leaderboard hold a connection open
+to `/events` (and `/share/<slug>/events`) and redraw when a result lands.
+A proxy that buffers responses holds every event back until the connection
+closes, which looks like live updates that never arrive while everything
+else works. Caddy streams a `text/event-stream` response as it is; nginx
+needs `proxy_buffering off` for that path, and the app also sends
+`X-Accel-Buffering: no`, which nginx honours on its own. A proxy with a
+read timeout shorter than 25 seconds will cut the stream on the quiet — the
+browser reconnects on its own, but the timeout is worth raising. Without
+the stream the pages are still correct on load; only the redraw is lost.
+
 ## Images
 
 Published to GHCR by `.github/workflows/release.yml`:

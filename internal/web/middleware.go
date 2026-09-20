@@ -47,6 +47,13 @@ func (r *statusRecorder) Write(b []byte) (int, error) {
 	return r.ResponseWriter.Write(b)
 }
 
+// Unwrap lets http.ResponseController reach the writer underneath, which
+// the event stream needs for flushing each event and pushing its write
+// deadline forward.
+func (r *statusRecorder) Unwrap() http.ResponseWriter {
+	return r.ResponseWriter
+}
+
 // securityHeaders sets headers that apply to every response.
 //
 // Referrer-Policy is required by: the share link is a capability in
