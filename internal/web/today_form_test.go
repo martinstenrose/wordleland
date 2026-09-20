@@ -10,6 +10,66 @@ import (
 	"github.com/martinstenrose/wordleland/internal/store"
 )
 
+// The sparkline showed the shape of a month and none of its scores: a 2 and
+// an X looked like a dip and a spike. Five chips read the same way and are
+// legible, and they are the chip today's own table draws the score with, so
+// the two lists share one vocabulary. Newest on the right, a day not played
+// a gap rather than a score.
+func TestTodaysFormSpellsOutTheLastFiveInTheDaysOwnChip(t *testing.T) {
+	srv := testServer(t)
+	ctx := context.Background()
+	admin, err := store.CreateUser(ctx, srv.db, store.SystemActor(), "admin@example.tld", "hash", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	current := currentPuzzle()
+	p, err := store.CreatePlayer(ctx, srv.db, store.AdminActor(admin.ID), "Fiver", "fiver")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for puzzle := current - 30; puzzle < current-4; puzzle++ {
+		seedResult(t, srv, p.ID, puzzle, 4, false)
+	}
+	seedResult(t, srv, p.ID, current-4, 2, false)
+	// current-3 not played.
+	seedResult(t, srv, p.ID, current-2, 0, false)
+	seedResult(t, srv, p.ID, current-1, 4, true)
+	seedResult(t, srv, p.ID, current, 5, false)
+
+	body := fetchAs(t, srv, "/today", signIn(t, srv, admin.ID)).Body.String()
+	pane := body[strings.Index(body, `class="today-form"`):]
+	pane = pane[:strings.Index(pane, "card-foot")]
+
+	row := regexp.MustCompile(`(?s)<li class="form-row">.*?<span class="form-last-five">(.*?)</span>\s*<span class="form-avg`).FindStringSubmatch(pane)
+	if row == nil {
+		t.Fatal("the form row has no last-five cell between the name and the average")
+	}
+	chip := regexp.MustCompile(`<span class="cell (?:t\d tiny">\s*<details class="cell-pop" name="popup">\s*<summary>([^<]*)</summary>|(gap) tiny">)`)
+	var got []string
+	for _, m := range chip.FindAllStringSubmatch(row[1], -1) {
+		if m[2] != "" {
+			got = append(got, "-")
+			continue
+		}
+		got = append(got, m[1])
+	}
+	if want := []string{"2", "-", "X", "4*", "5"}; strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Errorf("the last five read %v, want %v", got, want)
+	}
+	if strings.Contains(pane, "<svg") {
+		t.Error("the form list still draws a sparkline")
+	}
+
+	// Today's score is the same chip, and the average sits before the delta
+	// it explains, as it does in the form list.
+	if !strings.Contains(body, `<span class="cell t5 tiny result-score">5</span>`) {
+		t.Error("today's score is not drawn by the same chip as the last five")
+	}
+	if !regexp.MustCompile(`<span class="result-avg num">\d\.\d\d</span>\s*<span class="result-delta delta worse">▲ `).MatchString(body) {
+		t.Error("the results row does not print the average before the delta it explains")
+	}
+}
+
 func TestTodayShowsThirtyDayFormWithBothRanks(t *testing.T) {
 	srv := testServer(t)
 	ctx := context.Background()
@@ -62,8 +122,8 @@ func TestTodayShowsThirtyDayFormWithBothRanks(t *testing.T) {
 			t.Fatal("no Today form list")
 		}
 		pane := body[at:]
-		if !strings.Contains(pane, "Form · last 30 days") || strings.Contains(pane, "7 days") || strings.Contains(pane, "form-periods") || !strings.Contains(pane, "form-spark") {
-			t.Error("Today is not fixed to 30-day form with charts")
+		if !strings.Contains(pane, "Form · last 30 days") || strings.Contains(pane, "7 days") || strings.Contains(pane, "form-periods") || !strings.Contains(pane, "form-last-five") {
+			t.Error("Today is not fixed to 30-day form with the last five beside it")
 		}
 		if !strings.Contains(pane, `class="form-avg num">3.23`) {
 			t.Error("the form score does not use 30 days")

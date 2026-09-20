@@ -14,7 +14,7 @@ func resultRows(t *testing.T, body string) [][4]string {
 	t.Helper()
 	row := regexp.MustCompile(`(?s)<li class="result-row">\s*` +
 		`<span class="result-pos num">([^<]*)</span>\s*` +
-		`<span class="cell t\d result-score">([^<]*)</span>\s*` +
+		`<span class="cell t\d tiny result-score">([^<]*)</span>\s*` +
 		`<a class="player result-name" href="[^"]+">([^<]+)</a>.*?` +
 		`<span class="result-delta delta [a-z]+">([^<]*)</span>`)
 	var out [][4]string
@@ -74,7 +74,7 @@ func TestAnUnrankedPlayerTakesNoPositionFromAnyoneElse(t *testing.T) {
 		}
 		// Their figure is withheld here as it is everywhere else; what they
 		// get instead is why.
-		if !strings.Contains(body, `<span class="result-avg">4 puzzles</span>`) {
+		if !strings.Contains(body, `<span class="result-avg num">4 puzzles</span>`) {
 			t.Error("the unranked row does not say how few puzzles they have")
 		}
 		return

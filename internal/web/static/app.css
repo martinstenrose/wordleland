@@ -1577,12 +1577,14 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
    On a phone there is no room for a row of labels, so the heading carries a
    hint naming the right-hand figures instead, and the labels are hidden. */
 .today-list-head {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px;
   padding: 9px 0 7px;
   border-bottom: 1px solid var(--color-text-10);
 }
 .today-list-head .kicker { margin: 0; }
-.today-list-hint { font-size: 11px; color: var(--color-text-35); }
+/* Three figures named in five languages: where the hint and the heading do
+   not share a line, the hint takes the next one, still at the right edge. */
+.today-list-hint { margin-left: auto; font-size: 11px; color: var(--color-text-35); white-space: nowrap; }
 
 .result-row.head, .form-row.head { display: none; }
 .result-row.head > *, .form-row.head > * {
@@ -1595,15 +1597,20 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 }
 
 .result-rows, .form-rows { list-style: none; margin: 0; padding: 0; }
+/* 8px between cells on a phone: the form row carries five chips and two
+   figures either side of the name, and at 390px every two pixels of gap is
+   one fewer letter of it. */
 .result-row, .form-row {
-  display: flex; align-items: center; gap: 11px;
-  /* The score tile's own height, so a row carrying one and a row that does
-     not come out the same — which is what lets the two lists line up with
-     each other row for row when they stand side by side.
+  display: flex; align-items: center; gap: 8px;
+  /* One minimum for both lists, taller than the 20px chips in them: the rank
+     cell's popup summary and a name at body size want it anyway, and a row
+     carrying chips and a row that does not coming out the same is what lets
+     the two lists line up with each other row for row when they stand side
+     by side.
 
      content-box, against the page's own border-box default: min-height
      otherwise counts the 22px of padding and the rule below, and a row with
-     nothing tall in it settles 5px short of one with a tile in it. */
+     nothing tall in it settles 5px short of one with a chip in it. */
   box-sizing: content-box;
   min-height: 30px;
   padding: 11px 0;
@@ -1615,10 +1622,24 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 }
 .result-name, .form-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.result-score { flex: none; width: 30px; height: 30px; font-size: var(--text-md); font-weight: 700; }
-.result-figures { flex: none; display: flex; align-items: baseline; gap: 7px; }
-.result-delta { margin: 0; font-size: 11px; font-weight: 700; }
-.result-avg { font-size: var(--text-xs); color: var(--color-text-35); font-variant-numeric: tabular-nums; }
+/* One score chip for both lists: the board's last-five cell, bold because
+   here it is the figure rather than a strip of history. Today's score and
+   the form list's last five are drawn by the same rule, which is what lets a
+   2 in one table be read as the same thing as a 2 in the other. The board's
+   20px is kept on a phone, where five of them sit beside a name; a wide
+   screen lets them out a little. */
+.today .cell.tiny { font-weight: 700; }
+.result-score { flex: none; width: 20px; }
+.form-last-five { flex: none; }
+
+/* Each average sits before the delta it explains — today's score against the
+   all-time average on the left, the 30-day average against all-time on the
+   right — so the two right-hand columns read the same way in both lists. The
+   delta is fixed and right-aligned, because it is the column the eye runs
+   down; the average beside it takes its own width until there is a label
+   over it to line up with. */
+.result-avg { flex: none; font-size: var(--text-sm); color: var(--color-text-50); }
+.result-delta { flex: none; width: 48px; margin: 0; text-align: right; font-size: var(--text-sm); font-weight: 700; }
 
 /* A low-weight strip rather than four boxes: the commentary is worth seeing
    without a scroll and is not worth the weight of the figures around it. */
@@ -1649,14 +1670,8 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
    dark theme is a link nobody can read. */
 .today-list-head .link { font-size: var(--text-xs); font-weight: 600; text-decoration: none; }
 .form-rank { width: auto; min-width: 26px; }
-.form-spark { flex: none; width: 60px; height: 20px; }
-.form-spark svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.form-spark .player { fill: none; stroke: var(--color-accent-80); stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-/* The board prints an average this way; so does Months. Fixed and right
-   aligned, because the column's label is wider than any figure under it and
-   an auto-width cell would put the two in different places. */
-.form-avg { flex: none; width: 52px; text-align: right; font-size: var(--text-md); font-weight: 700; }
-.form-delta { flex: none; width: 56px; margin: 0; text-align: right; font-size: 11px; font-weight: 700; }
+.form-avg { flex: none; text-align: right; font-size: var(--text-base); font-weight: 700; }
+.form-delta { flex: none; width: 48px; margin: 0; text-align: right; font-size: var(--text-sm); font-weight: 700; }
 
 /* Everyone the board does not rank. Behind a disclosure because the front
    page is about who is playing, and this list grows forever as people drift
@@ -1835,13 +1850,19 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 /* Two columns, and the callouts as one strip between the header and both of
    them. The results answer what happened and the form answers what it means;
-   side by side they are read together instead of one after a scroll.
-   1000px rather than the shell's own 860: at 860 with the rail out, the form
-   column loses the sparkline before it loses anything it could spare. */
-@media (min-width: 1000px) {
+   side by side they are read together instead of one after a scroll. The
+   form list carries five chips and two figures either side of the name, the
+   results one chip and two, so the form column takes the larger share and
+   the names in both get about the same room.
+   1160px rather than the shell's own 860: below it, with the rail out, the
+   form column loses the name before it loses anything it could spare — the
+   five chips, the two figures and their labels are all fixed widths, and
+   the two-column layout is only worth having while a name still fits beside
+   them. Measured in TestBrowserTodaysTwoListsShareARhythm. */
+@media (min-width: 1160px) {
   .today {
     display: grid;
-    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
     grid-template-areas:
       "head     head"
       "callouts callouts"
@@ -1866,8 +1887,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   .today-progress { margin-top: 0; max-width: none; }
   .today-out .chips { justify-content: flex-end; }
 
-  .form-spark { width: 84px; }
-
   /* The labels replace the phone's hint, and the heading loses its rule to
      the row of labels under it. */
   .today-list-head { border-bottom: 0; padding-bottom: 0; margin-bottom: 8px; }
@@ -1878,24 +1897,24 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
     padding: 0 0 7px;
     border-bottom: 1px solid var(--color-text-10);
   }
-  /* The header cell for the score keeps the column's width and none of the
-     tile's drawing, which is why it never carries .cell. */
-  .result-row.head .result-score { height: auto; }
-  /* The trend column's label is a word, not a chart. */
-  .form-row.head .form-spark { height: auto; }
 
-  /* The design's own column spacing. */
-  .result-row { gap: 14px; }
+  /* The design's own column spacing, and a little more chip now that the
+     column has it: wider, with room between the five, and a step of air
+     after today's score before the name. */
+  .result-row, .form-row { gap: 10px; }
+  .today .cell.tiny, .result-score { width: 26px; }
   .result-score { margin-right: 6px; }
-  .form-row { gap: 12px; }
+  .today .last-five { gap: 4px; }
+  .form-last-five { width: 146px; }
 
   /* Fixed columns for the figures, so they can be read down rather than each
-     being found first — and so each sits under the label that names it. The
-     widths are the longest label in any of the five languages, measured
-     rather than guessed. */
-  .result-figures { gap: 12px; }
-  .result-delta, .result-avg { width: 72px; text-align: right; }
-  .form-delta { width: 72px; }
+     being found first — and so each sits under the label that names it. One
+     width for all four: the longest label in any of the five languages,
+     measured rather than guessed, and the same measure for the 30-day
+     average as for the others so the three right-hand columns of the form
+     list line up with the two of the results. */
+  .result-avg { width: 72px; text-align: right; font-size: var(--text-base); }
+  .result-delta, .form-avg, .form-delta { width: 72px; }
 
   /* The footnote is under the form column, which is half the card; without
      this it would rule off half of it. */

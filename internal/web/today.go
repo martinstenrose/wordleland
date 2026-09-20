@@ -1,7 +1,6 @@
 package web
 
 import (
-	"html/template"
 	"net/http"
 	"strconv"
 	"time"
@@ -40,12 +39,14 @@ type todayResultRow struct {
 	Label string
 	Tone  int
 
+	// AvgText is the all-time average the delta is measured against — or,
+	// for a player the board does not rank, why there is none.
+	AvgText string
 	// DeltaText is today's score against this player's own average: the
 	// figure that turns a 4 into a good or a bad day for them. Direction is
 	// the shared "better"/"worse"/"level" vocabulary.
 	DeltaText      string
 	DeltaDirection string
-	AvgLabel       string
 }
 
 type todayPage struct {
@@ -170,7 +171,7 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 	for _, p := range board.Ranked {
 		row := s.newBoardRow(p, prefix, ch.T, traits, results, board.CurrentPuzzle)
 		form := stats.ComputeTodayForm(byPlayer[p.ID], board.Options)
-		row.Form, row.FormGames, row.Series = form.Average, form.Games, form.Series
+		row.Form, row.FormGames = form.Average, form.Games
 		row.Delta = nil
 		if baseline := stats.TodayBaseline(byPlayer[p.ID], board.Options); row.Form != nil && baseline != nil {
 			delta := *row.Form - *baseline
@@ -178,8 +179,6 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 		}
 		row.FormText = formatScore(ch.T, row.Form)
 		row.DeltaText, row.DeltaDirection = formatDelta(ch.T, row.Delta)
-		row.SparkPath = template.HTML(sparkPath(row.Series, sparkWidth, sparkHeight, 0))
-		row.HasSpark = hasSparkline(row.Series)
 		rows = append(rows, row)
 	}
 	sortRows(rows, boardSort{Column: sortForm})
@@ -299,14 +298,14 @@ func todayResults(t translator, today stats.Today, board stats.Board, prefix str
 		p, isRanked := ranked[e.ID]
 		if !isRanked {
 			row.Pos, row.DeltaDirection = "\u2014", "level"
-			row.AvgLabel = t.TN("today.benchedGames", games[e.ID])
+			row.AvgText = t.TN("today.benchedGames", games[e.ID])
 			out = append(out, row)
 			continue
 		}
 
 		pos++
 		row.Pos = t.Integer(pos)
-		row.AvgLabel = t.T("today.avgShort", formatScore(t, p.Average))
+		row.AvgText = formatScore(t, p.Average)
 		switch {
 		case !e.Solved:
 			// A miss has no distance from an average: it is off the scale

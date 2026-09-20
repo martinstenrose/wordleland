@@ -992,16 +992,17 @@ func TestFormPaneIsConsistent(t *testing.T) {
 		t.Error("the form list has no heading naming the window")
 	}
 
-	rows := regexp.MustCompile(`(?s)<li class="form-row">(.*?)</li>`).FindAllStringSubmatch(pane, -1)
+	// Split on the row opener rather than matched to </li>: the last-five
+	// strip inside a row is a list of its own.
+	rows := strings.Split(pane, `<li class="form-row">`)[1:]
 	if len(rows) == 0 {
 		t.Fatal("the form list has no rows")
 	}
 	ranked, benched := 0, 0
-	for _, row := range rows {
-		cell := row[1]
+	for _, cell := range rows {
 		if strings.Contains(cell, `class="rank-pop form-rank"`) {
 			ranked++
-			for _, part := range []string{`player form-name"`, `class="form-spark"`, `class="form-avg num"`, `class="form-delta`} {
+			for _, part := range []string{`player form-name"`, `class="form-last-five"`, `class="form-avg num"`, `class="form-delta`} {
 				if !strings.Contains(cell, part) {
 					t.Errorf("a form row is missing %s", part)
 				}

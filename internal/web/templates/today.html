@@ -62,31 +62,31 @@
            stand side by side and both read as the tables they are. */}}
       <div class="today-list-head">
         <p class="kicker">{{.T.T "today.results"}}</p>
-        <span class="today-list-hint">{{.T.T "today.hint.vsOwnAverage"}}</span>
+        <span class="today-list-hint">{{.T.T "today.hint.avgVsAvg"}}</span>
       </div>
       <div class="result-row head">
         <span class="result-pos">{{.T.T "board.column.rank"}}</span>
-        {{/* The score column is a 30px square; no word fits over it in any of
-             the five languages, and the tile beside a name needs none. The
-             cell stays so the columns under it still line up. */}}
+        {{/* The score column is a chip; no word fits over it in any of the
+             five languages, and the chip beside a name needs none. The cell
+             stays so the columns under it still line up. */}}
         <span class="result-score"></span>
         <span class="result-name">{{.T.T "board.column.player"}}</span>
-        <span class="result-figures">
-          <span class="result-delta">{{.T.T "today.column.vsAvg"}}</span>
-          <span class="result-avg">{{.T.T "today.column.avg"}}</span>
-        </span>
+        <span class="result-avg">{{.T.T "today.column.avg"}}</span>
+        <span class="result-delta">{{.T.T "today.column.vsAvg"}}</span>
       </div>
 
+      {{/* The average sits before the delta it explains — the same order the
+           form list prints its own pair in, so the two right-hand columns
+           read the same way in both tables. The chip is the same 20px one
+           the form list spells its last five out with. */}}
       <ol class="result-rows">
         {{range .Results}}
           <li class="result-row">
             <span class="result-pos num">{{.Pos}}</span>
-            <span class="cell t{{.Tone}} result-score">{{.Label}}</span>
+            <span class="cell t{{.Tone}} tiny result-score">{{.Label}}</span>
             <a class="player result-name" href="{{.Href}}">{{.Name}}</a>
-            <span class="result-figures">
-              <span class="result-delta delta {{.DeltaDirection}}">{{.DeltaText}}</span>
-              <span class="result-avg">{{.AvgLabel}}</span>
-            </span>
+            <span class="result-avg num">{{.AvgText}}</span>
+            <span class="result-delta delta {{.DeltaDirection}}">{{.DeltaText}}</span>
           </li>
         {{end}}
       </ol>
@@ -118,29 +118,26 @@
     <div class="today-form">
       <div class="today-list-head">
         <p class="kicker">{{.T.T "today.formTable"}}</p>
-        <span class="today-list-hint">{{.T.T "today.hint.avgTrend"}}</span>
+        <span class="today-list-hint">{{.T.T "today.hint.lastFiveAvgVsAvg"}}</span>
       </div>
       <div class="form-row head">
         <span class="form-rank">{{.T.T "board.column.rank"}}</span>
         <span class="form-name">{{.T.T "board.column.player"}}</span>
-        <span class="form-spark">{{.T.T "today.column.trend"}}</span>
-        <span class="form-avg">{{.T.T "today.column.form"}}</span>
+        <span class="form-last-five">{{.T.T "today.column.lastFive"}}</span>
+        <span class="form-avg">{{.T.T "today.column.formAvg"}}</span>
         <span class="form-delta">{{.T.T "today.column.vsAvg"}}</span>
       </div>
 
+      {{/* The last five spelled out rather than drawn: a sparkline showed the
+           shape of a month and none of its scores, and five chips show a 2
+           and an X as themselves. They are the board's recent strip, newest
+           on the right, so the popup behind each chip comes with them. */}}
       <ol class="form-rows">
         {{range .Form}}
           <li class="form-row">
             {{template "rank-pop" (dict "Row" . "Class" "form-rank" "T" $.T)}}
             <a class="player form-name" href="{{.Href}}">{{.Name}}</a>
-            <span class="form-spark">
-              {{if .HasSpark}}
-                <svg viewBox="0 0 140 30" preserveAspectRatio="none" aria-hidden="true">
-                  {{template "spark-grid"}}
-                  <path class="player" d="{{.SparkPath}}"/>
-                </svg>
-              {{end}}
-            </span>
+            <span class="form-last-five">{{template "last-five" .LastFive}}</span>
             <span class="form-avg num">{{.FormText}}</span>
             <span class="form-delta delta {{.DeltaDirection}}">{{.DeltaText}}</span>
           </li>
@@ -168,6 +165,7 @@
       {{end}}
 
       <footer class="card-foot">
+        <span>{{.T.T "today.chipNote"}}</span>
         <span>{{.T.T "today.formNote"}}</span>
       </footer>
     </div>
