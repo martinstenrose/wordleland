@@ -4,24 +4,25 @@
        equivalents of the board's own score ramp — a favicon is drawn at
        16px against an unknown background, so nothing here is translucent.
 
-       The dark plate rather than a themed pair: a tab strip is light in one
+       One fixed plate rather than a themed pair: a tab strip is light in one
        browser and dark in the next, and an SVG favicon that switches on
        prefers-color-scheme is honoured by some of them and ignored by the
        rest. One plate that holds its own on either is worth more than a
-       switch that only sometimes happens. docs/logo/ has the light and dark
-       versions, for a background that is known. -->
-  <rect width="34" height="34" rx="8" fill="#231e19"/>
+       switch that only sometimes happens — the light plate, since most tab
+       strips are. docs/logo/ has both the light and dark versions, for a
+       background that is known. -->
+  <rect width="34" height="34" rx="8" fill="#efeae6"/>
   <g>
-    <rect x="4"  y="4"  width="8" height="8" rx="2" fill="#156f41"/>
-    <rect x="13" y="4"  width="8" height="8" rx="2" fill="#332c26"/>
-    <rect x="22" y="4"  width="8" height="8" rx="2" fill="#332c26"/>
+    <rect x="4"  y="4"  width="8" height="8" rx="2" fill="#6fb789"/>
+    <rect x="13" y="4"  width="8" height="8" rx="2" fill="#ded9d5"/>
+    <rect x="22" y="4"  width="8" height="8" rx="2" fill="#ded9d5"/>
 
-    <rect x="4"  y="13" width="8" height="8" rx="2" fill="#332c26"/>
-    <rect x="13" y="13" width="8" height="8" rx="2" fill="#3bb974"/>
-    <rect x="22" y="13" width="8" height="8" rx="2" fill="#332c26"/>
+    <rect x="4"  y="13" width="8" height="8" rx="2" fill="#ded9d5"/>
+    <rect x="13" y="13" width="8" height="8" rx="2" fill="#007742"/>
+    <rect x="22" y="13" width="8" height="8" rx="2" fill="#ded9d5"/>
 
-    <rect x="4"  y="22" width="8" height="8" rx="2" fill="#332c26"/>
-    <rect x="13" y="22" width="8" height="8" rx="2" fill="#332c26"/>
-    <rect x="22" y="22" width="8" height="8" rx="2" fill="#56db8f"/>
+    <rect x="4"  y="22" width="8" height="8" rx="2" fill="#ded9d5"/>
+    <rect x="13" y="22" width="8" height="8" rx="2" fill="#ded9d5"/>
+    <rect x="22" y="22" width="8" height="8" rx="2" fill="#00572f"/>
   </g>
 </svg>
