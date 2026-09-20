@@ -1883,8 +1883,11 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   .today > .results-empty { grid-area: results; border-right: 1px solid var(--color-text-10); border-bottom: 0; }
 
   /* The header's two groups, side by side: the day on the left, how far
-     through it the group is on the right. */
-  .today-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; }
+     through it the group is on the right. Aligned at the top, not the
+     bottom: the right group grows when the list of who has not filed is
+     opened, and aligned at the bottom that slid the headline down — the
+     reader pressed a small control on the right and the day moved. */
+  .today-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; }
   .today-headline { flex: 1; }
   .today-status { flex: none; width: 300px; }
   .today-progress { margin-top: 0; max-width: none; }
