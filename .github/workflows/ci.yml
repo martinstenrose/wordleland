@@ -63,3 +63,31 @@ jobs:
           push: false
           cache-from: type=gha,scope=ci
           cache-to: type=gha,scope=ci,mode=max
+
+  # What a browser makes of the markup: whether following a link reloads the
+  # document, where the page is scrolled to afterwards, whether two headings
+  # are the same height. None of that is in the HTML, and every assertion
+  # here was a bug that shipped past `go test ./...`. Behind a build tag so
+  # the job above stays fast and needs nothing installed; this one drives
+  # the Chrome the runner already has, over the DevTools protocol, with the
+  # websocket client the bridge already depends on. Nothing is downloaded.
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # The tagged file is not compiled by the job above, so it is vetted
+      # and checked here — a test that does not build is not a test.
+      - run: go vet -tags browser ./internal/web/
+      - name: staticcheck (browser tag)
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@v0.8.1
+          "$(go env GOPATH)/bin/staticcheck" -tags browser ./internal/web/
+
+      # -count=1: a browser run is never a cache hit worth trusting.
+      # -v: a skipped test is a missing browser, and that should be seen.
+      - run: go test -tags browser -run TestBrowser -count=1 -v ./internal/web/

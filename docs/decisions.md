@@ -1031,3 +1031,78 @@ nothing failing, nothing logged, noticed only by somebody reading that page
 in that language. And `fmt` verbs are positional, so a translation carrying a
 different set of them either drops an argument or prints `%!d(MISSING)` onto
 the page.
+
+Every sentence the server says is a key, the error page's included. That
+page was the last place English was written in Go — "There is nothing at
+this address" was a literal in `renderError`, and so were nine rejections on
+the sign-in, code and reset screens — so a Swedish reader met English
+precisely when something had gone wrong. The keys are namespaced per screen
+(`signin.error.credentials`, `totp.error.wrong`, `error.notFound.body`),
+following what `recovery.error.*` already did, rather than one shared bucket:
+the same word is not the same sentence on two screens. A test reads a 404 in
+Swedish and German and a rejected sign-in in Swedish, so a literal cannot
+come back unnoticed.
+
+## What only a browser can check
+
+`go test ./...` tests the markup the server sends. What a browser makes of it
+— whether following a link reloads the document, where the page is scrolled
+to afterwards, where focus went, whether two headings are the same height —
+is not in the HTML, and seven bugs in a row shipped past the suite because
+of it: a page that arrived 56px down, a title 45px in, a subtitle 8px off, a
+menu anchored to half a bar, a container query written before the rule it
+overrode, a delete drawn in the safe colour, focus landing on a hidden copy
+of the rail. Every one was found by driving a browser by hand.
+
+`internal/web/browser_test.go` drives one for real. It is behind a build tag
+so the ordinary loop stays fast and needs nothing installed; `go test -tags
+browser` starts the app on a real port, launches whatever Chrome is on PATH
+headless, and talks to it over the DevTools protocol. It runs as its own CI
+job, on the Chrome the runner already has.
+
+**No new dependency, and the rule stands.** The plan was to take a small
+websocket client for this, as an exception scoped to test-only code. It
+turned out not to be needed: the Signal bridge already depends on
+`gorilla/websocket`, and the harness uses that. So the argument this
+document said a headless browser would need has been made, and the answer
+is that it costs nothing the module did not already carry — no npm, no
+bundler, no browser download, no package. Should the bridge ever drop that
+dependency, the harness is the one other user of it and would go with it or
+carry it alone; either way it stays out of the production binary, which is
+what the rule is for.
+
+**What it asserts is what a reader would notice, not how the script does
+it.** No reload; back goes back; a page starts at the top; the title does
+not move; the dialog stays on the page; nothing in the console. The pages
+are read off the rail and the section bar rather than listed, so a view
+added later is covered without anyone remembering. That is deliberate: the
+front end is about to change again, and these are the parity net for it —
+they should pass unchanged against a different script doing the same job.
+
+**What ends a switch is the old content leaving, not the address changing.**
+The first version of the harness waited for the address to match, and one
+run in six on a phone found no drawer to press: the row for the page already
+open matches before its fetch has landed, and the next press opened a drawer
+on a body about to be swapped away. So a press marks the `<main>` on screen
+and waits for that node to be gone — which is what a switch is, whichever
+script does the swapping. The three green runs before that were luck, and
+the whole difference between a suite that is trusted and one that is
+ignored is one flake.
+
+**Four more, after the first six.** A link to a page that does not exist
+shows the error frame in place, with no rail, and Back brings the rail back
+— the body-swap design exists partly for this. The drawer on a phone closes
+on its own backdrop, pressed with the mouse at a point, because what is
+stacked where is the one thing a selector cannot vouch for. The search
+overlay opens from the keyboard, answers as you type, and Esc puts focus
+back where it came from — the behaviour AGENTS.md used to name as having
+nothing to fall back to and no test. And following a theme link changes the
+theme without a reload: the theme lives on `<html>`, outside the body the
+switcher replaces, and is carried across by hand.
+
+**What it deliberately does not do.** It does not screenshot: pixels change
+with every font hint and there is nobody to say which change was wrong.
+It does not test the no-JavaScript story, which is the rest of the suite's
+job and which a browser with script disabled would only re-prove. And it
+does not run under `go test ./...`: a suite that is slow or environment-
+bound trains people to skip it, and this one's whole value is in being run.

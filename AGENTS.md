@@ -32,10 +32,14 @@ exist without it** — a keyboard shortcut, an overlay with no page behind it
 - New client behaviour gets a header comment stating what it does and
   what still works with it absent, disabled, or failing to load — the
   convention `app.js`'s existing popup-positioning code already follows.
-- Where a Go test can pin the server-rendered fallback, it does; where the
-  behaviour is JS-only with nothing to fall back to (arrow-key navigation
-  inside an open overlay, say), that gap is stated rather than papered
-  over with a test that doesn't actually exercise a browser.
+- Where a Go test can pin the server-rendered fallback, it does. Where the
+  behaviour is only visible in a browser — whether a press reloaded the
+  document, where the page is scrolled to, where focus went, whether two
+  headings are the same height — `internal/web/browser_test.go` pins it:
+  behind a build tag (`go test -tags browser ./internal/web/`), driving
+  the Chrome on PATH, run as its own CI job. A JS-only behaviour neither
+  can reach is a gap to state, not to paper over with a test that doesn't
+  actually exercise a browser.
 
 This was an open question for a while — do not read an old comment or PR
 elsewhere as having settled it any other way than what's written here.
@@ -154,8 +158,10 @@ user-facing copy and commit scopes included — rather than leaving the old
 word in the places nothing compiles against.
 
 **Checks before pushing:** `gofmt -l ./cmd ./internal`, `go vet ./...`,
-`staticcheck ./...`, `go test -race ./...`. CI also runs `govulncheck` and
-CodeQL, weekly as well as per pull request. A deliberate lint exception
+`staticcheck ./...`, `go test -race ./...`. A change to `app.js`, `app.css`
+or a template also means `go test -tags browser -run TestBrowser
+./internal/web/`, with a Chrome on PATH; CI runs it regardless. CI also
+runs `govulncheck` and CodeQL, weekly as well as per pull request. A deliberate lint exception
 carries a `//lint:ignore` naming the reason.
 
 The `go` directive in `go.mod` is a **floor**, and CI installs exactly it.
