@@ -14,11 +14,14 @@ Standard library first. A dependency needs a reason — the point of this stack
 is a small footprint and a small attack surface. No npm, no SPA framework, no
 client-side rendering by default. Charts are server-generated SVG.
 
-`internal/web/static/app.js` carries the JavaScript this app ships, and the
-rule for what belongs there is a narrow one, decided deliberately rather
-than left to whether a given feature "adds value": **JS is for what cannot
-exist without it** — a keyboard shortcut, an overlay with no page behind it
-— not for making an already-working feature nicer. Concretely:
+The JavaScript this app ships is two files under `internal/web/static/`:
+`htmx.min.js`, vendored, which does the fetching and swapping the
+enhancements need, declared as attributes in the templates; and `app.js`,
+which carries what htmx cannot express. The rule for what belongs in
+`app.js` is a narrow one, decided deliberately rather than left to whether
+a given feature "adds value": **JS is for what cannot exist without it** —
+a keyboard shortcut, an overlay with no page behind it — not for making an
+already-working feature nicer. Concretely:
 
 - Everything JS adds must degrade to a working, server-rendered path. A
   feature is the server-rendered route first; script only adds a shortcut
@@ -26,9 +29,11 @@ exist without it** — a keyboard shortcut, an overlay with no page behind it
   `internal/web/search.go`) is the model: the route works with zero
   script, and the `⌘K` overlay is `app.js` fetching that same route's
   markup, not a second implementation of search.
-- Vanilla, no build step, no npm dependency — unchanged. Needing more than
-  that is a sign to have this conversation again, not a reason to reach
-  for a bundler or a framework quietly.
+- No build step, no npm. htmx is a file copied into `static/` and
+  embedded like the stylesheet — its version and why it was taken are in
+  `docs/decisions.md` — and upgrading it is copying a newer file. Needing
+  more than that is a sign to have this conversation again, not a reason
+  to reach for a bundler or a framework quietly.
 - New client behaviour gets a header comment stating what it does and
   what still works with it absent, disabled, or failing to load — the
   convention `app.js`'s existing popup-positioning code already follows.
