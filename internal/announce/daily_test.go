@@ -114,7 +114,7 @@ func TestPostsAsSoonAsEveryActivePlayerHasFiled(t *testing.T) {
 	puzzle := wordle.PuzzleForDate(time.Date(2026, time.September, 2, 0, 0, 0, 0, time.Local))
 	want := "🏁 Wordle " + strconv.Itoa(puzzle) + " — everyone's in.\n" +
 		"🥇 Alice took it in 2.\n" +
-		"📊 September: Alice leads on 2.00, 2.00 clear of Bob."
+		"📊 September: Alice leads on 2.00 on average, 200 points clear of Bob."
 	// Alice's two 2s average 2.00; Bob's two 4s average 4.00. Both played
 	// every concluded day, so no sevens enter either average.
 	if got := c.only(t); got != want {
@@ -521,7 +521,7 @@ func TestAClosedMonthStillReportsWhenNoTrophyMessageFollows(t *testing.T) {
 	if err := daily(ctx, now); err != nil {
 		t.Fatalf("daily: %v", err)
 	}
-	if got := c.only(t); !strings.Contains(got, "📊 September: Alice leads on 3.00, 1.00 clear of Bob.") {
+	if got := c.only(t); !strings.Contains(got, "📊 September: Alice leads on 3.00 on average, 100 points clear of Bob.") {
 		t.Errorf("message = %q, want the standing printed in full", got)
 	}
 }
@@ -576,7 +576,7 @@ func TestAnOrdinaryDayStillShowsTheStanding(t *testing.T) {
 	if err := daily(ctx, now); err != nil {
 		t.Fatalf("daily: %v", err)
 	}
-	if got := c.only(t); !strings.Contains(got, "📊 September: Alice leads on 3.00, 1.00 clear of Bob.") {
+	if got := c.only(t); !strings.Contains(got, "📊 September: Alice leads on 3.00 on average, 100 points clear of Bob.") {
 		t.Errorf("message = %q, want the standing on an ordinary day", got)
 	}
 }
@@ -749,7 +749,7 @@ func TestTheMarginNamesEveryRunnerUp(t *testing.T) {
 	if err := daily(ctx, now); err != nil {
 		t.Fatalf("daily: %v", err)
 	}
-	if got := c.only(t); !strings.Contains(got, "2.00 clear of Bob and Carol.") {
+	if got := c.only(t); !strings.Contains(got, "200 points clear of Bob and Carol.") {
 		t.Errorf("message = %q, want both runners-up named", got)
 	}
 }
@@ -773,9 +773,9 @@ func TestTheDailyPostUsesTheConfiguredLocale(t *testing.T) {
 		t.Fatalf("daily: %v", err)
 	}
 	puzzle := wordle.PuzzleForDate(time.Date(2026, time.September, 2, 0, 0, 0, 0, time.Local))
-	want := "🏁 Wordle " + strconv.Itoa(puzzle) + " — alla har lämnat in.\n" +
+	want := "🏁 Wordle " + strconv.Itoa(puzzle) + ": alla har lämnat in.\n" +
 		"🥇 Alice klarade den på 2.\n" +
-		"📊 september: Alice leder på 2,00, 2,00 före Bob."
+		"📊 September: Alice leder på 2,00 i snitt, 200 punkter före Bob."
 	if got := c.only(t); got != want {
 		t.Errorf("message =\n%q\nwant\n%q", got, want)
 	}

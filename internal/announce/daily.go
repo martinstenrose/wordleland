@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/stats"
@@ -226,7 +228,11 @@ func monthLine(t i18n.Translator, months []stats.Month, date time.Time,
 		return ""
 	}
 
-	label := t.T("month." + strconv.Itoa(int(m.Month)))
+	// Capitalized here rather than in the catalogue: this is the only spot
+	// the month name leads a chat line instead of following a player's name
+	// or a puzzle number, and the catalogue's lowercase form is correct
+	// Swedish everywhere else it's used.
+	label := capitalized(t.T("month." + strconv.Itoa(int(m.Month))))
 
 	// On the month's last day the standing is not a standing any more, it is
 	// the result — and the 🏆 message at noon on the first is the one that
@@ -249,11 +255,25 @@ func monthLine(t i18n.Translator, months []stats.Month, date time.Time,
 	case len(m.Winners) > 1:
 		return "📊 " + t.T("announce.daily.month.tie", label, leaders, avg)
 	case m.Margin != nil:
+		// The margin reads as "points" — hundredths of an average guess —
+		// rather than as its own decimal average, since a second decimal
+		// figure next to the leader's average read as two competing stats.
+		points := int(math.Round(*m.Margin * 100))
 		return "📊 " + t.T("announce.daily.month.margin", label, leaders, avg,
-			t.Decimal(*m.Margin, 2), joinNames(t, playerNames(runnersUp(m))))
+			points, joinNames(t, playerNames(runnersUp(m))))
 	default:
 		return "📊 " + t.T("announce.daily.month.alone", label, leaders, avg)
 	}
+}
+
+// capitalized upper-cases s's first rune, leaving the rest untouched.
+func capitalized(s string) string {
+	r := []rune(s)
+	if len(r) == 0 {
+		return s
+	}
+	r[0] = unicode.ToUpper(r[0])
+	return string(r)
 }
 
 // runnersUp is everyone sharing the next distinct average below the leader —
