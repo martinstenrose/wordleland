@@ -8,6 +8,15 @@
 <link rel="icon" type="image/png" sizes="180x180" href="/static/icon-180.png">
 <link rel="apple-touch-icon" href="/static/icon-180.png">
 <link rel="stylesheet" href="/static/app.css">
+{{/* htmx does the fetching and swapping app.js used to do by hand; app.js
+     keeps what has no server-rendered counterpart. Loaded first because
+     app.js listens for its events. The config turns off what the CSP or
+     this repository's rules would otherwise fight: no eval, no injected
+     style, no scripts run out of swapped content, and a 4xx or 5xx page
+     swapped like any other, so the error frame arrives in place the way
+     a full navigation would show it. */}}
+<meta name="htmx-config" content='{"allowEval":false,"includeIndicatorStyles":false,"allowScriptTags":false,"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":true}]}'>
+<script src="/static/htmx.min.js" defer></script>
 <script src="/static/app.js" defer></script>
 {{/* .js-only marks something that does nothing without app.js — currently
      just the ⌘K hint beside the search link. Showing it when the shortcut
