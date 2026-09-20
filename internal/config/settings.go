@@ -105,13 +105,12 @@ func (c *Config) Settings(b *Bridge) []Setting {
 		)
 	}
 	return append(out,
-		// Masked here, in full on Diagnostics. That is not a contradiction:
-		// Diagnostics exists to be compared by eye against what signal-cli
-		// reports, and this screen exists to say what is configured. A phone
-		// number left on a screen nobody is reading for it is personal data
-		// with no reason to be there.
-		Setting{Name: "SIGNAL_ACCOUNT", Value: maskTail(b.SignalAccount, 4), Kind: SettingValue},
-		Setting{Name: "SIGNAL_GROUP_ID", Value: maskTail(b.SignalGroupID, 0), Kind: SettingValue, Mono: true},
+		// Shown in full, same as on Diagnostics: only an admin reaches this
+		// screen, and Diagnostics already carries both in the clear, so
+		// masking here bought nothing but a value this screen could not
+		// answer "is this the number I expect" with.
+		Setting{Name: "SIGNAL_ACCOUNT", Value: b.SignalAccount, Kind: SettingValue},
+		Setting{Name: "SIGNAL_GROUP_ID", Value: b.SignalGroupID, Kind: SettingValue, Mono: true},
 		orDefault(toggle("SIGNAL_ANNOUNCE_MONTHS", b.AnnounceMonths), "SIGNAL_ANNOUNCE_MONTHS"),
 		orDefault(text("SIGNAL_LOCALE", b.AnnounceLocale), "SIGNAL_LOCALE"),
 		orDefault(text("SIGNAL_API_URL", b.SignalAPIURL), "SIGNAL_API_URL"),
@@ -173,17 +172,4 @@ func retention(d time.Duration) string {
 		return ""
 	}
 	return d.String()
-}
-
-// maskTail keeps the first keep characters and bullets the rest, so the shape
-// of a value survives without the value doing. An empty string stays empty:
-// unset is unset, and bulleting nothing would claim otherwise.
-func maskTail(s string, keep int) string {
-	if s == "" {
-		return ""
-	}
-	if keep > len(s) {
-		keep = len(s)
-	}
-	return s[:keep] + strings.Repeat("•", len(s)-keep)
 }

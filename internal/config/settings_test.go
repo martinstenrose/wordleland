@@ -121,10 +121,9 @@ func TestNoBridgeShowsOnlyTheTwoThatTurnItOn(t *testing.T) {
 }
 
 // The account is a phone number and the group id identifies a private group.
-// Diagnostics shows both whole, because comparing them by eye against what
-// signal-cli reports is what that page is for; here the question is only
-// whether they are set, so the shape is enough.
-func TestTheSignalIdentifiersAreMasked(t *testing.T) {
+// Both are shown whole here, same as on Diagnostics: only an admin reaches
+// this screen, and Diagnostics already carries them in the clear.
+func TestTheSignalIdentifiersAreShownInFull(t *testing.T) {
 	settings := (&Config{}).Settings(&Bridge{
 		SignalAccount:  "+46700000000",
 		SignalGroupID:  "Zm9vYmFyYmF6",
@@ -133,16 +132,12 @@ func TestTheSignalIdentifiersAreMasked(t *testing.T) {
 		SignalAPIURL:   DefaultSignalAPIURL,
 	})
 
-	account := find(t, settings, "SIGNAL_ACCOUNT")
-	if strings.Contains(account.Value, "0000000") {
-		t.Errorf("SIGNAL_ACCOUNT = %q, which is the number itself", account.Value)
-	}
-	if !strings.HasPrefix(account.Value, "+467") {
-		t.Errorf("SIGNAL_ACCOUNT = %q, which keeps none of the shape", account.Value)
+	if got := find(t, settings, "SIGNAL_ACCOUNT"); got.Value != "+46700000000" {
+		t.Errorf("SIGNAL_ACCOUNT = %q, want the number in full", got.Value)
 	}
 	group := find(t, settings, "SIGNAL_GROUP_ID")
-	if strings.Contains(group.Value, "Zm9v") {
-		t.Errorf("SIGNAL_GROUP_ID = %q, which is the id itself", group.Value)
+	if group.Value != "Zm9vYmFyYmF6" {
+		t.Errorf("SIGNAL_GROUP_ID = %q, want the id in full", group.Value)
 	}
 	if !group.Mono {
 		t.Error("SIGNAL_GROUP_ID is not drawn in the monospace face, where 0 and O differ")
@@ -154,15 +149,6 @@ func TestTheSignalIdentifiersAreMasked(t *testing.T) {
 	}
 	if got := find(t, settings, "SIGNAL_API_URL"); got.Value != DefaultSignalAPIURL {
 		t.Errorf("SIGNAL_API_URL = %q, want the default in force", got.Value)
-	}
-}
-
-func TestMaskTailKeepsNothingOfAnEmptyValue(t *testing.T) {
-	if got := maskTail("", 4); got != "" {
-		t.Errorf("maskTail(\"\", 4) = %q, want empty: unset is unset", got)
-	}
-	if got := maskTail("abc", 9); got != "abc" {
-		t.Errorf("maskTail(%q, 9) = %q, want the whole of a value shorter than the keep", "abc", got)
 	}
 }
 
