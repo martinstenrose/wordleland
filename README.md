@@ -624,6 +624,16 @@ go build ./...
 go test ./...
 ```
 
+The tests above need nothing installed. Six more drive a real browser and
+check what it makes of the pages — that following a link never reloads the
+document, that the title does not move between views, that the enrolment
+dialog holds focus. They are behind a build tag, need a Chrome on `PATH`
+(`WORDLELAND_CHROME` overrides), and run as their own CI job:
+
+```sh
+go test -tags browser -run TestBrowser ./internal/web/
+```
+
 Running the server directly, without Docker, needs the same environment
 `compose.yml` would otherwise supply. Global flags (`--db`, `--as`) come
 before the noun — unlike a Docker `exec`, where they follow `/wordleland`
