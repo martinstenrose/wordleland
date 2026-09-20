@@ -159,11 +159,13 @@ var onPageChange = (function () {
 // done from HTML and CSS alone — everything else about search does not
 // need this file. The topbar's search link (see topbar.html) already goes
 // to a working search page with no script at all — /search signed in,
-// /share/<slug>/search on the read-only view; all this does is fetch that
-// same route's results — "?partial=1" asks the server for just the list,
-// not a second page — into an overlay instead of navigating to it, and let
-// the arrow keys and Enter move through what comes back. Absent, disabled,
-// or failing to load, the link still works exactly as before.
+// /share/<slug>/search on the read-only view. The fetching is htmx's, as
+// attributes on the overlay's input: each pause in the typing asks that
+// same route for just its results and puts them in the box. What is here
+// is the rest: showing the overlay on the keystroke, telling htmx it has
+// been shown so the empty query's results appear, and letting the arrow
+// keys and Enter move through what comes back. Absent, disabled, or
+// failing to load, the link still works exactly as before.
 (function () {
   "use strict";
 
@@ -171,35 +173,15 @@ var onPageChange = (function () {
   // not the node this closed over when the file first ran. Null on a page
   // with no search — signed out only.
   var overlay = null;
-  var button, input, results, searchPath;
-
-  // Guards against a slow request for an earlier keystroke landing after a
-  // faster one for a later keystroke — without this, typing quickly can
-  // show results for a query that is no longer in the box.
-  var requestID = 0;
-
-  function fetchResults(query) {
-    var thisRequest = ++requestID;
-    fetch(searchPath + "?partial=1&q=" + encodeURIComponent(query))
-      .then(function (response) { return response.ok ? response.text() : ""; })
-      .then(function (html) {
-        if (thisRequest !== requestID) return;
-        results.innerHTML = html;
-        // htmx boosts what it has processed, and this list arrived by
-        // hand: without this a hit would reload the page it leads to.
-        if (window.htmx) htmx.process(results);
-      })
-      .catch(function () {
-        // Pure enhancement: leave whatever results are already showing
-        // rather than replacing them with an error.
-      });
-  }
+  var button, input, results;
 
   function open() {
     button.setAttribute("aria-expanded", "true");
     overlay.hidden = false;
     input.value = "";
-    fetchResults("");
+    // The input's hx-trigger names this event; htmx fetches the results for
+    // an empty query, as it would for a keystroke.
+    if (window.htmx) htmx.trigger(input, "search-open");
     input.focus();
   }
 
@@ -208,8 +190,6 @@ var onPageChange = (function () {
     button.setAttribute("aria-expanded", "false");
     button.focus();
   }
-
-  var debounce;
 
   // The shortcut belongs to the document, not to the overlay, so it is
   // registered once and reads whichever overlay is on the page when it fires.
@@ -232,15 +212,6 @@ var onPageChange = (function () {
     }
     input = overlay.querySelector(".search-overlay-input");
     results = overlay.querySelector(".search-overlay-results");
-    // Set from chrome's SearchPath — "/search" signed in,
-    // "/share/<slug>/search" on the read-only view — so this file never
-    // hardcodes which one applies.
-    searchPath = overlay.dataset.searchPath;
-    input.addEventListener("input", function () {
-      var query = input.value;
-      clearTimeout(debounce);
-      debounce = setTimeout(function () { fetchResults(query); }, 120);
-    });
 
     button.addEventListener("click", function (event) {
       event.preventDefault(); // The link still has a real href; only override it once script has run.
@@ -661,14 +632,34 @@ var onPageChange = (function () {
   // a body swap never touches. Following a theme link is an ordinary
   // navigation, so this is how the theme actually changes.
   document.addEventListener("htmx:beforeSwap", function (event) {
-    if (event.detail.target !== document.body || !event.detail.xhr) return;
-    var incoming = new DOMParser().parseFromString(event.detail.xhr.responseText, "text/html").documentElement;
+    var detail = event.detail;
+    if (detail.target !== document.body || !detail.xhr) return;
+    var incoming = new DOMParser().parseFromString(detail.xhr.responseText, "text/html").documentElement;
     var root = document.documentElement;
     ["lang", "data-theme", "data-sidebar"].forEach(function (name) {
       var value = incoming.getAttribute(name);
       if (value === null) root.removeAttribute(name);
       else root.setAttribute(name, value);
     });
+  });
+
+  // And the address. htmx (2.0.10) decides whether a boosted swap pushes
+  // the URL by a flag on the element that was pressed, read once the reply
+  // is in — and forgets that flag when the element leaves the page, which it
+  // does if the list it was in is swapped while its request is in flight: a
+  // search hit pressed as the results refresh, a player pressed as a live
+  // update lands. The page then changes and the address does not. So the
+  // decision is made here, while the element is still in the page: a
+  // boosted request that says nothing of its own about the address pushes
+  // wherever the server ends up sending it, which is what htmx would have
+  // decided.
+  document.addEventListener("htmx:beforeRequest", function (event) {
+    var detail = event.detail;
+    var config = detail.requestConfig;
+    var etc = detail.etc;
+    if (!config || !config.boosted || !etc || etc.push || etc.replace) return;
+    if (config.elt.closest("[hx-push-url], [hx-replace-url]")) return;
+    etc.push = "true";
   });
 
   // 2. Focus. The element that was pressed is gone with the body it was in,

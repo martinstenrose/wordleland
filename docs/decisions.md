@@ -762,6 +762,16 @@ What did not fit, because the shape is worth knowing where it ends:
   search button, the enrolment link — says `hx-boost="false"` where it is
   rendered, or htmx fetches the page first. This replaces the old
   constraint that the switcher's listener be registered last.
+- **htmx processes swapped content after a settle delay** of 20ms, and a
+  link in a fragment is not boosted until then. The delay is for CSS
+  transitions on swapped content, which nothing here has, so it is zero.
+- **htmx forgets a request was boosted if its element leaves the page.**
+  Whether a boosted swap pushes the address is read off the element once
+  the reply is in, and a swap that removed the element in the meantime — a
+  search hit pressed as the results refresh, a player pressed as a live
+  update lands — has wiped it. The page changes and the address does not.
+  `app.js` makes the decision at request time instead, and pushes wherever
+  the server ended up. Seen in one run in four before it was understood.
 - **Forms are boosted too.** The old switcher took links only. Opting every
   form out would have been fighting the tool for a distinction a reader
   cannot see, and the no-script path is a form that posts, as before.

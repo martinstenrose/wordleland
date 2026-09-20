@@ -155,12 +155,21 @@
       {{/* Hidden until app.js opens it; see the script for why this exists
            at all rather than only as a fetch target. Absent, disabled, or
            failing to load, this markup is inert and the link above still
-           goes to a working page. data-search-path is how the script
-           reaches the same route under the share prefix without needing
-           to know the prefix itself. */}}
-      <div id="search-overlay" class="search-overlay" hidden data-search-path="{{.SearchPath}}">
+           goes to a working page.
+
+           The fetching is htmx's, on the input: each keystroke, once the
+           typing has paused, asks the same route the link points at for
+           just its results ("?partial=1", see search.go) and puts them in
+           the box below; a reply still in flight when the next keystroke
+           comes is dropped rather than allowed to land late. The path is
+           .SearchPath, so the same markup works under the share prefix.
+           "search-open" is what app.js raises when it shows the overlay,
+           so the empty query's results appear before anything is typed. */}}
+      <div id="search-overlay" class="search-overlay" hidden>
         <div class="search-overlay-box" role="dialog" aria-modal="true" aria-label="{{.T.T "search.title"}}">
-          <input type="search" class="search-overlay-input" placeholder="{{.T.T "search.placeholder"}}" aria-label="{{.T.T "search.title"}}">
+          <input type="search" name="q" class="search-overlay-input" placeholder="{{.T.T "search.placeholder"}}" aria-label="{{.T.T "search.title"}}"
+                 hx-get="{{.SearchPath}}?partial=1" hx-trigger="input changed delay:120ms, search-open"
+                 hx-target="next .search-overlay-results" hx-swap="innerHTML" hx-sync="this:replace" hx-indicator="this">
           <div class="search-overlay-results"></div>
         </div>
       </div>
