@@ -23,7 +23,7 @@ func setEnv(t *testing.T, env map[string]string) {
 	t.Helper()
 	for _, k := range []string{
 		"SIGNAL_API_URL", "SIGNAL_ACCOUNT", "SIGNAL_GROUP_ID",
-		"SIGNAL_ANNOUNCE_MONTHS", "SIGNAL_LOCALE",
+		"SIGNAL_ANNOUNCE_MONTHS", "SIGNAL_ANNOUNCE_DAYS", "SIGNAL_LOCALE",
 	} {
 		t.Setenv(k, env[k])
 	}
@@ -224,6 +224,52 @@ func TestLoadBridgeRejectsABadAnnounceMonthsValue(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "SIGNAL_ANNOUNCE_MONTHS") {
 		t.Errorf("error = %v, want it to name SIGNAL_ANNOUNCE_MONTHS", err)
+	}
+}
+
+func TestLoadBridgeAnnounceDaysDefaultsOn(t *testing.T) {
+	setEnv(t, bridgeEnv())
+
+	cfg, err := LoadBridge()
+	if err != nil {
+		t.Fatalf("LoadBridge() failed: %v", err)
+	}
+	if !cfg.AnnounceDays {
+		t.Error("AnnounceDays = false, want true by default")
+	}
+}
+
+// The two announcements are independent: somebody who wants the month's
+// result without a line in the group every day must be able to say so
+// without also turning off the other.
+func TestTheTwoAnnouncementsAreSwitchedSeparately(t *testing.T) {
+	env := bridgeEnv()
+	env["SIGNAL_ANNOUNCE_DAYS"] = "false"
+	setEnv(t, env)
+
+	cfg, err := LoadBridge()
+	if err != nil {
+		t.Fatalf("LoadBridge() failed: %v", err)
+	}
+	if cfg.AnnounceDays {
+		t.Error("AnnounceDays = true, want false with SIGNAL_ANNOUNCE_DAYS=false")
+	}
+	if !cfg.AnnounceMonths {
+		t.Error("AnnounceMonths = false; turning the daily recap off must not take the month with it")
+	}
+}
+
+func TestLoadBridgeRejectsABadAnnounceDaysValue(t *testing.T) {
+	env := bridgeEnv()
+	env["SIGNAL_ANNOUNCE_DAYS"] = "sometimes"
+	setEnv(t, env)
+
+	_, err := LoadBridge()
+	if err == nil {
+		t.Fatal("LoadBridge() accepted a non-boolean SIGNAL_ANNOUNCE_DAYS")
+	}
+	if !strings.Contains(err.Error(), "SIGNAL_ANNOUNCE_DAYS") {
+		t.Errorf("error = %v, want it to name SIGNAL_ANNOUNCE_DAYS", err)
 	}
 }
 

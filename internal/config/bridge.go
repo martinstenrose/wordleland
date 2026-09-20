@@ -44,7 +44,15 @@ type Bridge struct {
 	// ever speaking in the group.
 	AnnounceMonths bool
 
-	// AnnounceLocale is the language the announcement is written in.
+	// AnnounceDays posts the day's recap when every active player has
+	// filed, or just after midnight if they have not. Its own variable
+	// rather than a widening of AnnounceMonths: they post at different
+	// rates — one a month against one a day — and somebody who wants the
+	// month's result without a daily line in the group should be able to
+	// say so without also naming the other.
+	AnnounceDays bool
+
+	// AnnounceLocale is the language the announcements are written in.
 	//
 	// A signed-in reader has their own locale, stored on their account; the
 	// group chat has no such thing; it is not any one member's message. So
@@ -79,6 +87,7 @@ func LoadBridge() (*Bridge, error) {
 		SignalAccount:  strings.TrimSpace(os.Getenv("SIGNAL_ACCOUNT")),
 		SignalGroupID:  strings.TrimSpace(os.Getenv("SIGNAL_GROUP_ID")),
 		AnnounceMonths: true,
+		AnnounceDays:   true,
 		AnnounceLocale: envOr("SIGNAL_LOCALE", i18n.Default),
 	}
 
@@ -113,13 +122,15 @@ func LoadBridge() (*Bridge, error) {
 		problems = append(problems, "SIGNAL_API_URL: "+err.Error())
 	}
 
-	if raw := strings.TrimSpace(os.Getenv("SIGNAL_ANNOUNCE_MONTHS")); raw != "" {
-		v, err := strconv.ParseBool(raw)
-		if err != nil {
-			problems = append(problems, fmt.Sprintf("SIGNAL_ANNOUNCE_MONTHS: %q is not a boolean", raw))
-		} else {
-			cfg.AnnounceMonths = v
-		}
+	if value, problem := envBool("SIGNAL_ANNOUNCE_MONTHS", cfg.AnnounceMonths); problem != "" {
+		problems = append(problems, problem)
+	} else {
+		cfg.AnnounceMonths = value
+	}
+	if value, problem := envBool("SIGNAL_ANNOUNCE_DAYS", cfg.AnnounceDays); problem != "" {
+		problems = append(problems, problem)
+	} else {
+		cfg.AnnounceDays = value
 	}
 
 	switch {
@@ -157,6 +168,21 @@ func checkHTTPURL(raw string) error {
 		return fmt.Errorf("must include a host, got %q", raw)
 	}
 	return nil
+}
+
+// envBool reads an optional boolean override, returning the problem as text
+// rather than an error so LoadBridge can report every one together. An unset
+// or blank variable leaves the default alone.
+func envBool(name string, fallback bool) (bool, string) {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return fallback, ""
+	}
+	v, err := strconv.ParseBool(raw)
+	if err != nil {
+		return fallback, fmt.Sprintf("%s: %q is not a boolean", name, raw)
+	}
+	return v, ""
 }
 
 // envOr reads a variable, falling back when it is unset or blank. Blank

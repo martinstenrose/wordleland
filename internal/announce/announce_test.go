@@ -91,7 +91,7 @@ func TestAnnouncesTheClearWinnerOnce(t *testing.T) {
 		return nil
 	}
 
-	announce := New(db, loadCatalogues(t), "en", send)
+	announce := NewMonthly(db, loadCatalogues(t), "en", send)
 	now := time.Date(2026, time.April, 5, 9, 0, 0, 0, time.Local)
 
 	if err := announce(ctx, now); err != nil {
@@ -136,7 +136,7 @@ func TestConcurrentChecksSendOnce(t *testing.T) {
 	fill(t, db, "alice", 2026, time.March, 1, 12, 2)
 
 	var calls atomic.Int32
-	announce := New(db, loadCatalogues(t), "en", func(context.Context, string) error {
+	announce := NewMonthly(db, loadCatalogues(t), "en", func(context.Context, string) error {
 		calls.Add(1)
 		return nil
 	})
@@ -185,7 +185,7 @@ func TestAnnouncesTheWinnerEvenBelowTenGames(t *testing.T) {
 		return nil
 	}
 
-	announce := New(db, loadCatalogues(t), "en", send)
+	announce := NewMonthly(db, loadCatalogues(t), "en", send)
 	now := time.Date(2026, time.April, 5, 9, 0, 0, 0, time.Local)
 
 	if err := announce(ctx, now); err != nil {
@@ -223,7 +223,7 @@ func TestSaysNothingForAMonthWithNoResultsAtAll(t *testing.T) {
 		return nil
 	}
 
-	announce := New(db, loadCatalogues(t), "en", send)
+	announce := NewMonthly(db, loadCatalogues(t), "en", send)
 	now := time.Date(2026, time.April, 5, 9, 0, 0, 0, time.Local)
 
 	if err := announce(ctx, now); err != nil {
@@ -246,7 +246,7 @@ func TestWaitsUntilNoonOnTheFirstDay(t *testing.T) {
 	fill(t, db, "bob", 2026, time.March, 1, 12, 4)
 
 	var calls atomic.Int32
-	announce := New(db, loadCatalogues(t), "en", func(context.Context, string) error {
+	announce := NewMonthly(db, loadCatalogues(t), "en", func(context.Context, string) error {
 		calls.Add(1)
 		return nil
 	})
@@ -278,7 +278,7 @@ func TestLaterLiveResultCatchesUpAMissedNoon(t *testing.T) {
 	fill(t, db, "alice", 2026, time.March, 1, 12, 2)
 
 	var calls atomic.Int32
-	announce := New(db, loadCatalogues(t), "en", func(context.Context, string) error {
+	announce := NewMonthly(db, loadCatalogues(t), "en", func(context.Context, string) error {
 		calls.Add(1)
 		return nil
 	})
@@ -313,7 +313,7 @@ func TestFailedSendIsNotRecordedAndIsRetried(t *testing.T) {
 		return nil
 	}
 
-	announce := New(db, loadCatalogues(t), "en", send)
+	announce := NewMonthly(db, loadCatalogues(t), "en", send)
 	now := time.Date(2026, time.April, 5, 9, 0, 0, 0, time.Local)
 
 	if err := announce(ctx, now); err == nil {
@@ -357,7 +357,7 @@ func TestTieAnnouncementNamesEveryWinner(t *testing.T) {
 	if !ok {
 		t.Fatal("winnerLine() reported no winner for a three-way tie")
 	}
-	want := "🏆 Alice, Bob & Charlie: A tie at 2.50. They take the month."
+	want := "🏆 Alice, Bob and Charlie: A tie at 2.50. They take the month."
 	if got != want {
 		t.Errorf("winnerLine() = %q, want %q", got, want)
 	}
