@@ -32,13 +32,17 @@ const SourceSignal = "signal"
 // standing up a database.
 type Deliverer func(context.Context, ingest.Submission) (ingest.Result, error)
 
-// Announcer checks whether a month's scheduled noon post was missed and
-// posts its winner if so. It is called after every live result, but is a
-// no-op before noon on the first and after a successful send. The stored
-// announcement record makes repeated checks restart-safe.
+// Announcer checks whether there is anything to post back into the group —
+// a month's winner, a day's recap — and posts it if so. It is called after
+// every live result, and is a no-op whenever nothing is due or the post has
+// already gone out. The stored announcement records make repeated checks
+// restart-safe.
 //
-// A nil Announcer means announcing is off — unconfigured, or disabled by
-// SIGNAL_ANNOUNCE_MONTHS — and is never called.
+// What it actually covers is assembled in cmd/wordleland/serve.go; the
+// bridge deliberately knows only that something might want saying after a
+// result lands. A nil Announcer means announcing is off — unconfigured, or
+// disabled by SIGNAL_ANNOUNCE_MONTHS and SIGNAL_ANNOUNCE_DAYS — and is
+// never called.
 //
 // An error is a genuine failure — the store, or the send, went wrong — not
 // "nothing to announce yet", which the Announcer reports by returning nil.
@@ -46,9 +50,9 @@ type Deliverer func(context.Context, ingest.Submission) (ingest.Result, error)
 type Announcer func(ctx context.Context, now time.Time) error
 
 // announceTimeout bounds the Announcer's own work — a database read and one
-// HTTP call to signal-cli-rest-api — so a slow month check cannot stall the
-// worker that also files results. Independent of sendTimeout: this also
-// covers the store reads around the send.
+// HTTP call to signal-cli-rest-api per announcement — so a slow check cannot
+// stall the worker that also files results. Independent of sendTimeout: this
+// also covers the store reads around the send.
 const announceTimeout = 20 * time.Second
 
 // Back-dating window, in puzzles either side of today's.
@@ -96,7 +100,7 @@ type filer struct {
 	// delivery and not only the Signal side.
 	health *health
 
-	// announce checks for a month to post about, after every live result.
+	// announce checks for anything to post about, after every live result.
 	// Nil when announcing is off.
 	announce Announcer
 
@@ -169,9 +173,11 @@ func (f *filer) handle(ctx context.Context, m Message) {
 
 	f.file(ctx, result, m)
 
-	// After, not before: filing the actual result takes priority over a
-	// once-a-month side effect, and a slow or failing announcement must
-	// never delay or cost a score.
+	// After, not before: filing the actual result takes priority over
+	// anything said about it, and a slow or failing announcement must never
+	// delay or cost a score. It is also what makes "everyone has now filed"
+	// observable — this result is already in the store by the time the
+	// day's check counts who is missing.
 	f.maybeAnnounce(ctx)
 }
 
@@ -187,7 +193,7 @@ func isArchiveShare(body string) bool {
 // maybeAnnounce runs the Announcer, if one is configured, and only ever
 // logs what it reports. A failure here — the store, or the send to Signal
 // — is real, but it is not a result: retrying happens on its own, because
-// nothing here marks the month done until a post actually lands, so the
+// nothing marks a month or a day done until its post actually lands, so the
 // next live message tries again.
 func (f *filer) maybeAnnounce(ctx context.Context) {
 	if f.announce == nil {
@@ -196,7 +202,7 @@ func (f *filer) maybeAnnounce(ctx context.Context) {
 	actx, cancel := context.WithTimeout(ctx, announceTimeout)
 	defer cancel()
 	if err := f.announce(actx, f.now()); err != nil {
-		f.logger.Warn("could not announce the month's winner; will retry on the next live message",
+		f.logger.Warn("could not post an announcement; will retry on the next live message",
 			"error", err)
 	}
 }

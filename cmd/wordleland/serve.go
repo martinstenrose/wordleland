@@ -187,6 +187,7 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 	}
 
 	var supervisor *bridge.Supervisor
+	var monthly, daily func(context.Context, time.Time) error
 	var announcer bridge.Announcer
 	if bridgeCfg != nil {
 		// Delivery is a direct call now. The bridge writes as the
@@ -199,7 +200,7 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 		// Nil when announcing is off: the bridge treats a nil Announcer as
 		// "never call this", so turning the feature off costs nothing at
 		// every message instead of a check here plus a check there.
-		if bridgeCfg.AnnounceMonths {
+		if bridgeCfg.AnnounceMonths || bridgeCfg.AnnounceDays {
 			cats, err := i18n.Load()
 			if err != nil {
 				return err
@@ -208,7 +209,35 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 			if err != nil {
 				return err
 			}
-			announcer = announce.New(db, cats, bridgeCfg.AnnounceLocale, send)
+			if bridgeCfg.AnnounceMonths {
+				monthly = announce.NewMonthly(db, cats, bridgeCfg.AnnounceLocale, send)
+			}
+			if bridgeCfg.AnnounceDays {
+				// Before anything can check: on a deployment that has never
+				// announced a day, this marks yesterday done so the first
+				// thing the bot says is about the puzzle being played now,
+				// not a recap of a day the group has moved on from.
+				if err := announce.SkipDailyBacklog(ctx, db, time.Now()); err != nil {
+					return err
+				}
+				daily = announce.NewDaily(db, cats, bridgeCfg.AnnounceLocale,
+					bridgeCfg.AnnounceMonths, send)
+			}
+			// One Announcer, both checks. Each reports "nothing to do" as a
+			// nil error, so running both after every message is how either
+			// catches up a scheduled run the app was down for. Joined rather
+			// than short-circuited: a failing month check must not cost the
+			// day its recap.
+			announcer = func(ctx context.Context, now time.Time) error {
+				var errs []error
+				if monthly != nil {
+					errs = append(errs, monthly(ctx, now))
+				}
+				if daily != nil {
+					errs = append(errs, daily(ctx, now))
+				}
+				return errors.Join(errs...)
+			}
 		}
 
 		b, err := bridge.New(*bridgeCfg, deliver, announcer, logger)
@@ -243,13 +272,26 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 		}()
 		logger.Info("signal bridge started")
 
-		if announcer != nil {
+		// Each scheduler drives its own check rather than the combined
+		// Announcer: waking the month's check at midnight, or the day's at
+		// noon on the first, would do nothing but read the database.
+		if monthly != nil {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				announce.RunMonthly(ctx, announcer, logger)
+				announce.RunMonthly(ctx, monthly, logger)
 			}()
 			logger.Info("monthly announcement scheduler started", "at", "12:00 on day 1")
+		}
+		if daily != nil {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				announce.RunDaily(ctx, daily, logger)
+			}()
+			logger.Info("daily recap scheduler started", "at", "00:01",
+				"early", "posted as soon as every active player has filed",
+				"on_start", "checks once now, to catch up a midnight missed while down")
 		}
 	} else {
 		// Said plainly, because an app that silently is not bridging looks

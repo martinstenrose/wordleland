@@ -35,3 +35,46 @@ func RecordMonthAnnouncement(ctx context.Context, q Querier, year int, month tim
 	}
 	return nil
 }
+
+// DayAnnounced reports whether the bridge has already posted a recap for
+// this puzzle. A day has two triggers — the last active player filing, and
+// the run just after midnight — and this is what keeps them from posting
+// twice.
+func DayAnnounced(ctx context.Context, q Querier, puzzleNo int) (bool, error) {
+	var n int
+	err := q.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM signal_day_announcements WHERE puzzle_no = ?`,
+		puzzleNo,
+	).Scan(&n)
+	if err != nil {
+		return false, fmt.Errorf("check day announcement: %w", err)
+	}
+	return n > 0, nil
+}
+
+// AnyDayAnnounced reports whether a daily recap has ever been posted on this
+// deployment. An empty table means the daily announcement has not run here
+// before — a fresh install, or one upgrading to it — which is the one case
+// where the days already in the database are history rather than a backlog.
+func AnyDayAnnounced(ctx context.Context, q Querier) (bool, error) {
+	var exists int
+	err := q.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM signal_day_announcements)`,
+	).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check whether any day has been announced: %w", err)
+	}
+	return exists == 1, nil
+}
+
+// RecordDayAnnouncement marks a puzzle as announced, after the send, for
+// the same reason RecordMonthAnnouncement does.
+func RecordDayAnnouncement(ctx context.Context, q Querier, puzzleNo int) error {
+	if _, err := q.ExecContext(ctx,
+		`INSERT INTO signal_day_announcements (puzzle_no) VALUES (?)`,
+		puzzleNo,
+	); err != nil {
+		return fmt.Errorf("record day announcement: %w", err)
+	}
+	return nil
+}

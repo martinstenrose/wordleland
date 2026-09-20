@@ -658,9 +658,10 @@ func TestNilAnnouncerIsNeverCalled(t *testing.T) {
 }
 
 // The result the message actually carried must still be filed even when
-// the announcer fails: a once-a-month side effect must never cost a score.
-// The failure is logged, not swallowed silently, so an operator can see
-// Signal is unreachable without it ever showing up as a lost result.
+// the announcer fails: what gets said about a result must never cost the
+// result itself. The failure is logged, not swallowed silently, so an
+// operator can see Signal is unreachable without it ever showing up as a
+// lost result.
 func TestAnnouncerFailureDoesNotAffectTheResult(t *testing.T) {
 	f, cap := testFiler(t)
 
@@ -673,7 +674,7 @@ func TestAnnouncerFailureDoesNotAffectTheResult(t *testing.T) {
 	if len(cap.sent()) != 1 {
 		t.Fatalf("sent %d results despite the announcer failing, want 1", len(cap.sent()))
 	}
-	if !strings.Contains(cap.log(), "could not announce") {
+	if !strings.Contains(cap.log(), "could not post an announcement") {
 		t.Errorf("the announce failure was not logged:\n%s", cap.log())
 	}
 }

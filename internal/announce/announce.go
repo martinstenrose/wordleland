@@ -1,14 +1,20 @@
-// Package announce builds the Signal bridge's Announcer: the closure that,
-// called at noon on the first of a month or after a later live message,
-// posts the previous calendar month's winner if nobody has yet done so.
+// Package announce builds what the Signal bridge posts back into the group.
+//
+// There are two announcements, each a closure of the same shape — given the
+// current time, work out whether there is anything to say and say it — and
+// each restart-safe through a row it writes only after a send succeeds:
+//
+//   - NewMonthly posts the previous calendar month's winner, at noon on the
+//     first of a month or after a later live message.
+//   - NewDaily posts the day's recap, once every active player has filed or
+//     just after midnight, whichever comes first.
 //
 // It sits above internal/store, internal/stats and internal/i18n — none of
 // which the bridge package itself depends on — so bridge stays able to
 // receive and file results without knowing what a "month" or a
-// translation is. cmd/wordleland/serve.go wires this package's New against
-// the real database and a bridge.Sender to build the bridge.Announcer it
-// passes to bridge.New, the same way it wires ingest.Apply into a
-// bridge.Deliverer.
+// translation is. cmd/wordleland/serve.go wires these against the real
+// database and a bridge.Sender to build the bridge.Announcer it passes to
+// bridge.New, the same way it wires ingest.Apply into a bridge.Deliverer.
 package announce
 
 import (
@@ -24,7 +30,8 @@ import (
 	"github.com/martinstenrose/wordleland/internal/store"
 )
 
-// New returns the closure the bridge calls after every live message.
+// NewMonthly returns the month's closure, called after every live message
+// and by RunMonthly.
 //
 // It reports what happened by returning nil for "nothing to do" — already
 // announced, or nobody posted a scorable result that month — and a non-nil
@@ -35,7 +42,7 @@ import (
 // send is a bridge.Sender by value, not by import: this package has no
 // need to know the bridge exists, only that something can post text to the
 // group, which keeps the dependency running one way.
-func New(db *sql.DB, cats i18n.Catalogues, locale string,
+func NewMonthly(db *sql.DB, cats i18n.Catalogues, locale string,
 	send func(ctx context.Context, text string) error) func(context.Context, time.Time) error {
 
 	t := i18n.NewTranslator(cats, locale)
@@ -156,7 +163,7 @@ func winnerLine(t i18n.Translator, m stats.Month) (string, bool) {
 		return "", false
 	}
 	w := m.Winners[0]
-	names := joinNames(t, m.Winners)
+	names := joinNames(t, playerNames(m.Winners))
 	avg := t.Decimal(*w.Average, 2)
 
 	switch {
@@ -174,12 +181,16 @@ func monthLabel(t i18n.Translator, m stats.Month) string {
 	return t.T("month."+strconv.Itoa(int(m.Month))) + " " + strconv.Itoa(m.Year)
 }
 
-// joinNames renders a tie as every name, because a tie is the result.
-func joinNames(t i18n.Translator, ps []stats.MonthPlayer) string {
+func playerNames(ps []stats.MonthPlayer) []string {
 	names := make([]string, 0, len(ps))
 	for _, p := range ps {
 		names = append(names, p.Name)
 	}
+	return names
+}
+
+// joinNames renders a tie as every name, because a tie is the result.
+func joinNames(t i18n.Translator, names []string) string {
 	switch len(names) {
 	case 0:
 		return ""

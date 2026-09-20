@@ -79,8 +79,9 @@ and an extra URL that commonly attract spam-filter rules.
 |---|---|
 | `SIGNAL_ACCOUNT` | The number the bot receives on: its own if registered, the operator's if linked. E.164, leading `+`, exactly as `/v1/accounts` reports it. **Quote it in YAML** — unquoted, `+46…` is parsed as an integer and loses the `+`, which produces a bridge that connects and receives nothing. |
 | `SIGNAL_GROUP_ID` | See below — this one is easy to get wrong. |
-| `SIGNAL_ANNOUNCE_MONTHS` | Optional, default `true`. Post the month's winner back into the group when a month closes. Set to `false` for a bridge that receives without the bot ever speaking. |
-| `SIGNAL_LOCALE` | Optional, default `en`. The language the announcement above is written in — one fixed choice for the whole group, not a per-member preference. |
+| `SIGNAL_ANNOUNCE_MONTHS` | Optional, default `true`. Post the month's winner back into the group when a month closes. |
+| `SIGNAL_ANNOUNCE_DAYS` | Optional, default `true`. Post the day's recap — the day's best result, and where the month stands — as soon as every active player has filed, or just after midnight if they have not. Independent of the variable above; set both to `false` for a bridge that receives without the bot ever speaking. |
+| `SIGNAL_LOCALE` | Optional, default `en`. The language the announcements above are written in — one fixed choice for the whole group, not a per-member preference. |
 
 `SIGNAL_API_URL` is not configured. It defaults to
 `http://signal-cli-rest-api:8080` — a service name from `compose.yml` joined
@@ -113,6 +114,25 @@ unprompted "no scores to rank" message reads as the bot scolding a quiet
 month. This is the only place the app states a real display name outside the
 board itself, worth knowing before turning it on for a group that would
 mind.
+
+**It also posts back once a day.** When every active player has filed, or just
+after midnight if they have not, it sends one message naming the day's best
+result and where the month stands. Retired players are not waited for. On the
+month's last day the standing is held back — the 🏆 message at noon the next
+day is what delivers the result — unless `SIGNAL_ANNOUNCE_MONTHS` is off, in
+which case nothing else would ever say it.
+
+The daily check also runs once at startup, so a midnight missed to a restart
+or an outage is caught up as soon as the app is back rather than waiting for
+somebody to post a result. It only ever looks one day back: an app down for
+longer returns with yesterday's recap and does not replay the days before it.
+
+**The first time this runs, it does not announce a backlog.** Whatever is
+already in the database when the daily recap is first enabled is treated as
+history, and the marker is set to the day before startup. Enable it at midday
+and the first message is about that day's puzzle — immediately if everyone has
+already filed, otherwise when the last player does or just after midnight.
+Nothing is ever posted about the days before.
 
 ### Set `TRUSTED_PROXIES`
 

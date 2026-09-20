@@ -947,14 +947,172 @@ uses a comma as the decimal separator and spaces between thousands; English
 keeps the application's previous decimal-point and ungrouped forms. The
 formatter lives beside the shared catalogue so a monthly average cannot read
 one way on the board and another in Signal. Name lists use the same catalogue
-for their final conjunction, rendering Swedish `och` instead of the
-language-neutral ampersand used by English.
+for their final conjunction, `list.and`, which is a word in every language —
+`and`, `och`, `und`, `y`, `e`. English, German, Spanish and Italian used a
+language-neutral `&` first; it read as a logo rather than a sentence in a chat
+message, where "Alice & Bob shared the day's best" is prose and not a label.
+One key for both surfaces, so the board and Signal cannot disagree about it.
+
+Spanish's euphonic `y` → `e` before an `i`- or `hi`- sound ("Ana e Inés") is
+deliberately not implemented: the conjunction is a flat catalogue string, and
+the rule needs the following word. A Spanish reader gets `y` in every case.
+Italian's optional `ed` before a vowel is the same call, and `e` is always
+correct there anyway.
 
 **Turning it off is a separate switch from configuring the bridge at all**,
 `SIGNAL_ANNOUNCE_MONTHS`, defaulting on. The bridge's own on/off state
 already answers "does this deployment talk to Signal"; this answers "does
 the bot ever speak in the group," for someone who wants results flowing in
 without the bridge ever posting back.
+
+## The day's recap
+
+The second thing the bot says in the group, and the first that happens more
+than once a month: when a day is over, post what the day was and where the
+month stands. It reuses the month announcement's whole shape — a closure of
+the same signature, a row written only after a successful send, a scheduled
+run plus a live-result catch-up — so what follows is only where the two
+differ.
+
+**A day ends when every active player has filed, or just after midnight,
+whichever comes first.** The month deliberately does *not* wait for
+everybody (see above: one missing player must not block the group
+indefinitely), and the day deliberately does, because the two are asking
+different questions. A month is a standing that a late result barely moves;
+a day is a race, and posting "Alice took it in 3" while three people have
+not played yet is not a result, it is an interim score. Midnight is what
+stops that from blocking anything: the day is over by the calendar whether
+or not everyone turned up.
+
+**Retired players never hold the day open.** They are not expected, so
+counting them as missing would mean the early trigger silently stopped
+working the first time anybody left the group — the kind of fault that looks
+like nothing at all. This falls out of reusing `stats.ComputeToday`, whose
+`Missing` already excludes them for the same reason on the Today page.
+
+**The scheduled run is 00:01, not 00:00.** A result posted at 23:59 still
+has to reach signal-cli, cross the websocket and be filed, and a recap that
+lands a minute late is worth more than one that omits the last score of the
+day. It also keeps the run off the boundary itself, where a timer firing
+fractionally early would compute the closing day as the current one and find
+nothing to close.
+
+**The day that has just closed is considered before the day in progress.**
+One check posts at most one day, and it prefers the older: a closed day can
+no longer change, and taking it first is what lets a live result catch up a
+midnight run the app was down for. In steady state the closed day is already
+recorded by the time anyone plays, so this costs a lookup and the early
+trigger fires as normal.
+
+**Only ever one day back**, for the reason the monthly catch-up only looks
+at `previousMonth(now)`, and with a sharper version of the same gap: an app
+offline for a week comes back and posts one recap, for yesterday. The days
+before it are never announced. That is the intended trade — the alternative
+is a burst of recaps arriving together, which reads as a malfunction — but
+it is a real hole, and worth knowing about before concluding the feature
+"missed a day".
+
+**The daily schedule checks once on start, before its first sleep.** Without
+it, an app down at 00:01 and up at 08:00 schedules nothing until 00:01
+tomorrow, and the missed recap waits on somebody filing a result to be
+noticed at all. On a day nobody plays, that never happens, and the missed day
+then falls outside the one-day-back window and is lost — a restart turning a
+late recap into no recap. The month does not check on start: it is caught up
+by any live result anyway, its window is a whole month rather than a few
+hours, and noon on the first is a grace period that a 06:00 restart should
+not cut short.
+
+**A first run marks the day before startup as done rather than announcing
+it** — `SkipDailyBacklog`, called once before the scheduler's first check. The
+days already in the database when this ships are history, not a missed post:
+the group has moved on from them, and opening with a recap of yesterday is a
+strange first thing for a bot to say. The check on start would otherwise do
+exactly that, and deploying at midday would greet the group with the previous
+day's result.
+
+It writes one row rather than backfilling the whole history because the daily
+check only ever looks one day back — marking yesterday is enough to make
+everything before it invisible. The condition is "no day has *ever* been
+announced", which is true for a fresh install and for an existing one
+upgrading to this, and false forever after, so a later restart cannot move the
+marker forward and swallow a day that genuinely was missed.
+
+Note what this does *not* suppress: the day in progress. Deploy at 12:18 with
+every active player already in and the recap for that day goes out at 12:18,
+which is the intended first word — about the puzzle being played now.
+
+**Absentees are counted, not named.** "4 of 6 posted" is the fact; a list of
+who did not play reads as the bot calling people out, and this message is
+pushed rather than requested. The Today page names them, because somebody
+asking for that page is asking.
+
+**The month line reports the month the day belongs to, not the month the
+clock is in.** These differ for exactly one recap a month — the 00:01 run on
+the first — and reading it off `now` would print a brand-new, empty month
+beside a day played in the old one. The rest of the month figures are still
+computed as of the real `now`, so that recap correctly reports a month whose
+days have all concluded.
+
+**On that one recap, the standing is withheld and the line points at noon
+instead:** "September wrapped — the result at noon." Printing it would hand
+the group the month's winner, average and margin twelve hours before the 🏆
+message whose whole job is to deliver them — the same three figures, said
+twice, with the second saying being the ceremonial one. The two announcements
+do not race in any technical sense: they run at 00:01 and 12:00, hold
+separate locks, write separate tables, and run in sequence when one live
+result triggers both. What they collided over was the reveal.
+
+The condition is **the recapped day being its month's last**, not the month
+having closed by `now`. Both ways a last day gets recapped give the result
+away: the 00:01 run after it, and the early post on the evening of the day
+itself — and the early one is not the safer of the two, because it only fires
+once every active player is in, which is exactly when nobody is left to move
+the figures. Testing "has the month closed" would have caught the first and
+missed the second. Ordinary days inside the month are untouched; the standing
+is a standing, and the group is told it every day.
+
+**It is conditional on a monthly announcement actually being configured**,
+which `NewDaily` takes as `monthResultFollows`. With `SIGNAL_ANNOUNCE_MONTHS`
+off and `SIGNAL_ANNOUNCE_DAYS` on — a supported combination, since the two
+switches are deliberately independent — nothing else would ever say where the
+month finished, and pointing at a noon message that never arrives is worse
+than repeating a figure.
+
+**The margin names every runner-up, not one of them.** `Month.Margin` is the
+gap to the next *distinct* average, and several players can share it. Naming
+one would invent a placing, the same reason `Winners` is a slice.
+
+**Its own switch, `SIGNAL_ANNOUNCE_DAYS`, defaulting on.** Folding it into
+`SIGNAL_ANNOUNCE_MONTHS` would have made that variable's name wrong, and the
+two post at genuinely different rates: wanting the month's result without a
+line in the group every day is a reasonable thing to want, and should not
+require giving up both.
+
+**The strings are their own key family, `announce.daily.*`.** Same reasoning
+as `announce.line.*` against `months.line.*` — chat prose is not page prose.
+One trap worth recording, because it fails quietly: `internal/web`'s
+translator treats any key ending `.one` as the singular half of a plural
+pair, so `announce.daily.best.one` was read as a plural form of
+`announce.daily.best` and rendered with the count substituted into the name's
+`%s`. A catalogue key must not end in `.one` unless it really is a plural.
+`internal/web/i18n_test.go` catches this; the keys carry plain suffixes
+instead — `announce.daily.best`, `.bestPair`, `.bestMany`, `.noneSolved`.
+
+**The day's best has three sentences, not a singular and a plural**, because
+a pair takes a word of its own: "both" is wrong for three people and "all" is
+wrong for two. German, Spanish and Italian make the same distinction
+(`beide`/`alle`, `ambos`/`todos`, `entrambi`/`tutti`), and Swedish restructures
+the sentence for a pair (`Både Alice och Bob …`), which is exactly what a
+separate key per case is for. Note also that this is not the catalogue's
+`.one`/`.other` plural mechanism and could not be: that splits at one, and
+this splits at two.
+
+**A separate table, `signal_day_announcements`, keyed by puzzle number.**
+Not a shared `announcements` table with a kind column: the two have
+different natural keys, and sharing one would mean allowing the wrong half
+of every row to be null. The puzzle number is the same identifier the
+results table and the parser use, so there is no second notion of "which
+day" to keep in step with `wordle.PuzzleForDate`.
 
 ## CI and security scanning
 
