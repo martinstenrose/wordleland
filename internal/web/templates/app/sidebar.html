@@ -59,10 +59,9 @@
            following this is not finished with that page — and rel=noreferrer
            as well as noopener, for the same reason nothing here is fetched
            from a third party: where somebody was reading is not GitHub's to
-           know. data-reload keeps app.js's page switcher off it; the switcher
-           already ignores another origin, but this says so at the link. */}}
+           know. A link that opens a new tab is one htmx never boosts. */}}
       <a class="about-link" href="https://github.com/martinstenrose/wordleland"
-         target="_blank" rel="noopener noreferrer" data-reload>
+         target="_blank" rel="noopener noreferrer">
         {{template "github-icon" .}}
         {{.T.T "footer.github"}}
         <span class="visually-hidden">({{.T.T "footer.newTab"}})</span>
@@ -86,13 +85,12 @@
        app.css.
 
        A link, and it works as one: following it re-renders the page at the
-       other width and remembers the choice. app.js makes the same press
-       instant instead, and needs the other destination to point this at
-       afterwards — hence both. Both labels are here too, and app.css shows
-       whichever the rail's current width calls for, so the wording and the
-       accessible name follow the toggle without the script touching either. */}}
-  <a class="nav-row nav-collapse" href="{{.SidebarToggle.Href}}" title="{{.SidebarToggle.Label}}"
-     data-href-wide="{{.SidebarWideHref}}" data-href-narrow="{{.SidebarNarrowHref}}">
+       other width and remembers the choice; boosted like every other link,
+       the page comes back without the flash and <html> takes the new width
+       from it. Both labels are here, and app.css shows whichever the rail's
+       current width calls for, so the wording and the accessible name follow
+       the attribute without any script touching either. */}}
+  <a class="nav-row nav-collapse" href="{{.SidebarToggle.Href}}" title="{{.SidebarToggle.Label}}">
     {{template "collapse-icon" .}}
     <span class="nav-label">
       <span class="to-narrow">{{.T.T "nav.collapse"}}</span>

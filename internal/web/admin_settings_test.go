@@ -305,12 +305,12 @@ func TestNoCopyControlWithoutAnOrigin(t *testing.T) {
 }
 
 // Rotating is three page loads without a script — ask, answer, outcome — and
-// app.js collapses them into swaps in place. What it swaps is scoped to this
-// one block, so the admin strip above, which links here too, is left alone.
+// the share section's htmx attributes collapse them into swaps in place.
+// What they swap is scoped to this one block, so the admin strip above,
+// which links here too, is left alone.
 //
-// Every control it intercepts stays a real one: the question is a link, the
-// answer is a form that posts its own token, and either works with the script
-// gone.
+// Every control stays a real one: the question is a link, the answer is a
+// form that posts its own token, and either works with the scripts gone.
 func TestTheShareSectionIsScopedAndStillWorksWithoutAScript(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
@@ -339,38 +339,47 @@ func TestTheShareSectionIsScopedAndStillWorksWithoutAScript(t *testing.T) {
 	}
 }
 
-// The rotation posts what the form declares, which is url-encoded.
+// The rotation swaps the card, not the body, and the address follows.
 //
-// It posted the FormData it is built from, which is multipart — and Go's
-// ParseForm does not read a multipart body. PostForm came back empty, the
-// CSRF token went missing, and the server answered correctly with "the form
-// expired": a valid token, rejected, because the request was not the one the
-// markup described.
+// Every other link swaps the whole body and the note that comes back is
+// raised into a panel; here the slug visibly changes under the reader's
+// eyes, and a dialog on top of that is feedback for nothing. So the section
+// aims htmx at the card: pick the card out of the page each step returns,
+// put it in place of this one, and replace the address rather than pushing
+// a history entry for each half of one decision.
 //
-// Asserted against the script's text because there is no other way to catch
-// it here, and "body: new FormData(form)" is exactly the simplification
-// somebody would make.
-func TestTheRotationPostsWhatTheFormDeclares(t *testing.T) {
+// htmx posts a form the way the form declares — url-encoded, which Go's
+// ParseForm reads — so an enctype on the form would be the one thing that
+// could make the token go missing again.
+func TestTheRotationSwapsTheCardInPlace(t *testing.T) {
 	srv := testServer(t)
-	script := fetchAs(t, srv, "/static/app.js", nil).Body.String()
-
-	if !strings.Contains(script, "body: new URLSearchParams(new FormData(form))") {
-		t.Error("the rotation does not post url-encoded, so its CSRF token will not arrive")
-	}
-	if strings.Contains(script, "body: new FormData(") {
-		t.Error("a fetch posts multipart, which Go's ParseForm leaves unread")
-	}
-
-	// And the form it reads really does declare that encoding — an enctype
-	// on it would make the script the wrong one rather than the right one.
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
 	if _, _, err := store.EnsureShareSlug(context.Background(), srv.db); err != nil {
 		t.Fatalf("EnsureShareSlug: %v", err)
 	}
+
+	for _, path := range []string{"/admin/settings", "/admin/settings?confirm=slug"} {
+		body := fetchAs(t, srv, path, session).Body.String()
+		section, ok := sectionOf(body, `<div class="settings-section share-section"`, ">")
+		if !ok {
+			t.Fatalf("%s: no share section", path)
+		}
+		for _, attr := range []string{
+			`hx-target="closest section.card"`,
+			`hx-select="section.card"`,
+			`hx-swap="outerHTML"`,
+			`hx-replace-url="true"`,
+		} {
+			if !strings.Contains(section, attr) {
+				t.Errorf("%s: the share section is missing %s", path, attr)
+			}
+		}
+	}
+
 	asked := fetchAs(t, srv, "/admin/settings?confirm=slug", session).Body.String()
 	form := asked[strings.Index(asked, `<form method="post" action="/admin/settings/slug"`):]
 	if strings.Contains(form[:strings.Index(form, ">")], "enctype") {
-		t.Error("the form declares an enctype the script does not send")
+		t.Error("the form declares an enctype, so htmx would post something ParseForm does not read")
 	}
 }

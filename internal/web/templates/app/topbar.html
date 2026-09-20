@@ -145,7 +145,9 @@
            hides on a narrow screen (see the media query in app.css) and
            the icon alone would otherwise have no accessible name once
            it does. */}}
-      <a class="menu-btn search-btn" href="{{.SearchPath}}" aria-label="{{.T.T "search.title"}}" aria-haspopup="dialog" aria-expanded="false" aria-controls="search-overlay">
+      {{/* hx-boost="false": app.js opens the overlay on this press, and htmx
+           would otherwise have fetched the search page first. */}}
+      <a class="menu-btn search-btn" href="{{.SearchPath}}" hx-boost="false" aria-label="{{.T.T "search.title"}}" aria-haspopup="dialog" aria-expanded="false" aria-controls="search-overlay">
         {{template "search-icon" .}}
         <span class="search-label">{{.T.T "search.placeholder"}}</span>
         <span class="search-shortcut js-only" aria-hidden="true">⌘K</span>

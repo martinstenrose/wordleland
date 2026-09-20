@@ -224,11 +224,11 @@ func TestAccountMenuNeedsNoScript(t *testing.T) {
 	}
 }
 
-// Collapsing the rail is a link first and a script second. The link is the
-// whole feature — following it re-renders at the other width and the cookie
-// remembers — and app.js only does the visible half without the round trip.
-// What it needs from the server is the other destination and both labels,
-// since it renders neither itself.
+// Collapsing the rail is a link and nothing else. Following it re-renders at
+// the other width and the cookie remembers; boosted like every other link,
+// it does that without a reload, and no script renders any of it. What it
+// needs from the server is both labels, since the stylesheet shows whichever
+// the width in force calls for.
 func TestTheCollapseControlWorksWithoutScript(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
@@ -248,29 +248,20 @@ func TestTheCollapseControlWorksWithoutScript(t *testing.T) {
 		t.Error("a wide rail's control does not point at the narrow width")
 	}
 
-	// Both destinations, so the script can point the link at the other one
-	// after flipping the rail in place.
-	for _, attr := range []string{`data-href-wide="`, `data-href-narrow="`} {
-		if !strings.Contains(control, attr) {
-			t.Errorf("the collapse control is missing %s", attr)
-		}
-	}
-
 	// Both labels, so the wording and the accessible name follow the width
-	// through CSS rather than being written by the script.
+	// through CSS rather than being written by a script.
 	for _, label := range []string{"Collapse sidebar", "Expand sidebar"} {
 		if !strings.Contains(control, ">"+label+"<") {
 			t.Errorf("the collapse control does not carry %q", label)
 		}
 	}
 
-	// And the script is wired to that control and nothing else.
+	// Nothing in the script is about this control any more: it is one
+	// boosted link among the rest, and <html> takes the width from the page
+	// that comes back.
 	js := fetchAs(t, srv, "/static/app.js", nil).Body.String()
-	if !strings.Contains(js, `querySelector(".nav-collapse")`) {
-		t.Error("app.js does not bind the collapse control")
-	}
-	if !strings.Contains(js, "preventDefault") {
-		t.Error("app.js does not take over the click it is enhancing")
+	if strings.Contains(js, "nav-collapse") {
+		t.Error("app.js still handles the collapse control by hand")
 	}
 }
 
