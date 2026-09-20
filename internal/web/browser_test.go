@@ -750,6 +750,27 @@ func TestBrowserTodaysTwoListsShareARhythm(t *testing.T) {
 	}
 }
 
+// Opening the list of who has not filed leaves the day's headline where it
+// was.
+//
+// On a wide screen the header's two groups stand side by side. Aligned to
+// the bottom, the left one slid down when the right one grew: the reader
+// pressed a small control on the right and the headline on the left moved.
+// Nothing that reads the markup can see which edge a row is aligned on.
+func TestBrowserOpeningTheMissingListLeavesTheHeadlineStill(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), desktopWidth)
+	p.Navigate(site.base + "/today")
+
+	const top = `document.querySelector(".today-headline h1").getBoundingClientRect().top`
+	before := p.Number(top)
+	p.Click(".today-out > summary")
+	p.WaitFor(`document.querySelector(".today-out").open`)
+	if after := p.Number(top); after != before {
+		t.Errorf("the headline moved from %v to %v when the list opened", before, after)
+	}
+}
+
 // The enrolment dialog opens over the settings screen, holds focus, and
 // closes without going anywhere.
 //
