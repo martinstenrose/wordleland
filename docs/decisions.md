@@ -613,9 +613,10 @@ make room for it. What went, and why:
   table read as an afterthought — and the unlabelled figure beside a name
   meant a game count in the cards and a streak in the table. One row shape
   for everybody is shorter, reads down, and settles that by construction.
-- **The trait badge and Last Five**, with them: the same argument the
-  leaderboard and Months had already won. These are rows of figures about a
-  window, and the name column is for the name.
+- **The trait badge**, with them: the same argument the leaderboard and
+  Months had already won. These are rows of figures about a window, and the
+  name column is for the name. Last Five went too at the time, and came
+  back — see below.
 - **A round trip.** The players the board does not rank were fetched with
   `?benched=1` and swapped in by script. The list is small and was always
   going to be rendered, so fetching it was work spent avoiding a
@@ -641,6 +642,30 @@ the board's. The board's headings live in a wide table that scrolls; here
 "Durchschnitt" over a 72px column wraps, one list's header grows taller than
 the other's, and every row below it is out of step. The widths are the
 longest label in any of the five languages, measured rather than guessed.
+
+### The form list spells its last five out
+
+The form list drew each player's month as a sparkline. It showed the shape
+of the month and none of its scores: a 2 and an X were a dip and a spike,
+and which was which took the legend. Five score chips read the same way —
+newest on the right, a day not played a gap — and are legible, and they are
+the chip the results list draws today's score with, so the two lists share
+one vocabulary rather than a tile in one and a line in the other. This
+reverses the earlier call above, and for the reason stated there: Last Five
+went as one of several figures about a window, and comes back as the one
+that says what the figure beside it is made of.
+
+Two consequences are worth knowing. The results list's score shrank to
+match — 30px was the largest thing on the page and it is a row among rows
+now — and the average moved to sit before the delta it explains, in both
+lists, so the right-hand columns read the same way top to bottom. And the
+form row is now five chips and two figures either side of a name, all at
+fixed widths, so the name is what gives: on a phone the chips stay the
+board's own 20px and the figures take their own width, and the two-column
+layout starts at 1160px rather than 1000, with the form column the larger
+share, because below that the name had nothing left. Both are measured in
+the browser suite, since nothing that reads the markup can see a name cut
+to one letter.
 
 ## Switching pages in place, and what that says about the script rule
 

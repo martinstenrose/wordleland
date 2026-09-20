@@ -693,6 +693,63 @@ func TestBrowserTheTitleDoesNotMoveBetweenViews(t *testing.T) {
 	}
 }
 
+// Today's two lists are laid out on one rhythm, and the five chips leave the
+// name room.
+//
+// The form row carries five score chips and two figures either side of the
+// name, all at fixed widths, so the name is what gives when the row is
+// short of room — on a phone it was down to one letter before the widths
+// were measured, and at 1000px with the rail out it had nothing at all.
+// Nothing that reads the markup can see any of that. Column labels are
+// clipped rather than wrapped, for the same reason, so a label wider than
+// its column is silently cut; every one of the five languages is checked.
+func TestBrowserTodaysTwoListsShareARhythm(t *testing.T) {
+	site := newSite(t)
+	b := newBrowser(t)
+
+	const probe = `(() => {
+		const q = s => document.querySelector(s);
+		const box = e => e.getBoundingClientRect();
+		const clipped = [...document.querySelectorAll(".result-row.head > *, .form-row.head > *")]
+			.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent.trim());
+		return JSON.stringify({
+			name: Math.round(box(q(".form-row:not(.head) .form-name")).width),
+			result: Math.round(box(q(".result-row:not(.head)")).height),
+			form: Math.round(box(q(".form-row:not(.head)")).height),
+			sideBySide: box(q(".today-results")).top === box(q(".today-form")).top,
+			clipped,
+		});
+	})()`
+	type layout struct {
+		Name, Result, Form int
+		SideBySide         bool
+		Clipped            []string
+	}
+
+	for _, width := range []int{phoneWidth, desktopWidth} {
+		p := site.open(b, width)
+		for _, lang := range []string{"en", "sv", "de", "it", "es"} {
+			p.Navigate(site.base + "/today?lang=" + lang)
+			var got layout
+			if err := json.Unmarshal([]byte(p.String(probe)), &got); err != nil {
+				t.Fatalf("width %d %s: %v", width, lang, err)
+			}
+			if got.Name < 56 {
+				t.Errorf("width %d %s: the form row leaves the name %dpx", width, lang, got.Name)
+			}
+			if got.Result != got.Form {
+				t.Errorf("width %d %s: a results row is %dpx tall and a form row %dpx", width, lang, got.Result, got.Form)
+			}
+			if got.SideBySide != (width == desktopWidth) {
+				t.Errorf("width %d %s: side by side = %v", width, lang, got.SideBySide)
+			}
+			if len(got.Clipped) > 0 {
+				t.Errorf("width %d %s: column labels wider than their column: %v", width, lang, got.Clipped)
+			}
+		}
+	}
+}
+
 // The enrolment dialog opens over the settings screen, holds focus, and
 // closes without going anywhere.
 //
