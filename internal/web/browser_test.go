@@ -771,6 +771,42 @@ func TestBrowserOpeningTheMissingListLeavesTheHeadlineStill(t *testing.T) {
 	}
 }
 
+// The About panel covers what is under it.
+//
+// It is drawn from inside the rail, and the rail is sticky, which makes it
+// a stacking layer of its own: anything positioned in the page — the form
+// table's rank cells — painted over the panel, so the text of the page
+// showed through the text of the panel. What is on top at a point is the
+// one thing a selector cannot say.
+func TestBrowserTheAboutPanelCoversThePage(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), desktopWidth)
+	p.Navigate(site.base + "/today")
+
+	p.Click(".sidebar details.about > summary")
+	p.WaitFor(`document.querySelector(".sidebar details.about").open`)
+
+	// Every element of the page whose centre lies under the panel, and
+	// whether the panel is what is hit there.
+	showing := p.Strings(`(() => {
+		const panel = document.querySelector(".sidebar .about-panel");
+		const box = panel.getBoundingClientRect();
+		const out = [];
+		for (const el of document.querySelectorAll("main *")) {
+			const r = el.getBoundingClientRect();
+			if (!r.width || !r.height) continue;
+			const x = r.left + r.width / 2, y = r.top + r.height / 2;
+			if (x < box.left || x > box.right || y < box.top || y > box.bottom) continue;
+			const hit = document.elementFromPoint(x, y);
+			if (!panel.contains(hit)) out.push(el.className + ": " + el.textContent.trim().slice(0, 20));
+		}
+		return out;
+	})()`)
+	if len(showing) > 0 {
+		t.Errorf("%d elements of the page show through the About panel: %v", len(showing), showing)
+	}
+}
+
 // The enrolment dialog opens over the settings screen, holds focus, and
 // closes without going anywhere.
 //

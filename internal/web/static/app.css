@@ -335,6 +335,13 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 .sidebar {
   position: sticky;
   top: 56px;
+  /* A sticky element is a stacking layer of its own, and the About panel
+     is drawn from inside this one. Without a z-index the layer sits level
+     with the page, and anything positioned in the page — the form table's
+     rank cells, the grid's sticky headers — painted over the panel and its
+     dim. Above those, and below the bar (15), the popups (40) and every
+     overlay. */
+  z-index: 5;
   flex: none;
   width: 220px;
   height: calc(100vh - 56px);
