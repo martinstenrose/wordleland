@@ -688,7 +688,9 @@ func TestEveryFrameCarriesTheMainRegion(t *testing.T) {
 		"/share/" + slug + "/players/no-such-player", // no frame at all
 	} {
 		body := fetchAs(t, srv, path, nil).Body.String()
-		if got := strings.Count(body, `<main id="main">`); got != 1 {
+		// The opening tag only: Today and the board carry their live
+		// subscription on it as attributes.
+		if got := strings.Count(body, `<main id="main"`); got != 1 {
 			t.Errorf("%s renders %d main regions, want exactly one", path, got)
 		}
 	}
@@ -942,7 +944,7 @@ func TestThePageTitleDoesNotMoveBetweenPages(t *testing.T) {
 		{"/admin/pending", "Pending results"},
 	} {
 		body := fetchAs(t, srv, tt.path, session).Body.String()
-		at := strings.Index(body, `<main id="main">`)
+		at := strings.Index(body, `<main id="main"`)
 		if at < 0 {
 			t.Fatalf("%s has no main region", tt.path)
 		}

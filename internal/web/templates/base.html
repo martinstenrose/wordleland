@@ -19,6 +19,9 @@
      has run the links in a swapped fragment are not yet boosted. */}}
 <meta name="htmx-config" content='{"allowEval":false,"includeIndicatorStyles":false,"allowScriptTags":false,"defaultSettleDelay":0,"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":true}]}'>
 <script src="/static/htmx.min.js" defer></script>
+{{/* htmx's SSE extension, for the live stream Today and the board listen
+     to — see live.go and the main region below. */}}
+<script src="/static/sse.min.js" defer></script>
 <script src="/static/app.js" defer></script>
 {{/* .js-only marks something that does nothing without app.js — currently
      just the ⌘K hint beside the search link. Showing it when the shortcut
@@ -51,7 +54,18 @@
   <div class="shell">
     {{template "sidebar" .}}
     <div class="shell-main">
-      <main id="main">{{block "content" .}}{{end}}</main>
+      {{/* A page that redraws itself when a result lands says so here: it
+           listens to the stream, and on each event fetches its own URL
+           again and swaps its content in place — the content only, so the
+           listener outlives what it replaces. Without script the page is
+           correct on load and stays as it was, like any other page.
+
+           hx-disinherit, because htmx passes these attributes down to every
+           boosted link inside the region: without it a player's link would
+           have swapped the player's page into this region, at this address,
+           and a link to nowhere would have put the error page inside the
+           frame. What the region says about its own redraw is its own. */}}
+      <main id="main"{{with .Live}} hx-ext="sse" sse-connect="{{.Stream}}" hx-trigger="sse:result" hx-get="{{.Page}}" hx-select="#main > *" hx-target="this" hx-swap="innerHTML" hx-push-url="false" hx-disinherit="hx-select hx-target hx-swap hx-push-url hx-indicator" hx-indicator="this"{{end}}>{{block "content" .}}{{end}}</main>
     </div>
   </div>
 {{else if eq .Frame "auth"}}

@@ -314,6 +314,7 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boa
 		}
 		page.CSRFToken = token
 	}
+	page.Live = s.liveViewFor(r, prefix)
 
 	s.render(w, r, http.StatusOK, "board.html", page)
 }

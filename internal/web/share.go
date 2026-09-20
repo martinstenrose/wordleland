@@ -74,6 +74,11 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request) {
 		// find here — see searchDestinations — since neither exists for
 		// an anonymous reader.
 		s.handleSearch(w, r, prefix, true)
+	case rest == "events":
+		// The live stream, for the shared Today and board. The slug above
+		// is the whole of its authentication, as for every page here, and
+		// what it carries is a number that says "something changed".
+		s.handleEvents(w, r)
 	default:
 		s.renderError(w, r, http.StatusNotFound)
 	}

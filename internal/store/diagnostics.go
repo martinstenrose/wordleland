@@ -31,6 +31,31 @@ type Freshness struct {
 	PendingResults int
 }
 
+// LatestResultMark is the id of the most recent activity-log row that filed
+// or changed a result, or 0 when none has. It moves whenever the board
+// could have changed, whichever path the change came by — the bridge, the
+// API, a claim on the pending screen, a correction from the CLI — because
+// every one of them writes this row in the transaction that writes the
+// result. The live stream polls it; a page carries the value it was
+// rendered with, so a stream can tell whether anything has landed since.
+//
+// The id rather than the time: two results in one second are two marks,
+// and a mark is compared, never read.
+func LatestResultMark(ctx context.Context, q Querier) (int64, error) {
+	var id int64
+	err := q.QueryRowContext(ctx,
+		`SELECT id FROM activity_log WHERE action IN (?, ?) ORDER BY id DESC LIMIT 1`,
+		ActionResultCreated, ActionResultUpdated,
+	).Scan(&id)
+	if err == sql.ErrNoRows {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("read latest result mark: %w", err)
+	}
+	return id, nil
+}
+
 // ReadFreshness answers the diagnostics page's first question.
 func ReadFreshness(ctx context.Context, q Querier) (Freshness, error) {
 	var f Freshness

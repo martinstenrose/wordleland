@@ -138,6 +138,10 @@ type chrome struct {
 	// nobody opens is not a signal.
 	AdminWarning adminWarning
 
+	// Live is set on a page that redraws itself when a result lands — Today
+	// and the board — and nil everywhere else. See live.go.
+	Live *liveView
+
 	// SearchPath is where the topbar's search control points, and doubles
 	// as whether it renders at all: set for a signed-in reader and for the
 	// genuine read-only share view, empty everywhere else. That "everywhere

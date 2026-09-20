@@ -208,6 +208,7 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 			return
 		}
 	}
+	page.Live = s.liveViewFor(r, prefix)
 
 	s.render(w, r, http.StatusOK, "today.html", page)
 }

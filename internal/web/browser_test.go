@@ -43,6 +43,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
 // ---- Chrome ---------------------------------------------------------------
@@ -1140,5 +1141,82 @@ func TestBrowserSubmittingAFormDoesNotReload(t *testing.T) {
 	}
 	if n := p.Number(`document.querySelectorAll(".sidebar, .topbar").length`); n != 0 {
 		t.Errorf("the sign-in card arrived with %v pieces of the application's frame", n)
+	}
+}
+
+// A result that lands while Today or the board is open appears on the page
+// without a reload.
+//
+// The stream carries a mark, the page fetches itself again and swaps its
+// content: what a reader sees is a name that was not there arriving in the
+// day's list, and the board redrawing, with the same window throughout and
+// nothing in the console.
+func TestBrowserAResultAppearsWithoutAReload(t *testing.T) {
+	site := newSite(t)
+	site.srv.live.interval = 100 * time.Millisecond
+	current := wordle.PuzzleForDate(time.Now())
+	b := newBrowser(t)
+
+	// Today: the player who had not filed appears in the results.
+	p := site.open(b, desktopWidth)
+	p.Navigate(site.base + "/today")
+	p.Eval(`window.__alive = 1; true`)
+	if p.Eval(`[...document.querySelectorAll(".result-name")].some(a => a.textContent.trim() === "Lapsed")`) == true {
+		t.Fatal("the player this test files for has already filed today")
+	}
+	file(t, site.srv, "lapsed", current, 4)
+	p.WaitFor(`[...document.querySelectorAll(".result-name")].some(a => a.textContent.trim() === "Lapsed")`)
+	if alive := p.Number(`window.__alive || 0`); alive != 1 {
+		t.Error("the result arrived by reloading the document")
+	}
+	if errs := p.Errors(); len(errs) > 0 {
+		t.Errorf("console: %s", strings.Join(errs, "; "))
+	}
+
+	// The board: its content is redrawn, and the page is otherwise as it was.
+	q := site.open(b, desktopWidth)
+	q.Navigate(site.base + "/leaderboard")
+	q.Eval(`window.__alive = 1; document.querySelector("main > section").__stale = true; true`)
+	file(t, site.srv, "lapsed", current-1, 3)
+	q.WaitFor(`!(document.querySelector("main > section") || {}).__stale`)
+	if alive := q.Number(`window.__alive || 0`); alive != 1 {
+		t.Error("the board redrew by reloading the document")
+	}
+	if path := q.Path(); path != "/leaderboard" {
+		t.Errorf("the board's address changed to %s", path)
+	}
+	if errs := q.Errors(); len(errs) > 0 {
+		t.Errorf("console: %s", strings.Join(errs, "; "))
+	}
+}
+
+// Visiting Today again and again leaves one stream open, not one per visit.
+//
+// The browser keeps a page navigated away from in its back-forward cache,
+// stream and all; six such pages and there is no connection left for the
+// next request to this host, and the seventh visit never loads. The
+// stream is closed as its page is hidden, and this counts what the server
+// still holds after each visit.
+func TestBrowserVisitingTodayAgainKeepsOneStream(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), desktopWidth)
+	for i := 0; i < 8; i++ {
+		p.Navigate(fmt.Sprintf("%s/today?n=%d", site.base, i))
+		// The stream opens once the page has run its script; give the old
+		// page's close and the new page's open a moment to land.
+		p.WaitFor(`!!document.querySelector("[sse-connect]")`)
+		deadline := time.Now().Add(2 * time.Second)
+		for {
+			site.srv.live.mu.Lock()
+			n := len(site.srv.live.subs)
+			site.srv.live.mu.Unlock()
+			if n <= 1 {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("after visit %d the server holds %d streams for one tab", i+1, n)
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
 	}
 }

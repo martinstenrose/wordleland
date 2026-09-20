@@ -83,3 +83,49 @@ func TestFreshnessCountsHeldResults(t *testing.T) {
 		t.Errorf("PendingResults = %d, want 4", f.PendingResults)
 	}
 }
+
+// The mark moves with every result filed or changed and with nothing else,
+// so a stream comparing two of them is comparing what the board could
+// have changed on.
+func TestLatestResultMarkMovesWithResultsOnly(t *testing.T) {
+	ctx := context.Background()
+	db, playerID, _, actor := resultsFixture(t)
+
+	mark, err := LatestResultMark(ctx, db)
+	if err != nil {
+		t.Fatalf("LatestResultMark: %v", err)
+	}
+	if mark != 0 {
+		t.Fatalf("mark on a database with no results = %d, want 0", mark)
+	}
+
+	// Something else in the log: a player being edited, say.
+	if err := LogActivity(ctx, db, actor, ActionPlayerUpdated, "player", &playerID, nil); err != nil {
+		t.Fatalf("LogActivity: %v", err)
+	}
+	if mark, _ = LatestResultMark(ctx, db); mark != 0 {
+		t.Errorf("a player edit moved the mark to %d", mark)
+	}
+
+	date, _ := wordle.DateForPuzzle(1500)
+	guesses := 4
+	r := Result{PuzzleNo: 1500, Date: date, PlayerID: playerID, Guesses: &guesses, Solved: true}
+	if _, _, err := UpsertResult(ctx, db, r, nil, nil); err != nil {
+		t.Fatalf("UpsertResult: %v", err)
+	}
+	if err := LogResultActivity(ctx, db, actor, ActionResultCreated, playerID, r, nil); err != nil {
+		t.Fatalf("LogResultActivity: %v", err)
+	}
+	first, _ := LatestResultMark(ctx, db)
+	if first == 0 {
+		t.Fatal("a filed result did not move the mark")
+	}
+
+	guesses = 3
+	if err := LogResultActivity(ctx, db, actor, ActionResultUpdated, playerID, r, &r); err != nil {
+		t.Fatalf("LogResultActivity: %v", err)
+	}
+	if second, _ := LatestResultMark(ctx, db); second <= first {
+		t.Errorf("a corrected result left the mark at %d (was %d)", second, first)
+	}
+}

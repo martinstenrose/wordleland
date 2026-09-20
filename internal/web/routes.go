@@ -31,6 +31,11 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /grid", s.requireAuth(s.handleGridPage))
 	mux.HandleFunc("GET /players", s.requireAuth(s.handlePlayersPage))
 
+	// The live stream Today and the board listen to — see live.go. Behind
+	// the same session check as the pages; the share view has its own
+	// copy under its prefix.
+	mux.HandleFunc("GET /events", s.requireAuth(s.handleEvents))
+
 	// The topbar's search box and the ⌘K palette both land here — see
 	// search.go. "?partial=1" is the palette asking for just the results,
 	// not a second route: there is one place that decides what a query
