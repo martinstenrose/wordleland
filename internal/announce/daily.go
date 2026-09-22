@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -60,12 +61,7 @@ func NewDaily(db *sql.DB, cats i18n.Catalogues, locale string, monthResultFollow
 			return fmt.Errorf("date for puzzle %d: %w", puzzle, err)
 		}
 
-		// The month is read as it stands at now, so a recap posted just after
-		// midnight on the first reports the month the day belonged to with
-		// every one of its days concluded — which is what it is by then.
-		months := stats.ComputeMonths(players, results, stats.DefaultOptions(now))
-		text := dailyPost(t, stats.ComputeToday(players, results, puzzle), months, date,
-			monthResultFollows)
+		text := dailyPost(t, newDayContext(players, results, puzzle, date, now, monthResultFollows))
 
 		if err := send(ctx, text); err != nil {
 			return fmt.Errorf("post to signal: %w", err)
@@ -149,15 +145,117 @@ func dailyDue(ctx context.Context, db *sql.DB, players []store.Player,
 	return current, !done, nil
 }
 
-// dailyPost is the message: what the day was, who won it, and where the
-// month stands. Three lines, because a chat message nobody scrolls is one
-// that gets read.
-func dailyPost(t i18n.Translator, day stats.Today, months []stats.Month, date time.Time,
-	monthResultFollows bool) string {
+// Thresholds for the recap's one line of colour. Each is set so that the
+// line appears when there is something to say and stays away otherwise; a
+// remark that fires every day is wallpaper.
+const (
+	// crowdSize is how many sharing the day's best turns a list of names
+	// into a count. Three names read; seven do not.
+	crowdSize = 4
+	// leaderFromDay is the first day of a month on which a change of
+	// leader is news. Before it the lead changes hands with every result.
+	leaderFromDay = 5
+	// dayDelta is how far the day's mean has to sit from the group's usual
+	// before the day is called hard or easy: three quarters of a guess.
+	dayDelta = 0.75
+	// dayMinFiled is how many results a day needs before its mean says
+	// anything about the puzzle rather than about who happened to play.
+	dayMinFiled = 3
+	// beatMargin is how far under their own average a player has to land
+	// for it to be the day's surprise: a 3 from somebody averaging 4.5.
+	beatMargin = 1.5
+	// runMin is the shortest run of opening or closing the day worth
+	// counting out loud.
+	runMin = 3
+)
 
-	lines := []string{headLine(t, day), bestLine(t, day)}
-	if month := monthLine(t, months, date, monthResultFollows); month != "" {
-		lines = append(lines, month)
+// streakMilestones are the solved-streak lengths the recap remarks on: the
+// early ones singly, then every fifty.
+var streakMilestones = []int{10, 25, 50}
+
+func isStreakMilestone(n int) bool {
+	for _, m := range streakMilestones {
+		if n == m {
+			return true
+		}
+	}
+	return n >= 100 && n%50 == 0
+}
+
+// dayContext is everything the message is composed from, computed once.
+//
+// Every figure but the month standing is read from results up to and
+// including the recapped puzzle. At 00:01 somebody may already have posted
+// the next day's result, and letting it into an average, a streak or a
+// month's day count would make the recap of one day describe part of the
+// next.
+type dayContext struct {
+	day  stats.Today
+	date time.Time
+
+	// months is the standing as it stands at now, for the 📊 line: a recap
+	// posted just after midnight on the first reports the month the day
+	// belonged to with every one of its days concluded.
+	months []stats.Month
+	// before and after bracket the recapped day: the month's standing at
+	// the close of the day before, and with this day included.
+	before, after []stats.Month
+
+	// board is the group through the recapped day, for streaks. baseline
+	// is the group going into it, for what a player usually scores.
+	board, baseline stats.Board
+	// history is every result before the recapped day; todays are the
+	// day's own.
+	history, todays []store.BoardResult
+	habits          stats.PostingHabits
+
+	monthResultFollows bool
+}
+
+func newDayContext(players []store.Player, results []store.BoardResult, puzzle int,
+	date, now time.Time, monthResultFollows bool) dayContext {
+
+	upTo := through(results, puzzle)
+	prior := through(results, puzzle-1)
+	asOfDay := stats.DefaultOptions(date)
+
+	return dayContext{
+		day:                stats.ComputeToday(players, upTo, puzzle),
+		date:               date,
+		months:             stats.ComputeMonths(players, results, stats.DefaultOptions(now)),
+		before:             stats.ComputeMonths(players, prior, asOfDay),
+		after:              stats.ComputeMonths(players, upTo, stats.DefaultOptions(now)),
+		board:              stats.Compute(players, upTo, asOfDay),
+		baseline:           stats.Compute(players, prior, asOfDay),
+		history:            prior,
+		todays:             upTo[len(prior):],
+		habits:             stats.ComputePostingHabits(upTo, puzzle),
+		monthResultFollows: monthResultFollows,
+	}
+}
+
+// through keeps the results up to and including puzzle. Results arrive
+// oldest first, so this is a prefix.
+func through(results []store.BoardResult, puzzle int) []store.BoardResult {
+	n := sort.Search(len(results), func(i int) bool { return results[i].PuzzleNo > puzzle })
+	return results[:n]
+}
+
+// dailyPost is the message: what the day was, who won it, who opened and
+// closed it, one thing worth remarking on, and where the month stands. Five
+// lines at most, and usually fewer — the third and fourth appear only when
+// there is something to say, because a chat message nobody scrolls is one
+// that gets read.
+func dailyPost(t i18n.Translator, d dayContext) string {
+	lines := []string{headLine(t, d.day), bestLine(t, d.day)}
+	for _, line := range []string{
+		postedLine(t, d),
+		spiceLine(t, d),
+		monthLine(t, d.months, d.date, d.monthResultFollows),
+	} {
+		if line != "" {
+			lines = append(lines, line)
+		}
 	}
 	return strings.Join(lines, "\n")
 }
@@ -180,16 +278,28 @@ func headLine(t i18n.Translator, day stats.Today) string {
 	return "🏁 " + t.T("announce.daily.head.closed", puzzle, day.FiledCount(), day.Expected())
 }
 
-// bestLine has three forms rather than a singular and a plural, because a
-// pair takes a word of its own: "both" is wrong for three people and "all" is
-// wrong for two. Not the catalogue's .one/.other plural mechanism either —
-// that splits at one, and this splits at two.
+// bestLine names the day's best, or counts them.
+//
+// A first-guess solve is remarked on whoever did it, because it is the one
+// score the group will ask about. Past that: everyone landing on the same
+// score is a fact about the puzzle and is said as one; from crowdSize
+// sharing the best, a count replaces the list, since seven names in a row
+// are not read; and below that the three forms rather than a singular and
+// a plural, because a pair takes a word of its own — "both" is wrong for
+// three people and "all" is wrong for two. Not the catalogue's .one/.other
+// plural mechanism either: that splits at one, and this splits at two.
 func bestLine(t i18n.Translator, day stats.Today) string {
 	if day.Best == nil {
 		return "🥇 " + t.T("announce.daily.noneSolved")
 	}
 	names := joinNames(t, bestNames(day))
 	switch {
+	case day.Best.Guesses == 1:
+		return "🥇 " + t.T("announce.daily.ace", names)
+	case day.FiledCount() >= dayMinFiled && day.BestShared == day.FiledCount():
+		return "🥇 " + t.T("announce.daily.bestAll", day.Best.Guesses)
+	case day.BestShared >= crowdSize:
+		return "🥇 " + t.T("announce.daily.bestCount", day.BestShared, day.FiledCount(), day.Best.Guesses)
 	case day.BestShared == 2:
 		return "🥇 " + t.T("announce.daily.bestPair", names, day.Best.Guesses)
 	case day.BestShared > 2:
@@ -210,6 +320,196 @@ func bestNames(day stats.Today) []string {
 		}
 	}
 	return names
+}
+
+// postedLine says who opened the day and who closed it, each with a remark
+// when that is what they usually do. Empty when fewer than two results
+// carry a posting time: then there is no order to report.
+//
+// Two whole sentences from the catalogue rather than a sentence plus a
+// suffix, because where "as usual" goes differs between languages.
+func postedLine(t i18n.Translator, d dayContext) string {
+	if d.day.First == nil || d.day.Last == nil {
+		return ""
+	}
+	first := habitSentence(t, "announce.daily.first", *d.day.First, d.habits.First[d.day.First.ID], d.habits.Days)
+	last := habitSentence(t, "announce.daily.last", *d.day.Last, d.habits.Last[d.day.Last.ID], d.habits.Days)
+	return "⏰ " + first + " " + last
+}
+
+// habitSentence picks the plain, "as usual" or "N days running" form. A run
+// is the more specific claim and wins when both hold; "as usual" needs half
+// the window's days, and enough of them for half to mean something.
+func habitSentence(t i18n.Translator, key string, e stats.TodayEntry, h stats.Habit, days int) string {
+	// The wall clock where the group lives, whatever zone the row came back
+	// in; 24-hour in every language, since the languages here all read it.
+	clock := e.PostedAt.In(time.Local).Format("15:04")
+	switch {
+	case h.Run >= runMin:
+		return t.T(key+".run", e.Name, clock, h.Run)
+	case days >= stats.HabitMinDays && h.Days*2 >= days:
+		return t.T(key+".usual", e.Name, clock)
+	default:
+		return t.T(key, e.Name, clock)
+	}
+}
+
+// spiceLine is the one remark the recap allows itself, the first of these
+// that is true today: a change of leader, a streak reaching a milestone, an
+// unusually hard or easy puzzle, who failed it, or somebody well under
+// their own average. Rarer and bigger news first, so a day with two stories
+// tells the one the group would otherwise miss; failures are frequent and
+// visible in the thread, a milestone is neither.
+func spiceLine(t i18n.Translator, d dayContext) string {
+	for _, f := range []func(i18n.Translator, dayContext) string{
+		leaderLine, streakLine, difficultyLine, failedLine, beatLine,
+	} {
+		if line := f(t, d); line != "" {
+			return line
+		}
+	}
+	return ""
+}
+
+// leaderLine fires when the day handed the month's lead to somebody who did
+// not hold or share it the day before. Not in the month's first days, when
+// the lead changes with every result, and not when the standing is being
+// withheld for the 🏆 message.
+func leaderLine(t i18n.Translator, d dayContext) string {
+	if d.date.Day() < leaderFromDay || (d.monthResultFollows && lastDayOfMonth(d.date)) {
+		return ""
+	}
+	before, ok := monthByKey(d.before, d.date.Year(), d.date.Month())
+	if !ok || len(before.Winners) == 0 {
+		return ""
+	}
+	after, ok := monthByKey(d.after, d.date.Year(), d.date.Month())
+	if !ok || len(after.Winners) != 1 {
+		return ""
+	}
+	for _, w := range before.Winners {
+		if w.ID == after.Winners[0].ID {
+			return ""
+		}
+	}
+	label := capitalized(t.T("month." + strconv.Itoa(int(d.date.Month()))))
+	return "👑 " + t.T("announce.daily.spice.leader", label, after.Winners[0].Name,
+		joinNames(t, playerNames(before.Winners)))
+}
+
+// streakLine fires when a solve today took somebody's streak onto a
+// milestone. The streak is the board's own, so the number is the one on
+// their player page; the solve is required because a streak that stood at
+// a milestone yesterday and was not played today would read the same.
+func streakLine(t i18n.Translator, d dayContext) string {
+	var best *stats.Player
+	for _, e := range d.day.Filed {
+		if !e.Solved {
+			continue
+		}
+		p, ok := boardPlayer(d.board, e.ID)
+		if !ok || !isStreakMilestone(p.CurrentStreak) {
+			continue
+		}
+		if best == nil || p.CurrentStreak > best.CurrentStreak ||
+			(p.CurrentStreak == best.CurrentStreak && p.Name < best.Name) {
+			best = &p
+		}
+	}
+	if best == nil {
+		return ""
+	}
+	return "🔥 " + t.T("announce.daily.spice.streak", best.Name, best.CurrentStreak)
+}
+
+// difficultyLine calls the puzzle hard or easy when the day's mean sits far
+// from what the group usually scores. It needs a few results to speak for
+// the puzzle, and a history of at least the form window to have a "usually"
+// at all — in a deployment's first week the day would be compared with a
+// mean it dominates.
+func difficultyLine(t i18n.Translator, d dayContext) string {
+	if d.day.FiledCount() < dayMinFiled {
+		return ""
+	}
+	usual, n := stats.MeanScore(d.history, d.board.Options)
+	if n < stats.FormWindow {
+		return ""
+	}
+	today, _ := stats.MeanScore(d.todays, d.board.Options)
+	delta := today - usual
+	switch {
+	case delta >= dayDelta:
+		return "🧱 " + t.T("announce.daily.spice.hard", t.Decimal(today, 1), t.Decimal(usual, 1))
+	case delta <= -dayDelta:
+		return "🪶 " + t.T("announce.daily.spice.easy", t.Decimal(today, 1), t.Decimal(usual, 1))
+	default:
+		return ""
+	}
+}
+
+// failedLine names who did not get it. A failure is a result the player
+// posted in the group themselves, which is what makes naming it fair game
+// where naming an absentee is not. Left out when nobody solved it: the 🥇
+// line has already said so.
+func failedLine(t i18n.Translator, d dayContext) string {
+	if d.day.Best == nil {
+		return ""
+	}
+	var names []string
+	for _, e := range d.day.Filed {
+		if !e.Solved {
+			names = append(names, e.Name)
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	return "💀 " + t.T("announce.daily.spice.failed", joinNames(t, names))
+}
+
+// beatLine is the day's surprise: whoever landed furthest under their own
+// average going into the day, by at least beatMargin. The day's best is
+// left out — the 🥇 line is theirs already — and so is anyone with too few
+// games for an average to be worth beating.
+func beatLine(t i18n.Translator, d dayContext) string {
+	var (
+		pick   *stats.TodayEntry
+		pickBy float64
+		avg    float64
+	)
+	for i := range d.day.Filed {
+		e := &d.day.Filed[i]
+		if !e.Solved || e.Guesses == d.day.Best.Guesses {
+			continue
+		}
+		p, ok := boardPlayer(d.baseline, e.ID)
+		if !ok || p.Average == nil || p.Games < stats.MinGames {
+			continue
+		}
+		by := *p.Average - float64(e.Guesses)
+		if by < beatMargin {
+			continue
+		}
+		if pick == nil || by > pickBy || (by == pickBy && e.Name < pick.Name) {
+			pick, pickBy, avg = e, by, *p.Average
+		}
+	}
+	if pick == nil {
+		return ""
+	}
+	return "📈 " + t.T("announce.daily.spice.beat", pick.Name, pick.Guesses, t.Decimal(avg, 1))
+}
+
+// boardPlayer finds one player's row, ranked or not.
+func boardPlayer(b stats.Board, id int64) (stats.Player, bool) {
+	for _, group := range [][]stats.Player{b.Ranked, b.Unranked} {
+		for _, p := range group {
+			if p.ID == id {
+				return p, true
+			}
+		}
+	}
+	return stats.Player{}, false
 }
 
 // monthLine is the standing in the month the day belongs to — not the month

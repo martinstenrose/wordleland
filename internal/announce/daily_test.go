@@ -415,7 +415,8 @@ func TestATiedBestNamesEveryone(t *testing.T) {
 }
 
 // Three is where "both" would be wrong, which is why the pair has a sentence
-// of its own rather than the catalogue's singular/plural pair.
+// of its own rather than the catalogue's singular/plural pair. Dana's 4 is
+// what keeps this a shared best rather than everyone on the same score.
 func TestAThreeWayTiedBestSaysAll(t *testing.T) {
 	db := announceDB(t)
 	ctx := context.Background()
@@ -423,9 +424,11 @@ func TestAThreeWayTiedBestSaysAll(t *testing.T) {
 	mustPlayer(t, db, "Alice", "alice")
 	mustPlayer(t, db, "Bob", "bob")
 	mustPlayer(t, db, "Carol", "carol")
+	mustPlayer(t, db, "Dana", "dana")
 	fill(t, db, "alice", 2026, time.September, 2, 1, 3)
 	fill(t, db, "bob", 2026, time.September, 2, 1, 3)
 	fill(t, db, "carol", 2026, time.September, 2, 1, 3)
+	fill(t, db, "dana", 2026, time.September, 2, 1, 4)
 
 	var c collector
 	daily := NewDaily(db, loadCatalogues(t), "en", true, c.send)
