@@ -2163,13 +2163,16 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
    what grid-auto-flow: column gives with a fixed row count. */
 .calendar-wrap { padding-bottom: 4px; }
 /* The weeks share the panel's width rather than running off the side of it:
-   a column per week, each as wide as the space allows, and the squares take
-   their height from it. It scrolled horizontally before, which put half a
-   player's history behind a gesture. */
+   a column per week, and the squares take their height from it. It scrolled
+   horizontally before, which put half a player's history behind a gesture.
+   A column is at most the design's 13px square (calendarCell in player.go),
+   so a player with a few weeks gets small squares at the start of the panel
+   rather than a handful of huge ones stretched across it; only a history too
+   long for the panel shrinks below that. */
 .calendar {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-columns: minmax(0, 13px);
   grid-template-rows: repeat(7, auto);
   gap: 3px;
   width: 100%;
