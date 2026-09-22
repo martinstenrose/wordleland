@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{block "title" .}}Wordleland{{end}}</title>
-<link rel="icon" type="image/svg+xml" href="/static/icon.svg">
-<link rel="icon" type="image/png" sizes="180x180" href="/static/icon-180.png">
-<link rel="apple-touch-icon" href="/static/icon-180.png">
-<link rel="stylesheet" href="/static/app.css">
+<link rel="icon" type="image/svg+xml" href="{{asset "/static/icon.svg"}}">
+<link rel="icon" type="image/png" sizes="180x180" href="{{asset "/static/icon-180.png"}}">
+<link rel="apple-touch-icon" href="{{asset "/static/icon-180.png"}}">
+<link rel="stylesheet" href="{{asset "/static/app.css"}}">
 {{/* htmx does the fetching and swapping app.js used to do by hand; app.js
      keeps what has no server-rendered counterpart. Loaded first because
      app.js listens for its events. The config turns off what the CSP or
@@ -23,11 +23,11 @@
      its own promise, so a delay would only postpone it, and until it has
      run the links in a swapped fragment are not yet boosted. */}}
 <meta name="htmx-config" content='{"allowEval":false,"includeIndicatorStyles":false,"allowScriptTags":false,"defaultSettleDelay":0,"globalViewTransitions":true,"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":true}]}'>
-<script src="/static/htmx.min.js" defer></script>
+<script src="{{asset "/static/htmx.min.js"}}" defer></script>
 {{/* htmx's SSE extension, for the live stream Today and the board listen
      to — see live.go and the main region below. */}}
-<script src="/static/sse.min.js" defer></script>
-<script src="/static/app.js" defer></script>
+<script src="{{asset "/static/sse.min.js"}}" defer></script>
+<script src="{{asset "/static/app.js"}}" defer></script>
 {{/* .js-only marks something that does nothing without app.js — currently
      just the ⌘K hint beside the search link. Showing it when the shortcut
      will not fire would be advertising a control that does not work. */}}
