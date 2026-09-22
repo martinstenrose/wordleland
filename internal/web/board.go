@@ -108,10 +108,7 @@ func (q boardQuery) with(mutate func(*boardQuery)) string {
 	for k, v := range q.raw {
 		values[k] = v
 	}
-	// See urlWith: "partial=1" is how a request was made rather than part of
-	// what is being looked at, and a control link carrying it would hand a
-	// reader a bare card the moment they followed it without a script.
-	values.Del("partial")
+	dropRequestOnly(values)
 
 	// Only non-default values appear, so a plain board has a clean URL.
 	set := func(key, value string, keep bool) {

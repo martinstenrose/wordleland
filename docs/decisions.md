@@ -578,11 +578,42 @@ What this costs, and is worth: changing the theme is two presses rather than
 one. What it does not cost: every control in the sheet is still a link or a
 form, and works with no script at all.
 
-**The sheet closes when a setting is chosen**, because following the link
-replaces the whole body and the `<details>` goes with it. Keeping it open
-across the swap would be script whose only job is to reopen a menu, which is
-the kind of nicety the rule in AGENTS.md exists to refuse; the setting the
-press changed is already applied and visible behind it.
+**The sheet stays open when a setting is chosen**, because a reader who has
+just picked a theme may well want the language too, and following either link
+replaces the whole body and takes the `<details>` with it. The link carries
+`menu=account` and the page that comes back renders the sheet open: the page
+is rendered again either way — swapped in by htmx, or loaded outright — so
+the server is the only thing that can know it was open, and a parameter it
+reads is the version that works with the script absent, disabled, or failing
+to load. It is not state on `<html>` that no cookie backs, which the list
+above names as a sign the script has started fighting its library.
+
+The marker is dropped by every builder of a link back to the current URL and
+put back by the two that belong to the sheet. That is what `dropRequestOnly`
+is: those builders carry the whole query through, which is what keeps a
+filter alive across a language switch, and it would have kept this alive too
+— a sort column pressed after a theme would have opened the sheet on top of
+the board. Three builders had each grown their own copy of the same paragraph
+about `partial=1`; there is one place now saying which parameters are not a
+reader's view of the page, and a fourth builder inherits it.
+
+Two things the swap then needed, both in `app.js` and neither load-bearing:
+
+- **The outgoing menus are closed before the incoming body lands.** A
+  `<details name=...>` that arrives open is closed *on arrival* if one with
+  the same name is still open in the page it replaces — exclusivity within
+  the group applies to the element being inserted, which is right for a
+  reader opening a second menu and backwards when the two are the same menu
+  either side of a swap. The outgoing ones are being thrown away regardless,
+  and the view transition's picture of them is taken before this runs, so
+  nothing blinks. A full navigation never had the problem; with the script
+  absent the sheet still arrives open, because there is no old page to lose
+  to.
+- **Focus goes back to the setting that was pressed**, as a fourth case in
+  the same `focusRule` that already aims a ranking row, a section bar and a
+  rail row. By position in the track rather than by href: every one of these
+  links is built from the page it is on, so the same setting is a different
+  string on the page that comes back.
 
 **The door gets the same slot.** The sign-in family has its own much shorter
 row — the wordmark in one corner and this in the other — and it renders the

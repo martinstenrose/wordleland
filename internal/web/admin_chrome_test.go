@@ -9,7 +9,10 @@ import (
 // selfLink matches the picker links that carry the current path. csrfValue
 // masks tokens where these isolated requests do not carry a browser cookie.
 var (
-	selfLink  = regexp.MustCompile(`href="[^"?]*\?(theme=|lang=)`)
+	// A theme or language link, which points back at the page it is on. The
+	// marker that keeps the account sheet open sorts between "lang" and
+	// "theme", so a theme link's query begins with it.
+	selfLink  = regexp.MustCompile(`href="[^"?]*\?((?:menu=account&amp;)?(?:theme=|lang=))`)
 	csrfValue = regexp.MustCompile(`name="csrf_token" value="[^"]*"`)
 )
 
@@ -207,8 +210,8 @@ func TestTheChromeIsIdenticalOnEveryPage(t *testing.T) {
 
 		combined := bar + brand
 		// Three things are meant to differ: which view is marked current,
-		// the theme and language links, which point back at the page you
-		// are on so switching keeps you there, and the sign-out form's
+		// the two settings' links, which point back at the page you are
+		// on so switching keeps you there, and the sign-out form's
 		// CSRF token: these isolated requests do not share a cookie jar.
 		combined = strings.ReplaceAll(combined, " on", "")
 		combined = strings.ReplaceAll(combined, ` aria-current="page"`, "")

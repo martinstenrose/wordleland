@@ -5,6 +5,7 @@ import (
 	"html"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -1072,5 +1073,105 @@ func TestNeitherSettingIsInTheBarItself(t *testing.T) {
 				t.Errorf("%s: the sheet does not offer %q at all", tt.name, link)
 			}
 		}
+	}
+}
+
+// Changing a setting leaves the sheet open, with no script at all.
+//
+// Following either of them replaces the page — swapped in by htmx, or loaded
+// outright without it — and a <details> goes with the body it was in. So the
+// two links carry a marker and the server renders the sheet open when it sees
+// one: a reader changing the theme and then the language opens the sheet once
+// rather than twice. See prefHref.
+func TestChangingASettingLeavesTheSheetOpen(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	session := signIn(t, srv, admin.ID)
+
+	const open = `<details class="account" name="menu-group" open>`
+
+	for _, tt := range []struct {
+		name    string
+		path    string
+		cookie  *http.Cookie
+		setting string
+	}{
+		{"a signed-in reader", "/leaderboard", session, "Dark"},
+		{"a guest", "/share/" + slug + "/", nil, "Dark"},
+		{"the door", "/", nil, "Dark"},
+		{"a signed-in reader", "/leaderboard", session, "Svenska"},
+		{"a guest", "/share/" + slug + "/", nil, "Svenska"},
+		{"the door", "/", nil, "Svenska"},
+	} {
+		body := fetchAs(t, srv, tt.path, tt.cookie).Body.String()
+		if strings.Contains(body, open) {
+			t.Errorf("%s: %s arrives with the sheet already open", tt.name, tt.path)
+		}
+
+		href := strings.ReplaceAll(hrefForName(t, body, tt.setting), "&amp;", "&")
+		if !strings.Contains(href, "menu=account") {
+			t.Errorf("%s: the %s link carries no marker: %s", tt.name, tt.setting, href)
+			continue
+		}
+		next := fetchAs(t, srv, href, tt.cookie)
+		if next.Code != http.StatusOK {
+			t.Errorf("%s: following %s = %d", tt.name, href, next.Code)
+			continue
+		}
+		if !strings.Contains(next.Body.String(), open) {
+			t.Errorf("%s: choosing %s closed the sheet on the reader", tt.name, tt.setting)
+		}
+	}
+}
+
+// And the marker belongs to those two links alone. Every other control is
+// built from the current URL too, so one pressed after a setting would carry
+// the marker along and reopen the sheet on a page nobody opened it on.
+func TestTheMarkerDoesNotTravelOnOtherControls(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	session := signIn(t, srv, admin.ID)
+
+	// The page as it is after a theme has just been chosen: the marker is in
+	// the address, because that is where the link put it.
+	body := fetchAs(t, srv, "/leaderboard?theme=dark&menu=account&mode=hard", session).Body.String()
+
+	// The links inside the sheet: the ones the marker is for. Not matched by
+	// what they set — every control on this board carries "theme=dark" now,
+	// because each is this URL with one thing changed — but by where they
+	// are, which is the only thing that actually distinguishes them.
+	sheet := body[strings.Index(body, `class="prefs"`):]
+	sheet = sheet[:strings.Index(sheet, "</details>")]
+
+	anchor := regexp.MustCompile(`href="([^"]*)"`)
+	settings := map[string]bool{}
+	for _, m := range anchor.FindAllStringSubmatch(sheet, -1) {
+		settings[strings.ReplaceAll(m[1], "&amp;", "&")] = true
+	}
+	// Three themes and five languages, every one of them marked.
+	if len(settings) != 8 {
+		t.Fatalf("the sheet offers %d settings, want 8: %v", len(settings), settings)
+	}
+	for href := range settings {
+		if !strings.Contains(href, "menu=account") {
+			t.Errorf("a setting in the sheet carries no marker: %s", href)
+		}
+	}
+
+	// And nothing else on the page carries it: the board's filters, its sort
+	// columns and the rail's collapse are all built from this URL too, and
+	// each of them would otherwise open the sheet on the page it leads to.
+	var carried []string
+	for _, m := range anchor.FindAllStringSubmatch(body, -1) {
+		href := strings.ReplaceAll(m[1], "&amp;", "&")
+		if strings.Contains(href, "menu=") && !settings[href] {
+			carried = append(carried, href)
+		}
+	}
+	if len(carried) > 0 {
+		t.Errorf("the marker travelled on controls that are not the settings: %v", carried)
 	}
 }

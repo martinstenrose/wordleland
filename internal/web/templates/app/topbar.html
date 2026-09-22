@@ -106,7 +106,12 @@
      and then the two settings need a home of their own for exactly the
      readers who have no account, which is the second control this removes. */}}
 {{define "account-slot"}}
-<details class="account" name="menu-group">
+{{/* Rendered open on a page reached by one of the settings inside it, so
+     that changing the theme and then the language is not two openings. The
+     server decides it, off the marker those links carry — see prefHref in
+     chrome.go — which is why it survives a swap, a full navigation, and a
+     reader with no script at all. */}}
+<details class="account" name="menu-group"{{if .AccountOpen}} open{{end}}>
   <summary aria-label="{{.T.T "account.menu"}}" title="{{.T.T "account.menu"}}">
     {{if .SignedIn}}
       <span class="avatar" aria-hidden="true">{{.Initials}}</span>

@@ -1080,11 +1080,49 @@ func TestBrowserAThemeLinkChangesTheThemeInPlace(t *testing.T) {
 	if on := p.String(`document.querySelector(".account .track a.theme-opt.on").getAttribute("href")`); on != href {
 		t.Errorf("the theme track marks %s, not the %s just chosen", on, href)
 	}
-	// The body was replaced, so the sheet the press was made in is gone with
-	// it. Nothing restores it: that would be script holding a menu open
-	// across a navigation, and the setting it changed is already applied.
+	// And the sheet is still open, on a page the server rendered that way:
+	// a reader who has just changed the theme may well want the language
+	// too, and the body swap would otherwise have closed it under them.
+	if shut := p.Eval(`!document.querySelector(".account[open]")`); shut != false {
+		t.Error("the account sheet closed on the reader when they used it")
+	}
+	// Focus with it, on the setting that was pressed rather than at the top
+	// of the page.
+	if at := p.String(`(document.activeElement.closest(".prefs") ? "prefs" : document.activeElement.id || document.activeElement.tagName)`); at != "prefs" {
+		t.Errorf("focus landed on %s, not back on the track just used", at)
+	}
+
+	// The second setting, from inside the sheet that stayed open: the whole
+	// point of the first half of this test.
+	p.Click(`.account .track a.lang-opt:not(.on)`)
+	p.WaitFor(`document.documentElement.lang !== "en"`)
+	if shut := p.Eval(`!document.querySelector(".account[open]")`); shut != false {
+		t.Error("the sheet closed on the second change")
+	}
+}
+
+// And the marker that keeps it open is not on anything else: a control
+// outside the sheet leads to a page with the sheet shut, the way a link to
+// another page should.
+func TestBrowserAnOrdinaryLinkLeavesTheSheetShut(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), desktopWidth)
+	p.Navigate(site.base + "/leaderboard")
+
+	p.Click(".account > summary")
+	p.WaitFor(`!!document.querySelector(".account[open]")`)
+	p.Click(`.account .track a.theme-opt:not(.on)`)
+	p.WaitFor(`!!document.querySelector(".account[open] .prefs")`)
+
+	// From there, an ordinary navigation. The address still carries the
+	// theme it was given; it must not still carry the menu.
+	follow(p, "/grid")
+	p.WaitFor(`location.pathname === "/grid"`)
 	if open := p.Eval(`!!document.querySelector(".account[open]")`); open != false {
-		t.Error("the account sheet survived the swap; nothing reopens it")
+		t.Error("following a rail row arrived with the account sheet open")
+	}
+	if url := p.String(`location.search`); strings.Contains(url, "menu=") {
+		t.Errorf("the menu marker followed the reader to another page: %s", url)
 	}
 }
 

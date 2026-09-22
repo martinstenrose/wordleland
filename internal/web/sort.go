@@ -121,10 +121,7 @@ func (s *Server) headersFor(r *http.Request, current boardSort, t translator) []
 // plain board keeps a clean address.
 func sortHref(r *http.Request, next boardSort) string {
 	q := r.URL.Query()
-	// See urlWith in chrome.go: "partial=1" is how a request was made, not
-	// part of what is being looked at, and a link built while serving one
-	// would hand a reader a bare card with no page around it.
-	q.Del("partial")
+	dropRequestOnly(q)
 	if next.IsDefault() {
 		q.Del("sort")
 		q.Del("dir")
