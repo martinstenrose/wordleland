@@ -206,7 +206,7 @@ func TestNoChangeOfLeaderInTheFirstDays(t *testing.T) {
 		record(t, db, "bob", day(d), true, 4)
 	}
 	record(t, db, "alice", day(3), false, 0)
-	record(t, db, "bob", day(3), true, 2)
+	record(t, db, "bob", day(3), true, 3)
 	alreadyPosted(t, db, 2026, time.September, 2)
 
 	got := recap(t, db, day(3).Add(15*time.Hour), true)
@@ -312,12 +312,12 @@ func TestAHardDayAndAnEasyOne(t *testing.T) {
 		t.Errorf("message = %q, want %q", got, want)
 	}
 
-	db = seed(t, 4)
+	db = seed(t, 5)
 	for _, p := range []string{"alice", "bob", "carol"} {
-		record(t, db, p, day(12), true, 2)
+		record(t, db, p, day(12), true, 3)
 	}
 	got = recap(t, db, day(12).Add(15*time.Hour), true)
-	if want := "🪶 An easy one: 2.0 on average today, against the usual 4.0."; lineWith(t, got, "🪶") != want {
+	if want := "🪶 An easy one: 3.0 on average today, against the usual 5.0."; lineWith(t, got, "🪶") != want {
 		t.Errorf("message = %q, want %q", got, want)
 	}
 
@@ -386,6 +386,7 @@ func TestTheDaysSurprise(t *testing.T) {
 			record(t, db, "alice", day(d), true, 5)
 			record(t, db, "bob", day(d), true, 3)
 		}
+		record(t, db, "bob", day(1), true, 2) // a 2 already, so today's is no first
 		record(t, db, "alice", day(11), true, aliceToday)
 		record(t, db, "bob", day(11), true, 2)
 		alreadyPosted(t, db, 2026, time.September, 10)
@@ -399,5 +400,139 @@ func TestTheDaysSurprise(t *testing.T) {
 
 	if got := seed(t, 4); strings.Contains(got, "📈") {
 		t.Errorf("message = %q calls one guess under average a surprise", got)
+	}
+}
+
+// A first ever 2 is celebrated however short the history — but not on a
+// first day, when "first ever" says nothing, and not when an earlier 2 or 1
+// exists.
+func TestAFirstEverTwo(t *testing.T) {
+	db := announceDB(t)
+	mustPlayer(t, db, "Alice", "alice")
+	mustPlayer(t, db, "Bob", "bob")
+	for d := 1; d <= 2; d++ {
+		record(t, db, "alice", day(d), true, 4)
+		record(t, db, "bob", day(d), true, 4)
+	}
+	record(t, db, "alice", day(3), true, 2)
+	record(t, db, "bob", day(3), true, 4)
+	alreadyPosted(t, db, 2026, time.September, 2)
+
+	got := recap(t, db, day(3).Add(15*time.Hour), true)
+	if want := "🎉 Alice in 2, for the first time!"; lineWith(t, got, "🎉") != want {
+		t.Errorf("message = %q, want %q", got, want)
+	}
+
+	// Alice's second 2, three days later: nothing.
+	record(t, db, "alice", day(4), true, 2)
+	record(t, db, "bob", day(4), true, 4)
+	got = recap(t, db, day(4).Add(15*time.Hour), true)
+	if strings.Contains(got, "🎉") {
+		t.Errorf("message = %q celebrates a second 2 as a first", got)
+	}
+
+	// Carol's first day is a 2. Impressive, but not a first ever.
+	db = announceDB(t)
+	mustPlayer(t, db, "Carol", "carol")
+	mustPlayer(t, db, "Dana", "dana")
+	record(t, db, "carol", day(3), true, 2)
+	record(t, db, "dana", day(3), true, 4)
+	got = recap(t, db, day(3).Add(15*time.Hour), true)
+	if strings.Contains(got, "🎉") {
+		t.Errorf("message = %q calls a first day's 2 a first ever", got)
+	}
+}
+
+// A first ever first-guess solve gets the ace line's own variant.
+func TestAFirstEverAce(t *testing.T) {
+	db := announceDB(t)
+	mustPlayer(t, db, "Alice", "alice")
+	mustPlayer(t, db, "Bob", "bob")
+	record(t, db, "alice", day(1), true, 4)
+	record(t, db, "bob", day(1), true, 4)
+	record(t, db, "alice", day(2), true, 1)
+	record(t, db, "bob", day(2), true, 4)
+	alreadyPosted(t, db, 2026, time.September, 1)
+
+	got := recap(t, db, day(2).Add(15*time.Hour), true)
+	if want := "🥇 Alice: first guess, for the first time!"; lineWith(t, got, "🥇") != want {
+		t.Errorf("message = %q, want %q", got, want)
+	}
+
+	record(t, db, "alice", day(3), true, 1)
+	record(t, db, "bob", day(3), true, 4)
+	got = recap(t, db, day(3).Add(15*time.Hour), true)
+	if want := "🥇 Alice: first guess!"; lineWith(t, got, "🥇") != want {
+		t.Errorf("message = %q, want the plain ace %q for a second one", got, want)
+	}
+}
+
+// A run at 3 or better is remarked on the day it draws level with the
+// group's record and the day it passes it, then not again. Bob's four
+// threes are the record; Alice's 2 extends her run rather than breaking it.
+// The failures keep both solved streaks short of a milestone, which would
+// outrank this line.
+func TestARunAtThreeOrBetterUpToTheRecord(t *testing.T) {
+	db := announceDB(t)
+	mustPlayer(t, db, "Alice", "alice")
+	mustPlayer(t, db, "Bob", "bob")
+	bob := []int{3, 3, 3, 3, 0, 5, 5, 5, 5, 5, 5, 5}
+	alice := []int{4, 4, 0, 4, 4, 4, 3, 2, 3, 3, 3, 3}
+	for d := 1; d <= 9; d++ {
+		record(t, db, "alice", day(d), alice[d-1] > 0, alice[d-1])
+		record(t, db, "bob", day(d), bob[d-1] > 0, bob[d-1])
+	}
+	alreadyPosted(t, db, 2026, time.September, 9)
+
+	for _, tc := range []struct {
+		d    int
+		want string
+	}{
+		{10, "🔁 Alice: 4 days in a row at 3 or better, now sharing the record with Bob."},
+		{11, "🔁 Alice: 5 days in a row at 3 or better, a new group record."},
+		{12, ""},
+	} {
+		record(t, db, "alice", day(tc.d), true, alice[tc.d-1])
+		record(t, db, "bob", day(tc.d), true, bob[tc.d-1])
+		got := recap(t, db, day(tc.d).Add(15*time.Hour), true)
+		if lineWith(t, got, "🔁") != tc.want {
+			t.Errorf("day %d: message = %q, want record line %q", tc.d, got, tc.want)
+		}
+	}
+}
+
+// Drawing level with a record one holds oneself is said as such; and a
+// record of two is not a record yet.
+func TestARunUpToOnesOwnRecord(t *testing.T) {
+	db := announceDB(t)
+	mustPlayer(t, db, "Alice", "alice")
+	mustPlayer(t, db, "Bob", "bob")
+	alice := []int{3, 3, 3, 3, 5, 3, 3, 3, 3}
+	for d := 1; d <= 8; d++ {
+		record(t, db, "alice", day(d), true, alice[d-1])
+		record(t, db, "bob", day(d), true, 5)
+	}
+	alreadyPosted(t, db, 2026, time.September, 8)
+	record(t, db, "alice", day(9), true, 3)
+	record(t, db, "bob", day(9), true, 5)
+
+	got := recap(t, db, day(9).Add(15*time.Hour), true)
+	if want := "🔁 Alice: 4 days in a row at 3 or better, back up to their own record."; lineWith(t, got, "🔁") != want {
+		t.Errorf("message = %q, want %q", got, want)
+	}
+
+	db = announceDB(t)
+	mustPlayer(t, db, "Alice", "alice")
+	mustPlayer(t, db, "Bob", "bob")
+	for d, g := range []int{3, 3, 5, 3} {
+		record(t, db, "alice", day(d+1), true, g)
+		record(t, db, "bob", day(d+1), true, 5)
+	}
+	alreadyPosted(t, db, 2026, time.September, 4)
+	record(t, db, "alice", day(5), true, 3)
+	record(t, db, "bob", day(5), true, 5)
+	got = recap(t, db, day(5).Add(15*time.Hour), true)
+	if strings.Contains(got, "🔁") {
+		t.Errorf("message = %q calls a run of two a record", got)
 	}
 }

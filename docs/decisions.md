@@ -1216,9 +1216,10 @@ anybody, so naming it is the bot's initiative alone.
 **The recap is up to five lines, and usually fewer.** The head, the day's
 best and the month's standing as before; between them, who opened and
 closed the day, and one line of colour — a change of leader, a streak on a
-milestone, an unusually hard or easy puzzle, who failed it, or somebody
-well under their own average — the first of those that is true, and none
-on a day none is. One such line rather than every true one, because a
+milestone, somebody's first ever 2, a run at 3 or better up to or past the
+group's record, an unusually hard or easy puzzle, who failed it, or
+somebody well under their own average — the first of those that is true,
+and none on a day none is. One such line rather than every true one, because a
 remark that appears every day is wallpaper and two remarks are a report;
 the order puts the rare and easily missed first (a milestone is not visible
 in the thread, a failure is). The thresholds live beside the code that
@@ -1229,6 +1230,20 @@ may already be in.
 **The day's best is counted from four, and said as one when everyone got the
 same.** Three names read; seven do not. And when every filer landed on the
 same score the fact is about the puzzle, not about who tied.
+
+**A first ever 2 is celebrated however short the history**, since a 2 is
+rare enough that the second week is not too early — the only floor is one
+earlier game, because "for the first time" on somebody's first day says
+nothing. A first ever first-guess solve is the 🥇 line's own variant. A
+run of threes was the same idea and was reframed before it shipped: three
+3s in a row happens to somebody most weeks in a group of seven, so instead
+the recap marks a run at 3 or better (a 2 extends it, a 4 or a day off
+ends it) the day it draws level with the group's longest ever and the day
+it passes it, then falls silent — a run that keeps going is on the board,
+and would otherwise be this line every morning. The record it is measured
+against leaves out the player's own open run, for the same reason, and has
+a floor of three: in a young history the record is two and is beaten every
+other day.
 
 **Who posted first and last is read from `results.posted_at`**, the time a
 result was posted in the group: Signal's server-received time, not the

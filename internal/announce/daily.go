@@ -167,6 +167,12 @@ const (
 	// runMin is the shortest run of opening or closing the day worth
 	// counting out loud.
 	runMin = 3
+	// goodScore is the score a run has to stay at or under to count as a
+	// run of threes: a 2 extends it, a 4 ends it.
+	goodScore = 3
+	// recordFloor is the shortest group record worth calling one. In a
+	// young history the record is two and is beaten every other day.
+	recordFloor = 3
 )
 
 // streakMilestones are the solved-streak lengths the recap remarks on: the
@@ -247,7 +253,7 @@ func through(results []store.BoardResult, puzzle int) []store.BoardResult {
 // there is something to say, because a chat message nobody scrolls is one
 // that gets read.
 func dailyPost(t i18n.Translator, d dayContext) string {
-	lines := []string{headLine(t, d.day), bestLine(t, d.day)}
+	lines := []string{headLine(t, d.day), bestLine(t, d)}
 	for _, line := range []string{
 		postedLine(t, d),
 		spiceLine(t, d),
@@ -281,19 +287,23 @@ func headLine(t i18n.Translator, day stats.Today) string {
 // bestLine names the day's best, or counts them.
 //
 // A first-guess solve is remarked on whoever did it, because it is the one
-// score the group will ask about. Past that: everyone landing on the same
-// score is a fact about the puzzle and is said as one; from crowdSize
-// sharing the best, a count replaces the list, since seven names in a row
-// are not read; and below that the three forms rather than a singular and
-// a plural, because a pair takes a word of its own — "both" is wrong for
-// three people and "all" is wrong for two. Not the catalogue's .one/.other
-// plural mechanism either: that splits at one, and this splits at two.
-func bestLine(t i18n.Translator, day stats.Today) string {
+// score the group will ask about — and when it is their first ever, that
+// too. Past that: everyone landing on the same score is a fact about the
+// puzzle and is said as one; from crowdSize sharing the best, a count
+// replaces the list, since seven names in a row are not read; and below
+// that the three forms rather than a singular and a plural, because a pair
+// takes a word of its own — "both" is wrong for three people and "all" is
+// wrong for two. Not the catalogue's .one/.other plural mechanism either:
+// that splits at one, and this splits at two.
+func bestLine(t i18n.Translator, d dayContext) string {
+	day := d.day
 	if day.Best == nil {
 		return "🥇 " + t.T("announce.daily.noneSolved")
 	}
 	names := joinNames(t, bestNames(day))
 	switch {
+	case day.Best.Guesses == 1 && len(firstTimers(d, 1)) == day.BestShared:
+		return "🥇 " + t.T("announce.daily.aceFirst", names)
 	case day.Best.Guesses == 1:
 		return "🥇 " + t.T("announce.daily.ace", names)
 	case day.FiledCount() >= dayMinFiled && day.BestShared == day.FiledCount():
@@ -355,14 +365,15 @@ func habitSentence(t i18n.Translator, key string, e stats.TodayEntry, h stats.Ha
 }
 
 // spiceLine is the one remark the recap allows itself, the first of these
-// that is true today: a change of leader, a streak reaching a milestone, an
-// unusually hard or easy puzzle, who failed it, or somebody well under
-// their own average. Rarer and bigger news first, so a day with two stories
-// tells the one the group would otherwise miss; failures are frequent and
-// visible in the thread, a milestone is neither.
+// that is true today: a change of leader, a streak reaching a milestone,
+// somebody's first ever 2, a run at 3 or better up to or past the group's
+// record, an unusually hard or easy puzzle, who failed it, or somebody well
+// under their own average. Rarer and bigger news first, so a day with two
+// stories tells the one the group would otherwise miss; failures are
+// frequent and visible in the thread, a milestone is neither.
 func spiceLine(t i18n.Translator, d dayContext) string {
 	for _, f := range []func(i18n.Translator, dayContext) string{
-		leaderLine, streakLine, difficultyLine, failedLine, beatLine,
+		leaderLine, streakLine, firstTwoLine, recordLine, difficultyLine, failedLine, beatLine,
 	} {
 		if line := f(t, d); line != "" {
 			return line
@@ -420,6 +431,149 @@ func streakLine(t i18n.Translator, d dayContext) string {
 		return ""
 	}
 	return "🔥 " + t.T("announce.daily.spice.streak", best.Name, best.CurrentStreak)
+}
+
+// firstTimers names today's filers who solved in exactly guesses for whom no
+// earlier solve was that good — their first ever. Somebody with no history
+// at all is left out: "first ever" on a first day says nothing.
+func firstTimers(d dayContext, guesses int) []string {
+	played := make(map[int64]bool)
+	bettered := make(map[int64]bool)
+	for _, r := range d.history {
+		played[r.PlayerID] = true
+		if r.Solved && r.Guesses <= guesses {
+			bettered[r.PlayerID] = true
+		}
+	}
+	var names []string
+	for _, e := range d.day.Filed {
+		if e.Solved && e.Guesses == guesses && played[e.ID] && !bettered[e.ID] {
+			names = append(names, e.Name)
+		}
+	}
+	return names
+}
+
+// firstTwoLine celebrates a first ever 2. Rare enough to say however short
+// the history, which is why there is no floor beyond having one.
+func firstTwoLine(t i18n.Translator, d dayContext) string {
+	names := firstTimers(d, 2)
+	if len(names) == 0 {
+		return ""
+	}
+	return "🎉 " + t.T("announce.daily.spice.firstTwo", joinNames(t, names))
+}
+
+// recordLine fires the day a run at 3 or better draws level with the
+// group's record and the day it passes it — and then falls silent, because
+// a run that keeps going is on the board and would otherwise be this line
+// every day until it ended. The record is the longest such run anybody had
+// before today, this player's earlier runs included but not the one they
+// are on: measured against that, an extending run would beat its own
+// yesterday every morning.
+func recordLine(t i18n.Translator, d dayContext) string {
+	var pick *stats.TodayEntry
+	var run, record int
+	var holders []int64
+	for i := range d.day.Filed {
+		e := &d.day.Filed[i]
+		if !e.Solved || e.Guesses > goodScore {
+			continue
+		}
+		n := goodRunThrough(d.history, e.ID, d.day.PuzzleNo-1) + 1
+		rec, who := goodRunRecord(d.history, e.ID, d.day.PuzzleNo-1)
+		if rec < recordFloor || (n != rec && n != rec+1) {
+			continue
+		}
+		if pick == nil || n > run || (n == run && e.Name < pick.Name) {
+			pick, run, record, holders = e, n, rec, who
+		}
+	}
+	if pick == nil {
+		return ""
+	}
+	if run > record {
+		return "🔁 " + t.T("announce.daily.spice.recordNew", pick.Name, run)
+	}
+	var others []string
+	for _, id := range holders {
+		if p, ok := boardPlayer(d.board, id); ok && id != pick.ID {
+			others = append(others, p.Name)
+		}
+	}
+	if len(others) == 0 {
+		return "🔁 " + t.T("announce.daily.spice.recordOwn", pick.Name, run)
+	}
+	return "🔁 " + t.T("announce.daily.spice.recordTie", pick.Name, run, joinNames(t, others))
+}
+
+// goodRunRecord is the longest run of consecutive puzzles solved at
+// goodScore or better anywhere in results, and the ids of everyone who has
+// one that long — leaving out player's run still open at through, which is
+// the run being measured against it. Results arrive oldest first, grouped
+// here per player.
+func goodRunRecord(results []store.BoardResult, player int64, through int) (int, []int64) {
+	type state struct {
+		prev, run, closed int
+	}
+	states := make(map[int64]*state)
+	var order []int64
+	for _, r := range results {
+		s, ok := states[r.PlayerID]
+		if !ok {
+			s = &state{}
+			states[r.PlayerID] = s
+			order = append(order, r.PlayerID)
+		}
+		good := r.Solved && r.Guesses <= goodScore
+		if !good || r.PuzzleNo != s.prev+1 {
+			// A day off or a 4 closes the run, so it now counts among the
+			// finished ones.
+			s.closed = max(s.closed, s.run)
+			s.run = 0
+		}
+		if good {
+			s.run++
+		}
+		s.prev = r.PuzzleNo
+	}
+	best := func(id int64) int {
+		s := states[id]
+		if id == player && s.prev == through {
+			return s.closed
+		}
+		return max(s.closed, s.run)
+	}
+	record := 0
+	for _, id := range order {
+		record = max(record, best(id))
+	}
+	if record == 0 {
+		return 0, nil
+	}
+	var holders []int64
+	for _, id := range order {
+		if best(id) == record {
+			holders = append(holders, id)
+		}
+	}
+	return record, holders
+}
+
+// goodRunThrough counts the player's consecutive puzzles at goodScore or
+// better ending at through. A missed day ends it like a 4 does.
+func goodRunThrough(results []store.BoardResult, player int64, through int) int {
+	scored := make(map[int]bool)
+	for _, r := range results {
+		if r.PlayerID == player && r.PuzzleNo <= through {
+			scored[r.PuzzleNo] = r.Solved && r.Guesses <= goodScore
+		}
+	}
+	n := 0
+	for p := through; scored[p]; p-- {
+		n++
+	}
+	return n
 }
 
 // difficultyLine calls the puzzle hard or easy when the day's mean sits far
