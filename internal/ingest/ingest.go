@@ -13,6 +13,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/wordle"
@@ -84,6 +85,11 @@ type Submission struct {
 	// the activity log can say how a score arrived. Empty for a direct API
 	// call, which is already attributed to its token.
 	Via string
+
+	// PostedAt is when the result was posted in the group. Only the bridge
+	// sets it; every other caller leaves it nil, which the store keeps as
+	// "not posted in the group" rather than substituting the time of entry.
+	PostedAt *time.Time
 }
 
 // Method reports how the player was named, and refuses a submission that
@@ -186,6 +192,7 @@ func applyFromSender(ctx context.Context, db *sql.DB, actor store.Actor,
 		held := store.PendingResult{
 			PuzzleNo: sub.PuzzleNo, Solved: sub.Solved,
 			Guesses: sub.Guesses, HardMode: sub.HardMode,
+			PostedAt: sub.PostedAt,
 		}
 		if err := store.HoldPendingResult(ctx, db,
 			sub.Source, sub.ExternalID, sub.DisplayHint, held); err != nil {
@@ -243,6 +250,7 @@ func write(ctx context.Context, db *sql.DB, actor store.Actor,
 			Guesses:  sub.Guesses,
 			Solved:   sub.Solved,
 			HardMode: sub.HardMode,
+			PostedAt: sub.PostedAt,
 		}
 
 		if mayReactivate && !player.Active {

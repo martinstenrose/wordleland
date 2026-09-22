@@ -773,3 +773,26 @@ func TestInfoLevelCarriesNoSenderOrBody(t *testing.T) {
 		}
 	}
 }
+
+// A message the bridge saw was posted in the group, so the submission
+// always carries a posting time: the frame's when it had one, receipt when
+// it did not.
+func TestForwardsThePostingTime(t *testing.T) {
+	f, cap := testFiler(t)
+
+	m := msg("Wordle 1 891 3/6")
+	m.PostedAt = time.UnixMilli(1787490858247)
+	f.handle(context.Background(), m)
+	f.handle(context.Background(), msg("Wordle 1 891 4/6"))
+
+	sent := cap.sent()
+	if len(sent) != 2 {
+		t.Fatalf("sent %d requests, want 2", len(sent))
+	}
+	if sent[0].PostedAt == nil || !sent[0].PostedAt.Equal(m.PostedAt) {
+		t.Errorf("posted_at = %v, want the frame's %v", sent[0].PostedAt, m.PostedAt)
+	}
+	if sent[1].PostedAt == nil || !sent[1].PostedAt.Equal(f.now()) {
+		t.Errorf("posted_at = %v for a frame with no clock, want receipt %v", sent[1].PostedAt, f.now())
+	}
+}

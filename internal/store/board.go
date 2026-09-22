@@ -20,12 +20,15 @@ type BoardResult struct {
 	Guesses  int
 	Solved   bool
 	HardMode bool
+	// PostedAt is when the result was posted in the group, nil when it was
+	// not or that is unknown. See Result.PostedAt.
+	PostedAt *time.Time
 }
 
 // ResultsForBoard returns every result, oldest first.
 func ResultsForBoard(ctx context.Context, q Querier) ([]BoardResult, error) {
 	rows, err := q.QueryContext(ctx, `
-		SELECT player_id, puzzle_no, date, guesses, solved, hard_mode
+		SELECT player_id, puzzle_no, date, guesses, solved, hard_mode, posted_at
 		FROM results
 		ORDER BY puzzle_no, player_id`)
 	if err != nil {
@@ -40,7 +43,8 @@ func ResultsForBoard(ctx context.Context, q Querier) ([]BoardResult, error) {
 			guesses *int
 			date    time.Time
 		)
-		if err := rows.Scan(&r.PlayerID, &r.PuzzleNo, &date, &guesses, &r.Solved, &r.HardMode); err != nil {
+		if err := rows.Scan(&r.PlayerID, &r.PuzzleNo, &date, &guesses, &r.Solved, &r.HardMode,
+			&r.PostedAt); err != nil {
 			return nil, fmt.Errorf("scan result: %w", err)
 		}
 		if guesses != nil {

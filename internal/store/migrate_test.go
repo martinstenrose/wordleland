@@ -6,6 +6,7 @@ import (
 	"path"
 	"testing"
 	"testing/fstest"
+	"time"
 )
 
 // TestPendingMigrations exercises the check serve.go runs before Migrate, to
@@ -162,4 +163,86 @@ func migrationsBefore(name string) (fs.FS, error) {
 		}
 	}
 	return migrationsSubset(before)
+}
+
+// The posting time is backfilled from the activity trail, and only from
+// rows that can vouch for a Signal posting: result.created, naming the
+// puzzle, with the source recorded. Anything less stays NULL rather than
+// being guessed.
+func TestMigrateBackfillsPostedAtFromTheActivityLog(t *testing.T) {
+	ctx := context.Background()
+	db := testDB(t)
+
+	pre, err := migrationsBefore("0012_result_posted_at.sql")
+	if err != nil {
+		t.Fatalf("build pre-backfill migration set: %v", err)
+	}
+	if err := Migrate(ctx, db, pre); err != nil {
+		t.Fatalf("apply pre-backfill migrations: %v", err)
+	}
+
+	exec := func(q string, args ...any) {
+		t.Helper()
+		if _, err := db.ExecContext(ctx, q, args...); err != nil {
+			t.Fatalf("seed: %v\n%s", err, q)
+		}
+	}
+	exec(`INSERT INTO players (id, name, slug, active) VALUES (1, 'Alice', 'alice', 1), (2, 'Bob', 'bob', 1)`)
+	for _, puzzle := range []int{1888, 1889, 1890, 1891} {
+		exec(`INSERT INTO results (puzzle_no, date, player_id, guesses, solved) VALUES (?, '2026-08-23', 1, 4, 1)`, puzzle)
+	}
+	exec(`INSERT INTO results (puzzle_no, date, player_id, guesses, solved) VALUES (1888, '2026-08-23', 2, 4, 1)`)
+
+	// 1888: posted, then re-posted — the first time is the posting.
+	exec(`INSERT INTO activity_log (at, actor_kind, action, subject_type, subject_id, detail)
+	      VALUES ('2026-08-23 06:12:00', 'system', 'result.created', 'result', 1,
+	              '{"puzzle_no":1888,"guesses":4,"solved":true,"via":"signal"}')`)
+	exec(`INSERT INTO activity_log (at, actor_kind, action, subject_type, subject_id, detail)
+	      VALUES ('2026-08-23 08:00:00', 'system', 'result.updated', 'result', 1,
+	              '{"puzzle_no":1888,"guesses":3,"solved":true,"via":"signal"}')`)
+	// 1889: created with no recorded source — the pre-merge token era.
+	exec(`INSERT INTO activity_log (at, actor_kind, action, subject_type, subject_id, detail)
+	      VALUES ('2026-08-24 07:00:00', 'system', 'result.created', 'result', 1,
+	              '{"puzzle_no":1889,"guesses":4,"solved":true}')`)
+	// 1890: only ever corrected through the group; creation is unknown.
+	exec(`INSERT INTO activity_log (at, actor_kind, action, subject_type, subject_id, detail)
+	      VALUES ('2026-08-25 07:00:00', 'system', 'result.updated', 'result', 1,
+	              '{"puzzle_no":1890,"guesses":4,"solved":true,"via":"signal"}')`)
+	// Bob's 1888 posting must not stamp Alice's row.
+	exec(`INSERT INTO activity_log (at, actor_kind, action, subject_type, subject_id, detail)
+	      VALUES ('2026-08-23 05:00:00', 'system', 'result.created', 'result', 2,
+	              '{"puzzle_no":1888,"guesses":4,"solved":true,"via":"signal"}')`)
+
+	if err := Migrate(ctx, db, Migrations()); err != nil {
+		t.Fatalf("apply remaining migrations: %v", err)
+	}
+
+	postedAt := func(puzzle int, player int64) *time.Time {
+		t.Helper()
+		var at *time.Time
+		if err := db.QueryRowContext(ctx,
+			`SELECT posted_at FROM results WHERE puzzle_no = ? AND player_id = ?`, puzzle, player,
+		).Scan(&at); err != nil {
+			t.Fatalf("read posted_at for %d/%d: %v", puzzle, player, err)
+		}
+		return at
+	}
+
+	if got := postedAt(1888, 1); got == nil || !got.Equal(time.Date(2026, time.August, 23, 6, 12, 0, 0, time.UTC)) {
+		t.Errorf("1888 posted_at = %v, want the creation time 06:12 UTC", got)
+	}
+	if got := postedAt(1888, 2); got == nil || !got.Equal(time.Date(2026, time.August, 23, 5, 0, 0, 0, time.UTC)) {
+		t.Errorf("Bob's 1888 posted_at = %v, want 05:00 UTC", got)
+	}
+	for _, puzzle := range []int{1889, 1890, 1891} {
+		if got := postedAt(puzzle, 1); got != nil {
+			t.Errorf("%d posted_at = %v, want NULL: nothing vouches for a Signal posting", puzzle, got)
+		}
+	}
+
+	// The held-result table carries the column too, so a replay can hand
+	// the time on.
+	if _, err := db.ExecContext(ctx, `SELECT posted_at FROM pending_results`); err != nil {
+		t.Errorf("pending_results.posted_at: %v", err)
+	}
 }

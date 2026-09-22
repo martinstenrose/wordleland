@@ -32,6 +32,11 @@ type Result struct {
 	HardMode   bool
 	EnteredBy  *int64
 	IdentityID *int64
+
+	// PostedAt is when the result was posted in the Signal group; nil when
+	// it was not, or when that is not known. It is the first known posting
+	// and never moves: see UpsertResult.
+	PostedAt *time.Time
 }
 
 // ErrResultNotFound is returned when no row matches.
@@ -53,6 +58,12 @@ var ErrResultNotFound = errors.New("result not found")
 // identity wrote. It is nil for a human write and for automated writes with
 // no identity to attribute (there are none today, but the parameter mirrors
 // enteredBy's convention regardless).
+//
+// r.PostedAt is written on a create and, on an update, only into a row that
+// has none yet. A player's first posting is a fact about the day that a
+// later re-post or correction does not change, but a row first written by
+// the API or the CLI and then posted in the group did get posted, and the
+// gap is filled rather than left for ever.
 func UpsertResult(ctx context.Context, q Querier, r Result, enteredBy, identityID *int64) (Outcome, *Result, error) {
 	previous, err := resultFor(ctx, q, r.PuzzleNo, r.PlayerID)
 	switch {
@@ -70,10 +81,10 @@ func UpsertResult(ctx context.Context, q Querier, r Result, enteredBy, identityI
 
 	if previous == nil {
 		if _, err := q.ExecContext(ctx, `
-			INSERT INTO results (puzzle_no, date, player_id, guesses, solved, hard_mode, entered_by, identity_id)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			INSERT INTO results (puzzle_no, date, player_id, guesses, solved, hard_mode, entered_by, identity_id, posted_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			r.PuzzleNo, r.Date.Format(time.DateOnly), r.PlayerID,
-			r.Guesses, r.Solved, r.HardMode, enteredBy, identityID,
+			r.Guesses, r.Solved, r.HardMode, enteredBy, identityID, r.PostedAt,
 		); err != nil {
 			return "", nil, fmt.Errorf("insert result: %w", err)
 		}
@@ -82,10 +93,11 @@ func UpsertResult(ctx context.Context, q Querier, r Result, enteredBy, identityI
 
 	if _, err := q.ExecContext(ctx, `
 		UPDATE results
-		SET date = ?, guesses = ?, solved = ?, hard_mode = ?, entered_by = ?, identity_id = ?
+		SET date = ?, guesses = ?, solved = ?, hard_mode = ?, entered_by = ?, identity_id = ?,
+		    posted_at = COALESCE(posted_at, ?)
 		WHERE puzzle_no = ? AND player_id = ?`,
 		r.Date.Format(time.DateOnly), r.Guesses, r.Solved, r.HardMode, enteredBy, identityID,
-		r.PuzzleNo, r.PlayerID,
+		r.PostedAt, r.PuzzleNo, r.PlayerID,
 	); err != nil {
 		return "", nil, fmt.Errorf("update result: %w", err)
 	}
@@ -102,9 +114,10 @@ func resultFor(ctx context.Context, q Querier, puzzleNo int, playerID int64) (*R
 		date time.Time
 	)
 	err := q.QueryRowContext(ctx, `
-		SELECT puzzle_no, date, player_id, guesses, solved, hard_mode, entered_by, identity_id
+		SELECT puzzle_no, date, player_id, guesses, solved, hard_mode, entered_by, identity_id, posted_at
 		FROM results WHERE puzzle_no = ? AND player_id = ?`, puzzleNo, playerID,
-	).Scan(&r.PuzzleNo, &date, &r.PlayerID, &r.Guesses, &r.Solved, &r.HardMode, &r.EnteredBy, &r.IdentityID)
+	).Scan(&r.PuzzleNo, &date, &r.PlayerID, &r.Guesses, &r.Solved, &r.HardMode, &r.EnteredBy,
+		&r.IdentityID, &r.PostedAt)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrResultNotFound

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Fixtures use a synthetic uuid, group id and profile name. The real
@@ -253,5 +254,35 @@ func TestNonGroupMessagesLogAtDebug(t *testing.T) {
 				t.Error("a dropped frame logged nothing at debug")
 			}
 		})
+	}
+}
+
+// The posting time is the server's clock when the frame has it, the
+// sender's otherwise, and zero — not the epoch — when it has neither.
+func TestEnvelopePostingTime(t *testing.T) {
+	msg, ok := decodeEnvelope(t, dataEnvelope("Wordle 1 891 3/6", testGroupID))
+	if !ok {
+		t.Fatal("data envelope not extracted")
+	}
+	if want := time.UnixMilli(1787490858247); !msg.PostedAt.Equal(want) {
+		t.Errorf("PostedAt = %v, want the server's %v", msg.PostedAt, want)
+	}
+
+	msg, ok = decodeEnvelope(t, syncEnvelope("Wordle 1 891 4/6", testGroupID))
+	if !ok {
+		t.Fatal("sync envelope not extracted")
+	}
+	if want := time.UnixMilli(1787490859545); !msg.PostedAt.Equal(want) {
+		t.Errorf("PostedAt = %v, want the sender's %v when the server's is absent", msg.PostedAt, want)
+	}
+
+	bare := fmt.Sprintf(`{"envelope":{"sourceUuid":%q,"dataMessage":{"message":"Wordle 1 891 3/6",
+		"groupInfo":{"groupId":%q}}}}`, testUUID, testGroupID)
+	msg, ok = decodeEnvelope(t, bare)
+	if !ok {
+		t.Fatal("bare envelope not extracted")
+	}
+	if !msg.PostedAt.IsZero() {
+		t.Errorf("PostedAt = %v for a frame with no clock, want zero", msg.PostedAt)
 	}
 }

@@ -3,6 +3,7 @@ package bridge
 import (
 	"log/slog"
 	"strings"
+	"time"
 )
 
 // redacted accepts a JSON value and discards it.
@@ -40,7 +41,14 @@ type envelope struct {
 	Envelope struct {
 		SourceUUID string `json:"sourceUuid"`
 		SourceName string `json:"sourceName"`
-		Timestamp  int64  `json:"timestamp"`
+
+		// Two clocks, milliseconds since the epoch. Timestamp is the
+		// sender's device clock, which is Signal's message id and can be
+		// wrong. ServerReceivedTimestamp is when Signal's server accepted
+		// the message: when it reached the group, on a clock nobody in the
+		// group controls, and the one a posting time is taken from.
+		Timestamp               int64 `json:"timestamp"`
+		ServerReceivedTimestamp int64 `json:"serverReceivedTimestamp"`
 
 		// Declared so the exclusion is visible here rather than inferred
 		// from an absence, and typed so neither can be read or printed.
@@ -88,6 +96,9 @@ type Message struct {
 	GroupID string
 	// Body is the message text.
 	Body string
+	// PostedAt is when the message reached the group: Signal's server time,
+	// falling back to the sender's, zero when the frame carried neither.
+	PostedAt time.Time
 }
 
 // message extracts what the bridge acts on, reporting whether the frame
@@ -127,5 +138,19 @@ func (e envelope) message(logger *slog.Logger) (Message, bool) {
 		SenderName: e.Envelope.SourceName,
 		GroupID:    body.GroupInfo.GroupID,
 		Body:       body.Message,
+		PostedAt:   e.postedAt(),
 	}, true
+}
+
+// postedAt prefers the server's clock to the sender's, and reports zero
+// rather than the epoch when the frame has neither.
+func (e envelope) postedAt() time.Time {
+	switch {
+	case e.Envelope.ServerReceivedTimestamp > 0:
+		return time.UnixMilli(e.Envelope.ServerReceivedTimestamp)
+	case e.Envelope.Timestamp > 0:
+		return time.UnixMilli(e.Envelope.Timestamp)
+	default:
+		return time.Time{}
+	}
 }

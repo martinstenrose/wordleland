@@ -649,3 +649,36 @@ func TestHoldPendingResultOverwritesRepost(t *testing.T) {
 		t.Errorf("held = %+v, want the repost to have won", held[0])
 	}
 }
+
+// A held result keeps the time it was posted through the wait, and the
+// replay hands it on: a newcomer who posts for a week before being claimed
+// was still first or last on those days.
+func TestLinkIdentityReplaysThePostingTime(t *testing.T) {
+	db, playerID, _, actor := identityFixture(t)
+	ctx := context.Background()
+
+	posted := time.Date(2026, time.August, 21, 7, 5, 0, 0, time.Local)
+	r := PendingResult{PuzzleNo: 1888, Solved: true, Guesses: ptr(4), PostedAt: &posted}
+	if err := HoldPendingResult(ctx, db, "signal", testUUID, "Someone", r); err != nil {
+		t.Fatalf("HoldPendingResult() failed: %v", err)
+	}
+	// A re-post of the same puzzle carries a later time; the first stands.
+	repost := PendingResult{PuzzleNo: 1888, Solved: true, Guesses: ptr(3), PostedAt: ptr(posted.Add(time.Hour))}
+	if err := HoldPendingResult(ctx, db, "signal", testUUID, "Someone", repost); err != nil {
+		t.Fatalf("HoldPendingResult() re-post failed: %v", err)
+	}
+
+	if _, err := LinkIdentity(ctx, db, actor, playerID, "signal", testUUID, ActionIdentityClaimed, false); err != nil {
+		t.Fatalf("LinkIdentity() failed: %v", err)
+	}
+	stored, err := ResultFor(ctx, db, 1888, playerID)
+	if err != nil {
+		t.Fatalf("ResultFor: %v", err)
+	}
+	if stored.PostedAt == nil || !stored.PostedAt.Equal(posted) {
+		t.Errorf("posted_at = %v, want the first posting %v", stored.PostedAt, posted)
+	}
+	if *stored.Guesses != 3 {
+		t.Errorf("guesses = %d, want the re-post's 3", *stored.Guesses)
+	}
+}

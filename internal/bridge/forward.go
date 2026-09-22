@@ -233,6 +233,13 @@ func (f *filer) file(ctx context.Context, result wordle.Result, m Message) {
 		guesses := result.Guesses
 		sub.Guesses = &guesses
 	}
+	// A message the bridge saw was posted in the group, so it always gets a
+	// posting time: the frame's when it has one, receipt otherwise.
+	posted := m.PostedAt
+	if posted.IsZero() {
+		posted = f.now()
+	}
+	sub.PostedAt = &posted
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		delivered, err := f.deliver(ctx, sub)
