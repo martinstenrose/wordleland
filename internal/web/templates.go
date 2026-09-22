@@ -2,12 +2,16 @@ package web
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"fmt"
 	"html/template"
 	"io/fs"
 	"net/http"
 	"path"
+	"strings"
+	"sync"
 )
 
 // templateFS holds the server-rendered pages. html/template's contextual
@@ -17,10 +21,24 @@ import (
 //go:embed templates static
 var templateFS embed.FS
 
-// serveStatic serves the embedded stylesheet and script.
+// serveStatic serves the embedded stylesheet, scripts, icons and font.
 //
-// Both are embedded, with a long cache lifetime keyed by build: there is no
-// asset pipeline and wants none.
+// Everything under /static/ is embedded and cached by content. Each file
+// carries an ETag that is its own digest, so a browser that already has it
+// asks once and gets a 304 back — an embedded file has no modification
+// time, so without this the file server would send every file in full on
+// every page load. And a page links each file with ?v= set to that digest
+// (see asset), so a request that names the digest it wants is answered as
+// immutable: the URL changes when the file does, and the copy a browser
+// holds can be kept for as long as it likes. Any other request for the same
+// file gets an hour, so a page cached with an older ?v= cannot pin an older
+// file forever. The font is immutable on its path alone: app.css names it by
+// a literal URL it cannot version, and the convention there is to rename a
+// font file rather than change one in place.
+//
+// Digests, not the build's version: version.Commit is empty for any build
+// made outside CI, and a developer's build has to cache the same way. There
+// is no asset pipeline and wants none.
 func (s *Server) serveStatic() http.Handler {
 	sub, err := fs.Sub(templateFS, "static")
 	if err != nil {
@@ -28,7 +46,61 @@ func (s *Server) serveStatic() http.Handler {
 		// which is a build-time mistake rather than a runtime one.
 		panic(err)
 	}
-	return http.StripPrefix("/static/", http.FileServer(http.FS(sub)))
+	files := http.StripPrefix("/static/", http.FileServer(http.FS(sub)))
+	digests := assetDigests()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		digest, known := digests[r.URL.Path]
+		if known {
+			// Set before the file server runs: ServeContent reads the
+			// response's ETag for If-None-Match, so the 304 comes with it.
+			w.Header().Set("ETag", `"`+digest+`"`)
+		}
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/static/fonts/"),
+			known && r.URL.Query().Get("v") == digest:
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		default:
+			w.Header().Set("Cache-Control", "public, max-age=3600")
+		}
+		files.ServeHTTP(w, r)
+	})
+}
+
+// assetDigests maps each embedded file's URL path to the first twelve hex
+// characters of its SHA-256, computed once on first use. Twelve is plenty to
+// tell one build's file from another's and short enough to read in a URL.
+var assetDigests = sync.OnceValue(func() map[string]string {
+	out := map[string]string{}
+	err := fs.WalkDir(templateFS, "static", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		b, err := templateFS.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		sum := sha256.Sum256(b)
+		out["/"+p] = hex.EncodeToString(sum[:])[:12]
+		return nil
+	})
+	if err != nil {
+		// The embedded tree is fixed at build time; a walk that fails is a
+		// build-time mistake, not a runtime one.
+		panic(err)
+	}
+	return out
+})
+
+// asset is the template function that links a static file: its path with
+// ?v= set to the file's digest, so the URL changes when the file does and
+// serveStatic can answer it as immutable. A path this build does not embed
+// comes back as it is, so a typo is a 404 on that file rather than a page
+// that fails to render.
+func asset(p string) string {
+	if digest, ok := assetDigests()[p]; ok {
+		return p + "?v=" + digest
+	}
+	return p
 }
 
 // templates maps a page name to its parsed template. Parsing happens once at
@@ -37,7 +109,7 @@ func (s *Server) serveStatic() http.Handler {
 type templates map[string]*template.Template
 
 // templateFuncs are available to every page and partial.
-var templateFuncs = template.FuncMap{"dict": dict}
+var templateFuncs = template.FuncMap{"dict": dict, "asset": asset}
 
 // dict builds a map from alternating key/value arguments, so a page can
 // construct a partial's data inline — {{template "chip" (dict "Label" .

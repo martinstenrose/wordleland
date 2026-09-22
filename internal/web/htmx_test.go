@@ -30,14 +30,20 @@ func TestHtmxIsServedAndLoadedOnce(t *testing.T) {
 		t.Error("the file served under /static/htmx.min.js is not htmx")
 	}
 
+	// The tags carry ?v= after the path (see serveStatic), so they are
+	// matched up to the path and checked to be deferred separately.
 	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	const htmxTag = `<script src="/static/htmx.min.js" defer></script>`
-	const appTag = `<script src="/static/app.js" defer></script>`
+	const htmxTag = `<script src="/static/htmx.min.js`
+	const appTag = `<script src="/static/app.js`
 	if got := strings.Count(body, htmxTag); got != 1 {
 		t.Errorf("the page loads htmx %d times, want once", got)
 	}
-	if strings.Index(body, htmxTag) > strings.Index(body, appTag) {
+	at := strings.Index(body, htmxTag)
+	if at > strings.Index(body, appTag) {
 		t.Error("app.js is loaded before htmx, so its listeners have nothing to hear")
+	}
+	if tag := body[at:at+strings.Index(body[at:], ">")]; !strings.Contains(tag, " defer") {
+		t.Errorf("htmx is not deferred: %s", tag)
 	}
 }
 

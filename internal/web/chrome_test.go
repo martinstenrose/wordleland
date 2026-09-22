@@ -400,7 +400,8 @@ func TestPopupPositioningScriptIsWiredUpAndScoped(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	if got := strings.Count(body, `<script src="/static/app.js" defer></script>`); got != 1 {
+	// Matched up to the path: the tag carries ?v= after it, see serveStatic.
+	if got := strings.Count(body, `<script src="/static/app.js`); got != 1 {
 		t.Errorf("expected one popup-positioning script tag, found %d", got)
 	}
 	if strings.Contains(body, "onclick") {
