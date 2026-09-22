@@ -2,6 +2,7 @@ package stats
 
 import (
 	"sort"
+	"time"
 
 	"github.com/martinstenrose/wordleland/internal/store"
 )
@@ -14,6 +15,10 @@ type TodayEntry struct {
 	Guesses  int
 	Solved   bool
 	HardMode bool
+
+	// PostedAt is when the result was posted in the group, nil when it was
+	// not or that is unknown.
+	PostedAt *time.Time
 }
 
 // Today is the state of the current puzzle: who has filed, who has not, and
@@ -40,6 +45,12 @@ type Today struct {
 	// outcome, and naming one of them would be picking a winner the day
 	// does not have.
 	BestShared int
+
+	// First and Last are the earliest and latest posting among the filers
+	// whose result carries a posting time. Both are nil unless at least two
+	// do: one stamped result makes its player first and last at once, which
+	// is no ordering at all.
+	First, Last *TodayEntry
 }
 
 // Filedcount and Expected let the view say "9 of 12" without recounting.
@@ -70,6 +81,7 @@ func ComputeToday(players []store.Player, results []store.BoardResult, currentPu
 		}
 		today.Filed = append(today.Filed, TodayEntry{
 			Player: p, Guesses: r.Guesses, Solved: r.Solved, HardMode: r.HardMode,
+			PostedAt: r.PostedAt,
 		})
 	}
 
@@ -102,5 +114,30 @@ func ComputeToday(players []store.Player, results []store.BoardResult, currentPu
 			}
 		}
 	}
+
+	today.First, today.Last = postingOrder(today.Filed)
 	return today
+}
+
+// postingOrder finds the earliest and latest stamped filer, nil for both
+// unless at least two are stamped. Ties on the clock go by name, so the
+// answer is stable rather than depending on the order rows were read in.
+func postingOrder(filed []TodayEntry) (first, last *TodayEntry) {
+	var stamped []TodayEntry
+	for _, e := range filed {
+		if e.PostedAt != nil {
+			stamped = append(stamped, e)
+		}
+	}
+	if len(stamped) < 2 {
+		return nil, nil
+	}
+	sort.SliceStable(stamped, func(i, j int) bool {
+		a, b := stamped[i], stamped[j]
+		if !a.PostedAt.Equal(*b.PostedAt) {
+			return a.PostedAt.Before(*b.PostedAt)
+		}
+		return a.Name < b.Name
+	})
+	return &stamped[0], &stamped[len(stamped)-1]
 }

@@ -229,3 +229,67 @@ func TestDeleteResultNotFound(t *testing.T) {
 		t.Errorf("error = %v, want ErrResultNotFound", err)
 	}
 }
+
+// posted_at is the first known posting and never moves: a re-post carries
+// its own, later time and the row keeps the one it had.
+func TestPostedAtIsKeptFromTheFirstPosting(t *testing.T) {
+	db, playerID, _, _ := resultsFixture(t)
+	ctx := context.Background()
+
+	first := time.Date(2026, time.August, 23, 6, 12, 0, 0, time.Local)
+	r := sampleResult(playerID, 1890, 5)
+	r.PostedAt = &first
+	if _, _, err := UpsertResult(ctx, db, r, nil, nil); err != nil {
+		t.Fatalf("first write failed: %v", err)
+	}
+
+	later := first.Add(3 * time.Hour)
+	r = sampleResult(playerID, 1890, 3)
+	r.PostedAt = &later
+	if _, _, err := UpsertResult(ctx, db, r, nil, nil); err != nil {
+		t.Fatalf("second write failed: %v", err)
+	}
+
+	stored, err := ResultFor(ctx, db, 1890, playerID)
+	if err != nil {
+		t.Fatalf("ResultFor: %v", err)
+	}
+	if stored.PostedAt == nil || !stored.PostedAt.Equal(first) {
+		t.Errorf("posted_at = %v, want the first posting %v", stored.PostedAt, first)
+	}
+	if *stored.Guesses != 3 {
+		t.Errorf("guesses = %d, want the re-post's 3", *stored.Guesses)
+	}
+}
+
+// A row first written without a posting time — by a script or the CLI — and
+// then posted in the group did get posted, so the gap is filled.
+func TestPostedAtFillsARowThatHadNone(t *testing.T) {
+	db, playerID, _, _ := resultsFixture(t)
+	ctx := context.Background()
+
+	if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 5), nil, nil); err != nil {
+		t.Fatalf("first write failed: %v", err)
+	}
+	stored, err := ResultFor(ctx, db, 1890, playerID)
+	if err != nil {
+		t.Fatalf("ResultFor: %v", err)
+	}
+	if stored.PostedAt != nil {
+		t.Fatalf("posted_at = %v after a write without one, want nil", stored.PostedAt)
+	}
+
+	posted := time.Date(2026, time.August, 23, 9, 30, 0, 0, time.Local)
+	r := sampleResult(playerID, 1890, 5)
+	r.PostedAt = &posted
+	if _, _, err := UpsertResult(ctx, db, r, nil, nil); err != nil {
+		t.Fatalf("second write failed: %v", err)
+	}
+	stored, err = ResultFor(ctx, db, 1890, playerID)
+	if err != nil {
+		t.Fatalf("ResultFor: %v", err)
+	}
+	if stored.PostedAt == nil || !stored.PostedAt.Equal(posted) {
+		t.Errorf("posted_at = %v, want %v", stored.PostedAt, posted)
+	}
+}

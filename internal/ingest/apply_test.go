@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/wordle"
@@ -270,5 +271,63 @@ func TestApplyRecordsHowTheResultArrived(t *testing.T) {
 	}
 	if !strings.Contains(events[0].Detail, `"via":"signal"`) {
 		t.Errorf("detail = %s, want it to record via=signal", events[0].Detail)
+	}
+}
+
+// The posting time travels with the submission: onto the result when the
+// sender is known, and into the held row when they are not, so a claim
+// later replays it. A submission without one leaves the result unstamped
+// rather than borrowing the time of entry.
+func TestApplyCarriesThePostingTime(t *testing.T) {
+	db, actor := applyDB(t)
+	ctx := context.Background()
+	alice := mustPlayer(t, db, actor, "Alice", "alice")
+
+	posted := time.Date(2026, time.August, 23, 6, 12, 0, 0, time.Local)
+	sub := submission("alice", 1890, 4)
+	sub.PostedAt = &posted
+	if _, err := Apply(ctx, db, actor, sub, false); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	stored, err := store.ResultFor(ctx, db, 1890, alice.ID)
+	if err != nil {
+		t.Fatalf("ResultFor: %v", err)
+	}
+	if stored.PostedAt == nil || !stored.PostedAt.Equal(posted) {
+		t.Errorf("posted_at = %v, want %v", stored.PostedAt, posted)
+	}
+
+	if _, err := Apply(ctx, db, actor, submission("alice", 1891, 4), false); err != nil {
+		t.Fatalf("Apply without a time: %v", err)
+	}
+	stored, err = store.ResultFor(ctx, db, 1891, alice.ID)
+	if err != nil {
+		t.Fatalf("ResultFor: %v", err)
+	}
+	if stored.PostedAt != nil {
+		t.Errorf("posted_at = %v for a submission without one, want nil", stored.PostedAt)
+	}
+
+	// Unknown sender: held, then replayed with the time intact.
+	held := Submission{Source: "signal", ExternalID: "uuid-new", PuzzleNo: 1890, Solved: true,
+		Guesses: ptr(5), PostedAt: &posted}
+	res, err := Apply(ctx, db, actor, held, false)
+	if err != nil {
+		t.Fatalf("Apply for an unknown sender: %v", err)
+	}
+	if res.Status != StatusPending {
+		t.Fatalf("status = %q, want pending", res.Status)
+	}
+	bob := mustPlayer(t, db, actor, "Bob", "bob")
+	if _, err := store.LinkIdentity(ctx, db, actor, bob.ID, "signal", "uuid-new",
+		store.ActionIdentityClaimed, false); err != nil {
+		t.Fatalf("LinkIdentity: %v", err)
+	}
+	stored, err = store.ResultFor(ctx, db, 1890, bob.ID)
+	if err != nil {
+		t.Fatalf("ResultFor after the claim: %v", err)
+	}
+	if stored.PostedAt == nil || !stored.PostedAt.Equal(posted) {
+		t.Errorf("replayed posted_at = %v, want %v", stored.PostedAt, posted)
 	}
 }
