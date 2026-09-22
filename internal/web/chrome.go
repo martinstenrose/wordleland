@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -250,7 +251,7 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 	// The wordmark's subtitle. Built here rather than by each page: five
 	// pages set it and the rest did not, so it vanished on Settings and in
 	// the admin area. The top bar owns everything the top bar shows.
-	if days, err := store.CountPlayedPuzzles(r.Context(), s.db); err != nil {
+	if days, err := s.playedPuzzles(r.Context()); err != nil {
 		// Not worth failing a page over. The subtitle is decoration.
 		s.logger.Error("count played puzzles", "error", err)
 	} else if days > 0 {
@@ -314,6 +315,35 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 		c.SearchPath = viewPath(prefix, "search")
 	}
 	return c
+}
+
+// playedPuzzlesHold is how long the count behind the wordmark's subtitle
+// is kept before it is read again.
+const playedPuzzlesHold = time.Minute
+
+// playedPuzzles is the count behind the wordmark's subtitle, held for a
+// minute at a time.
+//
+// The chrome is built for every page, and this was a query on every one of
+// them — for a number that changes once a day, when the first result for a
+// new puzzle lands. A minute's staleness on a day counter is invisible.
+// Invalidating on ingest instead is not worth what it costs: results arrive
+// by three routes — the HTTP endpoint, the bridge, and the CLI in another
+// process — and a notifier through all of them is more machinery than a
+// clock. An error is the caller's to handle and is not held: a count that
+// could not be read is read again next time.
+func (s *Server) playedPuzzles(ctx context.Context) (int, error) {
+	s.played.Lock()
+	defer s.played.Unlock()
+	if !s.played.at.IsZero() && time.Since(s.played.at) < playedPuzzlesHold {
+		return s.played.n, nil
+	}
+	n, err := store.CountPlayedPuzzles(ctx, s.db)
+	if err != nil {
+		return 0, err
+	}
+	s.played.n, s.played.at = n, time.Now()
+	return n, nil
 }
 
 // themeFor resolves the theme the same way the locale is resolved: an

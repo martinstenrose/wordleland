@@ -10,6 +10,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/martinstenrose/wordleland/internal/auth"
 	"github.com/martinstenrose/wordleland/internal/bridge"
@@ -29,7 +31,14 @@ type Server struct {
 	localeCodes []string
 	limiter     *auth.Limiter
 	// live feeds the open event streams — see live.go.
-	live         *liveHub
+	live *liveHub
+	// played holds the count behind the wordmark's subtitle for a minute at
+	// a time — see playedPuzzles in chrome.go.
+	played struct {
+		sync.Mutex
+		n  int
+		at time.Time
+	}
 	cipher       *auth.Cipher
 	mailer       *auth.Mailer
 	hashPassword func(string) (string, error)
