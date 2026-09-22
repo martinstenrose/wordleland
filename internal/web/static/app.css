@@ -375,6 +375,11 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
   white-space: nowrap;
 }
 .nav-row:hover { background: var(--color-text-06); color: var(--color-text); }
+/* Pressed: a step darker than hover for as long as the button is down, so
+   the press itself answers before the page does. The current row is the
+   server's to mark — a row that took .on at the press would be claiming a
+   page that has not arrived, and might not. */
+.nav-row:active { background: var(--color-text-10); }
 .nav-row.on { background: var(--color-accent-14); color: var(--color-accent-strong); font-weight: 600; }
 .nav-row .nav-icon { flex: none; }
 /* Help sits above Collapse, both pushed to the foot of the rail. The margin
