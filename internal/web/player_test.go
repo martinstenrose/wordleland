@@ -110,6 +110,14 @@ func TestThinPlayerGetsScoresRatherThanCharts(t *testing.T) {
 	if strings.Contains(page, `class="chart"`) {
 		t.Error("a chart rendered for a player with too little history")
 	}
+	// Never ranked, so no months to plot: the panel stays, saying why it
+	// is empty, rather than leaving a hole in the grid.
+	if strings.Contains(page, `class="rank-chart"`) {
+		t.Error("a rank-by-month chart rendered for a player never ranked")
+	}
+	if !strings.Contains(page, "Rank by month") || !strings.Contains(page, "Not enough months yet") {
+		t.Error("the rank-by-month panel does not explain why it is empty")
+	}
 	// The individual results are still there.
 	if !strings.Contains(page, `class="strip"`) {
 		t.Error("the raw results are missing")

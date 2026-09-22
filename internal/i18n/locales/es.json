@@ -262,6 +262,7 @@
   "player.calendar": "Cada día jugado",
   "player.calendarLegend": "Una semana por columna · los cuadros vacíos son días sin jugar",
   "player.rankByMonth": "Puesto por mes",
+  "player.rankByMonthEmpty": "Todavía no hay meses suficientes. La gráfica empieza cuando haya dos meses con puesto.",
   "today.benched.one": "1 jugador sin clasificar",
   "today.benched.other": "%d jugadores sin clasificar",
   "today.benchedGames.one": "1 puzle",
