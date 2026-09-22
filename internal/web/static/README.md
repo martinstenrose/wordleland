@@ -142,6 +142,17 @@ directory exists to avoid.
 different forms (some rules omitted `SFMono-Regular`); both now share one
 token. `--transition-fast` (`.12s ease`) tokenizes the settings switch's two
 transition rules, which were already identical but repeated by hand.
+`--transition-page` (`.16s`) is how long a page takes to become the next
+one: the view transition every htmx swap runs. The browser pauses
+rendering for the whole of it, so it is short.
+
+Three `view-transition-name`s go with that token and are a fixed
+vocabulary: `topbar` on `.topbar`, `rail` on `.sidebar`, and `content` on
+`#main` inside the shell only. A named element holds still (or morphs)
+across a swap while everything unnamed cross-fades; a name must be unique
+on each side of a swap or the browser abandons the transition, so nothing
+else may claim one of these, and nothing else should need a name of its
+own. The reasoning is in `docs/decisions.md`, *A switch looks like one*.
 
 ## One deliberate non-token
 

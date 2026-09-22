@@ -780,8 +780,12 @@ What did not fit, because the shape is worth knowing where it ends:
   rendered, or htmx fetches the page first. This replaces the old
   constraint that the switcher's listener be registered last.
 - **htmx processes swapped content after a settle delay** of 20ms, and a
-  link in a fragment is not boosted until then. The delay is for CSS
-  transitions on swapped content, which nothing here has, so it is zero.
+  link in a fragment is not boosted until then. The delay exists for CSS
+  transitions on swapped content, and it is zero here even now that a swap
+  is animated — see *A switch looks like one*, below — because the
+  animation is the browser's view transition, which htmx holds open with
+  its own promise and resolves at the end of the settle callback. A delay
+  would only postpone the transition, not smooth it.
 - **htmx forgets a request was boosted if its element leaves the page.**
   Whether a boosted swap pushes the address is read off the element once
   the reply is in, and a swap that removed the element in the meantime — a
@@ -792,17 +796,118 @@ What did not fit, because the shape is worth knowing where it ends:
 - **Forms are boosted too.** The old switcher took links only. Opting every
   form out would have been fighting the tool for a distinction a reader
   cannot see, and the no-script path is a form that posts, as before.
-- **The rail's collapse lost its instant half.** It flipped the width on
-  `<html>` before asking the server; now it is one boosted link among the
-  rest and the width arrives with the page. On the networks this runs on
-  that is the same moment, and it took thirty lines and two attributes with
-  it.
+- **The rail's collapse lost its instant half, and got it back.** The
+  hand-written version flipped the width on `<html>` before asking the
+  server; the htmx move made it one boosted link among the rest, with the
+  width arriving on the page, on the theory that on a local network that
+  is the same moment. It is the same moment for the *latency*. It is not
+  for the *motion*: the rail's width transition runs on the node the swap
+  is about to throw away, and the node that replaces it arrives already
+  at its new width, where a transition never runs. The rail jumped, and
+  pressing it read as a reload. `app.js` sets the attribute at the press
+  again — but generically, off the `?sidebar=` or `?theme=` parameter the
+  link already carries, since `urlWith` is the one place that builds these
+  links and the parameter is the encoding. It knows a parameter, not a
+  control, which is why `chrome_test.go`'s assertion that the script never
+  mentions the collapse control still holds. The reply confirms it: a page
+  that arrives overwrites the attribute as before, and a request that ends
+  with no page puts back what was there. `?lang=` is deliberately not
+  flipped ahead: an `<html lang>` claiming a language its words are not
+  yet in misleads exactly the reader that consults it, and nothing is
+  faster for it.
 - **Back shows the page as it was left.** htmx keeps the last ten pages in
   the tab's `sessionStorage` and restores one on Back with its scroll
   position, which is what the browser does for a page it loaded itself. A
   result that landed in between is not in the snapshot; a page that
   subscribes to live results asks for what it missed the moment it is back
   on screen.
+
+### A switch looks like one
+
+Replacing the whole body was the right call, and it had a cost the first
+version did not pay for: a hard cut of everything on screen, which is what a
+reload looks like. Nothing reloaded, and it read as if it had. Every swap is
+now a view transition — `globalViewTransitions` in the htmx config, which
+also covers Back and Forward, whose swaps have no attributes to carry a
+setting — and three `view-transition-name`s in `app.css` decide what it
+looks like: the bar and the rail, the same on every page, are named and
+hold still; the content is named on its own, so the cross-fade is the
+content's and not the whole window's. The names are `topbar`, `rail` and
+`content`, and a name must be unique on each side of a swap or the browser
+abandons the transition with a console warning — which the browser suite
+listens for.
+
+- **The rail's name is what finishes the instant half.** Pressed, the
+  rail starts its own width transition on the node the swap is about to
+  replace; the view transition captures that node wherever the CSS got
+  to, and morphs the rest. Whether the reply lands in one frame or in
+  eighty milliseconds, there is no moment at which the width jumps.
+  `hx-preserve` on the rail would have done the same and frozen the
+  current-page marker on the old rows; it was not used.
+- **Two swaps are not a navigation and opt out** on their own `hx-swap`.
+  The live region's redraw: a result landing is not something the reader
+  pressed, and a cross-fade that pauses the page for it is motion for an
+  event they did not cause. The search overlay's results: `hx-trigger` on
+  the input fires on every debounced keystroke, and a document-wide
+  transition on each would freeze the page as you type. The admin
+  settings card's own swap is left transitioning; it is a content change
+  inside the content.
+- **`content` is named only inside the shell.** The sign-in and error
+  frames render a `<main>` too, and naming it there would morph the
+  page well into the sign-in card on sign-out. Those frames cross-fade
+  as a whole, which is right for them.
+- **Reduced motion cancels the transition, not just the animation.**
+  `app.js` prevents `htmx:beforeTransition` when the reader's system asks
+  for reduced motion, so `startViewTransition` is never called and the
+  browser never pauses to take its pictures; the stylesheet zeroes the
+  animation as well, for a transition started any other way. Read at each
+  swap, so a setting changed mid-session is honoured.
+- **Navigating to the error frame is an exit transition.** The three
+  named elements exist in the old capture and not the new; the browser
+  fades them out. Rare, correct, and not special-cased.
+- **The duration is 160ms** (`--transition-page`), down from the browser's
+  250ms. Rendering is paused for the whole of a transition, so longer is
+  not smoother past the point where a change reads as motion.
+
+### When this stops being enhancement
+
+`app.js`'s "What htmx leaves to this file" block is the one to watch. It
+holds the `<html>`-attribute sync the body-swap design forces, and one
+workaround for an htmx 2.0.10 quirk (the push-URL flag). That is the shape
+of code that grows into fighting its library. The additions above are
+declarative — a config flag, three names, two opt-outs, a listener that
+cancels — and none is a new mechanism. What would be:
+
+- a second htmx-version-specific workaround in `app.js`;
+- an enhancement that has to re-implement something the server renders
+  (the enrolment dialog is already the one island of that);
+- state on `<html>` that is not also a cookie the server reads;
+- an htmx upgrade — 4.x is a rewrite, and the SSE extension pins this to 2.x.
+
+Any of those is a reason to reopen the architecture rather than add to
+the block.
+
+## Static files are cached by their content
+
+`serveStatic`'s comment promised a long cache lifetime keyed by build, and
+for a long time the file server underneath sent every file in full on every
+page load: an embedded file has no modification time, so there was no
+`Last-Modified`, no `ETag` and no `Cache-Control` at all — the stylesheet,
+three scripts and the font, each time a page was opened.
+
+Each file now carries an `ETag` that is its own digest, and every page
+links each file with `?v=` set to that digest through the `asset`
+template function. A request naming the current digest is answered as
+immutable for a year; the URL changes when the file does. Any other request
+gets an hour, so a page cached with an older `?v=` cannot pin an older file
+forever. The font is immutable on its path alone, because `app.css` names
+it by a literal URL and the convention there is to rename a font file
+rather than change one in place.
+
+Per-file digests rather than `version.Commit`: the commit is empty for any
+build made outside CI, and a developer's build has to cache the same way.
+Per file rather than one digest for the build, so a change to the script
+does not throw away the cached font.
 
 ## A result that lands appears on the pages that are open
 

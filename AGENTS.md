@@ -14,10 +14,13 @@ Standard library first. A dependency needs a reason — the point of this stack
 is a small footprint and a small attack surface. No npm, no SPA framework, no
 client-side rendering by default. Charts are server-generated SVG.
 
-The JavaScript this app ships is two files under `internal/web/static/`:
+The JavaScript this app ships is three files under `internal/web/static/`:
 `htmx.min.js`, vendored, which does the fetching and swapping the
-enhancements need, declared as attributes in the templates; and `app.js`,
-which carries what htmx cannot express. The rule for what belongs in
+enhancements need, declared as attributes in the templates; `sse.min.js`,
+its server-sent-events extension, vendored the same way, for the pages
+that redraw when a result lands; and `app.js`, which carries what htmx
+cannot express. A vendored file is upgraded by copying a newer one in;
+there is no other step. The rule for what belongs in
 `app.js` is a narrow one, decided deliberately rather than left to whether
 a given feature "adds value": **JS is for what cannot exist without it** —
 a keyboard shortcut, an overlay with no page behind it — not for making an
