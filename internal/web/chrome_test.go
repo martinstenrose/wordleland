@@ -256,9 +256,11 @@ func TestTheCollapseControlWorksWithoutScript(t *testing.T) {
 		}
 	}
 
-	// Nothing in the script is about this control any more: it is one
-	// boosted link among the rest, and <html> takes the width from the page
-	// that comes back.
+	// Nothing in the script is about this control: it is one boosted link
+	// among the rest, and <html> takes the width from the page that comes
+	// back. app.js does set the width at the press as well — but off the
+	// ?sidebar= parameter every one of these links carries, the same way it
+	// handles ?theme=. It knows a parameter, not a control.
 	js := fetchAs(t, srv, "/static/app.js", nil).Body.String()
 	if strings.Contains(js, "nav-collapse") {
 		t.Error("app.js still handles the collapse control by hand")

@@ -1020,17 +1020,20 @@ func TestBrowserTheSearchOverlayAnswersTheKeyboard(t *testing.T) {
 //
 // The theme lives on <html>, outside the body the switcher replaces, so a
 // switch has to carry it across by hand — the kind of line nothing in the
-// markup pins.
+// markup pins. The attribute moves at the press now, ahead of the page, so
+// its changing no longer says the page has arrived: the picker's marker is
+// read only once the old content has gone, which is what a switch is.
 func TestBrowserAThemeLinkChangesTheThemeInPlace(t *testing.T) {
 	site := newSite(t)
 	p := site.open(newBrowser(t), desktopWidth)
 	p.Navigate(site.base + "/leaderboard")
-	p.Eval(`window.__alive = 1; true`)
+	p.Eval(`window.__alive = 1; document.getElementById("main").__old = true; true`)
 
 	before := p.String(`document.documentElement.dataset.theme || ""`)
 	href := p.String(`document.querySelector(".theme-track a.theme-opt:not(.on)").getAttribute("href")`)
 	p.Click(`.theme-track a.theme-opt:not(.on)`)
 	p.WaitFor(fmt.Sprintf(`(document.documentElement.dataset.theme || "") !== %q`, before))
+	p.WaitFor(`document.getElementById("main").__old !== true`)
 	if alive := p.Number(`window.__alive || 0`); alive != 1 {
 		t.Errorf("the theme link reloaded the document")
 	}
@@ -1118,6 +1121,52 @@ func TestBrowserCollapsingTheRailIsRememberedWithoutAReload(t *testing.T) {
 			t.Fatalf("a fresh load still shows the rail %q after choosing %q", before, after)
 		}
 		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+// The rail takes its new width the moment the collapse control is pressed,
+// before the server has answered.
+//
+// The width is an attribute on <html>, and the page that comes back carries
+// it — that alone is correct, and on a local network quick, but the rail's
+// width transition runs on the node the swap is about to replace, so the
+// motion went with the round trip. app.js sets the attribute at the press,
+// off the parameter the link already carries, and the reply confirms it.
+// Every reply is held here for long enough to look through the gap: the
+// attribute and the width have to have moved while the request is still
+// out, and to still be there once it is back.
+func TestBrowserTheRailTakesItsNewWidthBeforeTheServerAnswers(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), desktopWidth)
+	p.Navigate(site.base + "/today")
+	p.Eval(`window.__alive = 1; document.getElementById("main").__old = true; true`)
+	p.Eval(`(() => {
+		const send = XMLHttpRequest.prototype.send;
+		XMLHttpRequest.prototype.send = function () {
+			const args = arguments;
+			setTimeout(() => send.apply(this, args), 600);
+		};
+		return true;
+	})()`)
+
+	before := p.String(`document.documentElement.dataset.sidebar || ""`)
+	width := p.Number(`document.querySelector(".sidebar").getBoundingClientRect().width`)
+	p.Click(".nav-collapse")
+
+	p.WaitFor(fmt.Sprintf(`(document.documentElement.dataset.sidebar || "") !== %q`, before))
+	p.WaitFor(fmt.Sprintf(`document.querySelector(".sidebar").getBoundingClientRect().width < %v`, width))
+	if old := p.Eval(`document.getElementById("main").__old === true`); old != true {
+		t.Fatalf("the reply landed before the rail moved; nothing was checked ahead of it")
+	}
+	after := p.String(`document.documentElement.dataset.sidebar || ""`)
+
+	// The reply confirms rather than reverses it.
+	p.WaitFor(`document.getElementById("main").__old !== true`)
+	if got := p.String(`document.documentElement.dataset.sidebar || ""`); got != after {
+		t.Errorf("the rail was %q ahead of the reply and %q after it", after, got)
+	}
+	if alive := p.Number(`window.__alive || 0`); alive != 1 {
+		t.Errorf("collapsing the rail reloaded the document")
 	}
 }
 
