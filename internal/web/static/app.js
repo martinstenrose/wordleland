@@ -657,7 +657,7 @@ var onPageChange = (function () {
 // place of this one. The whole body, as docs/decisions.md asks: an error
 // page arrives without the rail, a theme link arrives with the theme, and a
 // page reached this way is the server's own rendering of that URL. htmx
-// does the fetching, the swapping, the history and the scroll. Four things
+// does the fetching, the swapping, the history and the scroll. Five things
 // are outside its reach and live here.
 (function () {
   "use strict";
@@ -678,6 +678,10 @@ var onPageChange = (function () {
       if (value === null) root.removeAttribute(name);
       else root.setAttribute(name, value);
     });
+    // The page is the authority, so anything item 5 set ahead of this
+    // reply is confirmed or corrected by the lines above, and there is
+    // nothing left to put back.
+    if (detail.shouldSwap !== false) settleAhead(detail.xhr);
   });
 
   // And the address. htmx (2.0.10) decides whether a boosted swap pushes
@@ -809,5 +813,63 @@ var onPageChange = (function () {
     }
     var path = event.detail.pathInfo && event.detail.pathInfo.requestPath;
     if (path) window.location.href = path;
+  });
+
+  // 5. The instant half of a control whose whole effect is an attribute on
+  // <html>: the rail's width, and the theme. Each is a link back to this
+  // URL with ?sidebar= or ?theme= set — urlWith in chrome.go is the one
+  // place that builds them — and the page that comes back carries the new
+  // value, which item 1 copies across. That is correct and, on a local
+  // network, quick. But the rail's width transition runs on the node the
+  // swap is about to throw away, and the node that replaces it arrives
+  // already at its new width, so the motion went with the round trip even
+  // where the latency did not. So the attribute is set here, at the press,
+  // off the parameter the link already carries, and the reply confirms it:
+  // a page that arrives overwrites it (item 1), and a request that ends
+  // with no page — the network gone, a 204, a press superseded by the next
+  // — puts back what was there. Only these two: their values are the
+  // stylesheet's to act on. The language stays with the page, because an
+  // <html lang> claiming a language its words are not yet in misleads
+  // exactly the reader that consults it. Without script, each link is
+  // still the link, and the server still decides the width.
+  var ahead = {
+    sidebar: { attr: "data-sidebar", values: ["wide", "narrow"] },
+    theme: { attr: "data-theme", values: ["system", "light", "dark"] }
+  };
+  // What was set ahead of a reply still in flight: { attr, was, xhr }.
+  var setAhead = [];
+  function settleAhead(xhr) {
+    setAhead = setAhead.filter(function (a) { return a.xhr !== xhr; });
+  }
+  document.addEventListener("htmx:beforeRequest", function (event) {
+    var config = event.detail.requestConfig;
+    var link = config && config.elt;
+    if (!config.boosted || !link || link.tagName !== "A") return;
+    var params;
+    try { params = new URL(link.href, window.location.href).searchParams; } catch (e) { return; }
+    var root = document.documentElement;
+    Object.keys(ahead).forEach(function (name) {
+      var rule = ahead[name];
+      var value = params.get(name);
+      if (value === null || rule.values.indexOf(value) < 0) return;
+      // A link carries the whole query, so a theme link on a page already
+      // at ?sidebar=narrow says both; only what actually changes is set.
+      var was = root.getAttribute(rule.attr);
+      if (value === was) return;
+      root.setAttribute(rule.attr, value);
+      setAhead.push({ attr: rule.attr, was: was, xhr: event.detail.xhr });
+    });
+  });
+  // Fires for every request however it ended, after any swap it caused
+  // — so an entry still here is one no page confirmed.
+  document.addEventListener("htmx:afterRequest", function (event) {
+    var xhr = event.detail.xhr;
+    var root = document.documentElement;
+    setAhead = setAhead.filter(function (a) {
+      if (a.xhr !== xhr) return true;
+      if (a.was === null) root.removeAttribute(a.attr);
+      else root.setAttribute(a.attr, a.was);
+      return false;
+    });
   });
 })();
