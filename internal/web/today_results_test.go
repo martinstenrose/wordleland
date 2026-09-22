@@ -234,3 +234,58 @@ func TestTheUnrankedAreBehindADisclosureWithTheirReason(t *testing.T) {
 		t.Errorf("the unranked rows do not say why: %s", bench)
 	}
 }
+
+// Hard mode leads a tie and only a tie. The names are chosen so the two
+// rules disagree: Quick sorts before Zora alphabetically, so Zora leading
+// can only be the hard-mode rule — and Quick's ordinary 3 still beats
+// Easy's 4 played hard, because hard mode orders equal results rather than
+// discounting unequal ones.
+func TestHardModeLeadsATiedScoreButNeverBeatsABetterOne(t *testing.T) {
+	srv := testServer(t)
+	ctx := context.Background()
+	admin, err := store.CreateUser(ctx, srv.db, store.SystemActor(), "admin@example.tld", "hash", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	current := currentPuzzle()
+
+	for _, p := range []struct {
+		name, slug string
+		hardMode   bool
+		today      int
+	}{
+		{"Quick", "quick", false, 3},
+		{"Zora", "zora", true, 3},
+		{"Easy", "easy", true, 4},
+	} {
+		player, err := store.CreatePlayer(ctx, srv.db, store.AdminActor(admin.ID), p.name, p.slug)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for puzzle := current - 20; puzzle < current; puzzle++ {
+			seedResult(t, srv, player.ID, puzzle, 4, p.hardMode)
+		}
+		seedResult(t, srv, player.ID, current, p.today, p.hardMode)
+	}
+
+	slug, _, _ := store.EnsureShareSlug(ctx, srv.db)
+	rows := resultRows(t, fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String())
+
+	var got [][3]string
+	for _, row := range rows {
+		got = append(got, [3]string{row[0], row[1], row[2]})
+	}
+	want := [][3]string{
+		{"1", "3*", "Zora"},
+		{"2", "3", "Quick"},
+		{"3", "4*", "Easy"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d rows, want %d: %v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("row %d = %v, want %v", i, got[i], want[i])
+		}
+	}
+}

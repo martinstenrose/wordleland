@@ -259,12 +259,13 @@ func (s *Server) calloutFor(c stats.Callout, prefix string, t translator) callou
 
 // todayResults turns the day into the rows the page lists, best first.
 //
-// The order is stats.ComputeToday's — best score first, ties broken by name
-// so the list is stable through the day rather than reshuffling as results
-// arrive. Positions are counted over the ranked players only: an unranked
-// player is in the day like everybody else, but a position among people who
-// are ranked is not a thing they hold, and numbering them would push
-// everyone below them down a place for the wrong reason.
+// The order is stats.ComputeToday's — best score first, ties broken by hard
+// mode and then by name, so the list is stable through the day rather than
+// reshuffling as results arrive. Positions are counted over the ranked
+// players only: an unranked player is in the day like everybody else, but a
+// position among people who are ranked is not a thing they hold, and
+// numbering them would push everyone below them down a place for the wrong
+// reason.
 func todayResults(t translator, today stats.Today, board stats.Board, prefix string) []todayResultRow {
 	// Ranked is the board's own decision, not a property of the average: a
 	// player below the threshold has an average and it is withheld, here as

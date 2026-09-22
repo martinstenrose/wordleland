@@ -32,6 +32,21 @@ func record(t *testing.T, db *sql.DB, slug string, date time.Time, solved bool, 
 	}
 }
 
+// fileHard files one solved result played in hard mode, which fill cannot
+// do: the recap names tied winners in the day's own order, and hard mode is
+// part of that order.
+func fileHard(t *testing.T, db *sql.DB, slug string, date time.Time, guesses int) {
+	t.Helper()
+	g := guesses
+	sub := ingest.Submission{
+		Slug: slug, PuzzleNo: wordle.PuzzleForDate(date), Solved: true,
+		Guesses: &g, HardMode: true,
+	}
+	if _, err := ingest.Apply(context.Background(), db, store.SystemActor(), sub, false); err != nil {
+		t.Fatalf("seed hard-mode result for %s on %s: %v", slug, date, err)
+	}
+}
+
 // alreadyPosted marks a day announced without sending anything, which is
 // what steady state looks like: by the time today can go out early,
 // yesterday's recap has long since gone. Tests that only care about today
@@ -803,5 +818,29 @@ func TestThePuzzleNumberIsNeverGrouped(t *testing.T) {
 	}
 	if got := c.only(t); !strings.Contains(got, "Wordle "+strconv.Itoa(puzzle)) {
 		t.Errorf("message = %q, want the bare digits %d under a grouping locale", got, puzzle)
+	}
+}
+
+// The recap names a tied best in the day's order, which puts hard mode
+// first — so Bob leads a pair he would trail alphabetically. Both still hold
+// the score: the tiebreak orders the names, it does not pick a winner.
+func TestATiedBestNamesHardModeFirst(t *testing.T) {
+	db := announceDB(t)
+	ctx := context.Background()
+
+	mustPlayer(t, db, "Alice", "alice")
+	mustPlayer(t, db, "Bob", "bob")
+	fill(t, db, "alice", 2026, time.September, 2, 1, 3)
+	fileHard(t, db, "bob", time.Date(2026, time.September, 2, 0, 0, 0, 0, time.Local), 3)
+
+	var c collector
+	daily := NewDaily(db, loadCatalogues(t), "en", true, c.send)
+	now := time.Date(2026, time.September, 2, 15, 0, 0, 0, time.Local)
+
+	if err := daily(ctx, now); err != nil {
+		t.Fatalf("daily: %v", err)
+	}
+	if got := c.only(t); !strings.Contains(got, "🥇 Bob and Alice both took it in 3.") {
+		t.Errorf("message = %q, want the hard-mode 3 named first", got)
 	}
 }

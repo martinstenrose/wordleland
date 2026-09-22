@@ -207,6 +207,23 @@ A handicap would mean inventing a conversion factor with nothing to justify
 it; filtering gives the comparison without that problem — same arithmetic,
 smaller population.
 
+**Hard mode breaks a tie on the day, and only a tie.** Two people on the same
+score are ordered with hard mode first; a better score in normal mode still
+leads a worse one played hard, so a 3 stays ahead of a 4*. This is not the
+handicap the paragraph above rules out. A handicap would need a conversion
+factor — how many guesses hard mode is worth — and there is nothing to derive
+one from. Ordering two results that are already equal needs no such number:
+the arithmetic is untouched, and the only question left is which of two
+identical scores to print first. Alphabetical was an arbitrary answer to
+that; hard mode is a real one.
+
+It applies to a shared failure too. Two X's are the same result as much as
+two 3s are, and an exception there would be a second rule to remember for no
+gain. It orders the day's list on Today and the names in the Signal recap's
+tied best, because both read the one order `stats.ComputeToday` produces. The
+count of who holds the day's best is untouched: a tie is still a tie, and the
+recap still names everyone in it.
+
 **Streaks and missed days are computed from the full history whatever the
 filter is.** Both are statements about absence, and filtering manufactures
 absences: a player with 169 hard-mode games and 9 normal ones would have

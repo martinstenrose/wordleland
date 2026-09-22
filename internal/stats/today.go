@@ -21,8 +21,9 @@ type TodayEntry struct {
 type Today struct {
 	PuzzleNo int
 
-	// Filed is ordered best first, ties broken by name so the order is
-	// stable through the day rather than shuffling as rows arrive.
+	// Filed is ordered best first, ties broken by hard mode and then by
+	// name so the order is stable through the day rather than shuffling as
+	// rows arrive.
 	Filed []TodayEntry
 
 	// Missing lists active players with no result yet. Retired players are
@@ -31,7 +32,8 @@ type Today struct {
 	Missing []store.Player
 
 	// Best is the lowest solved score, nil when nobody has solved it yet —
-	// including when everyone who filed has failed.
+	// including when everyone who filed has failed. Where that score is
+	// shared across both modes it is a hard-mode one, following Filed.
 	Best *TodayEntry
 
 	// BestShared counts how many people hold that score. A tie is a real
@@ -78,6 +80,12 @@ func ComputeToday(players []store.Player, results []store.BoardResult, currentPu
 		}
 		if a.Solved && a.Guesses != b.Guesses {
 			return a.Guesses < b.Guesses
+		}
+		// Hard mode orders two identical results; it never beats a better
+		// one, so a 3 stays ahead of a 4 played hard. Applies to a shared
+		// failure too: two X's are the same result as much as two 3s are.
+		if a.HardMode != b.HardMode {
+			return a.HardMode
 		}
 		return a.Name < b.Name
 	})
