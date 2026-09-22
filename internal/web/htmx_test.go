@@ -42,7 +42,7 @@ func TestHtmxIsServedAndLoadedOnce(t *testing.T) {
 	if at > strings.Index(body, appTag) {
 		t.Error("app.js is loaded before htmx, so its listeners have nothing to hear")
 	}
-	if tag := body[at:at+strings.Index(body[at:], ">")]; !strings.Contains(tag, " defer") {
+	if tag := body[at : at+strings.Index(body[at:], ">")]; !strings.Contains(tag, " defer") {
 		t.Errorf("htmx is not deferred: %s", tag)
 	}
 }
