@@ -199,9 +199,9 @@ func bestLine(t i18n.Translator, day stats.Today) string {
 	}
 }
 
-// bestNames is everyone who tied for the day's lowest solve. Today.Filed is
-// already ordered best first and then by name, so these come out
-// alphabetically without sorting again.
+// bestNames is everyone who tied for the day's lowest solve, in Today.Filed's
+// order — so hard mode is named first, and within a mode alphabetically. No
+// sorting again here: the day has one order and this is it.
 func bestNames(day stats.Today) []string {
 	names := make([]string, 0, day.BestShared)
 	for _, e := range day.Filed {
