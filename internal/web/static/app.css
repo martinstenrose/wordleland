@@ -155,6 +155,11 @@
   --line-tight: 1.1;
 
   --transition-fast: .12s ease;
+  /* How long a page takes to become the next one — the view transition
+     every swap runs, see "Switching pages" below. The browser pauses
+     rendering for the whole of it, so longer is not smoother past the
+     point where a change reads as motion; the UA's 250ms reads as lag. */
+  --transition-page: .16s;
 
   /* The card gutter. Table cells and the full-bleed panels carry it
      themselves; everything else inherits it from the rule below. */
@@ -333,6 +338,9 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 }
 
 .sidebar {
+  /* Holds still across a page switch, and carries its width change through
+     one — see "Switching pages" below. */
+  view-transition-name: rail;
   position: sticky;
   top: 56px;
   /* A sticky element is a stacking layer of its own, and the About panel
@@ -468,17 +476,26 @@ main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 24px var(--space
 .raised-close { margin-left: auto; }
 /* The control says what pressing it will do, so the half that describes the
    width already in force is the half to hide. Keyed off <html> rather than
-   rendered by the server, so app.js flipping that attribute is enough to
-   bring the wording, the arrow and the accessible name with it. */
+   rendered by the server, so app.js flipping that attribute — which it does
+   at the press, ahead of the page that confirms it — is enough to bring
+   the wording, the arrow and the accessible name with it. */
 :root[data-sidebar="narrow"] .to-narrow,
 :root[data-sidebar="wide"] .to-wide { display: none; }
 
 /* Collapsed to its icons. The labels are hidden from the eye and not from a
    screen reader: display:none would leave every row an icon with no
    accessible name at all, which is worse than the width it saves. */
-:root[data-sidebar="narrow"] .sidebar { width: 72px; padding-left: 10px; padding-right: 10px; }
+/* Only the width changes. The rail's padding and each row's stay what they
+   are wide, so an icon's left edge is at the same 25px from the rail's edge
+   at either width and at every width in between: the rail narrows from the
+   right and the icons do not move. Centring the rows instead — which puts
+   the icons a pixel and a half nearer the true centre — centred them in a
+   row that was still 192px wide the instant the attribute flipped, so every
+   icon jumped right and then slid back as the width came down. That
+   sideways lurch is what a collapse looked like. */
+:root[data-sidebar="narrow"] .sidebar { width: 72px; }
 :root[data-sidebar="narrow"] .sidebar .brand,
-:root[data-sidebar="narrow"] .sidebar .nav-row { justify-content: center; padding-left: 0; padding-right: 0; gap: 0; }
+:root[data-sidebar="narrow"] .sidebar .nav-row { gap: 0; }
 :root[data-sidebar="narrow"] .sidebar .nav-label {
   position: absolute;
   width: 1px;
@@ -542,12 +559,67 @@ html.htmx-request::after {
 }
 @keyframes page-appear { to { opacity: .55; } }
 
+/* Switching pages. Every body swap is a view transition (globalViewTransitions
+   in base.html's config), and these three names decide what that looks
+   like: an element named on both sides of a swap is one thing that moves
+   from the old picture to the new, and everything unnamed cross-fades
+   together as the root. So the bar and the rail, which are the same on
+   every page, are named and hold still, and the content is named on its own
+   so the cross-fade is the content's and not the whole window's — which
+   is what made a switch read as a reload even when nothing reloaded. The
+   rail's name also carries its width: pressed, the rail starts its own
+   width transition on the node the swap is about to replace, and the
+   view transition picks the old picture up wherever that got to and
+   morphs the rest, so there is no moment at which it jumps.
+
+   content is named only inside the shell. The auth and error frames have a
+   <main> too, and naming it there would morph the page well into the
+   sign-in card on sign-out, which nobody asked for; those two frames
+   cross-fade as a root. A name must be unique on each side of a swap or
+   the browser abandons the transition and says so in the console, which
+   the browser suite listens for — the shell already renders one bar and
+   one rail (chrome_test.go), and the drawer is not the rail.
+
+   The bar's old and new pictures are identical, so the default cross-fade
+   is a visual no-op; it is left alone rather than switched off, because
+   the UA blends the two with plus-lighter and two opaque pictures with no
+   fade between them brighten. Where the browser has no view transitions
+   the swap is what it was: htmx checks before it starts one.
+
+   The bar's and the rail's names sit in their own rules, .topbar and
+   .sidebar; the content's is here because it has no rule of its own. */
+.shell-main #main { view-transition-name: content; }
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) { animation-duration: var(--transition-page); }
+/* The rail changes width, and left to the browser its two pictures would
+   be scaled to the group's width as it animates — the whole rail, icons
+   included, shrinking sideways for 160ms. Instead the pictures keep their
+   own size and the narrowing group clips them from the right, which is
+   exactly what the rail's own width transition does, so the icons stay
+   where they are through both halves of the collapse. */
+::view-transition-group(rail) { overflow: clip; }
+::view-transition-old(rail),
+::view-transition-new(rail) { inline-size: auto; block-size: auto; }
+/* app.js cancels the transition outright for a reader who asked for reduced
+   motion, before the browser pauses to take a picture. This is the
+   fallback for one started some other way: no duration, no fade, and no
+   blend — with the old picture gone, plus-lighter on the new one alone
+   would wash it out. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*) { animation-duration: 0s; }
+  ::view-transition-old(*) { animation: none; opacity: 0; }
+  ::view-transition-new(*) { animation: none; opacity: 1; mix-blend-mode: normal; }
+}
+
 /* One bar across the whole width: the wordmark at the left, search in the
    middle, the controls at the right. It sits above the rail rather than beside
    it, so the wordmark holds one place at every width and the rail below is
    only ever navigation. No rule under it — the well the page sits in draws its
    own edge. */
 .topbar {
+  /* Holds still across a page switch — see "Switching pages" above. */
+  view-transition-name: topbar;
   position: sticky;
   top: 0;
   z-index: 15;

@@ -657,7 +657,7 @@ var onPageChange = (function () {
 // place of this one. The whole body, as docs/decisions.md asks: an error
 // page arrives without the rail, a theme link arrives with the theme, and a
 // page reached this way is the server's own rendering of that URL. htmx
-// does the fetching, the swapping, the history and the scroll. Five things
+// does the fetching, the swapping, the history and the scroll. Six things
 // are outside its reach and live here.
 (function () {
   "use strict";
@@ -871,5 +871,18 @@ var onPageChange = (function () {
       else root.setAttribute(a.attr, a.was);
       return false;
     });
+  });
+
+  // 6. Reduced motion. Every swap is a view transition (the config in
+  // base.html), and htmx has no attribute for a reader who has asked their
+  // system for less of that. The stylesheet zeroes the animation, but the
+  // browser still pauses to take its pictures; cancelling here, before it
+  // starts, is the version that costs nothing. Read at each swap rather
+  // than once, so a setting changed mid-session is honoured. Without
+  // script there is no transition to cancel.
+  document.addEventListener("htmx:beforeTransition", function (event) {
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      event.preventDefault();
+    }
   });
 })();

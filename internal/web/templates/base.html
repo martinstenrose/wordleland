@@ -14,10 +14,15 @@
      this repository's rules would otherwise fight: no eval, no injected
      style, no scripts run out of swapped content, and a 4xx or 5xx page
      swapped like any other, so the error frame arrives in place the way
-     a full navigation would show it. No settle delay: it exists for CSS
-     transitions on swapped content, which nothing here has, and until it
-     has run the links in a swapped fragment are not yet boosted. */}}
-<meta name="htmx-config" content='{"allowEval":false,"includeIndicatorStyles":false,"allowScriptTags":false,"defaultSettleDelay":0,"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":true}]}'>
+     a full navigation would show it. Every swap is a view transition
+     where the browser has them — the bar and the rail are named in
+     app.css so they hold still and the content cross-fades — and the two
+     swaps that are not a navigation say transition:false where they are
+     rendered; app.js cancels the transition for a reader who asked for
+     reduced motion. No settle delay: htmx holds the transition open with
+     its own promise, so a delay would only postpone it, and until it has
+     run the links in a swapped fragment are not yet boosted. */}}
+<meta name="htmx-config" content='{"allowEval":false,"includeIndicatorStyles":false,"allowScriptTags":false,"defaultSettleDelay":0,"globalViewTransitions":true,"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":true}]}'>
 <script src="/static/htmx.min.js" defer></script>
 {{/* htmx's SSE extension, for the live stream Today and the board listen
      to — see live.go and the main region below. */}}
@@ -64,8 +69,12 @@
            boosted link inside the region: without it a player's link would
            have swapped the player's page into this region, at this address,
            and a link to nowhere would have put the error page inside the
-           frame. What the region says about its own redraw is its own. */}}
-      <main id="main"{{with .Live}} hx-ext="sse" sse-connect="{{.Stream}}" hx-trigger="sse:result" hx-get="{{.Page}}" hx-select="#main > *" hx-target="this" hx-swap="innerHTML" hx-push-url="false" hx-disinherit="hx-select hx-target hx-swap hx-push-url hx-indicator" hx-indicator="this"{{end}}>{{block "content" .}}{{end}}</main>
+           frame. What the region says about its own redraw is its own.
+
+           transition:false: a result landing is not a navigation. The
+           reader did not press anything, and a cross-fade that pauses the
+           page for it would be motion for an event they did not cause. */}}
+      <main id="main"{{with .Live}} hx-ext="sse" sse-connect="{{.Stream}}" hx-trigger="sse:result" hx-get="{{.Page}}" hx-select="#main > *" hx-target="this" hx-swap="innerHTML transition:false" hx-push-url="false" hx-disinherit="hx-select hx-target hx-swap hx-push-url hx-indicator" hx-indicator="this"{{end}}>{{block "content" .}}{{end}}</main>
     </div>
   </div>
 {{else if eq .Frame "auth"}}

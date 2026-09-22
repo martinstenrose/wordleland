@@ -63,6 +63,7 @@ func TestHtmxConfigForbidsEvalAndSwapsErrorPages(t *testing.T) {
 		AllowEval              *bool `json:"allowEval"`
 		IncludeIndicatorStyles *bool `json:"includeIndicatorStyles"`
 		AllowScriptTags        *bool `json:"allowScriptTags"`
+		GlobalViewTransitions  *bool `json:"globalViewTransitions"`
 		ResponseHandling       []struct {
 			Code string `json:"code"`
 			Swap bool   `json:"swap"`
@@ -88,5 +89,48 @@ func TestHtmxConfigForbidsEvalAndSwapsErrorPages(t *testing.T) {
 	}
 	if !errors {
 		t.Error("htmx-config does not swap 4xx and 5xx responses, so an error page would arrive as nothing")
+	}
+	// And every swap is a view transition, which is what stops a switch
+	// reading as a reload; the two swaps that are not a navigation opt out
+	// where they are rendered, see below.
+	if cfg.GlobalViewTransitions == nil || !*cfg.GlobalViewTransitions {
+		t.Error("htmx-config does not turn globalViewTransitions on")
+	}
+}
+
+// Two swaps are not a navigation and must not cross-fade the page: the live
+// region redrawing itself when a result lands — the reader pressed nothing
+// — and the search overlay answering a keystroke, where a transition on
+// every debounced keypress would freeze the page as you type. Each says so
+// on its own hx-swap, because the config makes the transition the default.
+func TestALiveRegionAndTheSearchOverlayDoNotCrossFade(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	seedLogin(t, srv, "reader@example.tld", true)
+	_, cookies := login(t, srv, "reader@example.tld", testPassword)
+	_, cookies = enrol(t, srv, cookies)
+
+	rec, _ := getWith(t, srv, "/today", cookies)
+	body := rec.Body.String()
+
+	// The tag itself carries a ">" inside hx-select, so it is cut at an
+	// attribute that follows hx-swap rather than at the closing bracket.
+	main, ok := sectionOf(body, `<main id="main"`, `hx-push-url=`)
+	if !ok {
+		t.Fatal("the page has no main region")
+	}
+	if !strings.Contains(main, `sse-connect=`) {
+		t.Fatal("Today's main region does not listen to the stream; this test needs a live page")
+	}
+	if !strings.Contains(main, `hx-swap="innerHTML transition:false"`) {
+		t.Errorf("the live region's redraw is not opted out of the view transition:\n%s", main)
+	}
+
+	input, ok := sectionOf(body, `<input type="search"`, ">")
+	if !ok {
+		t.Fatal("the page has no search input")
+	}
+	if !strings.Contains(input, `hx-swap="innerHTML transition:false"`) {
+		t.Errorf("the search overlay's results swap is not opted out of the view transition:\n%s", input)
 	}
 }

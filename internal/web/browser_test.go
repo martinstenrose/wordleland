@@ -1170,6 +1170,69 @@ func TestBrowserTheRailTakesItsNewWidthBeforeTheServerAnswers(t *testing.T) {
 	}
 }
 
+// The bar and the rail are named for the view transition, and so is the
+// content — but only inside the shell.
+//
+// A switch cross-fades the content while the bar and the rail hold still;
+// which element is which is three names in the stylesheet, and a tidy-up
+// that dropped one would put the whole window back into the cross-fade
+// that read as a reload. The sign-in card's <main> is deliberately not
+// named: naming it would morph the page well into the card on sign-out.
+func TestBrowserTheBarAndTheRailAreNamedAndTheContentIsToo(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), desktopWidth)
+	p.Navigate(site.base + "/today")
+
+	name := func(selector string) string {
+		return p.String(fmt.Sprintf(`getComputedStyle(document.querySelector(%q)).viewTransitionName || ""`, selector))
+	}
+	for selector, want := range map[string]string{".topbar": "topbar", ".sidebar": "rail", "#main": "content"} {
+		if got := name(selector); got != want {
+			t.Errorf("%s is named %q for the view transition, want %q", selector, got, want)
+		}
+	}
+
+	p.Eval(`document.querySelector("details.account").open = true; true`)
+	p.Click("details.account form button")
+	p.WaitFor(`!!document.querySelector(".auth-frame")`)
+	if got := name("#main"); got != "none" && got != "" {
+		t.Errorf("the sign-in frame's main region is named %q; it should cross-fade as part of the page", got)
+	}
+}
+
+// A reader who has asked for reduced motion gets no view transition at all.
+//
+// The stylesheet zeroes the animation, but a transition the browser starts
+// still pauses the page to take its pictures; app.js cancels it before that
+// on htmx:beforeTransition. Emulated here, with the browser's own function
+// counted rather than the animation observed, because "not started" is the
+// claim.
+func TestBrowserReducedMotionSkipsTheTransition(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), desktopWidth)
+	p.call("Emulation.setEmulatedMedia", map[string]any{
+		"features": []map[string]string{{"name": "prefers-reduced-motion", "value": "reduce"}},
+	})
+	p.Navigate(site.base + "/today")
+	if reduced := p.Eval(`matchMedia("(prefers-reduced-motion: reduce)").matches`); reduced != true {
+		t.Skip("the browser does not emulate prefers-reduced-motion")
+	}
+	p.Eval(`(() => {
+		window.__transitions = 0;
+		const start = document.startViewTransition;
+		if (!start) return false;
+		document.startViewTransition = function () { window.__transitions++; return start.apply(this, arguments); };
+		document.getElementById("main").__old = true;
+		return true;
+	})()`)
+
+	p.Click(`.sidebar a.nav-row[href="/leaderboard"]`)
+	p.WaitFor(`document.getElementById("main").__old !== true && location.pathname === "/leaderboard"`)
+	if n := p.Number(`window.__transitions`); n != 0 {
+		t.Errorf("a switch under reduced motion started %v view transitions", n)
+	}
+}
+
 // Posting a form does not reload the document either.
 //
 // The old switcher took links only; htmx boosts forms as well, so signing
