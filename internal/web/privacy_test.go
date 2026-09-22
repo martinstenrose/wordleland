@@ -26,11 +26,16 @@ func TestPrivacyPageForAStranger(t *testing.T) {
 	if !strings.Contains(body, `<a class="brand" href="/">`) {
 		t.Error("the anonymous brand link does not lead directly to sign-in")
 	}
-	if !strings.Contains(body, `<a class="btn" href="/" aria-label="Sign in">`) {
-		t.Error("no sign-in button for an anonymous visitor")
+	// The way in is the last row of the account slot's sheet, which every
+	// reader has — see TestTheAccountSlotIsThereForEveryoneAndTheAccountIsNot.
+	if !strings.Contains(body, `<a class="account-in" href="/">`) {
+		t.Error("no way to sign in for an anonymous visitor")
 	}
-	if strings.Contains(body, "account-menu") {
-		t.Error("an anonymous visitor is offered the account menu")
+	if !strings.Contains(body, `class="avatar guest"`) {
+		t.Error("an anonymous visitor is drawn as an account")
+	}
+	if strings.Contains(body, `action="/logout"`) {
+		t.Error("an anonymous visitor is offered a way out of a session they have not got")
 	}
 }
 

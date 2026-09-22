@@ -1064,16 +1064,84 @@ func TestBrowserAThemeLinkChangesTheThemeInPlace(t *testing.T) {
 	p.Navigate(site.base + "/leaderboard")
 	p.Eval(`window.__alive = 1; document.getElementById("main").__old = true; true`)
 
+	// The track is in the account sheet now, so the press a reader makes is
+	// two: the circle at the end of the bar, then the setting.
+	p.Click(".account > summary")
+	p.WaitFor(`!!document.querySelector(".account[open] .track a.theme-opt")`)
+
 	before := p.String(`document.documentElement.dataset.theme || ""`)
-	href := p.String(`document.querySelector(".theme-track a.theme-opt:not(.on)").getAttribute("href")`)
-	p.Click(`.theme-track a.theme-opt:not(.on)`)
+	href := p.String(`document.querySelector(".account .track a.theme-opt:not(.on)").getAttribute("href")`)
+	p.Click(`.account .track a.theme-opt:not(.on)`)
 	p.WaitFor(fmt.Sprintf(`(document.documentElement.dataset.theme || "") !== %q`, before))
 	p.WaitFor(`document.getElementById("main").__old !== true`)
 	if alive := p.Number(`window.__alive || 0`); alive != 1 {
 		t.Errorf("the theme link reloaded the document")
 	}
-	if on := p.String(`document.querySelector(".theme-track a.theme-opt.on").getAttribute("href")`); on != href {
-		t.Errorf("the theme picker marks %s, not the %s just chosen", on, href)
+	if on := p.String(`document.querySelector(".account .track a.theme-opt.on").getAttribute("href")`); on != href {
+		t.Errorf("the theme track marks %s, not the %s just chosen", on, href)
+	}
+	// The body was replaced, so the sheet the press was made in is gone with
+	// it. Nothing restores it: that would be script holding a menu open
+	// across a navigation, and the setting it changed is already applied.
+	if open := p.Eval(`!!document.querySelector(".account[open]")`); open != false {
+		t.Error("the account sheet survived the swap; nothing reopens it")
+	}
+}
+
+// The sheet fits, and nothing in it is cropped — at a phone's width as much
+// as at a desktop's.
+//
+// This is the measurement the artboard cannot make: the mock draws the two
+// tracks at 252px with English in them, and the labels that have to fit are
+// five languages' worth of "System" and "Dark" in a panel that also has to
+// stay on a 390px screen with the bar's gutter either side.
+func TestBrowserTheAccountSheetFitsBothWidths(t *testing.T) {
+	site := newSite(t)
+	b := newBrowser(t)
+
+	// One tab per width, and Months rather than the board: a tab per
+	// language would hold a live stream each, and the seventh would never
+	// get a connection to navigate on. Not the roster either — /players
+	// redirects to a player and drops the query with it.
+	for _, width := range []int{phoneWidth, desktopWidth} {
+		p := site.open(b, width)
+		for _, lang := range []string{"en", "sv", "de", "it", "es"} {
+			p.Navigate(site.base + "/months?lang=" + lang)
+			// The measurement is only worth anything if the page really is
+			// in the language it is being measured for.
+			if got := p.String(`document.documentElement.lang`); got != lang {
+				t.Fatalf("asked for %s and got a page in %s", lang, got)
+			}
+			p.Click(".account > summary")
+			p.WaitFor(`!!document.querySelector(".account[open] .account-menu")`)
+
+			// On screen: the panel hangs off the end of the bar, and at a
+			// phone's width there is not much end to hang off.
+			if off := p.String(`(() => {
+				const r = document.querySelector(".account-menu").getBoundingClientRect();
+				if (r.left < 0) return "left " + Math.round(r.left);
+				if (r.right > window.innerWidth) return "right " + Math.round(r.right - window.innerWidth);
+				return "";
+			})()`); off != "" {
+				t.Errorf("%s at %d: the sheet is off screen by %s", lang, width, off)
+			}
+
+			// Not cropped: a label wider than the segment holding it is the
+			// one thing the artboard's English cannot tell us about.
+			if cropped := p.Strings(`[...document.querySelectorAll(".account-menu .opt-label, .account-menu .lang-opt")]
+				.filter(el => el.scrollWidth > el.clientWidth + 1)
+				.map(el => el.textContent.trim() + " (" + el.clientWidth + " < " + el.scrollWidth + ")")`); len(cropped) > 0 {
+				t.Errorf("%s at %d: cropped in the track: %v", lang, width, cropped)
+			}
+
+			// And every segment is actually pressable rather than squeezed
+			// to nothing by its neighbours.
+			if thin := p.Strings(`[...document.querySelectorAll(".account-menu .track a")]
+				.filter(a => a.getBoundingClientRect().width < 24)
+				.map(a => a.getAttribute("title") + " " + Math.round(a.getBoundingClientRect().width))`); len(thin) > 0 {
+				t.Errorf("%s at %d: segments too narrow to press: %v", lang, width, thin)
+			}
+		}
 	}
 }
 

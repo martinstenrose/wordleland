@@ -74,10 +74,10 @@ type chrome struct {
 	Themes    []chromeOpt
 	Languages []chromeOpt
 
-	// ThemeLabel and LangLabel name the current setting for the button
-	// that opens each menu.
-	ThemeLabel string
-	LangLabel  string
+	// LangLabel names the language in force, spelt out, for the label over
+	// the track of codes — which is the one thing five two-letter codes
+	// cannot say for themselves.
+	LangLabel string
 
 	// Nav is the view switcher. Only views that exist appear: a tab that
 	// leads nowhere is worse than an absent one.
@@ -91,8 +91,8 @@ type chrome struct {
 	//
 	// frameApp is the application shell: the rail, the top bar, the page
 	// well. frameAuth is the sign-in family — a card centred on the canvas,
-	// with the wordmark in one corner and the pickers in the other and no
-	// navigation at all, because there is nothing yet to navigate. frameBare
+	// with the wordmark in one corner and the account slot in the other and
+	// no navigation at all, because there is nothing yet to navigate. frameBare
 	// is an error page: chrome for a stranger, where a full navigation
 	// wrapped around "there is nothing at this address" would be offering
 	// the rest of the application to somebody who has not got it.
@@ -107,22 +107,19 @@ type chrome struct {
 	// works with no script at all.
 	SidebarToggle chromeOpt
 
-	// ThemeNext is the theme the single-button control moves to, for a bar
-	// too narrow to carry all three.
-	ThemeNext chromeOpt
-
 	// Subtitle sits under the wordmark where the page has something to put
 	// there — the design's "N days". Blank elsewhere rather than costing a
 	// query on every page that has no board data to hand.
 	Subtitle string
 
 	// User is nil when nobody is signed in, which is also how a read-only
-	// page suppresses the account menu.
+	// page decides which sheet the account slot holds.
 	User      *store.User
 	Initials  string
 	CSRFToken string
 
-	// ReadOnly hides everything that implies an account.
+	// ReadOnly hides everything that implies an account, and turns the
+	// account slot's sheet into what a read-only view is and the way in.
 	ReadOnly bool
 
 	// AdminTab marks which admin page is open, for the bar they share.
@@ -154,10 +151,14 @@ type chrome struct {
 	SearchPath string
 }
 
-// SignedIn reports whether the account menu should render.
+// SignedIn reports whether the account slot has an account to show.
+//
+// Not whether the slot renders: it renders for everyone, because the two
+// settings inside it are everyone's. What this decides is which sheet —
+// the account and the way out, or what a read-only view is and the way in.
 func (c chrome) SignedIn() bool { return c.User != nil && !c.ReadOnly }
 
-// IsAdmin reports whether the admin entries belong in the account menu.
+// IsAdmin reports whether the admin entries belong in the rail.
 func (c chrome) IsAdmin() bool { return c.SignedIn() && c.User.IsAdmin }
 
 // SidebarRows is the rail's contents: the views, then the admin area for an
@@ -274,24 +275,7 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 			On:    theme == c.Theme,
 		})
 	}
-	c.ThemeLabel = t.T("theme.label") + ": " + t.T("theme."+c.Theme)
 	c.LangLabel = t.T("lang.label") + ": " + s.catalogues[c.Lang]["locale.name"]
-
-	// A bar too narrow for three theme buttons gets one that moves to the
-	// next setting, in the order the three are offered in.
-	order := []string{themeLight, themeSystem, themeDark}
-	for i, theme := range order {
-		if theme != c.Theme {
-			continue
-		}
-		next := order[(i+1)%len(order)]
-		c.ThemeNext = chromeOpt{
-			Code:  next,
-			Label: t.T("theme.cycle", t.T("theme."+c.Theme), t.T("theme."+next)),
-			Href:  urlWith(r, "theme", next),
-		}
-		break
-	}
 
 	// Collapsing the rail is a per-device preference like the theme, and it
 	// travels the same way: a link back to this URL with the other width,
@@ -449,7 +433,7 @@ func (s *Server) signedOutChrome(w http.ResponseWriter, r *http.Request, token s
 	// Its own frame rather than the application shell. A rail emptied down
 	// to the wordmark is a navigation with nothing in it, which reads as an
 	// app that has lost its menu rather than as a door: the design puts the
-	// wordmark in one corner, the two pickers in the other, and the card in
+	// wordmark in one corner, the account slot in the other, and the card in
 	// the middle of the canvas. Nav is cleared all the same: every view needs
 	// a session, so offering one here would be offering a round trip back to
 	// this page.
@@ -461,8 +445,10 @@ func (s *Server) signedOutChrome(w http.ResponseWriter, r *http.Request, token s
 	// where that panel does not fit, this is the only place it is said.
 	c.Frame = frameAuth
 	c.Nav = nil
-	// The account menu has nothing to show yet, and on the two-factor step
-	// there is a session that is deliberately not yet an identity.
+	// The account slot has no account to show yet, and on the two-factor
+	// step there is a session that is deliberately not yet an identity. It
+	// still renders, carrying the theme and language: those belong to
+	// whoever is at the door as much as to whoever is through it.
 	c.User = nil
 	// newChrome may have set this from a session that is fully valid but
 	// simply landed here (a bookmark to /forgot-password, say): clear it

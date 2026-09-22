@@ -529,6 +529,12 @@ func hrefForName(t *testing.T, body, name string) string {
 	t.Helper()
 	at := strings.Index(body, `aria-label="`+name+`"`)
 	if at < 0 {
+		// A control whose name is visible text carries no aria-label —
+		// the text is the accessible name — but it still carries the
+		// same words in a title, which is what this finds it by.
+		at = strings.Index(body, `title="`+name+`"`)
+	}
+	if at < 0 {
 		t.Fatalf("no control named %q on the page", name)
 	}
 	tag := body[strings.LastIndex(body[:at], "<a "):]
