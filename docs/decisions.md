@@ -1020,7 +1020,8 @@ month's winner back into the group when a month closes. Deliberately small
 — one message, once a month, no significance threshold and no memory of
 previous standings — because that is exactly what makes it safe to build
 before the larger idea it is a step toward, announcing rank changes as they
-happen.
+happen. The day's recap has since taken the first of those steps: its 👑
+line, below, says when a day handed the month's lead to somebody new.
 
 **The scheduled trigger is noon on the first day of the new month.** This
 gives late closing-day posts the morning without making the announcement
@@ -1206,6 +1207,47 @@ who did not play reads as the bot calling people out, and this message is
 pushed rather than requested. The Today page names them, because somebody
 asking for that page is asking.
 
+**Failures are named.** This looks like the opposite call, and the line
+between the two is deliberate: a failure is a result the player posted in
+the group themselves, in front of everyone, and the recap repeating it is
+the group's own banter. An absence is not a result and was not posted by
+anybody, so naming it is the bot's initiative alone.
+
+**The recap is up to five lines, and usually fewer.** The head, the day's
+best and the month's standing as before; between them, who opened and
+closed the day, and one line of colour — a change of leader, a streak on a
+milestone, an unusually hard or easy puzzle, who failed it, or somebody
+well under their own average — the first of those that is true, and none
+on a day none is. One such line rather than every true one, because a
+remark that appears every day is wallpaper and two remarks are a report;
+the order puts the rare and easily missed first (a milestone is not visible
+in the thread, a failure is). The thresholds live beside the code that
+uses them. Everything but the standing is computed from results up to and
+including the recapped puzzle, since at 00:01 the next day's first result
+may already be in.
+
+**The day's best is counted from four, and said as one when everyone got the
+same.** Three names read; seven do not. And when every filer landed on the
+same score the fact is about the puzzle, not about who tied.
+
+**Who posted first and last is read from `results.posted_at`**, the time a
+result was posted in the group: Signal's server-received time, not the
+bridge's receipt (a bridge catching up after an outage would otherwise call
+whoever it happened to read first "first") and not the sender's device
+clock (a phone set wrong would be first every day). It is the first known
+posting and never moves: a re-post or a correction changes the score, not
+when the player first posted — but a row first written by the API or the
+CLI and then posted in the group did get posted, so an update fills an
+empty `posted_at` rather than leaving it. NULL means not posted in the
+group, or unknown: rows the bridge filed before results carried their
+source stay NULL, since the activity log cannot vouch for them and a token
+actor could have been a script. The backfill covers everything since the
+bridge began writing as the application itself. A day with fewer than two
+posting times has no order and gets no ⏰ line; a result filed by hand is
+never "last" merely because it was entered late. The "as usual" and "N days
+running" remarks come from `stats.ComputePostingHabits`, over the last
+thirty days that had an order, and the thresholds are its constants.
+
 **The month line reports the month the day belongs to, not the month the
 clock is in.** These differ for exactly one recap a month — the 00:01 run on
 the first — and reading it off `now` would print a brand-new, empty month
@@ -1256,7 +1298,10 @@ pair, so `announce.daily.best.one` was read as a plural form of
 `announce.daily.best` and rendered with the count substituted into the name's
 `%s`. A catalogue key must not end in `.one` unless it really is a plural.
 `internal/web/i18n_test.go` catches this; the keys carry plain suffixes
-instead — `announce.daily.best`, `.bestPair`, `.bestMany`, `.noneSolved`.
+instead — `announce.daily.best`, `.bestPair`, `.bestMany`, `.noneSolved`,
+and for the opening line `.first`, `.first.usual`, `.first.run` and the
+same three for `.last`: whole sentences per case rather than a sentence plus
+a suffix, because where "as usual" sits differs between the languages.
 
 **The day's best has three sentences, not a singular and a plural**, because
 a pair takes a word of its own: "both" is wrong for three people and "all" is
