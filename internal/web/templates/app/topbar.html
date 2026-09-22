@@ -169,7 +169,7 @@
         <div class="search-overlay-box" role="dialog" aria-modal="true" aria-label="{{.T.T "search.title"}}">
           <input type="search" name="q" class="search-overlay-input" placeholder="{{.T.T "search.placeholder"}}" aria-label="{{.T.T "search.title"}}"
                  hx-get="{{.SearchPath}}?partial=1" hx-trigger="input changed delay:120ms, search-open"
-                 hx-target="next .search-overlay-results" hx-swap="innerHTML" hx-sync="this:replace" hx-indicator="this">
+                 hx-target="next .search-overlay-results" hx-swap="innerHTML transition:false" hx-sync="this:replace" hx-indicator="this">
           <div class="search-overlay-results"></div>
         </div>
       </div>
