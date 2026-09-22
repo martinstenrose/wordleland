@@ -262,6 +262,7 @@
   "player.calendar": "Jeder gespielte Tag",
   "player.calendarLegend": "Eine Woche pro Spalte · leere Kästchen sind Tage ohne Spiel",
   "player.rankByMonth": "Platzierung nach Monat",
+  "player.rankByMonthEmpty": "Noch nicht genug Monate. Das Diagramm beginnt, sobald es zwei Monate mit einer Platzierung gibt.",
   "today.benched.one": "1 Spieler nicht gewertet",
   "today.benched.other": "%d Spieler nicht gewertet",
   "today.benchedGames.one": "1 Rätsel",

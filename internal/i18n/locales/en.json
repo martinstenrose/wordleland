@@ -262,6 +262,7 @@
   "player.calendar": "Every day played",
   "player.calendarLegend": "A week per column · empty squares are days not played",
   "player.rankByMonth": "Rank by month",
+  "player.rankByMonthEmpty": "Not enough months yet. The chart starts once there are two months with a rank.",
   "today.benched.one": "1 player not ranked",
   "today.benched.other": "%d players not ranked",
   "today.benchedGames.one": "1 puzzle",

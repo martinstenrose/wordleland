@@ -108,9 +108,12 @@
       </div>
     {{end}}
 
-    {{if .MonthRanks}}
-      <div class="panel">
-        <div class="panel-head"><span>{{.T.T "player.rankByMonth"}}</span></div>
+    {{/* Always drawn, so a new player's grid has no hole where the chart
+         will go: a line needs two months with a rank, and until then the
+         panel says so. */}}
+    <div class="panel">
+      <div class="panel-head"><span>{{.T.T "player.rankByMonth"}}</span></div>
+      {{if .MonthRanks}}
         <svg class="rank-chart" viewBox="0 0 300 120" width="100%" height="120" role="img"
              aria-label="{{.T.T "player.rankByMonth"}}">
           <path class="player" d="{{.RankPath}}"/>
@@ -123,8 +126,10 @@
             </g>
           {{end}}
         </svg>
-      </div>
-    {{end}}
+      {{else}}
+        <p class="hint">{{.T.T "player.rankByMonthEmpty"}}</p>
+      {{end}}
+    </div>
 
     <div class="panel wide">
       <div class="panel-head"><span>{{.T.T "player.recent"}}</span></div>

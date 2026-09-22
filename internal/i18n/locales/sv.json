@@ -262,6 +262,7 @@
   "player.calendar": "Alla spelade dagar",
   "player.calendarLegend": "En vecka per kolumn · tomma rutor är dagar utan spel",
   "player.rankByMonth": "Placering per månad",
+  "player.rankByMonthEmpty": "Inte tillräckligt många månader än. Diagrammet börjar när det finns två månader med en placering.",
   "today.benched.one": "1 spelare ej rankad",
   "today.benched.other": "%d spelare ej rankade",
   "today.benchedGames.one": "1 pussel",
