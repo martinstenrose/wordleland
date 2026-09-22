@@ -47,9 +47,9 @@ var onPageChange = (function () {
 })();
 
 // Progressive enhancements for native <details> controls: dismiss topbar
-// menus on outside clicks and nudge informational popups back on screen.
-// Opening, summary-click closing and exclusivity still work without JS.
-// Topbar menus keep their fixed CSS positioning.
+// menus on outside clicks, close any popup on Esc, and nudge informational
+// popups back on screen. Opening, summary-click closing and exclusivity
+// still work without JS. Topbar menus keep their fixed CSS positioning.
 (function () {
   "use strict";
 
@@ -61,6 +61,26 @@ var onPageChange = (function () {
         menu.open = false;
       }
     });
+  });
+
+  // The <details> that open over the page: the topbar menus and drawer,
+  // the Help panel, and the popups on board cells. Other disclosures open
+  // in the flow of the page and stay as the reader left them.
+  var POPUPS = 'details[name="menu-group"][open], details[name="about"][open], details[name="popup"][open]';
+
+  // Esc closes one popup per press, the innermost first: Help opened from
+  // inside the drawer goes, and the drawer stays for the next press. Later
+  // in document order is deeper, since a nested one follows its parent.
+  // Focus that was inside goes back to the summary, so it is not lost to
+  // the top of the page with the panel it was in.
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    var open = document.querySelectorAll(POPUPS);
+    if (!open.length) return;
+    var details = open[open.length - 1];
+    var hadFocus = details.contains(document.activeElement);
+    details.open = false;
+    if (hadFocus) details.querySelector(":scope > summary").focus();
   });
 
   // Matches the gap app.css opens a popup with (top: calc(100% + 6px)), so

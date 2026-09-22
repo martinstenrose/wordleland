@@ -809,6 +809,41 @@ func TestBrowserTheAboutPanelCoversThePage(t *testing.T) {
 	}
 }
 
+// Esc closes a popup, one per press and the innermost first, and focus
+// that was inside it lands back on what opened it.
+//
+// A <details> opens and closes with no script, but not from the keyboard
+// without first finding its summary again — which, for Help drawn over the
+// whole page, is behind the panel being closed.
+func TestBrowserEscClosesPopupsInnermostFirst(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), phoneWidth)
+	p.Navigate(site.base + "/leaderboard")
+
+	const drawerOpen = `document.querySelector("details.drawer").open`
+	const helpOpen = `document.querySelector(".drawer details.about").open`
+	p.Click("details.drawer > summary")
+	p.WaitFor(drawerOpen)
+	p.Click(".drawer details.about > summary")
+	p.WaitFor(helpOpen)
+	p.Eval(`document.querySelector(".drawer .about-link").focus(); true`)
+
+	p.Press("Escape", "Escape", 0)
+	p.WaitFor(`!` + helpOpen)
+	if p.Eval(drawerOpen) != true {
+		t.Errorf("Esc closed the drawer along with the Help panel inside it")
+	}
+	if p.Eval(`document.activeElement === document.querySelector(".drawer details.about > summary")`) != true {
+		t.Errorf("closing Help did not put focus back on its summary")
+	}
+
+	p.Press("Escape", "Escape", 0)
+	p.WaitFor(`!` + drawerOpen)
+	if path := p.Path(); path != "/leaderboard" {
+		t.Errorf("Esc navigated to %s", path)
+	}
+}
+
 // The enrolment dialog opens over the settings screen, holds focus, and
 // closes without going anywhere.
 //
