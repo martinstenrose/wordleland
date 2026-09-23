@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/store"
 )
 
@@ -135,7 +136,7 @@ func activitySubject(ev store.Event) string {
 // DST change, still reads correctly, and the offset lets it be compared
 // against a Signal timestamp without guessing which zone either is in.
 func absoluteTime(at time.Time) string {
-	return at.Local().Format("2006-01-02 15:04:05 -0700")
+	return i18n.Timestamp(at)
 }
 
 // indentJSON pretty-prints the stored detail, leaving it untouched when it

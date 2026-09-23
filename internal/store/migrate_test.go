@@ -246,3 +246,66 @@ func TestMigrateBackfillsPostedAtFromTheActivityLog(t *testing.T) {
 		t.Errorf("pending_results.posted_at: %v", err)
 	}
 }
+
+// Values a Go time was bound into before the connection wrote UTC are
+// rewritten as the same instant in UTC: every offset, with and without a
+// fraction of a second or Go's monotonic reading. Values already in the UTC
+// form and NULLs are left alone.
+func TestMigrateRewritesLocalTimestampsInUTC(t *testing.T) {
+	ctx := context.Background()
+	db := testDB(t)
+
+	pre, err := migrationsBefore("0013_timestamps_in_utc.sql")
+	if err != nil {
+		t.Fatalf("build pre-0013 migration set: %v", err)
+	}
+	if err := Migrate(ctx, db, pre); err != nil {
+		t.Fatalf("apply pre-0013 migrations: %v", err)
+	}
+
+	exec := func(q string, args ...any) {
+		t.Helper()
+		if _, err := db.ExecContext(ctx, q, args...); err != nil {
+			t.Fatalf("seed: %v\n%s", err, q)
+		}
+	}
+	exec(`INSERT INTO players (id, name, slug, active) VALUES (1, 'Alice', 'alice', 1)`)
+	values := map[int]string{
+		1888: "2026-09-23 05:29:14.067 +0200 CEST",
+		1889: "2026-09-23 00:10:00 +0200 CEST", // the day before, in UTC
+		1890: "2026-01-15 07:00:00.5 +0100 CET m=+12.345",
+		1891: "2026-09-22 20:15:00 -0430 XYZ", // a negative offset moves forward
+		1892: "2026-09-22 09:56:13",           // already UTC
+	}
+	for puzzle, v := range values {
+		exec(`INSERT INTO results (puzzle_no, date, player_id, guesses, solved, posted_at)
+		      VALUES (?, '2026-09-23', 1, 4, 1, ?)`, puzzle, v)
+	}
+	exec(`INSERT INTO results (puzzle_no, date, player_id, guesses, solved) VALUES (1893, '2026-09-23', 1, 4, 1)`)
+	exec(`INSERT INTO users (id, handle, email, password_hash) VALUES (1, 'a', 'a@example.tld', 'x')`)
+	exec(`INSERT INTO sessions (id, user_id, expires_at) VALUES (x'01', 1, '2026-10-23 05:29:14.123456789 +0200 CEST m=+2592000.001')`)
+
+	if err := Migrate(ctx, db, Migrations()); err != nil {
+		t.Fatalf("apply remaining migrations: %v", err)
+	}
+
+	want := map[int]string{
+		1888: "2026-09-23 03:29:14",
+		1889: "2026-09-22 22:10:00",
+		1890: "2026-01-15 06:00:00",
+		1891: "2026-09-23 00:45:00",
+		1892: "2026-09-22 09:56:13",
+	}
+	for puzzle, w := range want {
+		if got := stored(t, db, `SELECT CAST(posted_at AS TEXT) FROM results WHERE puzzle_no = ?`, puzzle); got != w {
+			t.Errorf("%d: %q became %q, want %q", puzzle, values[puzzle], got, w)
+		}
+	}
+	var null *string
+	if err := db.QueryRowContext(ctx, `SELECT posted_at FROM results WHERE puzzle_no = 1893`).Scan(&null); err != nil || null != nil {
+		t.Errorf("a NULL posted_at became %v (err %v), want NULL", null, err)
+	}
+	if got := stored(t, db, `SELECT CAST(expires_at AS TEXT) FROM sessions`); got != "2026-10-23 03:29:14" {
+		t.Errorf("session expiry became %q, want 2026-10-23 03:29:14", got)
+	}
+}

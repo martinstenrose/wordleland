@@ -151,9 +151,11 @@ func ListPendingSenders(ctx context.Context, q Querier) ([]PendingSender, error)
 	return senders, rows.Err()
 }
 
-// timestampLayouts covers what SQLite may hold in a TIMESTAMP column:
-// CURRENT_TIMESTAMP writes the space-separated form, while a value written
-// through the driver from a time.Time arrives as RFC 3339.
+// timestampLayouts parses a timestamp that reaches Go as text rather than
+// through the driver's own conversion, which is what an aggregate such as
+// MIN(received_at) does: it has no declared type. Every column holds the
+// space-separated UTC form (see dsn); the others are kept for values
+// written before that was so.
 var timestampLayouts = []string{
 	"2006-01-02 15:04:05.999999999-07:00",
 	"2006-01-02 15:04:05",

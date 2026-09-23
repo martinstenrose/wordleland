@@ -1118,6 +1118,38 @@ holds dead rows longer. What the sweep does bound is the rate-limit map,
 whose client-address key is attacker-controlled and would otherwise grow
 with every distinct address ever seen.
 
+## Timestamps are stored in UTC and shown on the server's clock
+
+**Every timestamp is stored in UTC, as `2026-09-23 03:29:14`** — SQLite's
+own form, the one `CURRENT_TIMESTAMP` writes. A time bound from Go used to
+land as Go's own string instead, in the container's zone
+(`2026-09-23 05:29:14.067 +0200 CEST`), so one column could hold two
+spellings of two zones. Nothing went wrong in Go, where the driver parses
+both to the same instant, but SQL compares timestamps as text, and a
+comparison between the two forms is off by the offset: held results were
+purged two hours early and an expired invitation stayed pending two hours
+late. The connection now converts every bound time to UTC and writes the
+same form (`_timezone=UTC`, `_time_format=datetime` in `store.dsn`), so a
+new column or query cannot reintroduce it, and migration 0013 rewrote the
+values stored the old way. The zone is not spelled in the value; it is the
+same zone in every column, and this is where that is written down.
+
+**The server's zone applies when a person reads a time, and not before.**
+The database hands times back in UTC; the container's `TZ` decides what is
+shown. Anything that asks which *day* something belongs to — which puzzle
+is today, the recap's 00:01 run, month boundaries — also uses the server's
+zone. A result's day is its puzzle number, never its posting time, so a
+post at 23:30 counts for the puzzle it names whatever the clock says.
+Ordering by time needs no zone at all: instants compare the same in any.
+
+**How a time is shown:** in the CLI and on the admin pages as
+`2026-09-23 05:29:14 +0200` (`i18n.Timestamp`), the offset rather than a
+zone name because it is the part that compares against another clock
+without looking anything up; everywhere else on the web as a local time
+without an offset. The one exception outside admin is the password reset
+email, which carries the offset: somebody who receives a reset they did not
+ask for may want to know exactly when the request came in.
+
 ## Announcing the month
 
 The bridge's first step from receive-only to bidirectional: posting the

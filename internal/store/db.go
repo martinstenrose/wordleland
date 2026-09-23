@@ -74,11 +74,22 @@ func Open(ctx context.Context, path string) (*sql.DB, error) {
 
 // dsn builds a modernc.org/sqlite connection string. That driver takes pragmas
 // as repeated _pragma query parameters, applying each to every new connection.
+//
+// Every timestamp is stored in UTC, in SQLite's own form: 2026-09-23 03:29:14.
+// That is what CURRENT_TIMESTAMP writes, so the two options below make a
+// time.Time bound from Go land in the same form rather than in Go's own
+// string, which carries the container's offset and zone name and so varies
+// with TZ. With one zone and one form, text order is time order, and SQL
+// can compare a column against a bound time or CURRENT_TIMESTAMP directly.
+// Values also come back in UTC: converting to the server's zone is the
+// display's job, right before a person reads it.
 func dsn(path string) string {
-	params := make(url.Values, len(pragmas))
+	params := make(url.Values, len(pragmas)+2)
 	for _, p := range pragmas {
 		params.Add("_pragma", p)
 	}
+	params.Set("_time_format", "datetime")
+	params.Set("_timezone", "UTC")
 	return "file:" + path + "?" + params.Encode()
 }
 

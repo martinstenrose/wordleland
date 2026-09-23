@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/martinstenrose/wordleland/internal/auth"
+	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/store"
 )
 
@@ -124,10 +125,11 @@ func (s *Server) issueResetLink(r *http.Request, email string) error {
 			Body:  t.T("email.reset.aside.body"),
 		},
 		// The time the request was made, so a reader can tell one message
-		// from another. Not the requester's address: locating it would mean
-		// asking a third party where an IP is, and the answer is not worth
-		// the request.
-		Meta:   t.T("email.reset.meta", time.Now().UTC().Format("2006-01-02 15:04 MST")),
+		// from another — and, for a reset they did not ask for, exactly
+		// when it came in: on the server's clock, with the offset. Not the
+		// requester's address: locating it would mean asking a third party
+		// where an IP is, and the answer is not worth the request.
+		Meta:   t.T("email.reset.meta", i18n.Timestamp(time.Now())),
 		Footer: t.T("email.footer.security", t.T("app.name")),
 	})
 }
