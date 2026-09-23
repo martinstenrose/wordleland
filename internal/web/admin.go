@@ -228,7 +228,7 @@ func (s *Server) adminPanel(r *http.Request, slug string, games map[int64]int, f
 	if player.UserID == nil {
 		if inv, err := store.PendingInvitation(r.Context(), s.db, player.ID); err == nil {
 			panel.Pending = &inv
-			panel.PendingUntil = inv.ExpiresAt.Format(time.DateOnly)
+			panel.PendingUntil = localDate(inv.ExpiresAt)
 		}
 	}
 
@@ -244,7 +244,7 @@ func (s *Server) adminPanel(r *http.Request, slug string, games map[int64]int, f
 			panel.Role = t.T("settings.role.admin")
 		}
 		if user.EmailVerifiedAt != nil {
-			panel.LinkedSince = user.EmailVerifiedAt.Format(time.DateOnly)
+			panel.LinkedSince = localDate(*user.EmailVerifiedAt)
 		}
 	}
 	return panel, nil
@@ -457,4 +457,15 @@ func (s *Server) issueChromeToken(w http.ResponseWriter, r *http.Request, c *chr
 	}
 	c.CSRFToken = token
 	return true
+}
+
+// localDate is the calendar date of a stored instant on the server's clock.
+// The database hands timestamps back in UTC, so without the conversion
+// anything between midnight and the offset lands on the day before.
+func localDate(t time.Time) string {
+	return dateIn(t, time.Local)
+}
+
+func dateIn(t time.Time, loc *time.Location) string {
+	return t.In(loc).Format(time.DateOnly)
 }

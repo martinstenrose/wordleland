@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/wordle"
 )
@@ -211,5 +212,5 @@ func indentJSON(raw string) string {
 // offset is printed, because "09:15" alone leaves an admin comparing this
 // against a Signal timestamp with no way to tell CEST from UTC.
 func absoluteTime(at time.Time) string {
-	return at.Local().Format("2006-01-02 15:04:05 -0700")
+	return i18n.Timestamp(at)
 }

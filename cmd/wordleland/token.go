@@ -5,6 +5,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/store"
 )
 
@@ -50,7 +51,7 @@ func tokenCreate(e *env, args []string) error {
 	if expiresAt == nil {
 		fmt.Fprintln(e.out, "It does not expire. Revoke it with 'wordleland token revoke'.")
 	} else {
-		fmt.Fprintf(e.out, "It expires %s.\n", expiresAt.Local().Format(time.RFC1123))
+		fmt.Fprintf(e.out, "It expires %s.\n", i18n.Timestamp(*expiresAt))
 	}
 	return nil
 }

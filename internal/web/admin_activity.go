@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/martinstenrose/wordleland/internal/bridge"
+	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/store"
 )
 
@@ -194,7 +195,7 @@ func sinceText(t translator, when time.Time, now time.Time) string {
 	whenDay := time.Date(localWhen.Year(), localWhen.Month(), localWhen.Day(), 0, 0, 0, 0, time.UTC)
 	nowDay := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), 0, 0, 0, 0, time.UTC)
 	days := int(nowDay.Sub(whenDay).Hours() / 24)
-	clock := localWhen.Format("15:04:05 -07:00")
+	clock := i18n.ClockTime(when)
 	switch {
 	case days < -1:
 		return t.TN("activity.inDays", -days)

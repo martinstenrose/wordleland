@@ -48,7 +48,7 @@ func TestSinceTextIncludesUTCOffset(t *testing.T) {
 	// the first hour of every day, on every machine, for nobody's fault.
 	now := time.Date(2026, time.September, 20, 12, 0, 0, 0, time.Local)
 
-	timestampPattern := regexp.MustCompile(`\d{2}:\d{2}:\d{2} [+-]\d{2}:\d{2}$`)
+	timestampPattern := regexp.MustCompile(`\d{2}:\d{2}:\d{2} [+-]\d{4}$`)
 
 	if got := sinceText(tr, now.Add(-time.Minute), now); !timestampPattern.MatchString(got) {
 		t.Errorf("today's rendering does not include seconds and a UTC offset: %q", got)
@@ -70,7 +70,7 @@ func TestSinceTextDoesNotCallTomorrowToday(t *testing.T) {
 	now := time.Date(2026, time.August, 31, 23, 0, 0, 0, zone)
 	tomorrow := time.Date(2026, time.September, 1, 20, 50, 36, 0, zone)
 
-	if got, want := sinceText(tr, tomorrow, now), "tomorrow at 20:50:36 +02:00"; got != want {
+	if got, want := sinceText(tr, tomorrow, now), "tomorrow at 20:50:36 +0200"; got != want {
 		t.Errorf("sinceText() = %q, want %q", got, want)
 	}
 }
@@ -87,7 +87,7 @@ func TestSinceTextUsesCalendarDaysAcrossMidnight(t *testing.T) {
 	now := time.Date(2026, time.September, 1, 0, 5, 0, 0, zone)
 	yesterday := time.Date(2026, time.August, 31, 23, 55, 0, 0, zone)
 
-	if got, want := sinceText(tr, yesterday, now), "yesterday at 23:55:00 +02:00"; got != want {
+	if got, want := sinceText(tr, yesterday, now), "yesterday at 23:55:00 +0200"; got != want {
 		t.Errorf("sinceText() = %q, want %q", got, want)
 	}
 }
