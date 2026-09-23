@@ -25,6 +25,9 @@ type switcher struct {
 	// Hint is the line under it: what this section is, or who this player
 	// is. Blank where a section has nothing worth saying twice.
 	Hint string
+	// HintWide is more of that line, dropped on a phone where the bar has no
+	// room for it and would otherwise crop it mid-word.
+	HintWide string
 	// Badge is a count worth seeing before the menu is opened — senders
 	// waiting to be claimed, so far.
 	Badge string
@@ -155,7 +158,7 @@ func (c chrome) playerSwitcher(board stats.Board, prefix string, on *stats.Playe
 			out.Hint = c.T.T("player.notRanked")
 		}
 		if on.LastPlayed != nil {
-			out.Hint += " · " + c.T.T("player.lastPlayed") + " " + on.LastPlayed.Format(time.DateOnly)
+			out.HintWide = " · " + c.T.T("player.lastPlayed") + " " + on.LastPlayed.Format(time.DateOnly)
 		}
 	}
 

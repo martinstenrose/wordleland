@@ -2733,6 +2733,10 @@ a.activity-text:hover { color: var(--color-accent-strong); text-decoration: unde
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* The part of the line a phone drops rather than crops. */
+@media (max-width: 720px) {
+  .switcher-hint-wide { display: none; }
+}
 .switcher-badges { flex: none; display: flex; align-items: center; gap: 6px; }
 
 /* One press to the section or the player next door. Outside the summary,

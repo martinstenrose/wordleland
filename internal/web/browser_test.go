@@ -1367,3 +1367,35 @@ func TestBrowserVisitingTodayAgainKeepsOneStream(t *testing.T) {
 		}
 	}
 }
+
+// The line under a player's name fits the bar on a phone, and a wider screen
+// still carries the last-played date.
+//
+// Rank and last-played together ran past a phone's bar and were cropped
+// mid-word; a phone drops the date rather than cut the line.
+func TestBrowserThePlayerSubtitleFitsOnAPhone(t *testing.T) {
+	site := newSite(t)
+	b := newBrowser(t)
+
+	const probe = `(() => {
+		const h = document.querySelector(".switcher-hint");
+		if (!h) return "none";
+		return (h.scrollWidth > h.clientWidth ? "cropped" : "fits") + " | " + h.innerText.trim();
+	})()`
+
+	p := site.open(b, phoneWidth)
+	p.Navigate(site.base + "/players")
+	got := p.String(probe)
+	if !strings.HasPrefix(got, "fits | ") {
+		t.Errorf("phone: the subtitle is %q", got)
+	}
+	if strings.Contains(got, "·") {
+		t.Errorf("phone: the subtitle still carries the last-played date: %q", got)
+	}
+
+	q := site.open(b, desktopWidth)
+	q.Navigate(site.base + "/players")
+	if got := q.String(probe); !strings.Contains(got, "·") {
+		t.Errorf("desktop: the subtitle lost the last-played date: %q", got)
+	}
+}

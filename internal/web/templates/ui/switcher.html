@@ -29,7 +29,7 @@
           <h1 class="switcher-label">{{.Label}}</h1>
           {{template "chevron-down" .}}
         </span>
-        {{if .Hint}}<span class="kicker switcher-hint">{{.Hint}}</span>{{end}}
+        {{if .Hint}}<span class="kicker switcher-hint">{{.Hint}}{{if .HintWide}}<span class="switcher-hint-wide">{{.HintWide}}</span>{{end}}</span>{{end}}
       </span>
       {{if .Badge}}
         <span class="switcher-badges">{{template "badge" (dict "Label" .Badge "On" true)}}</span>
