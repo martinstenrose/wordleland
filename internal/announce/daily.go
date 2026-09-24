@@ -145,7 +145,7 @@ func dailyDue(ctx context.Context, db *sql.DB, players []store.Player,
 	return current, !done, nil
 }
 
-// Thresholds for the recap's one line of colour. Each is set so that the
+// Thresholds for the recap's event and colour lines. Each is set so that a
 // line appears when there is something to say and stays away otherwise; a
 // remark that fires every day is wallpaper.
 const (
@@ -248,20 +248,21 @@ func through(results []store.BoardResult, puzzle int) []store.BoardResult {
 }
 
 // dailyPost is the message: what the day was, who won it, who opened and
-// closed it, one thing worth remarking on, and where the month stands. Five
-// lines at most, and usually fewer — the third and fourth appear only when
-// there is something to say, because a chat message nobody scrolls is one
-// that gets read.
+// closed it, the day's events, one remark, and where the month stands.
+// Usually three or four lines — the middle ones appear only when there is
+// something to say, because a chat message nobody scrolls is one that gets
+// read.
 func dailyPost(t i18n.Translator, d dayContext) string {
 	lines := []string{headLine(t, d.day), bestLine(t, d)}
-	for _, line := range []string{
-		postedLine(t, d),
-		spiceLine(t, d),
-		monthLine(t, d.months, d.date, d.monthResultFollows),
-	} {
-		if line != "" {
-			lines = append(lines, line)
-		}
+	if line := postedLine(t, d); line != "" {
+		lines = append(lines, line)
+	}
+	lines = append(lines, eventLines(t, d)...)
+	if line := colourLine(t, d); line != "" {
+		lines = append(lines, line)
+	}
+	if line := monthLine(t, d.months, d.date, d.monthResultFollows); line != "" {
+		lines = append(lines, line)
 	}
 	return strings.Join(lines, "\n")
 }
@@ -364,16 +365,32 @@ func habitSentence(t i18n.Translator, key string, e stats.TodayEntry, h stats.Ha
 	}
 }
 
-// spiceLine is the one remark the recap allows itself, the first of these
-// that is true today: a change of leader, a streak reaching a milestone,
-// somebody's first ever 2, a run at 3 or better up to or past the group's
-// record, an unusually hard or easy puzzle, who failed it, or somebody well
-// under their own average. Rarer and bigger news first, so a day with two
-// stories tells the one the group would otherwise miss; failures are
-// frequent and visible in the thread, a milestone is neither.
-func spiceLine(t i18n.Translator, d dayContext) string {
+// eventLines are the day's events, every one that happened: a change of
+// leader, a streak reaching a milestone, somebody's first ever 2, a run at
+// 3 or better up to or past the group's record. Each is rare and each is
+// news the group would ask about, so a day with two of them tells both
+// rather than dropping one for the other. One line per kind, in this order.
+func eventLines(t i18n.Translator, d dayContext) []string {
+	var lines []string
 	for _, f := range []func(i18n.Translator, dayContext) string{
-		leaderLine, streakLine, firstTwoLine, recordLine, difficultyLine, failedLine, beatLine,
+		leaderLine, streakLine, firstTwoLine, recordLine,
+	} {
+		if line := f(t, d); line != "" {
+			lines = append(lines, line)
+		}
+	}
+	return lines
+}
+
+// colourLine is the one remark the recap allows itself beyond the events,
+// the first of these that is true today: an unusually hard or easy puzzle,
+// who failed it, or somebody well under their own average. These happen
+// often — failures most days in a group of seven — so one a day is the cap
+// that keeps them from being wallpaper, and the order puts what explains the
+// day ahead of what merely happened on it.
+func colourLine(t i18n.Translator, d dayContext) string {
+	for _, f := range []func(i18n.Translator, dayContext) string{
+		difficultyLine, failedLine, beatLine,
 	} {
 		if line := f(t, d); line != "" {
 			return line
