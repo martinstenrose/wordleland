@@ -3,6 +3,7 @@ package announce
 import (
 	"context"
 	"database/sql"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -167,10 +168,10 @@ func TestOpeningAndClosingDaysRunning(t *testing.T) {
 	}
 }
 
-// The day handed the lead to Bob, who did not hold it yesterday. The change
-// of leader outranks naming Alice's failure, and with an opening line the
-// message is at its five-line maximum.
-func TestANewLeaderIsAnnouncedAheadOfAFailure(t *testing.T) {
+// The day handed the lead to Bob with his first ever 2, and Alice failed.
+// Both events are told — each is rare, and dropping one for the other
+// would lose news — and the failure is the day's one remark beside them.
+func TestEveryEventIsToldAndOneRemark(t *testing.T) {
 	db := announceDB(t)
 	mustPlayer(t, db, "Alice", "alice")
 	mustPlayer(t, db, "Bob", "bob")
@@ -183,14 +184,41 @@ func TestANewLeaderIsAnnouncedAheadOfAFailure(t *testing.T) {
 	alreadyPosted(t, db, 2026, time.September, 4)
 
 	got := recap(t, db, day(5).Add(15*time.Hour), true)
-	if want := "👑 New leader in September: Bob takes over from Alice."; lineWith(t, got, "👑") != want {
-		t.Errorf("message = %q, want %q", got, want)
+	want := strings.Join([]string{
+		"🏁 Wordle " + strconv.Itoa(wordle.PuzzleForDate(day(5))) + " — everyone's in.",
+		"🥇 Bob took it in 2.",
+		"⏰ Alice opened the day at 07:00. Bob closed it at 12:00.",
+		"👑 New leader in September: Bob takes over from Alice.",
+		"🎉 Bob in 2, for the first time!",
+		"💀 Alice didn't get it.",
+		"📊 September: Bob leads on 3.60 on average, 20 points clear of Alice.",
+	}, "\n")
+	if got != want {
+		t.Errorf("message =\n%s\nwant\n%s", got, want)
+	}
+}
+
+// The frequent lines are still one a day: a hard day with a failure in it
+// explains the day rather than also naming who it beat.
+func TestOnlyOneRemarkADay(t *testing.T) {
+	db := announceDB(t)
+	for _, p := range []string{"Alice", "Bob", "Carol"} {
+		mustPlayer(t, db, p, strings.ToLower(p))
+		for d := 1; d <= 11; d++ {
+			record(t, db, strings.ToLower(p), day(d), true, 3)
+		}
+	}
+	alreadyPosted(t, db, 2026, time.September, 11)
+	record(t, db, "alice", day(12), true, 6)
+	record(t, db, "bob", day(12), true, 6)
+	record(t, db, "carol", day(12), false, 0)
+
+	got := recap(t, db, day(12).Add(15*time.Hour), true)
+	if lineWith(t, got, "🧱") == "" {
+		t.Errorf("message = %q, want the hard day called", got)
 	}
 	if strings.Contains(got, "💀") {
-		t.Errorf("message = %q names the failure beside the change of leader; one remark a day", got)
-	}
-	if n := len(strings.Split(got, "\n")); n != 5 {
-		t.Errorf("message has %d lines, want the maximum of 5:\n%s", n, got)
+		t.Errorf("message = %q names the failure beside the hard day; one remark a day", got)
 	}
 }
 

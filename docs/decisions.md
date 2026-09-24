@@ -1350,19 +1350,21 @@ the group themselves, in front of everyone, and the recap repeating it is
 the group's own banter. An absence is not a result and was not posted by
 anybody, so naming it is the bot's initiative alone.
 
-**The recap is up to five lines, and usually fewer.** The head, the day's
-best and the month's standing as before; between them, who opened and
-closed the day, and one line of colour — a change of leader, a streak on a
-milestone, somebody's first ever 2, a run at 3 or better up to or past the
-group's record, an unusually hard or easy puzzle, who failed it, or
-somebody well under their own average — the first of those that is true,
-and none on a day none is. One such line rather than every true one, because a
-remark that appears every day is wallpaper and two remarks are a report;
-the order puts the rare and easily missed first (a milestone is not visible
-in the thread, a failure is). The thresholds live beside the code that
-uses them. Everything but the standing is computed from results up to and
-including the recapped puzzle, since at 00:01 the next day's first result
-may already be in.
+**The recap is usually three or four lines.** The head, the day's best and
+the month's standing as before; between them, who opened and closed the
+day, then the day's events, then one line of colour. The events — a change
+of leader, a streak on a milestone, somebody's first ever 2, a run at 3 or
+better up to or past the group's record — are each told whenever they
+happen, one line per kind: each is rare, and a day with two of them is a
+day the group would want both. The colour — an unusually hard or easy
+puzzle, who failed it, or somebody well under their own average — is
+capped at one a day, the first of those that is true, and none on a day
+none is: these happen often, failures most days in a group of seven, and a
+remark that appears every day is wallpaper. The colour's order puts what
+explains the day ahead of what merely happened on it. The thresholds live
+beside the code that uses them. Everything but the standing is computed
+from results up to and including the recapped puzzle, since at 00:01 the
+next day's first result may already be in.
 
 **The day's best is counted from four, and said as one when everyone got the
 same.** Three names read; seven do not. And when every filer landed on the
