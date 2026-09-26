@@ -107,25 +107,35 @@ func ComputeMonths(players []store.Player, results []store.BoardResult, opts Opt
 func buildMonth(year int, month time.Month, rows []store.BoardResult,
 	byPlayer map[int64]store.Player, opts Options) Month {
 
-	m := Month{Year: year, Month: month}
+	monthStart := time.Date(year, month, 1, 0, 0, 0, 0, opts.Now.Location())
+	m := scoreSpan(wordle.PuzzleForDate(monthStart), wordle.PuzzleForDate(monthStart.AddDate(0, 1, 0)),
+		rows, byPlayer, opts)
+	m.Year, m.Month = year, month
+	return m
+}
 
-	// The monthly competition starts on the calendar month's first puzzle.
+// scoreSpan scores the puzzles from firstPuzzle up to but not including
+// endPuzzle as one competition. A month is one such span and a week is
+// another; both take the same rules, so a week's podium and a month's are
+// the same kind of figure. Year and Month are left for the caller.
+func scoreSpan(firstPuzzle, endPuzzle int, rows []store.BoardResult,
+	byPlayer map[int64]store.Player, opts Options) Month {
+
+	var m Month
+
+	// The competition starts on the span's first puzzle.
 	// Today's puzzle is still in progress: a player who hasn't posted yet
 	// may still play it correctly, so it cannot be scored as missed until
 	// the day is over. A player who has already played it gets their real
 	// score regardless, through the ordinary value(r, opts) path.
-	// firstPuzzle and monthEndPuzzle bound the month in puzzle-number space,
+	// firstPuzzle and endPuzzle bound the span in puzzle-number space,
 	// the same space wordle.PuzzleForDate normalizes every other day into;
 	// comparing puzzle numbers here (rather than a second, hand-built
-	// today/monthStart pair of time.Time values) keeps this function from
+	// today/spanStart pair of time.Time values) keeps this function from
 	// growing its own, possibly divergent, notion of a calendar day.
-	monthStart := time.Date(year, month, 1, 0, 0, 0, 0, opts.Now.Location())
-	monthEnd := monthStart.AddDate(0, 1, 0)
-	firstPuzzle := wordle.PuzzleForDate(monthStart)
-	monthEndPuzzle := wordle.PuzzleForDate(monthEnd)
 	current := wordle.PuzzleForDate(opts.Now)
 
-	concludedThrough := max(min(current, monthEndPuzzle), firstPuzzle)
+	concludedThrough := max(min(current, endPuzzle), firstPuzzle)
 	concludedPuzzles := concludedThrough - firstPuzzle
 
 	perPlayer := make(map[int64][]store.BoardResult)
@@ -148,7 +158,7 @@ func buildMonth(year int, month time.Month, rows []store.BoardResult,
 	// the displayed span only after somebody has posted it; unplayed today
 	// is neither a score nor a miss yet.
 	m.Days = concludedPuzzles
-	if puzzles[current] && current >= firstPuzzle && current < monthEndPuzzle {
+	if puzzles[current] && current >= firstPuzzle && current < endPuzzle {
 		m.Days++
 	}
 	if m.Days > 0 {
@@ -185,10 +195,10 @@ func buildMonth(year int, month time.Month, rows []store.BoardResult,
 		//
 		// Not the board's toggle: there the question is a career average
 		// over a window each player defines by turning up, and counting
-		// absences is a way of looking at it. Here the window is the month
+		// absences is a way of looking at it. Here the window is the span
 		// and everybody had the same one.
 		//
-		// The denominator is every concluded calendar day in the month,
+		// The denominator is every concluded calendar day in the span,
 		// whether or not somebody else posted it. It does not follow
 		// CountXAsSeven: 7 is what a Wordle is worth when it was not solved,
 		// and whether somebody attempted it is a separate question from
