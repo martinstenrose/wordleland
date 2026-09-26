@@ -19,17 +19,16 @@ import (
 )
 
 // NewDaily returns the day's closure, called after every live message and by
-// RunDaily just after midnight.
+// RunMidnight just after midnight.
 //
 // It has the same contract as NewMonthly: nil for "nothing to do", an error
 // only for a store read or a send going wrong, and a recorded row only after
 // a message has actually landed.
 //
 // monthResultFollows says whether a monthly announcement is also configured.
-// When it is, the recap for a day whose month has closed withholds the
-// standing and points at noon instead of printing the month's result twelve
-// hours before the 🏆 message does. When it is not, no other message will
-// ever say it, so the recap says it itself.
+// When it is, the recap of a month's last day leaves the standing out: the
+// 🏆 message comes right after it and says it properly. When it is not, no
+// other message will ever say it, so the recap says it itself.
 func NewDaily(db *sql.DB, cats i18n.Catalogues, locale string, monthResultFollows bool,
 	send func(ctx context.Context, text string) error) func(context.Context, time.Time) error {
 
@@ -134,8 +133,7 @@ func dailyDue(ctx context.Context, db *sql.DB, players []store.Player,
 	// Nobody filed at all is not a full house: an empty group day has
 	// nothing to report, and reporting it would be the bot talking to
 	// itself. Left unrecorded, so a late result still gets its recap.
-	today := stats.ComputeToday(players, results, current)
-	if len(today.Filed) == 0 || len(today.Missing) > 0 {
+	if !fullHouse(players, results, current) {
 		return 0, false, nil
 	}
 	done, err := store.DayAnnounced(ctx, db, current)
@@ -143,6 +141,13 @@ func dailyDue(ctx context.Context, db *sql.DB, players []store.Player,
 		return 0, false, fmt.Errorf("check whether puzzle %d was announced: %w", current, err)
 	}
 	return current, !done, nil
+}
+
+// fullHouse reports whether every active player has filed puzzle, and
+// somebody has: the early close all three announcements share.
+func fullHouse(players []store.Player, results []store.BoardResult, puzzle int) bool {
+	day := stats.ComputeToday(players, results, puzzle)
+	return len(day.Filed) > 0 && len(day.Missing) == 0
 }
 
 // Thresholds for the recap's event and colour lines. Each is set so that a
@@ -706,17 +711,11 @@ func monthLine(t i18n.Translator, months []stats.Month, date time.Time,
 	label := capitalized(t.T("month." + strconv.Itoa(int(m.Month))))
 
 	// On the month's last day the standing is not a standing any more, it is
-	// the result — and the 🏆 message at noon on the first is the one that
-	// exists to deliver it. Printing it here would hand the group the winner,
-	// the average and the margin before the message whose whole job that is.
-	//
-	// Keyed on the recapped day being the month's last rather than on the
-	// month having closed by now, because both ways a last day can be
-	// recapped give the result away: the 00:01 run after it, and the early
-	// post on the day itself once every active player is in — by which point
-	// nobody is left to change the figures.
+	// the result, and the 🏆 message right after this one exists to deliver
+	// it. Printing it here too would say the same thing twice in a row, the
+	// second time with a trophy.
 	if monthResultFollows && lastDayOfMonth(date) {
-		return "📊 " + t.T("announce.daily.month.wrapped", label)
+		return ""
 	}
 
 	leaders := joinNames(t, playerNames(m.Winners))

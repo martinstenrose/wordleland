@@ -209,9 +209,6 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 			if err != nil {
 				return err
 			}
-			if bridgeCfg.AnnounceMonths {
-				monthly = announce.NewMonthly(db, cats, bridgeCfg.AnnounceLocale, send)
-			}
 			if bridgeCfg.AnnounceDays {
 				// Before anything can check: on a deployment that has never
 				// announced a day, this marks yesterday done so the first
@@ -231,13 +228,18 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 				weekly = announce.NewWeekly(db, cats, bridgeCfg.AnnounceLocale,
 					bridgeCfg.AnnounceDays, send)
 			}
+			if bridgeCfg.AnnounceMonths {
+				monthly = announce.NewMonthly(db, cats, bridgeCfg.AnnounceLocale,
+					bridgeCfg.AnnounceDays, bridgeCfg.AnnounceWeeks, send)
+			}
 			// One Announcer, every check. Each reports "nothing to do" as a
 			// nil error, so running them all after every message is how any
 			// of them catches up a scheduled run the app was down for.
-			// Joined rather than short-circuited: a failing month check must
-			// not cost the day its recap. The week runs after the day, which
-			// is what lets Sunday's last result post both, in that order.
-			announcer = joinChecks(monthly, daily, weekly)
+			// Joined rather than short-circuited: a failing check must not
+			// cost the others their post. Smallest first, which is what lets
+			// the last result of a month ending on a Sunday post the day, the
+			// week and the month, in that order.
+			announcer = joinChecks(daily, weekly, monthly)
 		}
 
 		b, err := bridge.New(*bridgeCfg, deliver, announcer, logger)
@@ -275,28 +277,16 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 		}()
 		logger.Info("signal bridge started")
 
-		// Each scheduler drives its own check rather than the combined
-		// Announcer: waking the month's check at midnight, or the day's at
-		// noon on the first, would do nothing but read the database.
-		if monthly != nil {
+		// One run just after midnight for all three, in the Announcer's
+		// order: the day, the week and the month all close at a midnight.
+		if announcer != nil {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				announce.RunMonthly(ctx, monthly, logger)
+				announce.RunMidnight(ctx, announcer, logger)
 			}()
-			logger.Info("monthly announcement scheduler started", "at", "12:00 on day 1")
-		}
-		// The day and the week share the run just after midnight, the day
-		// first: Monday's 00:01 is when both close, and the week waits for
-		// Sunday's recap.
-		if daily != nil || weekly != nil {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				announce.RunDaily(ctx, joinChecks(daily, weekly), logger)
-			}()
-			logger.Info("daily recap scheduler started", "at", "00:01",
-				"day", daily != nil, "week", weekly != nil,
+			logger.Info("announcement scheduler started", "at", "00:01",
+				"day", daily != nil, "week", weekly != nil, "month", monthly != nil,
 				"early", "posted as soon as every active player has filed",
 				"on_start", "checks once now, to catch up a midnight missed while down")
 		}

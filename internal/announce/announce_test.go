@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -91,7 +92,7 @@ func TestAnnouncesTheClearWinnerOnce(t *testing.T) {
 		return nil
 	}
 
-	announce := NewMonthly(db, loadCatalogues(t), "en", send)
+	announce := NewMonthly(db, loadCatalogues(t), "en", false, false, send)
 	now := time.Date(2026, time.April, 5, 9, 0, 0, 0, time.Local)
 
 	if err := announce(ctx, now); err != nil {
@@ -125,7 +126,7 @@ func TestAnnouncesTheClearWinnerOnce(t *testing.T) {
 	}
 }
 
-// The scheduler and a live result can both check at noon. They share one
+// The scheduler and a live result can both check at once. They share one
 // Announcer in the running app, which must serialize the check/send/record
 // sequence rather than letting both observe an unannounced month.
 func TestConcurrentChecksSendOnce(t *testing.T) {
@@ -136,7 +137,7 @@ func TestConcurrentChecksSendOnce(t *testing.T) {
 	fill(t, db, "alice", 2026, time.March, 1, 12, 2)
 
 	var calls atomic.Int32
-	announce := NewMonthly(db, loadCatalogues(t), "en", func(context.Context, string) error {
+	announce := NewMonthly(db, loadCatalogues(t), "en", false, false, func(context.Context, string) error {
 		calls.Add(1)
 		return nil
 	})
@@ -185,7 +186,7 @@ func TestAnnouncesTheWinnerEvenBelowTenGames(t *testing.T) {
 		return nil
 	}
 
-	announce := NewMonthly(db, loadCatalogues(t), "en", send)
+	announce := NewMonthly(db, loadCatalogues(t), "en", false, false, send)
 	now := time.Date(2026, time.April, 5, 9, 0, 0, 0, time.Local)
 
 	if err := announce(ctx, now); err != nil {
@@ -223,7 +224,7 @@ func TestSaysNothingForAMonthWithNoResultsAtAll(t *testing.T) {
 		return nil
 	}
 
-	announce := NewMonthly(db, loadCatalogues(t), "en", send)
+	announce := NewMonthly(db, loadCatalogues(t), "en", false, false, send)
 	now := time.Date(2026, time.April, 5, 9, 0, 0, 0, time.Local)
 
 	if err := announce(ctx, now); err != nil {
@@ -234,9 +235,9 @@ func TestSaysNothingForAMonthWithNoResultsAtAll(t *testing.T) {
 	}
 }
 
-// Midnight starts the new month, but the group gets the whole morning to
-// file late closing-day results before the announcement becomes eligible.
-func TestWaitsUntilNoonOnTheFirstDay(t *testing.T) {
+// The month closes the way a day does: at the run just after midnight on
+// the first, when its last day was not a full house.
+func TestAnnouncesJustAfterMidnightOnTheFirst(t *testing.T) {
 	db := announceDB(t)
 	ctx := context.Background()
 
@@ -246,31 +247,141 @@ func TestWaitsUntilNoonOnTheFirstDay(t *testing.T) {
 	fill(t, db, "bob", 2026, time.March, 1, 12, 4)
 
 	var calls atomic.Int32
-	announce := NewMonthly(db, loadCatalogues(t), "en", func(context.Context, string) error {
+	announce := NewMonthly(db, loadCatalogues(t), "en", false, false, func(context.Context, string) error {
 		calls.Add(1)
 		return nil
 	})
-	beforeNoon := time.Date(2026, time.April, 1, 11, 59, 59, 0, time.Local)
-
-	if err := announce(ctx, beforeNoon); err != nil {
-		t.Fatalf("before noon: %v", err)
+	lastEvening := time.Date(2026, time.March, 31, 22, 0, 0, 0, time.Local)
+	if err := announce(ctx, lastEvening); err != nil {
+		t.Fatalf("last evening: %v", err)
 	}
 	if calls.Load() != 0 {
-		t.Fatal("announced before noon on the first")
+		t.Fatal("announced on the last day before everyone had played it")
 	}
 
-	noon := time.Date(2026, time.April, 1, 12, 0, 0, 0, time.Local)
-	if err := announce(ctx, noon); err != nil {
-		t.Fatalf("at noon: %v", err)
+	if err := announce(ctx, time.Date(2026, time.April, 1, 0, 1, 0, 0, time.Local)); err != nil {
+		t.Fatalf("at 00:01: %v", err)
 	}
 	if calls.Load() != 1 {
-		t.Fatalf("send called %d times at noon, want 1", calls.Load())
+		t.Fatalf("send called %d times at 00:01, want 1", calls.Load())
 	}
 }
 
-// If the app was offline at noon, a later live result calls the same closure
-// and catches up the missed post.
-func TestLaterLiveResultCatchesUpAMissedNoon(t *testing.T) {
+// And early, once every active player has played the last day — scored as
+// the closed month it by then is.
+func TestAnnouncesOnTheLastDayOnceEveryoneIsIn(t *testing.T) {
+	db := announceDB(t)
+	ctx := context.Background()
+
+	mustPlayer(t, db, "Alice", "alice")
+	mustPlayer(t, db, "Bob", "bob")
+	fill(t, db, "alice", 2026, time.March, 1, 31, 2)
+	fill(t, db, "bob", 2026, time.March, 1, 31, 4)
+
+	var c collector
+	announce := NewMonthly(db, loadCatalogues(t), "en", false, false, c.send)
+	if err := announce(ctx, time.Date(2026, time.March, 31, 21, 0, 0, 0, time.Local)); err != nil {
+		t.Fatal(err)
+	}
+	want := "🏆 Alice took March 2026 with an average of 2.00, by 2.00 of a guess over 31 puzzles."
+	if got := c.only(t); got != want {
+		t.Errorf("message = %q, want %q", got, want)
+	}
+}
+
+// The month goes out after the recaps of its last day: the day, and the week
+// when the last day is a Sunday. Only while those can still come — from the
+// day after next, the day's check no longer looks back far enough.
+func TestTheMonthWaitsForTheLastDaysRecaps(t *testing.T) {
+	ctx := context.Background()
+	// 31 May 2026 is a Sunday.
+	sunday := time.Date(2026, time.May, 31, 0, 0, 0, 0, time.Local)
+	for _, tc := range []struct {
+		name          string
+		posted        func(t *testing.T, db *sql.DB)
+		now           time.Time
+		daily, weekly bool
+		want          int32
+	}{
+		{"neither recap out", func(*testing.T, *sql.DB) {}, sunday.Add(21 * time.Hour), true, true, 0},
+		{"only the day out", postedDay, sunday.Add(21 * time.Hour), true, true, 0},
+		{"both out", postedBoth, sunday.Add(21 * time.Hour), true, true, 1},
+		{"no week configured, day not out", func(*testing.T, *sql.DB) {}, sunday.Add(21 * time.Hour), true, false, 0},
+		{"no week configured", postedDay, sunday.Add(21 * time.Hour), true, false, 1},
+		{"nothing else configured", func(*testing.T, *sql.DB) {}, sunday.Add(21 * time.Hour), false, false, 1},
+		{"still waiting on Monday", postedDay, sunday.AddDate(0, 0, 1).Add(time.Minute), true, true, 0},
+		{"no longer waiting on Tuesday", func(*testing.T, *sql.DB) {}, sunday.AddDate(0, 0, 2).Add(time.Minute), true, true, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := announceDB(t)
+			mustPlayer(t, db, "Alice", "alice")
+			mustPlayer(t, db, "Bob", "bob")
+			fill(t, db, "alice", 2026, time.May, 25, 7, 3)
+			fill(t, db, "bob", 2026, time.May, 25, 7, 4)
+			tc.posted(t, db)
+
+			var c collector
+			if err := NewMonthly(db, loadCatalogues(t), "en", tc.daily, tc.weekly, c.send)(ctx, tc.now); err != nil {
+				t.Fatal(err)
+			}
+			if c.calls.Load() != tc.want {
+				t.Errorf("sent %d, want %d", c.calls.Load(), tc.want)
+			}
+		})
+	}
+}
+
+func postedDay(t *testing.T, db *sql.DB) {
+	alreadyPosted(t, db, 2026, time.May, 31)
+}
+
+func postedBoth(t *testing.T, db *sql.DB) {
+	postedDay(t, db)
+	monday := wordle.PuzzleForDate(time.Date(2026, time.May, 25, 0, 0, 0, 0, time.Local))
+	if err := store.RecordWeekAnnouncement(context.Background(), db, monday); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A month ending on a Sunday closes three things at once. The last result
+// posts all three, smallest first, whatever order they are checked in: each
+// waits for the one before it.
+func TestAMonthEndingOnASundayPostsDayWeekMonth(t *testing.T) {
+	db := announceDB(t)
+	ctx := context.Background()
+	mustPlayer(t, db, "Alice", "alice")
+	mustPlayer(t, db, "Bob", "bob")
+	fill(t, db, "alice", 2026, time.May, 25, 7, 3)
+	fill(t, db, "bob", 2026, time.May, 25, 7, 4)
+	alreadyPosted(t, db, 2026, time.May, 30)
+
+	var c collector
+	cats := loadCatalogues(t)
+	daily := NewDaily(db, cats, "en", true, c.send)
+	weekly := NewWeekly(db, cats, "en", true, c.send)
+	monthly := NewMonthly(db, cats, "en", true, true, c.send)
+	now := time.Date(2026, time.May, 31, 21, 0, 0, 0, time.Local)
+	// Backwards on purpose, and then again as the next live result would.
+	for range 3 {
+		for _, check := range []func(context.Context, time.Time) error{monthly, weekly, daily} {
+			if err := check(ctx, now); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	var got []string
+	for _, m := range c.sent {
+		got = append(got, strings.SplitN(m, " ", 2)[0])
+	}
+	if strings.Join(got, " ") != "🏁 🗓️ 🏆" {
+		t.Errorf("posted %v, want the day, the week, then the month", got)
+	}
+}
+
+// If the app was offline at midnight, a later live result calls the same
+// closure and catches up the missed post.
+func TestLaterLiveResultCatchesUpAMissedMidnight(t *testing.T) {
 	db := announceDB(t)
 	ctx := context.Background()
 
@@ -278,7 +389,7 @@ func TestLaterLiveResultCatchesUpAMissedNoon(t *testing.T) {
 	fill(t, db, "alice", 2026, time.March, 1, 12, 2)
 
 	var calls atomic.Int32
-	announce := NewMonthly(db, loadCatalogues(t), "en", func(context.Context, string) error {
+	announce := NewMonthly(db, loadCatalogues(t), "en", false, false, func(context.Context, string) error {
 		calls.Add(1)
 		return nil
 	})
@@ -313,7 +424,7 @@ func TestFailedSendIsNotRecordedAndIsRetried(t *testing.T) {
 		return nil
 	}
 
-	announce := NewMonthly(db, loadCatalogues(t), "en", send)
+	announce := NewMonthly(db, loadCatalogues(t), "en", false, false, send)
 	now := time.Date(2026, time.April, 5, 9, 0, 0, 0, time.Local)
 
 	if err := announce(ctx, now); err == nil {

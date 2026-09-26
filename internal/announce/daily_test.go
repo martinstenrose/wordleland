@@ -491,8 +491,7 @@ func TestTheMonthLineFollowsTheDayNotTheClock(t *testing.T) {
 }
 
 // The 00:01 run on the first would otherwise print the closed month's result
-// twelve hours before the 🏆 message exists to deliver it. It points at noon
-// instead.
+// just before the 🏆 message says it properly, so it leaves the month out.
 func TestAClosedMonthLeavesTheResultToTheTrophyMessage(t *testing.T) {
 	db := announceDB(t)
 	ctx := context.Background()
@@ -510,8 +509,8 @@ func TestAClosedMonthLeavesTheResultToTheTrophyMessage(t *testing.T) {
 		t.Fatalf("daily: %v", err)
 	}
 	got := c.only(t)
-	if !strings.Contains(got, "📊 September wrapped — the result at noon.") {
-		t.Errorf("message = %q, want the month line to defer to noon", got)
+	if strings.Contains(got, "📊") {
+		t.Errorf("message = %q, want no month line ahead of the 🏆 message", got)
 	}
 	// The giveaway is the winner's name or their average appearing on the
 	// month line; the day's own lines may legitimately name whoever won it.
@@ -547,8 +546,8 @@ func TestAClosedMonthStillReportsWhenNoTrophyMessageFollows(t *testing.T) {
 // The other way a last day gets recapped: everybody files on the 30th and it
 // goes out that evening, hours before the month technically closes. By then
 // nobody is left to change the figures, so this gives the result away just as
-// surely as the 00:01 run does and must defer to noon too.
-func TestTheLastDayPostedEarlyAlsoDefersToNoon(t *testing.T) {
+// surely as the 00:01 run does and must leave the month out too.
+func TestTheLastDayPostedEarlyAlsoLeavesTheMonthOut(t *testing.T) {
 	db := announceDB(t)
 	ctx := context.Background()
 
@@ -567,8 +566,8 @@ func TestTheLastDayPostedEarlyAlsoDefersToNoon(t *testing.T) {
 		t.Fatalf("daily: %v", err)
 	}
 	got := c.only(t)
-	if !strings.Contains(got, "📊 September wrapped — the result at noon.") {
-		t.Errorf("message = %q, want the month line to defer to noon", got)
+	if strings.Contains(got, "📊") {
+		t.Errorf("message = %q, want no month line ahead of the 🏆 message", got)
 	}
 	if strings.Contains(got, "leads on") || strings.Contains(got, "clear of") {
 		t.Errorf("message = %q gives away the month's result", got)

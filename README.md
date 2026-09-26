@@ -79,7 +79,7 @@ and an extra URL that commonly attract spam-filter rules.
 |---|---|
 | `SIGNAL_ACCOUNT` | The number the bot receives on: its own if registered, the operator's if linked. E.164, leading `+`, exactly as `/v1/accounts` reports it. **Quote it in YAML** — unquoted, `+46…` is parsed as an integer and loses the `+`, which produces a bridge that connects and receives nothing. |
 | `SIGNAL_GROUP_ID` | See below — this one is easy to get wrong. |
-| `SIGNAL_ANNOUNCE_MONTHS` | Optional, default `true`. Post the month's winner back into the group when a month closes. |
+| `SIGNAL_ANNOUNCE_MONTHS` | Optional, default `true`. Post the month's winner back into the group when a month closes: as soon as every active player has filed its last day, or just after midnight if they have not, right after that day's recaps. |
 | `SIGNAL_ANNOUNCE_DAYS` | Optional, default `true`. Post the day's recap — the day's best result, who posted first and last, the day's events when there are any (a new month leader, a streak milestone, a first ever 2, a run at 3 or better up to the group's record), one remark when the day earned one (a hard or easy puzzle, who failed it, or somebody well under their own average), and where the month stands — as soon as every active player has filed, or just after midnight if they have not. Independent of the variable above; set both to `false` for a bridge that receives without the bot ever speaking. |
 | `SIGNAL_ANNOUNCE_WEEKS` | Optional, default `true`. Post the Monday-to-Sunday week's recap — the podium, last place among those who played at least five days, and the group's average against the week before, plus up to three extras when the week earned them — right after Sunday's recap: as soon as every active player has filed Sunday's puzzle, or just after midnight if they have not. Independent of the variables above. |
 | `SIGNAL_LOCALE` | Optional, default `en`. The language the announcements above are written in — one fixed choice for the whole group, not a per-member preference. |
@@ -100,14 +100,15 @@ first matches what arrives on a message. The bridge refuses the prefixed
 form at boot, because configuring it would otherwise produce a bot that
 connects, reports itself healthy, and matches nothing for ever.
 
-**The bridge posts back, once a month.** At 12:00 local time on the first day
-of a month, it sends one 🏆 message naming who won the previous month (a tie
-names everyone tied), their average score, and by how much they took it.
-Participation on the closing day is irrelevant: noon is a simple grace
-period, not a wait for every player. If the app was offline at noon or the
-send failed, the next live Wordle result retries the announcement. Results
-before noon do not trigger it, and a stored record makes every check a no-op
-once the month has been announced, so a restart or replay does not repost it.
+**The bridge posts back, once a month.** When a month closes it sends one 🏆
+message naming who won it (a tie names everyone tied), their average score,
+and by how much they took it. A month closes the way a day does: as soon as
+every active player has filed its last day, or just after midnight if they
+have not. It goes out right after that day's recap, and after the week's when
+the month ends on a Sunday. If the app was offline at midnight or the send
+failed, the check on start and the next live Wordle result retry the
+announcement, and a stored record makes every check a no-op once the month
+has been announced, so a restart or replay does not repost it.
 Explicitly labeled Archive shares and older back-dated results are ignored
 and cannot trigger the fallback. Nothing is sent for a month with no results
 in it at all: the board already says so for anyone who looks, and an
@@ -119,9 +120,9 @@ mind.
 **It also posts back once a day.** When every active player has filed, or just
 after midnight if they have not, it sends one message naming the day's best
 result and where the month stands. Retired players are not waited for. On the
-month's last day the standing is held back — the 🏆 message at noon the next
-day is what delivers the result — unless `SIGNAL_ANNOUNCE_MONTHS` is off, in
-which case nothing else would ever say it.
+month's last day the standing is left out — the 🏆 message right after it is
+what delivers the result — unless `SIGNAL_ANNOUNCE_MONTHS` is off, in which
+case nothing else would ever say it.
 
 The daily check also runs once at startup, so a midnight missed to a restart
 or an outage is caught up as soon as the app is back rather than waiting for

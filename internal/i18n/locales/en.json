@@ -435,7 +435,6 @@
   "announce.daily.month.margin": "%s: %s leads on %s on average, %d points clear of %s.",
   "announce.daily.month.tie": "%s: %s are level at the top on %s.",
   "announce.daily.month.alone": "%s: %s leads on %s on average — nobody else has played yet.",
-  "announce.daily.month.wrapped": "%s wrapped — the result at noon.",
   "announce.daily.bestCount": "%d of %d took it in %d.",
   "announce.daily.bestAll": "Everyone took it in %d.",
   "announce.daily.ace": "%s: first guess!",

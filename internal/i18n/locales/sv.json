@@ -435,7 +435,6 @@
   "announce.daily.month.margin": "%s: %s leder på %s i snitt, %d punkter före %s.",
   "announce.daily.month.tie": "%s: %s ligger lika i topp på %s.",
   "announce.daily.month.alone": "%s: %s leder på %s i snitt — ingen annan har spelat än.",
-  "announce.daily.month.wrapped": "%s är slut — resultatet klockan tolv.",
   "announce.daily.bestCount": "%d av %d klarade den på %d.",
   "announce.daily.bestAll": "Alla klarade den på %d.",
   "announce.daily.ace": "%s: rätt på första gissningen!",

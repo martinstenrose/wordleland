@@ -8,91 +8,17 @@ import (
 	"time"
 )
 
-func TestNextMonthlyNoon(t *testing.T) {
-	zone := time.FixedZone("test", 2*60*60)
-	tests := []struct {
-		name string
-		now  time.Time
-		want time.Time
-	}{
-		{
-			name: "before noon on the first",
-			now:  time.Date(2026, time.September, 1, 6, 14, 0, 0, zone),
-			want: time.Date(2026, time.September, 1, 12, 0, 0, 0, zone),
-		},
-		{
-			name: "at noon waits for next month",
-			now:  time.Date(2026, time.September, 1, 12, 0, 0, 0, zone),
-			want: time.Date(2026, time.October, 1, 12, 0, 0, 0, zone),
-		},
-		{
-			name: "crosses the year",
-			now:  time.Date(2026, time.December, 20, 8, 0, 0, 0, zone),
-			want: time.Date(2027, time.January, 1, 12, 0, 0, 0, zone),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := nextMonthlyNoon(tt.now); !got.Equal(tt.want) {
-				t.Errorf("nextMonthlyNoon(%v) = %v, want %v", tt.now, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestRunMonthlyCallsAtNoonWithDeadline(t *testing.T) {
-	ctx := context.Background()
-	before := time.Date(2026, time.September, 1, 11, 45, 0, 0, time.Local)
-	noon := time.Date(2026, time.September, 1, 12, 0, 0, 0, time.Local)
-	current := before
-	waits := 0
-	wait := func(_ context.Context, d time.Duration) bool {
-		waits++
-		if waits == 1 {
-			if d != 15*time.Minute {
-				t.Errorf("first wait = %v, want 15m", d)
-			}
-			current = noon
-			return true
-		}
-		return false
-	}
-
-	var calls int
-	check := func(ctx context.Context, now time.Time) error {
-		calls++
-		if !now.Equal(noon) {
-			t.Errorf("check time = %v, want %v", now, noon)
-		}
-		if _, ok := ctx.Deadline(); !ok {
-			t.Error("scheduled check has no deadline")
-		}
-		return nil
-	}
-
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	runSchedule(ctx, check, logger, func() time.Time { return current }, wait,
-		nextMonthlyNoon, false, "monthly")
-	if calls != 1 {
-		t.Errorf("check called %d times, want 1", calls)
-	}
-}
-
-// The daily schedule checks before it ever sleeps, so an app that comes up at
-// 08:00 having missed 00:01 recovers there and then rather than waiting for
-// somebody to file a result.
-// Driven through the exported RunDaily rather than runSchedule, so the wiring
-// that decides this — the one argument RunDaily passes — is what is under
-// test. An already-cancelled context makes the first sleep return
-// immediately, leaving exactly the start check behind.
-func TestTheDailyScheduleChecksOnStart(t *testing.T) {
+// The schedule checks before it ever sleeps, so an app that comes up at 08:00
+// having missed 00:01 recovers there and then rather than waiting for
+// somebody to file a result. An already-cancelled context makes the first
+// sleep return immediately, leaving exactly the start check behind.
+func TestTheScheduleChecksOnStart(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
 	var calls int
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	RunDaily(ctx, func(context.Context, time.Time) error {
+	RunMidnight(ctx, func(context.Context, time.Time) error {
 		calls++
 		return nil
 	}, logger)
@@ -102,21 +28,39 @@ func TestTheDailyScheduleChecksOnStart(t *testing.T) {
 	}
 }
 
-// The month deliberately does not: noon on the first is a grace period, and a
-// restart at 06:00 must not cut it short.
-func TestTheMonthlyScheduleDoesNotCheckOnStart(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+// After the start check it sleeps until just after midnight and checks
+// again, under a deadline.
+func TestTheScheduleRunsJustAfterMidnightWithDeadline(t *testing.T) {
+	ctx := context.Background()
+	evening := time.Date(2026, time.September, 30, 23, 45, 0, 0, time.Local)
+	midnight := time.Date(2026, time.October, 1, 0, 1, 0, 0, time.Local)
+	current := evening
+	waits := 0
+	wait := func(_ context.Context, d time.Duration) bool {
+		waits++
+		if waits == 1 {
+			if d != 16*time.Minute {
+				t.Errorf("first wait = %v, want 16m", d)
+			}
+			current = midnight
+			return true
+		}
+		return false
+	}
 
-	var calls int
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	RunMonthly(ctx, func(context.Context, time.Time) error {
-		calls++
+	var at []time.Time
+	check := func(ctx context.Context, now time.Time) error {
+		at = append(at, now)
+		if _, ok := ctx.Deadline(); !ok {
+			t.Error("scheduled check has no deadline")
+		}
 		return nil
-	}, logger)
+	}
 
-	if calls != 0 {
-		t.Errorf("check ran %d times on start, want 0", calls)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	runSchedule(ctx, check, logger, func() time.Time { return current }, wait)
+	if len(at) != 2 || !at[0].Equal(evening) || !at[1].Equal(midnight) {
+		t.Errorf("checked at %v, want on start and at %v", at, midnight)
 	}
 }
 
