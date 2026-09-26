@@ -435,3 +435,42 @@ func TestMonthCountsDaysNobodyPlayed(t *testing.T) {
 		t.Errorf("month covers %d days, want all 31 calendar days", m.Days)
 	}
 }
+
+// A "last N days" standing uses the month's rules on a window that ends
+// today: a concluded day not played is a failure, and today is neither a
+// score nor a miss until it is played.
+func TestRecentRanksTheLastDaysUnderTheMonthsRules(t *testing.T) {
+	players := []store.Player{player(1, "steady"), player(2, "absent")}
+	now := today(t)
+	current := wordle.PuzzleForDate(now)
+
+	// steady plays all seven days at 3; absent plays only the first five
+	// of them at 2, then misses two days, today included — of which only
+	// yesterday counts against them.
+	results := run(1, current-6, current, 3, false)
+	results = append(results, run(2, current-6, current-2, 2, false)...)
+	// Something older than the window, which must not count.
+	results = append(results, run(2, current-30, current-20, 1, false)...)
+
+	m := ComputeRecent(players, results, DefaultOptions(now), 7)
+
+	if m.Year != 0 || m.Month != 0 {
+		t.Errorf("a recent span carries a calendar month: %v %d", m.Month, m.Year)
+	}
+	if m.Days != 7 {
+		t.Errorf("Days = %d, want 7 (six concluded plus today, played)", m.Days)
+	}
+	if got := slugs(m.Ranked); len(got) != 2 || got[0] != "absent" || got[1] != "steady" {
+		t.Fatalf("ranked %v, want absent then steady", got)
+	}
+	// absent: five 2s and one missed day as 7 over six concluded days.
+	if want := (5*2.0 + 7) / 6; math.Abs(*m.Ranked[0].Average-want) > 1e-9 {
+		t.Errorf("absent's average = %v, want %v", *m.Ranked[0].Average, want)
+	}
+	if m.Ranked[0].Games != 5 {
+		t.Errorf("absent's games = %d, want 5 (the older run is outside the window)", m.Ranked[0].Games)
+	}
+	if *m.Ranked[1].Average != 3 {
+		t.Errorf("steady's average = %v, want 3", *m.Ranked[1].Average)
+	}
+}

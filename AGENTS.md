@@ -58,15 +58,18 @@ elsewhere as having settled it any other way than what's written here.
   the bridge. The same binary carries the admin verbs (users, players,
   corrections, backfill).
 - `internal/web` · `internal/store` · `internal/ingest` · `internal/bridge` ·
-  `internal/wordle` · `internal/stats` · `internal/auth` · `internal/config`
+  `internal/wordle` · `internal/stats` · `internal/auth` · `internal/config` ·
+  `internal/announce` · `internal/reply`
 
 `internal/ingest` holds the rules for filing a result, because the HTTP
 endpoint and the Signal bridge both need them and a second copy would drift.
 
-Two compose services: `app` and `signal-cli-rest-api` (bbernhard image,
-off-the-shelf). Self-hosted with Docker Compose: no platform-as-a-service,
-no managed database, and nothing in the deploy that needs more than Docker
-and an `.env` file.
+Three compose services: `app`, `signal-cli-rest-api` (bbernhard image,
+off-the-shelf) and `ollama` (off-the-shelf, the language model that reads
+questions asked of the bot — it only ever turns a question into a request;
+every figure in an answer comes from `internal/stats`). Self-hosted with
+Docker Compose: no platform-as-a-service, no managed database, and nothing
+in the deploy that needs more than Docker and an `.env` file.
 
 Auth is hand-rolled (argon2id, server-side sessions, TOTP via `pquerna/otp`).
 This is deliberate; do not introduce an auth framework. The details that are

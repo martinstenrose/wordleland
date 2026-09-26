@@ -1537,6 +1537,66 @@ the puzzle number does not, and a Monday is every seventh one from puzzle 2.
 **Its own switch, `SIGNAL_ANNOUNCE_WEEKS`, defaulting on**, for the reason the
 day has one.
 
+## Answering questions in the group
+
+The bridge's step from speaking on a schedule to speaking when spoken to:
+a message that mentions the bot is a question, and the bot answers it.
+`internal/reply` does the answering, with the same relationship to the
+bridge that `internal/announce` has — the bridge hands over a sender and a
+question and knows nothing about what is asked or how.
+
+**A language model reads the question, and does nothing else.** The group
+asks freely, in several languages, and a fixed vocabulary of key words was
+tried on paper and found to break on the second way anybody phrases anything
+— "vem är bäst?", "har Bo chans att komma ikapp?", "hur går det för mig
+jämfört med förra månaden?". A model reads those fine. But the model only
+ever produces a `reply.Request`: one of five kinds, a span, a number of days
+and a player's name, constrained by a JSON schema the server enforces. The
+figures come from `internal/stats`, the sentence from the i18n catalogues.
+Small models are unreliable at arithmetic and ranking, and a leaderboard
+that confidently names the wrong leader is worse than one that says it did
+not understand. Under this split the model can misread a question; it can
+never be wrong about a number.
+
+**The model runs locally, as a third container.** The alternative was a
+hosted API: faster, no memory on the box, and pennies a month at group-chat
+volume. It was set aside because the question text is the group's
+conversation, and sending it off the server is a decision the group did not
+make when they let a bot into their chat. A 3B model on a CPU answers in
+seconds and holds about 2.5 GB, which is the cost of keeping the
+conversation on the box. The interface the model sits behind
+(`reply.Interpreter`) is one method, so a hosted one is a small addition if
+that decision is ever revisited. The container is the third in a deploy that
+was deliberately two, and AGENTS.md says so now; the constraint that matters
+— nothing beyond Docker and an `.env` file — still holds, because the app
+pulls the model it needs on first start and nothing about the model is
+configured by hand.
+
+**A mention is the trigger, and only a mention.** Signal carries a mention
+as the mentioned account's identity, not as text, so the bot's profile name
+can change without the bridge caring, and nobody can trigger it by typing
+the name. The account's own sent messages — which arrive as sync messages —
+never count as mentioning it, so an answer cannot be read as a question and
+answered again. A message that parses as a result is a result, whatever it
+mentions: a score is never traded for a reply.
+
+**A question is answered once or not at all.** The announcements retry on
+the next live message because a month's result is owed; a question is not.
+An answer that arrives after the conversation has moved on reads as the bot
+talking to itself, so a failure gets one apology in the group and a warning
+in the log. "The model is still loading" is an answer, not a failure, since
+the first start of the stack pulls the model and a question during those
+minutes is ordinary.
+
+**"Last N days" got the month's rules.** `stats.ComputeRecent` ranks a span
+of puzzles ending today the way `ComputeMonths` ranks a calendar month — a
+concluded day not played is a failure, ties share a place — because "who is
+best this week" is the same competition on a shorter window, and a version
+where turning up on your good days wins would contradict what the month
+says about the same players. It returns a `stats.Month` with the calendar
+fields zero rather than a new type carrying the same eight fields; the
+alternative was a type whose only distinction was saying "not a month".
+
 ## CI and security scanning
 
 **CodeQL's `go/log-injection` alerts on `internal/web` are false positives,

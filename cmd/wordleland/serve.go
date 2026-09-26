@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/martinstenrose/wordleland/internal/health"
 	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/ingest"
+	"github.com/martinstenrose/wordleland/internal/reply"
 	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/version"
 	"github.com/martinstenrose/wordleland/internal/web"
@@ -189,6 +191,8 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 	var supervisor *bridge.Supervisor
 	var monthly, daily, weekly func(context.Context, time.Time) error
 	var announcer bridge.Announcer
+	var respond bridge.Responder
+	var model *reply.Ollama
 	if bridgeCfg != nil {
 		// Delivery is a direct call now. The bridge writes as the
 		// application itself rather than as a token holder, because since
@@ -199,8 +203,9 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 
 		// Nil when announcing is off: the bridge treats a nil Announcer as
 		// "never call this", so turning the feature off costs nothing at
-		// every message instead of a check here plus a check there.
-		if bridgeCfg.AnnounceMonths || bridgeCfg.AnnounceDays || bridgeCfg.AnnounceWeeks {
+		// every message instead of a check here plus a check there. The
+		// Responder is nil the same way when replies are off.
+		if bridgeCfg.AnnounceMonths || bridgeCfg.AnnounceDays || bridgeCfg.AnnounceWeeks || bridgeCfg.Replies {
 			cats, err := i18n.Load()
 			if err != nil {
 				return err
@@ -208,6 +213,15 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 			send, err := bridge.NewSender(bridgeCfg.SignalAPIURL, bridgeCfg.SignalAccount, bridgeCfg.SignalGroupID)
 			if err != nil {
 				return err
+			}
+			if bridgeCfg.Replies {
+				model = reply.NewOllama(bridgeCfg.LLMURL, bridgeCfg.LLMModel)
+				answer := reply.New(db, cats, bridgeCfg.AnnounceLocale, model, send, logger)
+				respond = func(ctx context.Context, m bridge.Message) error {
+					// The mention itself is a placeholder character in the
+					// text; the question is what is left.
+					return answer(ctx, m.SenderUUID, strings.ReplaceAll(m.Body, bridge.MentionPlaceholder, ""))
+				}
 			}
 			if bridgeCfg.AnnounceDays {
 				// Before anything can check: on a deployment that has never
@@ -242,7 +256,7 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 			announcer = joinChecks(daily, weekly, monthly)
 		}
 
-		b, err := bridge.New(*bridgeCfg, deliver, announcer, logger)
+		b, err := bridge.New(*bridgeCfg, deliver, announcer, respond, logger)
 		if err != nil {
 			return err
 		}
@@ -276,6 +290,19 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 			supervisor.Run(ctx)
 		}()
 		logger.Info("signal bridge started")
+
+		if model != nil {
+			// Alongside, not before: the model server starts after the app
+			// often enough, and the first pull takes minutes. A question
+			// that arrives before it is done is told to ask again.
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				model.Prepare(ctx, logger)
+			}()
+			logger.Info("replies started", "model", bridgeCfg.LLMModel,
+				"on", "a message that mentions the bot")
+		}
 
 		// One run just after midnight for all three, in the Announcer's
 		// order: the day, the week and the month all close at a midnight.

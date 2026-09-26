@@ -24,7 +24,7 @@ func setEnv(t *testing.T, env map[string]string) {
 	for _, k := range []string{
 		"SIGNAL_API_URL", "SIGNAL_ACCOUNT", "SIGNAL_GROUP_ID",
 		"SIGNAL_ANNOUNCE_MONTHS", "SIGNAL_ANNOUNCE_DAYS", "SIGNAL_ANNOUNCE_WEEKS",
-		"SIGNAL_LOCALE",
+		"SIGNAL_LOCALE", "SIGNAL_REPLIES", "LLM_URL", "LLM_MODEL",
 	} {
 		t.Setenv(k, env[k])
 	}

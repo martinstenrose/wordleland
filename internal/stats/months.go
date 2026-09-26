@@ -104,6 +104,35 @@ func ComputeMonths(players []store.Player, results []store.BoardResult, opts Opt
 	return months
 }
 
+// ComputeRecent scores the last days puzzles, ending with today's, under the
+// month's rules: a day not played counts as a failure, ties share a place.
+//
+// It returns a Month with Year and Month zero, because the figures are the
+// same figures — a span of puzzles scored as a competition over a fixed set
+// of days — and the callers that ask "who is best over the last week" want
+// exactly the month's answer with a different window. A second type carrying
+// the same eight fields would only exist to say the window is not a calendar
+// month, which the zero Year already says.
+func ComputeRecent(players []store.Player, results []store.BoardResult, opts Options, days int) Month {
+	byPlayer := make(map[int64]store.Player, len(players))
+	for _, p := range players {
+		byPlayer[p.ID] = p
+	}
+	if opts.HardModeOnly {
+		results = filterHardMode(results)
+	}
+	current := wordle.PuzzleForDate(opts.Now)
+	first := current - days + 1
+	rows := make([]store.BoardResult, 0, len(results))
+	for _, r := range results {
+		if _, ok := byPlayer[r.PlayerID]; !ok || r.PuzzleNo < first || r.PuzzleNo > current {
+			continue
+		}
+		rows = append(rows, r)
+	}
+	return scoreSpan(first, current+1, rows, byPlayer, opts)
+}
+
 func buildMonth(year int, month time.Month, rows []store.BoardResult,
 	byPlayer map[int64]store.Player, opts Options) Month {
 
