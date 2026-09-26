@@ -1,0 +1,309 @@
+package reply
+
+import (
+	"math"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+	"unicode"
+
+	"github.com/martinstenrose/wordleland/internal/i18n"
+	"github.com/martinstenrose/wordleland/internal/stats"
+	"github.com/martinstenrose/wordleland/internal/store"
+	"github.com/martinstenrose/wordleland/internal/wordle"
+)
+
+// answer renders one request. Pure: every figure comes from stats over the
+// history it is handed, which is what makes each kind testable against a
+// fixture rather than a model.
+func answer(t i18n.Translator, req Request, asker *store.Player,
+	players []store.Player, results []store.BoardResult, now time.Time) string {
+
+	switch req.Kind {
+	case KindLeader:
+		return leader(t, req, players, results, now)
+	case KindStanding:
+		return standing(t, req, asker, players, results, now)
+	case KindStreak:
+		return streak(t, req, asker, players, results, now)
+	case KindToday:
+		return today(t, players, results, now)
+	default:
+		return t.T("reply.help")
+	}
+}
+
+// standingOver ranks the span a request names, and labels it. The month's
+// rules apply to a span of days too — a day not played is a failure —
+// which is what makes "best over the last week" the same competition on a
+// shorter window. All time is the board's own ranking, career averages
+// with the board's minimum of games.
+func standingOver(t i18n.Translator, req Request, players []store.Player,
+	results []store.BoardResult, now time.Time) (string, stats.Month) {
+
+	opts := stats.DefaultOptions(now)
+	switch req.Span {
+	case SpanDays:
+		return t.T("reply.span.days", req.Days), stats.ComputeRecent(players, results, opts, req.Days)
+	case SpanAll:
+		return t.T("reply.span.all"), boardAsStanding(stats.Compute(players, results, opts))
+	default:
+		months := stats.ComputeMonths(players, results, opts)
+		label := t.T("month." + strconv.Itoa(int(now.Month())))
+		for _, m := range months {
+			if m.Year == now.Year() && m.Month == now.Month() {
+				return label, m
+			}
+		}
+		return label, stats.Month{Year: now.Year(), Month: now.Month()}
+	}
+}
+
+// boardAsStanding reads the board's ranked table into the month's shape, so
+// one rendering serves every span. Winners and Margin follow the month's
+// definitions: everyone on the lowest average, and the gap to the next.
+func boardAsStanding(b stats.Board) stats.Month {
+	var m stats.Month
+	for _, p := range b.Ranked {
+		m.Ranked = append(m.Ranked, stats.MonthPlayer{
+			Player: p.Player, Games: p.Games, Average: p.Average, Rank: p.Rank,
+		})
+	}
+	if len(m.Ranked) == 0 {
+		return m
+	}
+	lowest := *m.Ranked[0].Average
+	for _, p := range m.Ranked {
+		if *p.Average == lowest {
+			m.Winners = append(m.Winners, p)
+		}
+	}
+	if next := len(m.Winners); next < len(m.Ranked) {
+		margin := *m.Ranked[next].Average - lowest
+		m.Margin = &margin
+	}
+	return m
+}
+
+// leader mirrors internal/announce's month line, with the span's label in
+// place of the month's, so the answer to "who is leading" reads exactly as
+// the daily recap's standing does.
+func leader(t i18n.Translator, req Request, players []store.Player,
+	results []store.BoardResult, now time.Time) string {
+
+	label, m := standingOver(t, req, players, results, now)
+	label = capitalized(label)
+	if len(m.Winners) == 0 {
+		return t.T("reply.leader.none", label)
+	}
+	leaders := joinNames(t, names(m.Winners))
+	avg := t.Decimal(*m.Winners[0].Average, 2)
+	switch {
+	case len(m.Winners) > 1:
+		return "📊 " + t.T("announce.daily.month.tie", label, leaders, avg)
+	case m.Margin != nil:
+		points := int(math.Round(*m.Margin * 100))
+		return "📊 " + t.T("announce.daily.month.margin", label, leaders, avg,
+			points, joinNames(t, names(runnersUp(m))))
+	default:
+		return "📊 " + t.T("announce.daily.month.alone", label, leaders, avg)
+	}
+}
+
+func standing(t i18n.Translator, req Request, asker *store.Player,
+	players []store.Player, results []store.BoardResult, now time.Time) string {
+
+	p, ok, text := whom(t, req, asker, players)
+	if !ok {
+		return text
+	}
+	label, m := standingOver(t, req, players, results, now)
+	for _, mp := range m.Ranked {
+		if mp.ID == p.ID {
+			return t.T("reply.standing", p.Name, mp.Rank, len(m.Ranked), label,
+				t.Decimal(*mp.Average, 2), mp.Games)
+		}
+	}
+	return t.T("reply.standing.none", p.Name, label)
+}
+
+// streak reads the board, whose streaks are computed from the unfiltered
+// history for every player, ranked or not.
+func streak(t i18n.Translator, req Request, asker *store.Player,
+	players []store.Player, results []store.BoardResult, now time.Time) string {
+
+	board := stats.Compute(players, results, stats.DefaultOptions(now))
+	all := append(append([]stats.Player(nil), board.Ranked...), board.Unranked...)
+
+	// A player was named — the asker's own name when they asked about
+	// themselves, which is how the model reports "my streak".
+	if req.Player != "" {
+		p, ok, text := whom(t, req, asker, players)
+		if !ok {
+			return text
+		}
+		for _, bp := range all {
+			if bp.ID == p.ID {
+				return t.T("reply.streak.player", p.Name, bp.CurrentStreak, bp.LongestStreak)
+			}
+		}
+		return t.T("reply.streak.player", p.Name, 0, 0)
+	}
+
+	current, currentDays := holders(all, func(p stats.Player) int { return p.CurrentStreak })
+	longest, longestDays := holders(all, func(p stats.Player) int { return p.LongestStreak })
+
+	var lines []string
+	if currentDays > 0 {
+		lines = append(lines, "🔥 "+t.T("reply.streak.current", joinNames(t, current), currentDays))
+	} else {
+		lines = append(lines, t.T("reply.streak.none"))
+	}
+	if longestDays > 0 {
+		lines = append(lines, t.T("reply.streak.ever", joinNames(t, longest), longestDays))
+	}
+	return strings.Join(lines, "\n")
+}
+
+// holders names everyone sharing the highest value of a figure, in name
+// order, so a tie is named rather than decided by the board's order.
+func holders(all []stats.Player, figure func(stats.Player) int) ([]string, int) {
+	best := 0
+	for _, p := range all {
+		if v := figure(p); v > best {
+			best = v
+		}
+	}
+	var names []string
+	for _, p := range all {
+		if figure(p) == best {
+			names = append(names, p.Name)
+		}
+	}
+	sort.Strings(names)
+	return names, best
+}
+
+func today(t i18n.Translator, players []store.Player, results []store.BoardResult, now time.Time) string {
+	puzzle := wordle.PuzzleForDate(now)
+	day := stats.ComputeToday(players, results, puzzle)
+
+	lines := []string{t.T("reply.today.head", i18n.Identifier(puzzle), day.FiledCount(), day.Expected())}
+	switch {
+	case day.Best != nil:
+		var best []string
+		for _, e := range day.Filed {
+			if e.Solved && e.Guesses == day.Best.Guesses {
+				best = append(best, e.Name)
+			}
+		}
+		lines = append(lines, t.T("reply.today.best", joinNames(t, best), day.Best.Guesses))
+	case len(day.Filed) > 0:
+		lines = append(lines, t.T("reply.today.noneSolved"))
+	}
+	if len(day.Missing) > 0 {
+		var missing []string
+		for _, p := range day.Missing {
+			missing = append(missing, p.Name)
+		}
+		lines = append(lines, t.T("reply.today.missing", joinNames(t, missing)))
+	} else if len(day.Filed) > 0 {
+		lines = append(lines, t.T("reply.today.everyone"))
+	}
+	return strings.Join(lines, "\n")
+}
+
+// whom finds the player a question is about: the one named, or the asker
+// when nobody is. When there is neither, or the name is not a player's, the
+// answer is the list of who it could be.
+func whom(t i18n.Translator, req Request, asker *store.Player, players []store.Player) (store.Player, bool, string) {
+	all := make([]string, 0, len(players))
+	for _, p := range players {
+		all = append(all, p.Name)
+	}
+	if req.Player == "" {
+		if asker != nil {
+			return *asker, true, ""
+		}
+		return store.Player{}, false, t.T("reply.standing.who", joinNames(t, all))
+	}
+	if p, ok := findPlayer(req.Player, players); ok {
+		return p, true, ""
+	}
+	return store.Player{}, false, t.T("reply.player.unknown", req.Player, joinNames(t, all))
+}
+
+// findPlayer is forgiving about case and about a first name standing in
+// for a full one, because the model copies what it was given but the
+// group does not always say it that way.
+func findPlayer(name string, players []store.Player) (store.Player, bool) {
+	want := strings.ToLower(strings.TrimSpace(name))
+	for _, p := range players {
+		if strings.ToLower(p.Name) == want {
+			return p, true
+		}
+	}
+	for _, p := range players {
+		first, _, _ := strings.Cut(strings.ToLower(p.Name), " ")
+		if first == want || strings.HasPrefix(strings.ToLower(p.Name), want) {
+			return p, true
+		}
+	}
+	return store.Player{}, false
+}
+
+func runnersUp(m stats.Month) []stats.MonthPlayer {
+	next := len(m.Winners)
+	if next >= len(m.Ranked) {
+		return nil
+	}
+	second := *m.Ranked[next].Average
+	var out []stats.MonthPlayer
+	for _, p := range m.Ranked[next:] {
+		if *p.Average != second {
+			break
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+func names(ps []stats.MonthPlayer) []string {
+	out := make([]string, 0, len(ps))
+	for _, p := range ps {
+		out = append(out, p.Name)
+	}
+	return out
+}
+
+// joinNames renders a tie as every name, as internal/announce does.
+func joinNames(t i18n.Translator, names []string) string {
+	switch len(names) {
+	case 0:
+		return ""
+	case 1:
+		return names[0]
+	}
+	out := ""
+	for i, n := range names {
+		switch {
+		case i == 0:
+			out = n
+		case i == len(names)-1:
+			out += " " + t.T("list.and") + " " + n
+		default:
+			out += ", " + n
+		}
+	}
+	return out
+}
+
+func capitalized(s string) string {
+	r := []rune(s)
+	if len(r) == 0 {
+		return s
+	}
+	r[0] = unicode.ToUpper(r[0])
+	return string(r)
+}

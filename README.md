@@ -13,16 +13,26 @@ disagree. This file covers running the thing.
 
 ## What runs
 
-Two containers:
+Three containers:
 
 | Service | What it does |
 |---|---|
 | `app` | Everything of ours. Owns the database, serves the board, exposes `/api/ingest`, and runs the Signal bridge when one is configured. The admin CLI is the same binary. |
 | `signal-cli-rest-api` | Off-the-shelf. Holds the Signal connection as a linked device. |
+| `ollama` | Off-the-shelf. Runs the small language model that reads questions asked of the bot in the group. `app` pulls the model on first start; there is nothing to set up. |
 
 Only `app` is reachable from outside, through Caddy. The Signal container is
 deliberately not published: it holds the linked device's credentials, and
-nothing but `app` needs to reach it.
+nothing but `app` needs to reach it. The model container is not published
+either, for the plainer reason that nothing else has any use for it.
+
+The model needs about 2.5 GB of RAM while loaded, which it is kept, and a
+one-time download of about 2 GB. On a modern server CPU a question takes a
+few seconds to answer; there is no GPU involved. A deployment that does not
+want this sets `SIGNAL_REPLIES=false` and deletes the `ollama` block from
+`compose.yml`; `app` does not depend on the container, so nothing else
+changes. With replies off but the block left in, the container idles and
+never loads a model, so it costs disk and nothing else.
 
 **The Signal bridge is optional.** Leave `SIGNAL_ACCOUNT` and
 `SIGNAL_GROUP_ID` unset and the app serves the board without it, which is
@@ -82,13 +92,15 @@ and an extra URL that commonly attract spam-filter rules.
 | `SIGNAL_ANNOUNCE_MONTHS` | Optional, default `true`. Post the month's winner back into the group when a month closes: as soon as every active player has filed its last day, or just after midnight if they have not, right after that day's recaps. |
 | `SIGNAL_ANNOUNCE_DAYS` | Optional, default `true`. Post the day's recap — the day's best result, who posted first and last, the day's events when there are any (a new month leader, a streak milestone, a first ever 2, a run at 3 or better up to the group's record), one remark when the day earned one (a hard or easy puzzle, who failed it, or somebody well under their own average), and where the month stands — as soon as every active player has filed, or just after midnight if they have not. Independent of the variable above; set both to `false` for a bridge that receives without the bot ever speaking. |
 | `SIGNAL_ANNOUNCE_WEEKS` | Optional, default `true`. Post the Monday-to-Sunday week's recap — the podium, last place among those who played at least five days, and the group's average against the week before, plus up to three extras when the week earned them — right after Sunday's recap: as soon as every active player has filed Sunday's puzzle, or just after midnight if they have not. Independent of the variables above. |
-| `SIGNAL_LOCALE` | Optional, default `en`. The language the announcements above are written in — one fixed choice for the whole group, not a per-member preference. |
+| `SIGNAL_LOCALE` | Optional, default `en`. The language the announcements above, and the bot's answers, are written in — one fixed choice for the whole group, not a per-member preference. |
+| `SIGNAL_REPLIES` | Optional, default `true`. Answer a message that mentions the bot — see below. Set it to `false` for a bridge that never answers, which also means the `ollama` container is not needed. |
+| `LLM_MODEL` | Optional, default `qwen2.5:3b`. The model that reads the questions, by its Ollama name. The app pulls it if the model container does not have it. Anything larger answers better and slower; on a CPU, 3B is the size that answers in seconds. |
 
-`SIGNAL_API_URL` is not configured. It defaults to
-`http://signal-cli-rest-api:8080` — a service name from `compose.yml` joined
-to the port that image always exposes, so it cannot change without editing
-that file anyway. Set it as an environment variable to override it, which is
-what running outside compose needs.
+`SIGNAL_API_URL` and `LLM_URL` are not configured. They default to
+`http://signal-cli-rest-api:8080` and `http://ollama:11434` — service names
+from `compose.yml` joined to the ports those images always expose, so they
+cannot change without editing that file anyway. Set either as an environment
+variable to override it, which is what running outside compose needs.
 
 There is no ingest token to provision. `/api/ingest` and its tokens remain
 for curl and any future bridge, but the Signal bridge runs inside the app
@@ -146,6 +158,34 @@ finish, somebody well under their own average, a 2 and an X in the same week
 usually posts first. A day not played counts as an X, as it does for the month. The
 same catch-up and first-run rules apply: one week back at most, and the week
 before the app first starts is never posted.
+
+**It answers when mentioned.** Tap the bot's name into a message and ask,
+in whatever words and language the group uses — "who's leading this month?",
+"vem har bäst snitt senaste veckan?", "how am I doing?", "hur går det för
+Bo?", "who's still to post today?". A language model reads the question and
+turns it into one of a handful of requests: who is leading (this month, the
+last N days, or all time), one player's standing, streaks, or today's
+puzzle. That is all the model does. The figures come from the same code the
+board runs, and the sentence from the same catalogues the announcements use,
+so the model can misread a question but cannot get a number wrong. A
+question it cannot place gets a line saying what can be asked.
+
+The mention is what triggers it, not the name: Signal carries a mention as
+the account behind it, so the bot can be renamed freely. This only works
+cleanly when the bot has its own number (see "Connecting Signal"); on a
+linked device a mention of "the bot" is a mention of the operator.
+
+"I" and "me" work once the sender's Signal identity has been claimed for a
+player, the same claim that files their results. An unclaimed sender asking
+about themselves is asked who they mean.
+
+The model is not ready the instant the stack starts. The first start pulls
+it, which takes a few minutes on an ordinary connection, and a question in
+the meantime is answered with "ask me again in a few minutes". Restarts are
+quick: the model lives in the `ollama` volume. A question the model cannot
+be reached for gets an apology in the group and a warning in the log; it is
+not retried, since an answer arriving after the conversation has moved on
+reads as the bot talking to itself.
 
 ### Set `TRUSTED_PROXIES`
 
@@ -400,7 +440,10 @@ Take **`internal_id`**, not `id`, into `SIGNAL_GROUP_ID`, and the number into
 
 The alternative: the bot rides along on a personal Signal account as a linked
 device. It works, but it ties the bot to a personal number, and the link step
-needs a QR code scanned within about a minute.
+needs a QR code scanned within about a minute. It also makes answering
+questions awkward: the bot answers when its account is mentioned, and on a
+linked device that account is the operator's, so every mention of them in
+the group is a question for the bot.
 
 ```sh
 sig 'http://signal-cli-rest-api:8080/v1/qrcodelink/raw?device_name=wordleland' \

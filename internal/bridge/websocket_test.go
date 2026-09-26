@@ -255,7 +255,7 @@ func TestDecodeNeverLogsAPhoneNumber(t *testing.T) {
 			var logs bytes.Buffer
 			logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: level}))
 
-			decode([]byte(raw), logger)
+			decode([]byte(raw), testAccount, logger)
 
 			if strings.Contains(logs.String(), phone) {
 				t.Errorf("log at %s carries the phone number:\n%s", level, logs.String())

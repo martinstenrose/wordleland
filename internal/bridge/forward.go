@@ -55,6 +55,23 @@ type Announcer func(ctx context.Context, now time.Time) error
 // also covers the store reads around the send.
 const announceTimeout = 20 * time.Second
 
+// Responder answers a message that mentions the bot: works out what was
+// asked, and posts the answer into the group. Like the Announcer it is
+// assembled in cmd/wordleland/serve.go; the bridge knows only that a
+// message addressed to it goes here rather than to the parser's bin.
+//
+// A nil Responder means replies are off, and a mention is then ordinary
+// conversation. An error is a genuine failure — the model, the store or
+// the send — and is logged; the question is not retried, because a late
+// answer to a chat is worse than none.
+type Responder func(ctx context.Context, m Message) error
+
+// respondTimeout bounds one answer end to end. The language model behind
+// the Responder runs on a CPU and takes seconds, not milliseconds, and the
+// worker it runs on also files results: long enough for a slow model to
+// finish, short enough that a hung one cannot hold results back for long.
+const respondTimeout = 90 * time.Second
+
 // Back-dating window, in puzzles either side of today's.
 //
 // Explicitly labeled Archive shares are rejected before this window. The
@@ -103,6 +120,9 @@ type filer struct {
 	// announce checks for anything to post about, after every live result.
 	// Nil when announcing is off.
 	announce Announcer
+	// respond answers a message that mentions the bot. Nil when replies
+	// are off.
+	respond Responder
 
 	// now is swapped in tests so the back-dating window can be exercised
 	// without waiting for the calendar.
@@ -111,12 +131,14 @@ type filer struct {
 	sleep func(context.Context, time.Duration)
 }
 
-func newFiler(groupID string, deliver Deliverer, announce Announcer, logger *slog.Logger, h *health) *filer {
+func newFiler(groupID string, deliver Deliverer, announce Announcer, respond Responder,
+	logger *slog.Logger, h *health) *filer {
 	if h == nil {
 		h = newHealth(time.Now)
 	}
 	return &filer{
-		groupID: groupID, deliver: deliver, announce: announce, logger: logger, health: h,
+		groupID: groupID, deliver: deliver, announce: announce, respond: respond,
+		logger: logger, health: h,
 		now:   time.Now,
 		sleep: sleepContext,
 	}
@@ -141,6 +163,13 @@ func (f *filer) handle(ctx context.Context, m Message) {
 
 	result, ok := wordle.Parse(m.Body)
 	if !ok {
+		// A result is checked for first, above: a share that happens to
+		// mention the bot is still a score, and a score is never lost to a
+		// reply. Only what did not parse can be a question.
+		if m.MentionsBot && f.respond != nil {
+			f.maybeRespond(ctx, m)
+			return
+		}
 		// Most traffic in the group is ordinary conversation. The body
 		// itself is never logged — only its shape — so this line
 		// distinguishes a quiet group from a broken parser without
@@ -204,6 +233,19 @@ func (f *filer) maybeAnnounce(ctx context.Context) {
 	if err := f.announce(actx, f.now()); err != nil {
 		f.logger.Warn("could not post an announcement; will retry on the next live message",
 			"error", err)
+	}
+}
+
+// maybeRespond runs the Responder and only ever logs what it reports. Not
+// retried: the person asked a question in a chat, and an answer arriving
+// after the conversation has moved on reads as the bot talking to itself.
+func (f *filer) maybeRespond(ctx context.Context, m Message) {
+	rctx, cancel := context.WithTimeout(ctx, respondTimeout)
+	defer cancel()
+	if err := f.respond(rctx, m); err != nil {
+		// The question itself is never logged, for the same reason a
+		// message body never is: only that one went unanswered.
+		f.logger.Warn("could not answer a question in the group", "error", err)
 	}
 }
 

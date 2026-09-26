@@ -69,7 +69,29 @@ type Bridge struct {
 	// graceful handling a stored user locale gets, rather than failing boot
 	// over a typo in a cosmetic setting.
 	AnnounceLocale string
+
+	// Replies answers a message that mentions the bot: who is leading, how
+	// somebody is doing, streaks, today. Default on, like the
+	// announcements, and for the same reason. Off means a mention is
+	// ordinary conversation.
+	Replies bool
+
+	// LLMURL is where the language model that reads the questions is
+	// served, and LLMModel which model it serves. The model turns a question
+	// in any language into a small request; the answer's figures never come
+	// from it. Both have compose-file defaults, as SignalAPIURL does: the
+	// service name and port the ollama image always uses, and a model small
+	// enough for a CPU. The app pulls the model itself if it is missing.
+	LLMURL   string
+	LLMModel string
 }
+
+// Defaults for the language model, overridable for running outside compose
+// or for trying another model.
+const (
+	DefaultLLMURL   = "http://ollama:11434"
+	DefaultLLMModel = "qwen2.5:3b"
+)
 
 // groupIDPrefix is the form that is easy to copy by mistake.
 const groupIDPrefix = "group."
@@ -95,6 +117,9 @@ func LoadBridge() (*Bridge, error) {
 		AnnounceDays:   true,
 		AnnounceWeeks:  true,
 		AnnounceLocale: envOr("SIGNAL_LOCALE", i18n.Default),
+		Replies:        true,
+		LLMURL:         envOr("LLM_URL", DefaultLLMURL),
+		LLMModel:       envOr("LLM_MODEL", DefaultLLMModel),
 	}
 
 	// Nothing configured: the bridge is off, which is a valid deployment.
@@ -142,6 +167,18 @@ func LoadBridge() (*Bridge, error) {
 		problems = append(problems, problem)
 	} else {
 		cfg.AnnounceWeeks = value
+	}
+	if value, problem := envBool("SIGNAL_REPLIES", cfg.Replies); problem != "" {
+		problems = append(problems, problem)
+	} else {
+		cfg.Replies = value
+	}
+	// Only checked when it will be used: a deployment with replies off has
+	// no model, and must not be refused over the URL of one.
+	if cfg.Replies {
+		if err := checkHTTPURL(cfg.LLMURL); err != nil {
+			problems = append(problems, "LLM_URL: "+err.Error())
+		}
 	}
 
 	switch {
