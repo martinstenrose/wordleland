@@ -813,5 +813,6 @@
   "reply.habits.player.none": "%s: no posting times on record.",
   "reply.habits.first": "Opens the day most often: %s, %d of the last %d days.",
   "reply.habits.last": "Closes it most often: %s, %d.",
-  "reply.habits.none": "No posting order on record yet."
+  "reply.habits.none": "No posting order on record yet.",
+  "reply.thanks": "Thanks! 🙂"
 }

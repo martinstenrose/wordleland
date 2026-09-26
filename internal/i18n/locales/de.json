@@ -813,5 +813,6 @@
   "reply.habits.player.none": "%s: keine Postzeiten bekannt.",
   "reply.habits.first": "Eröffnet den Tag am häufigsten: %s, %d der letzten %d Tage.",
   "reply.habits.last": "Beendet ihn am häufigsten: %s, %d.",
-  "reply.habits.none": "Noch keine Reihenfolge bekannt."
+  "reply.habits.none": "Noch keine Reihenfolge bekannt.",
+  "reply.thanks": "Danke! 🙂"
 }
