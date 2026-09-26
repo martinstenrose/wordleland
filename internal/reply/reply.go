@@ -48,6 +48,12 @@ const (
 	// KindCatchup is whether somebody can still win the month: the gap to
 	// the leader, the days left, and what it would take.
 	KindCatchup Kind = "catchup"
+	// KindCount is how many times a player has scored a given number, or
+	// failed, or their whole distribution.
+	KindCount Kind = "count"
+	// KindHabits is who usually opens or closes the day, and when somebody
+	// usually posts.
+	KindHabits Kind = "habits"
 	// KindRules is what a word in a post means: a miss, points, a streak.
 	// Answered from the catalogues, never by the model, because how a
 	// score is counted is the one thing the bot must not get creative
@@ -107,10 +113,20 @@ type Request struct {
 	// The model resolves "yesterday" and "July 5" against the date it is
 	// given; empty means today.
 	Date string `json:"date"`
+	// Month is a particular month a leader or standing question names, as
+	// YYYY-MM: "vem vann juli?", "how did I do last month?". Empty means
+	// the span the question says, the current month by default.
+	Month string `json:"month"`
+	// Guesses is the score a count question asks about: 1 to 6, 7 for a
+	// failure, 0 for the whole distribution.
+	Guesses int `json:"guesses"`
 }
 
-// DateLayout is how Request.Date is written.
-const DateLayout = "2006-01-02"
+// Layouts for Request.Date and Request.Month.
+const (
+	DateLayout  = "2006-01-02"
+	MonthLayout = "2006-01"
+)
 
 // Prompt is what the model is told besides the question: who is asking,
 // who plays, and what day it is, so "me", a first name and "this week"

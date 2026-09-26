@@ -1622,6 +1622,19 @@ rounds — and under 1 the pass is impossible, since a 1 is the best a day
 can be. Those two thresholds are the whole of the judgement; everything
 else is the number.
 
+**A past month is spoken of as the 🏆 message spoke of it.** "Vem vann
+juli?" gets the month's result in the announcement's own words, not a
+present-tense "leads": the month is over, and the answer to who won it is
+the sentence that announced it. The model supplies the month as YYYY-MM,
+worked out from today's date; a named month overrides whatever span it
+also wrote, since "who led July over the last 7 days" means nothing.
+
+**Counts and habits read what the board and the recap already read.**
+"How many 2s do I have" is the board's distribution; "who posts first" is
+the recap's posting order over its thirty-day window. "When do I usually
+post" is the one new figure — the median of the player's recent posting
+times, chosen over the mean because one late night should not move it.
+
 **A day's score and monthly wins are the same shape.** The model supplies
 a date (worked out from the day it is given, so "yesterday" and "July 5"
 resolve) or nothing; the store has the result, or does not. Wins come from
