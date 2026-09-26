@@ -1599,6 +1599,20 @@ does not exist anywhere the model can reach, and the request it becomes is
 pins the contract; a new field on `Prompt` is a new thing the model is
 told, and that test is where it is decided.
 
+**A reply to a bot post carries the post, and only a bot post.** Signal
+sends a reply with the quoted message's author and text. When the author
+is the bot's own account, the text goes into the prompt as context, so a
+question under a recap — "what does this mean?", "what did Bo get that
+day?" — can be read; the day the post is about is worked out from its
+"Wordle <number>" here, since a puzzle number is a date by arithmetic and
+the model would only guess. This is the one deliberate widening of what
+the model is told, and it is bounded by authorship: the words are ones
+this app wrote from its catalogues and posted to the group. A reply to
+another member's message brings nothing along, however it is phrased,
+because their words are theirs. The mention remains the trigger — a plain
+reply to the recap is conversation, and answering it with the help line
+would make the bot a heckler.
+
 **Rule explanations are catalogue text, not model text.** "What counts as a
 miss?" is answered by a `rules` request with a topic from a fixed list, and
 the topic's explanation is written by hand in every language to say what
