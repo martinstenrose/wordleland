@@ -202,6 +202,11 @@ linked device a mention of "the bot" is a mention of the operator.
 player, the same claim that files their results. An unclaimed sender asking
 about themselves is asked who they mean.
 
+While the answer is being worked out the bot shows it has read the
+question: a 👀 on the message, and the typing indicator until the answer
+goes out. Both are best effort — if signal-cli declines either, the answer
+still comes, and the log says so only at debug.
+
 The model is not ready the instant the stack starts. The first start pulls
 it, which takes a few minutes on an ordinary connection, and a question in
 the meantime is answered with "ask me again in a few minutes". Restarts are
