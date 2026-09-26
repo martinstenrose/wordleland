@@ -219,8 +219,9 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 				answer := reply.New(db, cats, bridgeCfg.AnnounceLocale, model, send, logger)
 				respond = func(ctx context.Context, m bridge.Message) error {
 					// The mention itself is a placeholder character in the
-					// text; the question is what is left.
-					return answer(ctx, m.SenderUUID, strings.ReplaceAll(m.Body, bridge.MentionPlaceholder, ""))
+					// text; the question is what is left. A reply to one of
+					// the bot's own posts brings that post along.
+					return answer(ctx, m.SenderUUID, strings.ReplaceAll(m.Body, bridge.MentionPlaceholder, ""), m.Quoted)
 				}
 			}
 			if bridgeCfg.AnnounceDays {

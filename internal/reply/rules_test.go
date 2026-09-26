@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/martinstenrose/wordleland/internal/i18n"
+	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
 // A rules question is answered from the catalogue for its topic, in the
@@ -75,7 +76,7 @@ func TestTheModelIsToldOnlyNamesAndTheDate(t *testing.T) {
 	})
 	answer, _ := newAnswerer(t, db, capture)
 
-	if err := answer(context.Background(), senderUUID, "what's Alma's email?"); err != nil {
+	if err := answer(context.Background(), senderUUID, "what's Alma's email?", ""); err != nil {
 		t.Fatalf("answer: %v", err)
 	}
 	if seen.Asker != "Bo" {
@@ -84,9 +85,43 @@ func TestTheModelIsToldOnlyNamesAndTheDate(t *testing.T) {
 	if strings.Join(seen.Players, ",") != "Alma,Bo" {
 		t.Errorf("players = %v, want the names and nothing else", seen.Players)
 	}
+	if seen.Context != "" || seen.ContextDate != "" {
+		t.Errorf("context = %q/%q on a question that replies to nothing", seen.Context, seen.ContextDate)
+	}
 	// The Prompt type is the contract: a new field here is a new thing the
-	// model is told, and this test is where that is decided.
-	_ = Prompt{Question: "", Asker: "", Players: nil, Today: seen.Today}
+	// model is told, and this test is where that is decided. Context is the
+	// bot's own post when the question replies to one — words this app
+	// wrote — and ContextDate the day that post is about.
+	_ = Prompt{Question: "", Asker: "", Players: nil, Today: seen.Today, Context: "", ContextDate: ""}
+}
+
+// A question asked as a reply to one of the bot's posts brings that post
+// along, and the day the post is about is worked out here rather than left
+// to the model.
+func TestAReplyToABotPostGivesTheModelThatPost(t *testing.T) {
+	db := replyDB(t)
+	var seen Prompt
+	capture := interpreterFunc(func(_ context.Context, p Prompt) (Request, error) {
+		seen = p
+		return Request{Kind: KindUnknown}, nil
+	})
+	answer, _ := newAnswerer(t, db, capture)
+
+	post := "Wordle 1891 — everyone's in.\nAlma took it in 3.\n📊 September: Alma leads on 3.00 on average, 12 points clear of Bo."
+	if err := answer(context.Background(), senderUUID, "what did Bo get?", post); err != nil {
+		t.Fatalf("answer: %v", err)
+	}
+	if seen.Context != post {
+		t.Errorf("context = %q, want the post", seen.Context)
+	}
+	day, _ := wordle.DateForPuzzle(1891)
+	if seen.ContextDate != day.Format(DateLayout) {
+		t.Errorf("context date = %q, want the day of puzzle 1891, %s", seen.ContextDate, day.Format(DateLayout))
+	}
+	system := systemPrompt(seen)
+	if !strings.Contains(system, post) || !strings.Contains(system, seen.ContextDate) {
+		t.Errorf("the system prompt lacks the post or its date:\n%s", system)
+	}
 }
 
 type interpreterFunc func(context.Context, Prompt) (Request, error)

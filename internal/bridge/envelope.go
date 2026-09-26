@@ -94,6 +94,17 @@ type dataMessage struct {
 	Mentions []struct {
 		Number string `json:"number"`
 	} `json:"mentions"`
+
+	// Quote is the message this one replies to, when it is a reply. Read
+	// for one purpose: a question asked under one of the bot's own posts
+	// carries that post along, so "what does this mean?" has a this. The
+	// author is compared against the bridge's account and never kept, and
+	// anybody else's quoted words are dropped unread.
+	Quote *struct {
+		Author       string `json:"author"`
+		AuthorNumber string `json:"authorNumber"`
+		Text         string `json:"text"`
+	} `json:"quote"`
 }
 
 // MentionPlaceholder is the character Signal puts in a message body where a
@@ -120,6 +131,9 @@ type Message struct {
 	// Never set on the account's own sent messages, so the bot cannot be
 	// made to answer itself.
 	MentionsBot bool
+	// Quoted is the text of the bot's own post this message replies to,
+	// empty when it is not a reply or replies to somebody else.
+	Quoted string
 }
 
 // message extracts what the bridge acts on, reporting whether the frame
@@ -132,11 +146,15 @@ type Message struct {
 func (e envelope) message(account string, logger *slog.Logger) (Message, bool) {
 	body := e.Envelope.DataMessage
 	mentionsBot := false
+	quoted := ""
 	if body != nil {
 		for _, m := range body.Mentions {
 			if m.Number != "" && m.Number == account {
 				mentionsBot = true
 			}
+		}
+		if q := body.Quote; q != nil && account != "" && (q.AuthorNumber == account || q.Author == account) {
+			quoted = q.Text
 		}
 	}
 	if body == nil && e.Envelope.SyncMessage != nil {
@@ -170,6 +188,7 @@ func (e envelope) message(account string, logger *slog.Logger) (Message, bool) {
 		Body:        body.Message,
 		PostedAt:    e.postedAt(),
 		MentionsBot: mentionsBot,
+		Quoted:      quoted,
 	}, true
 }
 
