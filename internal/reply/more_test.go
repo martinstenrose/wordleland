@@ -102,7 +102,7 @@ func TestCounts(t *testing.T) {
 			want: "Alma: 15 3s out of 15 games (100%)."},
 		{name: "how often does Bo fail", req: Request{Kind: KindCount, Player: "Bo", Guesses: 7},
 			want: "Bo: 1 X's out of 15 games (7%)."},
-		{name: "any 1s", req: Request{Kind: KindCount, Guesses: 1}, asker: &alma,
+		{name: "any 1s", req: Request{Kind: KindCount, Guesses: 1, Player: "Alma"}, asker: &alma,
 			want: "Alma: no 1s in 15 games."},
 		{name: "the whole distribution", req: Request{Kind: KindCount, Player: "Bo"},
 			want: "Bo over 15 games: 0×1, 0×2, 0×3, 14×4, 0×5, 0×6, 1×X."},
@@ -155,7 +155,7 @@ func TestPostingHabits(t *testing.T) {
 	if got != "Opens the day most often: Alma, 15 of the last 15 days.\nCloses it most often: Bo, 15." {
 		t.Errorf("who: %q", got)
 	}
-	got = answer(translator(t, "sv"), Request{Kind: KindHabits}, &bo, players, results, now)
+	got = answer(translator(t, "sv"), Request{Kind: KindHabits, Player: "Bo"}, &bo, players, results, now)
 	if got != "Bo brukar posta runt 21:05 — öppnade dagen 0 gånger och stängde den 15 gånger de senaste 15 dagarna." {
 		t.Errorf("bo, sv: %q", got)
 	}

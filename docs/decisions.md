@@ -1580,6 +1580,18 @@ never count as mentioning it, so an answer cannot be read as a question and
 answered again. A message that parses as a result is a result, whatever it
 mentions: a score is never traded for a reply.
 
+**Answers run beside the worker, one at a time.** The bridge files results
+on one worker, and an answer takes the model seconds — up to a minute and
+a half at the timeout. A score posted while the bot is thinking must not
+wait for it: scores are what the bridge is for. So a question is handed to
+its own goroutine, and the worker moves on. Answers still go one at a
+time, since a CPU has one model's worth of attention, and at most three
+questions are in hand — one being answered, two waiting. A fourth is
+dropped with a log line rather than answered a minute later to a
+conversation that has moved on; three at once is a group testing the bot,
+not asking it. Shutdown waits for an answer in progress the way it waits
+for queued results, on the same deadline.
+
 **The bot shows it is reading.** An answer takes seconds on a CPU, and a
 chat with no sign of life for seconds reads as a bot that did not hear —
 people re-ask, and then get two answers. So a question gets a 👀 the

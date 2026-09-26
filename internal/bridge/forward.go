@@ -16,6 +16,7 @@ import (
 	"log/slog"
 	"math/rand"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/martinstenrose/wordleland/internal/ingest"
@@ -144,6 +145,14 @@ type filer struct {
 	// without waiting ten seconds.
 	typingRefresh time.Duration
 
+	// Questions are answered beside the worker, not on it: see ask.
+	// asking holds a ticket per question being answered or waiting to be;
+	// answering lets one through at a time; answers is what shutdown and
+	// tests wait on.
+	asking    chan struct{}
+	answering sync.Mutex
+	answers   sync.WaitGroup
+
 	// now is swapped in tests so the back-dating window can be exercised
 	// without waiting for the calendar.
 	now func() time.Time
@@ -160,10 +169,46 @@ func newFiler(groupID string, deliver Deliverer, announce Announcer, respond Res
 		groupID: groupID, deliver: deliver, announce: announce, respond: respond,
 		logger: logger, health: h,
 		typingRefresh: typingRefresh,
+		asking:        make(chan struct{}, maxQuestionsInHand),
 		now:           time.Now,
 		sleep:         sleepContext,
 	}
 }
+
+// maxQuestionsInHand is how many questions can be being answered or waiting
+// for their turn at once: one with the model and two behind it. More than
+// that is a group testing the bot, not asking it, and by the time the
+// fourth was answered the conversation would have moved on.
+const maxQuestionsInHand = 3
+
+// ask answers a question beside the worker rather than on it. The model
+// takes seconds and a result posted meanwhile must not wait for it: scores
+// are what the bridge is for, and chat is what it also does. Answers still
+// go one at a time — a CPU has one model's worth of attention — and a
+// question that finds the line full is dropped with a log line rather than
+// answered a minute late.
+func (f *filer) ask(ctx context.Context, m Message) {
+	select {
+	case f.asking <- struct{}{}:
+	default:
+		f.logger.Info("dropping a question; too many are waiting on the model",
+			"in_hand", maxQuestionsInHand)
+		return
+	}
+	f.answers.Add(1)
+	go func() {
+		defer f.answers.Done()
+		defer func() { <-f.asking }()
+		f.answering.Lock()
+		defer f.answering.Unlock()
+		f.maybeRespond(ctx, m)
+	}()
+}
+
+// wait blocks until every question in hand has been answered or given up
+// on. Shutdown waits so an answer already being typed is not cut off
+// mid-sentence; tests wait so they can see what was answered.
+func (f *filer) wait() { f.answers.Wait() }
 
 // handle processes one message. It returns nothing: every outcome is either
 // normal or already logged, and there is no caller who could do better.
@@ -188,7 +233,7 @@ func (f *filer) handle(ctx context.Context, m Message) {
 		// mention the bot is still a score, and a score is never lost to a
 		// reply. Only what did not parse can be a question.
 		if m.MentionsBot && f.respond != nil {
-			f.maybeRespond(ctx, m)
+			f.ask(ctx, m)
 			return
 		}
 		// Most traffic in the group is ordinary conversation. The body
@@ -282,9 +327,12 @@ func (f *filer) showPresence(ctx context.Context, m Message) func() {
 		return func() {}
 	}
 	done := make(chan struct{})
-	finished := make(chan struct{})
+	// Counted with the answers so shutdown and tests wait for it, but not
+	// joined by stop(): a slow signal-cli must not keep the answering lock
+	// held after the answer is out.
+	f.answers.Add(1)
 	go func() {
-		defer close(finished)
+		defer f.answers.Done()
 		if err := f.presence.Seen(ctx, m); err != nil {
 			f.logger.Debug("could not react to a question", "error", err)
 		}
@@ -311,10 +359,7 @@ func (f *filer) showPresence(ctx context.Context, m Message) func() {
 			}
 		}
 	}()
-	return func() {
-		close(done)
-		<-finished
-	}
+	return func() { close(done) }
 }
 
 // withinWindow reports whether a puzzle is close enough to today's to be a

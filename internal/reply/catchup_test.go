@@ -23,7 +23,7 @@ func TestCatchupForAChaser(t *testing.T) {
 	}
 
 	// "Can I still win?" from the chaser.
-	got = answer(translator(t, "sv"), Request{Kind: KindCatchup}, &bo, players, results, now)
+	got = answer(translator(t, "sv"), Request{Kind: KindCatchup, Player: "Bo"}, &bo, players, results, now)
 	want = "September: Bo ligger 120 punkter efter Alma med 15 dagar kvar. Att gå om kräver ett snitt på 1,80 över de dagarna — nästan perfekta rundor, men inte omöjligt."
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
@@ -66,7 +66,7 @@ func TestCatchupFromTheLeader(t *testing.T) {
 	players, results := fixture(t)
 	now := fixtureNow()
 
-	got := answer(translator(t, "en"), Request{Kind: KindCatchup}, &alma, players, results, now)
+	got := answer(translator(t, "en"), Request{Kind: KindCatchup, Player: "Alma"}, &alma, players, results, now)
 	want := "Alma leads September by 120 points with 15 days left. Bo would need to average 1.80 or better to pass, if Alma keeps averaging 3.00."
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)

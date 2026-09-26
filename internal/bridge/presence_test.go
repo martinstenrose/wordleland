@@ -150,6 +150,7 @@ func TestAQuestionIsSeenAndTypedAtUntilAnswered(t *testing.T) {
 	q := question("who leads?")
 	q.ID = 42
 	f.handle(context.Background(), q)
+	f.wait()
 
 	if got := p.sequence(); strings.Join(got, ",") != "seen,typing,stopped" {
 		t.Errorf("sequence = %v, want seen, typing, stopped", got)
@@ -175,6 +176,7 @@ func TestTypingIsRefreshedWhileTheAnswerTakesLong(t *testing.T) {
 	}
 
 	f.handle(context.Background(), question("who leads?"))
+	f.wait()
 
 	typing := 0
 	for _, s := range p.sequence() {
@@ -198,6 +200,7 @@ func TestPresenceFailureDoesNotCostTheAnswer(t *testing.T) {
 	}
 
 	f.handle(context.Background(), question("who leads?"))
+	f.wait()
 
 	if !answered {
 		t.Error("the question was not answered")
@@ -215,6 +218,7 @@ func TestNilPresenceShowsNothing(t *testing.T) {
 		return nil
 	}
 	f.handle(context.Background(), question("who leads?"))
+	f.wait()
 	if !answered {
 		t.Error("the question was not answered")
 	}

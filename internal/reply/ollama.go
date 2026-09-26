@@ -226,6 +226,10 @@ func (o *Ollama) Interpret(ctx context.Context, p Prompt) (Request, error) {
 	return parseRequest(chat.Message.Content)
 }
 
+// maxSpanDays is the longest "last N days" that is still a span rather
+// than all time. A year; beyond it the board's own table is the answer.
+const maxSpanDays = 366
+
 // parseRequest reads what the model wrote, and treats anything outside the
 // known values as a question it did not understand rather than an error:
 // the group gets the help line, and nothing is logged as broken.
@@ -267,6 +271,11 @@ func parseRequest(content string) (Request, error) {
 	case SpanDays:
 		if r.Days <= 0 {
 			r.Span = SpanMonth
+		}
+		if r.Days > maxSpanDays {
+			// "The last billion days" is all time, and scoring it day by
+			// day would be work the answer's deadline cannot interrupt.
+			r.Span, r.Days = SpanAll, 0
 		}
 	case SpanAll:
 	default:

@@ -62,7 +62,10 @@ func catchup(t i18n.Translator, req Request, asker *store.Player,
 	leaders := joinNames(t, names(m.Winners))
 	leaderAvg := t.Decimal(race.leader, 2)
 
-	if req.Player != "" || asker != nil {
+	// A player named — the asker's own name when they ask about themselves,
+	// which is how the model reports "can I still win". Nobody named is
+	// the whole field, whoever is asking: "can anyone still catch up?"
+	if req.Player != "" {
 		p, ok, text := whom(t, req, asker, players)
 		if !ok {
 			return text

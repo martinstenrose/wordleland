@@ -161,6 +161,12 @@ type Prompt struct {
 // with "Wordle <number>", written by i18n.Identifier without grouping.
 var puzzleInPost = regexp.MustCompile(`Wordle (\d{3,5})\b`)
 
+// mentionPlaceholder is the character Signal puts in a message body where
+// a mention sits: the object replacement character, U+FFFC. The same value
+// the bridge names; repeated here rather than imported so this package
+// stays as free of the bridge as internal/announce is.
+const mentionPlaceholder = "￼"
+
 // Interpreter turns a question into a Request. The one implementation
 // talks to a language model; tests use a canned one.
 type Interpreter interface {
@@ -181,12 +187,27 @@ var ErrNotReady = errors.New("the language model is not ready yet")
 // question: what was asked is the group's conversation, and the log carries
 // only the request it became.
 func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
-	send func(ctx context.Context, text string) error, logger *slog.Logger) func(context.Context, string, string, string) error {
+	send func(ctx context.Context, text string) error, logger *slog.Logger) func(context.Context, string, string, string, []string) error {
 
 	t := i18n.NewTranslator(cats, locale)
 
-	return func(ctx context.Context, senderUUID, question, quoted string) error {
-		question = strings.TrimSpace(question)
+	return func(ctx context.Context, senderUUID, question, quoted string, mentioned []string) error {
+		// Each mention is a placeholder in the text standing for an
+		// account. The bot's own becomes nothing — it is the address, not
+		// the question — and anybody else's becomes their player name, so
+		// "how is @Bo doing?" reaches the model as "how is Bo doing?". An
+		// account that is nobody's player, or a placeholder the mentions
+		// did not account for, becomes nothing too.
+		for _, uuid := range mentioned {
+			name := ""
+			if uuid != "" {
+				if p, _, err := store.ResolveIdentity(ctx, db, "signal", uuid); err == nil {
+					name = p.Name
+				}
+			}
+			question = strings.Replace(question, mentionPlaceholder, name, 1)
+		}
+		question = strings.TrimSpace(strings.ReplaceAll(question, mentionPlaceholder, ""))
 		if question == "" {
 			// A bare mention. Saying what can be asked is the answer.
 			return send(ctx, t.T("reply.help"))

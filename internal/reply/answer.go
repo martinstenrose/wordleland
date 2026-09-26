@@ -218,8 +218,10 @@ func boardAsStanding(b stats.Board) stats.Month {
 func leader(t i18n.Translator, req Request, players []store.Player,
 	results []store.BoardResult, now time.Time) string {
 
-	label, m := standingOver(t, req, players, results, now)
-	label = capitalized(label)
+	span, m := standingOver(t, req, players, results, now)
+	// Capitalised where it opens the sentence; the closed month's line
+	// has it mid-sentence, where "juli" stays lowercase in Swedish.
+	label := capitalized(span)
 	if req.Worst {
 		return last(t, label, m)
 	}
@@ -235,7 +237,7 @@ func leader(t i18n.Translator, req Request, players []store.Player,
 		case len(m.Winners) > 1:
 			return "🏆 " + leaders + ": " + t.T("announce.line.tie", avg)
 		case m.Margin != nil:
-			return "🏆 " + t.T("announce.line.margin", leaders, label, avg, t.Decimal(*m.Margin, 2), m.Days)
+			return "🏆 " + t.T("announce.line.margin", leaders, span, avg, t.Decimal(*m.Margin, 2), m.Days)
 		default:
 			return "🏆 " + t.T("announce.line.alone", leaders, avg, m.Days)
 		}
@@ -411,19 +413,27 @@ func whom(t i18n.Translator, req Request, asker *store.Player, players []store.P
 
 // findPlayer is forgiving about case and about a first name standing in
 // for a full one, because the model copies what it was given but the
-// group does not always say it that way.
+// group does not always say it that way. Forgiving, not guessing: a name
+// that fits more than one player is nobody, and the answer asks.
 func findPlayer(name string, players []store.Player) (store.Player, bool) {
 	want := strings.ToLower(strings.TrimSpace(name))
+	if want == "" {
+		return store.Player{}, false
+	}
 	for _, p := range players {
 		if strings.ToLower(p.Name) == want {
 			return p, true
 		}
 	}
+	var matches []store.Player
 	for _, p := range players {
 		first, _, _ := strings.Cut(strings.ToLower(p.Name), " ")
 		if first == want || strings.HasPrefix(strings.ToLower(p.Name), want) {
-			return p, true
+			matches = append(matches, p)
 		}
+	}
+	if len(matches) == 1 {
+		return matches[0], true
 	}
 	return store.Player{}, false
 }

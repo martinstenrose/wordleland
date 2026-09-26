@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"log/slog"
+	"sort"
 	"strings"
 	"time"
 )
@@ -88,11 +89,15 @@ type dataMessage struct {
 	// sits, and this list says which account it stands for, so renaming
 	// the bot's profile changes nothing about whether it was addressed.
 	//
-	// Only the number is read, and only to compare against the bridge's
-	// own account: whether somebody else was mentioned is none of the
-	// bridge's business, and the value never leaves message().
+	// The number is read only to compare against the bridge's own account
+	// and never leaves message(). The UUID is what a mention of anybody
+	// else becomes — the same account id every result is keyed by — so the
+	// question "how is @Bo doing?" can name Bo once the placeholder is put
+	// back as a name; see Message.Mentions.
 	Mentions []struct {
 		Number string `json:"number"`
+		UUID   string `json:"uuid"`
+		Start  int    `json:"start"`
 	} `json:"mentions"`
 
 	// Quote is the message this one replies to, when it is a reply. Read
@@ -137,6 +142,11 @@ type Message struct {
 	// Quoted is the text of the bot's own post this message replies to,
 	// empty when it is not a reply or replies to somebody else.
 	Quoted string
+	// Mentions is every mention in the body, in the order their
+	// placeholders appear: the account UUID of who was tapped in, or ""
+	// for the bot itself. Whoever reads the body puts a name — or nothing
+	// — where each placeholder sits.
+	Mentions []string
 }
 
 // message extracts what the bridge acts on, reporting whether the frame
@@ -150,11 +160,17 @@ func (e envelope) message(account string, logger *slog.Logger) (Message, bool) {
 	body := e.Envelope.DataMessage
 	mentionsBot := false
 	quoted := ""
+	var mentions []string
 	if body != nil {
-		for _, m := range body.Mentions {
+		sorted := append(body.Mentions[:0:0], body.Mentions...)
+		sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].Start < sorted[j].Start })
+		for _, m := range sorted {
 			if m.Number != "" && m.Number == account {
 				mentionsBot = true
+				mentions = append(mentions, "")
+				continue
 			}
+			mentions = append(mentions, m.UUID)
 		}
 		if q := body.Quote; q != nil && account != "" && (q.AuthorNumber == account || q.Author == account) {
 			quoted = q.Text
@@ -193,6 +209,7 @@ func (e envelope) message(account string, logger *slog.Logger) (Message, bool) {
 		ID:          e.Envelope.Timestamp,
 		MentionsBot: mentionsBot,
 		Quoted:      quoted,
+		Mentions:    mentions,
 	}, true
 }
 

@@ -25,8 +25,9 @@ func count(t i18n.Translator, req Request, asker *store.Player,
 	board := stats.Compute(players, results, stats.DefaultOptions(now))
 	all := append(append([]stats.Player(nil), board.Ranked...), board.Unranked...)
 
-	if req.Player == "" && asker == nil && req.Guesses > 0 {
-		// Nobody in particular: who has the most of them.
+	if req.Player == "" && req.Guesses > 0 {
+		// Nobody in particular, whoever is asking: who has the most of
+		// them. "How many 2s do I have" names the asker, by the prompt.
 		term := t.T("reply.guess." + strconv.Itoa(req.Guesses))
 		best := 0
 		for _, p := range all {
