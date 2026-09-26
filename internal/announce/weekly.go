@@ -52,14 +52,14 @@ func NewWeekly(db *sql.DB, cats i18n.Catalogues, locale string, dailyGoesFirst b
 		if err != nil || !due {
 			return err
 		}
-		w, err := newWeekContext(players, results, first)
-		if err != nil {
-			return err
-		}
-		if len(w.week.Ranked)+len(w.week.Thin) < weekMinPlayers {
+		if !weekContested(players, results, first) {
 			// Not recorded, for the reason a silent month is not: a late
 			// result for the week can still make it worth posting.
 			return nil
+		}
+		w, err := newWeekContext(players, results, first)
+		if err != nil {
+			return err
 		}
 
 		if err := send(ctx, weeklyPost(t, w)); err != nil {
@@ -136,6 +136,23 @@ func weeklyDue(ctx context.Context, db *sql.DB, players []store.Player,
 		}
 	}
 	return first, true, nil
+}
+
+// weekContested reports whether enough players played the week starting at
+// first for it to be posted at all. The month asks too: it waits for a
+// week that will be posted, and not for one that will not.
+func weekContested(players []store.Player, results []store.BoardResult, first int) bool {
+	known := make(map[int64]bool, len(players))
+	for _, p := range players {
+		known[p.ID] = true
+	}
+	played := make(map[int64]bool)
+	for _, r := range results {
+		if known[r.PlayerID] && r.PuzzleNo >= first && r.PuzzleNo <= first+6 {
+			played[r.PlayerID] = true
+		}
+	}
+	return len(played) >= weekMinPlayers
 }
 
 // Thresholds for the week's lines. The same rule as the day's: a line

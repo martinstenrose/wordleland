@@ -1160,15 +1160,27 @@ before the larger idea it is a step toward, announcing rank changes as they
 happen. The day's recap has since taken the first of those steps: its 👑
 line, below, says when a day handed the month's lead to somebody new.
 
-**The scheduled trigger is noon on the first day of the new month.** This
-gives late closing-day posts the morning without making the announcement
-depend on every active player filing a result: somebody missing that puzzle
-must not block the group indefinitely. The schedule uses the deployment's
-local timezone, the same basis as puzzle dates.
+**A month closes the way a day does: when every active player has filed its
+last day, or at the run just after midnight.** It used to be noon on the
+first, to give late closing-day posts the morning. That protected nothing
+the day's recap did not already give up at 00:01, and it moved the month's
+reveal to the middle of a working day, when the moment it lands best is the
+evening the last result comes in and the group is in the chat. The
+standing is no secret before then anyway: the board shows it. The schedule
+uses the deployment's local timezone, the same basis as puzzle dates.
 
-**A later live result is the catch-up trigger.** If the app was offline at
-noon or the scheduled send failed, the next accepted result checks whether
-the previous month still needs announcing. Before noon that check is a no-op.
+**It goes out after the recaps of its last day**, the day's and, when the
+month ends on a Sunday, the week's — smallest first, so the group reads the
+day and the week before the month they closed. `NewMonthly` waits for each
+of those that is configured, and for the week only when it will be posted
+at all, and only until the day after the last day: from then on the day's
+recap can no longer come, and a failed send elsewhere must not hold the
+month back for good. All three share the one run just after midnight.
+
+**A later live result is the catch-up trigger**, alongside the run's check on
+start and every later midnight. If the app was offline at midnight or the
+send failed, the next accepted result checks whether the previous month
+still needs announcing.
 Ordinary conversation is not a trigger: if sending succeeded but recording
 failed, receiving the bot's own announcement must not immediately send
 another copy. Explicit Archive shares and older back-dated results are also
@@ -1176,10 +1188,9 @@ excluded, so replaying an old puzzle cannot make the bot speak.
 
 **The catch-up check only ever looks at `previousMonth(now)`, deliberately,
 not at every unannounced month back to some watermark.** The gap that leaves:
-if the scheduled send fails and the group also goes completely silent for the
-rest of that month — no live result at all to trigger the catch-up check —
-the next month's own scheduled run only examines its own previous month, and
-the missed one is never revisited. Accepted rather than fixed, because a
+if every check through the following month fails — each midnight run and
+every live result — the next month's checks only examine their own previous
+month, and the missed one is never revisited. Accepted rather than fixed, because a
 group inactive enough to fail both conditions at once is not the case this
 feature is for, and the alternative — bounding the check by the most recent
 month ever recorded as announced, so it can walk forward and post several
@@ -1315,10 +1326,8 @@ it, an app down at 00:01 and up at 08:00 schedules nothing until 00:01
 tomorrow, and the missed recap waits on somebody filing a result to be
 noticed at all. On a day nobody plays, that never happens, and the missed day
 then falls outside the one-day-back window and is lost — a restart turning a
-late recap into no recap. The month does not check on start: it is caught up
-by any live result anyway, its window is a whole month rather than a few
-hours, and noon on the first is a grace period that a 06:00 restart should
-not cut short.
+late recap into no recap. The week's and the month's checks ride on the
+same run and so check on start too.
 
 **A first run marks the day before startup as done rather than announcing
 it** — `SkipDailyBacklog`, called once before the scheduler's first check. The
@@ -1409,14 +1418,12 @@ beside a day played in the old one. The rest of the month figures are still
 computed as of the real `now`, so that recap correctly reports a month whose
 days have all concluded.
 
-**On that one recap, the standing is withheld and the line points at noon
-instead:** "September wrapped — the result at noon." Printing it would hand
-the group the month's winner, average and margin twelve hours before the 🏆
-message whose whole job is to deliver them — the same three figures, said
-twice, with the second saying being the ceremonial one. The two announcements
-do not race in any technical sense: they run at 00:01 and 12:00, hold
-separate locks, write separate tables, and run in sequence when one live
-result triggers both. What they collided over was the reveal.
+**On that one recap, the month line is left out.** The 🏆 message follows
+straight after it, and printing the standing would give the group the
+month's winner, average and margin twice in a row, the second time with a
+trophy. It used to point at the 🏆 message instead ("September wrapped — the
+result at noon."), when that came twelve hours later; with the month posted
+right behind the day, the pointer only delays what is about to arrive.
 
 The condition is **the recapped day being its month's last**, not the month
 having closed by `now`. Both ways a last day gets recapped give the result
@@ -1431,8 +1438,7 @@ is a standing, and the group is told it every day.
 which `NewDaily` takes as `monthResultFollows`. With `SIGNAL_ANNOUNCE_MONTHS`
 off and `SIGNAL_ANNOUNCE_DAYS` on — a supported combination, since the two
 switches are deliberately independent — nothing else would ever say where the
-month finished, and pointing at a noon message that never arrives is worse
-than repeating a figure.
+month finished, and leaving it out would mean nobody is ever told.
 
 **The margin names every runner-up, not one of them.** `Month.Margin` is the
 gap to the next *distinct* average, and several players can share it. Naming
@@ -1480,7 +1486,8 @@ message right after Sunday's daily one.
 
 **It closes when Sunday does.** Sunday's last active player filing ends the
 week early, the run just after midnight ends it otherwise. The week's check
-rides on the daily run rather than a timer of its own, after the day's check,
+rides on the daily run rather than a timer of its own, after the day's check
+and before the month's,
 and waits for Sunday's recap to be out when the day's recap is configured: the
 two share a trigger, and the group should read about Sunday before the week it
 closed. It stops waiting once Sunday's recap can no longer come — the day's

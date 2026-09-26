@@ -435,7 +435,6 @@
   "announce.daily.month.margin": "%s: %s lidera con %s de media, %d puntos por delante de %s.",
   "announce.daily.month.tie": "%s: %s empatan en cabeza con %s.",
   "announce.daily.month.alone": "%s: %s lidera con %s de media — nadie más ha jugado todavía.",
-  "announce.daily.month.wrapped": "%s ha terminado — el resultado a mediodía.",
   "announce.daily.bestCount": "%d de %d lo han sacado en %d.",
   "announce.daily.bestAll": "Todos lo han sacado en %d.",
   "announce.daily.ace": "%s: ¡al primer intento!",

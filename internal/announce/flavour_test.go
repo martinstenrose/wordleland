@@ -264,7 +264,7 @@ func TestNoChangeOfLeaderOnAWrappedLastDay(t *testing.T) {
 	if strings.Contains(got, "👑") {
 		t.Errorf("message = %q gives the month away on its last day", got)
 	}
-	if !strings.Contains(got, "wrapped") {
+	if strings.Contains(got, "📊") {
 		t.Errorf("message = %q, want the standing withheld", got)
 	}
 }

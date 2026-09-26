@@ -4,12 +4,16 @@
 // current time, work out whether there is anything to say and say it — and
 // each restart-safe through a row it writes only after a send succeeds:
 //
-//   - NewMonthly posts the previous calendar month's winner, at noon on the
-//     first of a month or after a later live message.
 //   - NewDaily posts the day's recap, once every active player has filed or
 //     just after midnight, whichever comes first.
 //   - NewWeekly posts the Monday-to-Sunday week's recap, right after
 //     Sunday's, by the same rule.
+//   - NewMonthly posts the month's winner, right after the recaps of its
+//     last day, by the same rule again.
+//
+// All three close the same way, and when they close together — a month
+// ending on a Sunday — they go out smallest first: the day, the week, the
+// month.
 //
 // It sits above internal/store, internal/stats and internal/i18n — none of
 // which the bridge package itself depends on — so bridge stays able to
@@ -30,10 +34,11 @@ import (
 	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/stats"
 	"github.com/martinstenrose/wordleland/internal/store"
+	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
 // NewMonthly returns the month's closure, called after every live message
-// and by RunMonthly.
+// and by the run just after midnight.
 //
 // It reports what happened by returning nil for "nothing to do" — already
 // announced, or nobody posted a scorable result that month — and a non-nil
@@ -41,34 +46,25 @@ import (
 // The caller (the bridge) logs an error and tries again on the next live
 // message; it never treats "nothing to do" as one.
 //
+// dailyGoesFirst and weeklyGoesFirst say which other announcements are
+// configured. The month waits for the recaps of its last day that are, so
+// the group reads the day and the week before the month they closed.
+//
 // send is a bridge.Sender by value, not by import: this package has no
 // need to know the bridge exists, only that something can post text to the
 // group, which keeps the dependency running one way.
-func NewMonthly(db *sql.DB, cats i18n.Catalogues, locale string,
+func NewMonthly(db *sql.DB, cats i18n.Catalogues, locale string, dailyGoesFirst, weeklyGoesFirst bool,
 	send func(ctx context.Context, text string) error) func(context.Context, time.Time) error {
 
 	t := i18n.NewTranslator(cats, locale)
-	// The noon scheduler and a live result can arrive together. Serialize the
+	// The midnight run and a live result can arrive together. Serialize the
 	// whole check/send/record sequence so both cannot observe a missing record
 	// and post the same announcement.
 	var mu sync.Mutex
 
 	return func(ctx context.Context, now time.Time) error {
-		if !announcementDue(now) {
-			return nil
-		}
 		mu.Lock()
 		defer mu.Unlock()
-
-		year, month := previousMonth(now)
-
-		done, err := store.MonthAnnounced(ctx, db, year, month)
-		if err != nil {
-			return fmt.Errorf("check whether %d-%d was announced: %w", year, month, err)
-		}
-		if done {
-			return nil
-		}
 
 		players, err := store.ListPlayers(ctx, db)
 		if err != nil {
@@ -79,7 +75,15 @@ func NewMonthly(db *sql.DB, cats i18n.Catalogues, locale string,
 			return fmt.Errorf("read results: %w", err)
 		}
 
-		months := stats.ComputeMonths(players, results, stats.DefaultOptions(now))
+		year, month, due, err := monthlyDue(ctx, db, players, results, now, dailyGoesFirst, weeklyGoesFirst)
+		if err != nil || !due {
+			return err
+		}
+
+		// Scored as of the month's end even when posted on its last evening:
+		// it is only posted early once every active player is in.
+		end := time.Date(year, month+1, 1, 0, 0, 0, 0, now.Location())
+		months := stats.ComputeMonths(players, results, stats.DefaultOptions(end))
 		m, found := monthByKey(months, year, month)
 		if !found {
 			// Nobody posted anything at all that month — the group was
@@ -117,16 +121,62 @@ func NewMonthly(db *sql.DB, cats i18n.Catalogues, locale string,
 	}
 }
 
-// announcementDue keeps the whole morning of the first clear for late
-// closing-day results. On later days it remains true so a live result can
-// catch up a noon run missed while the app was offline.
-func announcementDue(now time.Time) bool {
-	noon := time.Date(now.Year(), now.Month(), 1, 12, 0, 0, 0, now.Location())
-	return !now.Before(noon)
+// monthlyDue picks the month this run should announce, if any: the current
+// month on its last day once every active player has played it, and
+// otherwise the month before now's.
+//
+// The month before stays due for the whole of the current month, so a live
+// result catches up a midnight the app was down for however late it comes —
+// a month's result is not stale on the 10th the way a day's is.
+//
+// The waits for the last day's recaps last only while those can still come,
+// which is until the day after it: from then on dailyDue no longer looks
+// back far enough to post the day, and the week stops waiting for the day.
+func monthlyDue(ctx context.Context, db *sql.DB, players []store.Player, results []store.BoardResult,
+	now time.Time, dailyGoesFirst, weeklyGoesFirst bool) (int, time.Month, bool, error) {
+
+	current := wordle.PuzzleForDate(now)
+	year, month := previousMonth(now)
+	if lastDayOfMonth(now) && fullHouse(players, results, current) {
+		year, month = now.Year(), now.Month()
+	} else if lastDayOfMonth(now) {
+		return 0, 0, false, nil
+	}
+
+	done, err := store.MonthAnnounced(ctx, db, year, month)
+	if err != nil {
+		return 0, 0, false, fmt.Errorf("check whether %d-%d was announced: %w", year, month, err)
+	}
+	if done {
+		return 0, 0, false, nil
+	}
+
+	last := wordle.PuzzleForDate(time.Date(year, month+1, 0, 0, 0, 0, 0, now.Location()))
+	if current > last+1 {
+		return year, month, true, nil
+	}
+	if dailyGoesFirst && len(stats.ComputeToday(players, results, last).Filed) > 0 {
+		posted, err := store.DayAnnounced(ctx, db, last)
+		if err != nil {
+			return 0, 0, false, fmt.Errorf("check whether puzzle %d was announced: %w", last, err)
+		}
+		if !posted {
+			return 0, 0, false, nil
+		}
+	}
+	if first := stats.WeekOf(last); weeklyGoesFirst && first+6 == last && weekContested(players, results, first) {
+		posted, err := store.WeekAnnounced(ctx, db, first)
+		if err != nil {
+			return 0, 0, false, fmt.Errorf("check whether the week from puzzle %d was announced: %w", first, err)
+		}
+		if !posted {
+			return 0, 0, false, nil
+		}
+	}
+	return year, month, true, nil
 }
 
-// previousMonth is the month just before now's. announcementDue guarantees
-// that this is not selected until noon on the first day of the new month.
+// previousMonth is the month just before now's.
 func previousMonth(now time.Time) (int, time.Month) {
 	year, month := now.Year(), now.Month()
 	if month == time.January {

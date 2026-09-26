@@ -435,7 +435,6 @@
   "announce.daily.month.margin": "%s: %s führt im Schnitt mit %s, %d Punkten vor %s.",
   "announce.daily.month.tie": "%s: %s liegen mit %s gleichauf an der Spitze.",
   "announce.daily.month.alone": "%s: %s führt im Schnitt mit %s — bisher hat sonst niemand gespielt.",
-  "announce.daily.month.wrapped": "%s ist vorbei — das Ergebnis um zwölf.",
   "announce.daily.bestCount": "%d von %d haben es in %d geschafft.",
   "announce.daily.bestAll": "Alle haben es in %d geschafft.",
   "announce.daily.ace": "%s: beim ersten Versuch!",
