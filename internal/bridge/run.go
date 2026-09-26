@@ -59,10 +59,21 @@ func New(cfg config.Bridge, deliver Deliverer, announce Announcer, respond Respo
 		return nil, fmt.Errorf("signal source: %w", err)
 	}
 	h.describe(cfg.SignalAccount, cfg.SignalGroupID)
+	f := newFiler(cfg.SignalGroupID, deliver, announce, respond, logger, h)
+	if respond != nil {
+		// Only with replies: the reaction and the typing indicator are
+		// the signs of a question being read, and there is no question
+		// without an answer coming.
+		client, err := NewClient(cfg.SignalAPIURL, cfg.SignalAccount, cfg.SignalGroupID)
+		if err != nil {
+			return nil, fmt.Errorf("signal client: %w", err)
+		}
+		f.presence = client
+	}
 	return &Bridge{
 		health:   h,
 		source:   source,
-		filer:    newFiler(cfg.SignalGroupID, deliver, announce, respond, logger, h),
+		filer:    f,
 		verifier: newVerifier(cfg.SignalAPIURL, cfg.SignalAccount, cfg.SignalGroupID),
 		logger:   logger,
 	}, nil

@@ -1580,6 +1580,15 @@ never count as mentioning it, so an answer cannot be read as a question and
 answered again. A message that parses as a result is a result, whatever it
 mentions: a score is never traded for a reply.
 
+**The bot shows it is reading.** An answer takes seconds on a CPU, and a
+chat with no sign of life for seconds reads as a bot that did not hear —
+people re-ask, and then get two answers. So a question gets a 👀 the
+moment it is read, and the typing indicator until the answer is out; the
+indicator is started again every ten seconds because Signal's clients drop
+it after about fifteen. Both run beside the answer, never before it, and
+neither can fail it: a slow or refusing signal-cli costs the sign, not the
+reply. Only with replies on — there is no reading without an answer coming.
+
 **A question is answered once or not at all.** The announcements retry on
 the next live message because a month's result is owed; a question is not.
 An answer that arrives after the conversation has moved on reads as the bot
