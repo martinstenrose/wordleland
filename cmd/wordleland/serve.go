@@ -187,7 +187,7 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 	}
 
 	var supervisor *bridge.Supervisor
-	var monthly, daily func(context.Context, time.Time) error
+	var monthly, daily, weekly func(context.Context, time.Time) error
 	var announcer bridge.Announcer
 	if bridgeCfg != nil {
 		// Delivery is a direct call now. The bridge writes as the
@@ -200,7 +200,7 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 		// Nil when announcing is off: the bridge treats a nil Announcer as
 		// "never call this", so turning the feature off costs nothing at
 		// every message instead of a check here plus a check there.
-		if bridgeCfg.AnnounceMonths || bridgeCfg.AnnounceDays {
+		if bridgeCfg.AnnounceMonths || bridgeCfg.AnnounceDays || bridgeCfg.AnnounceWeeks {
 			cats, err := i18n.Load()
 			if err != nil {
 				return err
@@ -223,21 +223,21 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 				daily = announce.NewDaily(db, cats, bridgeCfg.AnnounceLocale,
 					bridgeCfg.AnnounceMonths, send)
 			}
-			// One Announcer, both checks. Each reports "nothing to do" as a
-			// nil error, so running both after every message is how either
-			// catches up a scheduled run the app was down for. Joined rather
-			// than short-circuited: a failing month check must not cost the
-			// day its recap.
-			announcer = func(ctx context.Context, now time.Time) error {
-				var errs []error
-				if monthly != nil {
-					errs = append(errs, monthly(ctx, now))
+			if bridgeCfg.AnnounceWeeks {
+				// The same first-run rule as the day's, for the week.
+				if err := announce.SkipWeeklyBacklog(ctx, db, time.Now()); err != nil {
+					return err
 				}
-				if daily != nil {
-					errs = append(errs, daily(ctx, now))
-				}
-				return errors.Join(errs...)
+				weekly = announce.NewWeekly(db, cats, bridgeCfg.AnnounceLocale,
+					bridgeCfg.AnnounceDays, send)
 			}
+			// One Announcer, every check. Each reports "nothing to do" as a
+			// nil error, so running them all after every message is how any
+			// of them catches up a scheduled run the app was down for.
+			// Joined rather than short-circuited: a failing month check must
+			// not cost the day its recap. The week runs after the day, which
+			// is what lets Sunday's last result post both, in that order.
+			announcer = joinChecks(monthly, daily, weekly)
 		}
 
 		b, err := bridge.New(*bridgeCfg, deliver, announcer, logger)
@@ -286,13 +286,17 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 			}()
 			logger.Info("monthly announcement scheduler started", "at", "12:00 on day 1")
 		}
-		if daily != nil {
+		// The day and the week share the run just after midnight, the day
+		// first: Monday's 00:01 is when both close, and the week waits for
+		// Sunday's recap.
+		if daily != nil || weekly != nil {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				announce.RunDaily(ctx, daily, logger)
+				announce.RunDaily(ctx, joinChecks(daily, weekly), logger)
 			}()
 			logger.Info("daily recap scheduler started", "at", "00:01",
+				"day", daily != nil, "week", weekly != nil,
 				"early", "posted as soon as every active player has filed",
 				"on_start", "checks once now, to catch up a midnight missed while down")
 		}
@@ -362,4 +366,18 @@ func bootstrapAdmin(ctx context.Context, db *sql.DB, cfg *config.Config, logger 
 			"next", "sign in; two-factor enrolment is required before anything else")
 	}
 	return nil
+}
+
+// joinChecks runs every non-nil check in order and reports every failure,
+// so one announcement going wrong does not stop the next from running.
+func joinChecks(checks ...func(context.Context, time.Time) error) func(context.Context, time.Time) error {
+	return func(ctx context.Context, now time.Time) error {
+		var errs []error
+		for _, check := range checks {
+			if check != nil {
+				errs = append(errs, check(ctx, now))
+			}
+		}
+		return errors.Join(errs...)
+	}
 }

@@ -48,8 +48,8 @@ type Bridge struct {
 // New builds a bridge. It does not connect: that happens in Run.
 //
 // announce may be nil, meaning the bridge receives without ever posting
-// back — unconfigured, or turned off with SIGNAL_ANNOUNCE_MONTHS and
-// SIGNAL_ANNOUNCE_DAYS.
+// back — unconfigured, or turned off with SIGNAL_ANNOUNCE_MONTHS,
+// SIGNAL_ANNOUNCE_DAYS and SIGNAL_ANNOUNCE_WEEKS.
 func New(cfg config.Bridge, deliver Deliverer, announce Announcer, logger *slog.Logger) (*Bridge, error) {
 	h := newHealth(time.Now)
 	source, err := newWebsocketSource(cfg.SignalAPIURL, cfg.SignalAccount, logger, h)

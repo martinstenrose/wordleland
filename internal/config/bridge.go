@@ -52,6 +52,11 @@ type Bridge struct {
 	// say so without also naming the other.
 	AnnounceDays bool
 
+	// AnnounceWeeks posts the week's recap when every active player has
+	// filed Sunday's puzzle, or just after midnight if they have not. Its
+	// own variable for the reason AnnounceDays is one.
+	AnnounceWeeks bool
+
 	// AnnounceLocale is the language the announcements are written in.
 	//
 	// A signed-in reader has their own locale, stored on their account; the
@@ -88,6 +93,7 @@ func LoadBridge() (*Bridge, error) {
 		SignalGroupID:  strings.TrimSpace(os.Getenv("SIGNAL_GROUP_ID")),
 		AnnounceMonths: true,
 		AnnounceDays:   true,
+		AnnounceWeeks:  true,
 		AnnounceLocale: envOr("SIGNAL_LOCALE", i18n.Default),
 	}
 
@@ -131,6 +137,11 @@ func LoadBridge() (*Bridge, error) {
 		problems = append(problems, problem)
 	} else {
 		cfg.AnnounceDays = value
+	}
+	if value, problem := envBool("SIGNAL_ANNOUNCE_WEEKS", cfg.AnnounceWeeks); problem != "" {
+		problems = append(problems, problem)
+	} else {
+		cfg.AnnounceWeeks = value
 	}
 
 	switch {
