@@ -93,7 +93,7 @@ func replyDB(t *testing.T) *sql.DB {
 	return db
 }
 
-func newAnswerer(t *testing.T, db *sql.DB, interp Interpreter) (func(context.Context, string, string) error, *collector) {
+func newAnswerer(t *testing.T, db *sql.DB, interp Interpreter) (func(context.Context, string, string, string) error, *collector) {
 	t.Helper()
 	cats, err := i18n.Load()
 	if err != nil {
@@ -108,7 +108,7 @@ func TestAnswersAboutTheAsker(t *testing.T) {
 	db := replyDB(t)
 	answer, c := newAnswerer(t, db, canned{req: Request{Kind: KindStanding, Span: SpanDays, Days: 7}})
 
-	if err := answer(context.Background(), senderUUID, "how am I doing this week?"); err != nil {
+	if err := answer(context.Background(), senderUUID, "how am I doing this week?", ""); err != nil {
 		t.Fatalf("answer: %v", err)
 	}
 	if got := c.last(t); !strings.HasPrefix(got, "Bo: place 2 of 2 (the last 7 days), 4.00 on average over 7 games.") {
@@ -120,7 +120,7 @@ func TestAnUnclaimedSenderIsAskedWhoTheyMean(t *testing.T) {
 	db := replyDB(t)
 	answer, c := newAnswerer(t, db, canned{req: Request{Kind: KindStanding, Span: SpanMonth}})
 
-	if err := answer(context.Background(), "nobody-in-particular", "how am I doing?"); err != nil {
+	if err := answer(context.Background(), "nobody-in-particular", "how am I doing?", ""); err != nil {
 		t.Fatalf("answer: %v", err)
 	}
 	if got := c.last(t); !strings.HasPrefix(got, "Who do you mean?") {
@@ -132,7 +132,7 @@ func TestABareMentionGetsTheHelpLine(t *testing.T) {
 	db := replyDB(t)
 	answer, c := newAnswerer(t, db, canned{err: errors.New("must not be asked")})
 
-	if err := answer(context.Background(), senderUUID, "  "); err != nil {
+	if err := answer(context.Background(), senderUUID, "  ", ""); err != nil {
 		t.Fatalf("answer: %v", err)
 	}
 	if got := c.last(t); !strings.HasPrefix(got, "I can answer") {
@@ -145,7 +145,7 @@ func TestAModelStillLoadingSaysSo(t *testing.T) {
 	db := replyDB(t)
 	answer, c := newAnswerer(t, db, canned{err: ErrNotReady})
 
-	if err := answer(context.Background(), senderUUID, "who leads?"); err != nil {
+	if err := answer(context.Background(), senderUUID, "who leads?", ""); err != nil {
 		t.Fatalf("answer: %v", err)
 	}
 	if got := c.last(t); !strings.Contains(got, "still getting set up") {
@@ -159,7 +159,7 @@ func TestAFailingModelIsReportedAndApologised(t *testing.T) {
 	db := replyDB(t)
 	answer, c := newAnswerer(t, db, canned{err: errors.New("connection refused")})
 
-	err := answer(context.Background(), senderUUID, "who leads?")
+	err := answer(context.Background(), senderUUID, "who leads?", "")
 	if err == nil || !strings.Contains(err.Error(), "connection refused") {
 		t.Errorf("err = %v, want the model's failure", err)
 	}

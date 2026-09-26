@@ -19,11 +19,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/store"
+	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
 // Kind is what a question asks for. The set is small on purpose: each one
@@ -138,7 +141,21 @@ type Prompt struct {
 	Asker   string
 	Players []string
 	Today   time.Time
+
+	// Context is the bot's own earlier post the question replies to, when
+	// it is a reply to one, so "what does this mean?" has a this. Only ever
+	// the bot's own words — text this app wrote from its catalogues and
+	// posted to the group — never another member's message.
+	Context string
+	// ContextDate is the day the quoted post is about, as YYYY-MM-DD, when
+	// the post names a puzzle. Worked out here, not by the model: a puzzle
+	// number is a date by arithmetic, and the model would only guess.
+	ContextDate string
 }
+
+// puzzleInPost finds the puzzle a bot post is about: every recap opens
+// with "Wordle <number>", written by i18n.Identifier without grouping.
+var puzzleInPost = regexp.MustCompile(`Wordle (\d{3,5})\b`)
 
 // Interpreter turns a question into a Request. The one implementation
 // talks to a language model; tests use a canned one.
@@ -150,8 +167,9 @@ type Interpreter interface {
 // It is not a failure: the answer is "ask again in a bit", not a log line.
 var ErrNotReady = errors.New("the language model is not ready yet")
 
-// New returns the closure the bridge calls with a sender and their
-// question, the mention already stripped from it.
+// New returns the closure the bridge calls with a sender, their question
+// with the mention already stripped from it, and the bot's own post the
+// question replies to, or "" when it replies to nothing of the bot's.
 //
 // It reports nil when an answer was posted — including "I can't help with
 // that" and "not ready yet", both of which are answers — and an error only
@@ -159,11 +177,11 @@ var ErrNotReady = errors.New("the language model is not ready yet")
 // question: what was asked is the group's conversation, and the log carries
 // only the request it became.
 func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
-	send func(ctx context.Context, text string) error, logger *slog.Logger) func(context.Context, string, string) error {
+	send func(ctx context.Context, text string) error, logger *slog.Logger) func(context.Context, string, string, string) error {
 
 	t := i18n.NewTranslator(cats, locale)
 
-	return func(ctx context.Context, senderUUID, question string) error {
+	return func(ctx context.Context, senderUUID, question, quoted string) error {
 		question = strings.TrimSpace(question)
 		if question == "" {
 			// A bare mention. Saying what can be asked is the answer.
@@ -198,6 +216,16 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
 		prompt := Prompt{Question: question, Players: names, Today: time.Now()}
 		if asker != nil {
 			prompt.Asker = asker.Name
+		}
+		if quoted = strings.TrimSpace(quoted); quoted != "" {
+			prompt.Context = quoted
+			if m := puzzleInPost.FindStringSubmatch(quoted); m != nil {
+				if puzzle, err := strconv.Atoi(m[1]); err == nil {
+					if date, err := wordle.DateForPuzzle(puzzle); err == nil {
+						prompt.ContextDate = date.Format(DateLayout)
+					}
+				}
+			}
 		}
 
 		req, err := interp.Interpret(ctx, prompt)

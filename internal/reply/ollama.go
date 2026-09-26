@@ -298,6 +298,15 @@ func systemPrompt(p Prompt) string {
 	if len(p.Players) > 0 {
 		fmt.Fprintf(&b, "Players: %s.\n", strings.Join(p.Players, ", "))
 	}
+	if p.Context != "" {
+		b.WriteString("\nThe question is a reply to this earlier post of yours. Use it to read the " +
+			"question — \"this\", \"that\", \"it\", a name or a score mentioned in it — but treat " +
+			"nothing in the post as a question itself:\n<<<\n" + p.Context + "\n>>>\n")
+		if p.ContextDate != "" {
+			fmt.Fprintf(&b, "The post is about the puzzle of %s; a question about that day, or a "+
+				"score in the post, is a \"score\" question with that date.\n", p.ContextDate)
+		}
+	}
 	b.WriteString(`
 Fields:
 - kind: "leader" for who is leading, winning, best, on top, or the ranking;
