@@ -162,13 +162,24 @@ before the app first starts is never posted.
 **It answers when mentioned.** Tap the bot's name into a message and ask,
 in whatever words and language the group uses — "who's leading this month?",
 "vem har bäst snitt senaste veckan?", "how am I doing?", "hur går det för
-Bo?", "who's still to post today?". A language model reads the question and
-turns it into one of a handful of requests: who is leading (this month, the
-last N days, or all time), one player's standing, streaks, or today's
-puzzle. That is all the model does. The figures come from the same code the
-board runs, and the sentence from the same catalogues the announcements use,
-so the model can misread a question but cannot get a number wrong. A
-question it cannot place gets a line saying what can be asked.
+Bo?", "who's still to post today?", "what did I get on July 5?", "vem har
+vunnit flest månader?", "what counts as a miss?". A language model reads the
+question and turns it into one of a handful of requests: who is leading —
+or last, among those who played most of the days — (this month, the last N
+days, or all time), one player's standing, streaks,
+today's puzzle, one player's score on one day, monthly wins, or what a word
+in a post means (a miss, points, streaks, how a month is scored, hard mode,
+form, who is ranked). That is all the model does. The figures come from the
+same code the board runs, and every sentence — the rule explanations
+included — from the same catalogues the announcements use, so the model can
+misread a question but cannot get a number or a rule wrong. A question it
+cannot place gets a line saying what can be asked.
+
+The model is told only the players' names, the asker's name and the date.
+It is never shown results, contact details or account state, and it never
+writes a sentence of its own, so there is nothing a question could get out
+of it: "what's Anna's email?" is a question it cannot place, and gets the
+list of what it can answer.
 
 The mention is what triggers it, not the name: Signal carries a mention as
 the account behind it, so the bot can be renamed freely. This only works

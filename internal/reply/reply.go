@@ -41,9 +41,35 @@ const (
 	// KindToday is today's puzzle: who has posted, the best so far, who is
 	// missing.
 	KindToday Kind = "today"
+	// KindScore is one player's result on one day: "my score for July 5".
+	KindScore Kind = "score"
+	// KindWins is who has won the most months.
+	KindWins Kind = "wins"
+	// KindRules is what a word in a post means: a miss, points, a streak.
+	// Answered from the catalogues, never by the model, because how a
+	// score is counted is the one thing the bot must not get creative
+	// about.
+	KindRules Kind = "rules"
 	// KindUnknown is anything else, answered with what can be asked.
 	KindUnknown Kind = "unknown"
 )
+
+// Topic is which rule a KindRules question asks about. Each has one
+// catalogue text, written by hand to match what internal/stats does.
+type Topic string
+
+const (
+	TopicMiss     Topic = "miss"
+	TopicAverage  Topic = "average"
+	TopicStreak   Topic = "streak"
+	TopicMonth    Topic = "month"
+	TopicHardMode Topic = "hardmode"
+	TopicForm     Topic = "form"
+	TopicRanked   Topic = "ranked"
+)
+
+// Topics is every Topic, in the order the "which one?" answer lists them.
+var Topics = []Topic{TopicMiss, TopicAverage, TopicStreak, TopicMonth, TopicHardMode, TopicForm, TopicRanked}
 
 // Span is the window a leader or standing question covers.
 type Span string
@@ -65,11 +91,23 @@ type Request struct {
 	Span Span `json:"span"`
 	// Days is how many, when Span is SpanDays.
 	Days int `json:"days"`
+	// Worst flips a leader question to the bottom of the table: who is
+	// last, lowest, struggling.
+	Worst bool `json:"worst"`
 	// Player is the name the question is about, when it is about one
 	// player, as it appears in the list the model was given. Empty when
 	// the question names nobody.
 	Player string `json:"player"`
+	// Topic is the rule asked about, when Kind is KindRules.
+	Topic Topic `json:"topic"`
+	// Date is the day asked about, when Kind is KindScore, as YYYY-MM-DD.
+	// The model resolves "yesterday" and "July 5" against the date it is
+	// given; empty means today.
+	Date string `json:"date"`
 }
+
+// DateLayout is how Request.Date is written.
+const DateLayout = "2006-01-02"
 
 // Prompt is what the model is told besides the question: who is asking,
 // who plays, and what day it is, so "me", a first name and "this week"
