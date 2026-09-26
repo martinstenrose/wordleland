@@ -158,7 +158,7 @@ var requestSchema = map[string]any{
 		"kind": map[string]any{"type": "string", "enum": []string{
 			string(KindLeader), string(KindStanding), string(KindStreak), string(KindToday),
 			string(KindScore), string(KindWins), string(KindCatchup), string(KindCount), string(KindHabits),
-			string(KindRules), string(KindUnknown)}},
+			string(KindRules), string(KindThanks), string(KindUnknown)}},
 		"span":    map[string]any{"type": "string", "enum": []string{string(SpanMonth), string(SpanDays), string(SpanAll)}},
 		"days":    map[string]any{"type": "integer"},
 		"worst":   map[string]any{"type": "boolean"},
@@ -236,7 +236,7 @@ func parseRequest(content string) (Request, error) {
 	}
 	switch r.Kind {
 	case KindLeader, KindStanding, KindStreak, KindToday, KindScore, KindWins, KindCatchup,
-		KindCount, KindHabits, KindRules:
+		KindCount, KindHabits, KindRules, KindThanks:
 	default:
 		r.Kind = KindUnknown
 	}
@@ -279,6 +279,12 @@ func parseRequest(content string) (Request, error) {
 		r.Worst = false
 	}
 	r.Player = strings.TrimSpace(r.Player)
+	switch r.Kind {
+	case KindToday, KindRules, KindThanks, KindUnknown:
+		// Nothing to be about a player: a name here is the model filling
+		// a field in, which it does for a message that asks nothing.
+		r.Player = ""
+	}
 	return r, nil
 }
 
@@ -325,15 +331,20 @@ Fields:
   "habits" for who usually posts first or last, or when somebody usually posts;
   "rules" for what something means or how it is counted — a miss, points, the
   average, a streak, how the month is scored, hard mode, form, who is ranked;
-  "unknown" for anything else, including anything not about this Wordle group's
-  scores (people's contact details, accounts, settings, other subjects).
+  "thanks" for thanks, praise or a compliment that asks nothing ("tack",
+  "duktig bot", "good bot", "nice");
+  "unknown" for anything else: a greeting or a remark that asks nothing, and
+  anything not about this Wordle group's scores (people's contact details,
+  accounts, settings, other subjects). Never pick a kind that was not asked
+  for: a message with no question in it is "thanks" or "unknown".
 - span: "month" for this month or when no period is given; "days" for a number
   of recent days (a week is 7, two weeks 14); "all" for all time, ever, overall.
 - days: the number of days when span is "days", otherwise 0.
 - worst: true when a "leader" question asks for the other end of the table —
   who is last, worst, lowest, struggling, has the worst form; otherwise false.
 - player: the player the question is about, spelled exactly as in the list —
-  the asker's own name when they ask about themselves — otherwise "".
+  the asker's own name when they ask about themselves — otherwise "". Always ""
+  when the message asks nothing about anyone.
 - topic: when kind is "rules", which rule: "miss" (a missed day), "average" (the
   average, points), "streak", "month" (how a month is scored and won), "hardmode",
   "form", "ranked" (who is ranked on the board and why not); otherwise "".

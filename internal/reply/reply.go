@@ -62,6 +62,10 @@ const (
 	// score is counted is the one thing the bot must not get creative
 	// about.
 	KindRules Kind = "rules"
+	// KindThanks is praise or thanks with no question in it — "duktig
+	// bot" — answered in kind rather than with the help line, which would
+	// read as the bot missing the point.
+	KindThanks Kind = "thanks"
 	// KindUnknown is anything else, answered with what can be asked.
 	KindUnknown Kind = "unknown"
 )

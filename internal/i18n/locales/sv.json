@@ -813,5 +813,6 @@
   "reply.habits.player.none": "%s: inga posttider registrerade.",
   "reply.habits.first": "Öppnar dagen oftast: %s, %d av de senaste %d dagarna.",
   "reply.habits.last": "Stänger den oftast: %s, %d.",
-  "reply.habits.none": "Ingen postordning registrerad än."
+  "reply.habits.none": "Ingen postordning registrerad än.",
+  "reply.thanks": "Tack! 🙂"
 }
