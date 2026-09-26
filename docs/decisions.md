@@ -1609,6 +1609,19 @@ that names the wrong leader: the leader can be checked on the board, the
 rule is the thing people would check it against. A rule that changes in
 code changes its sentence here, in every language.
 
+**"Can Bo still catch up?" is arithmetic with one stated assumption.** The
+month's final averages all share one denominator — the month's days, a day
+not played scoring 7 — so the average a chaser needs over their remaining
+days is exact: the leader's average times the month's length, less the
+points the chaser has scored, over the days they can still play. Today is
+one of those days only for somebody who has not played it. The one thing
+the answer assumes is that the leader keeps their pace, and the sentence
+says so. It does not model the leader slipping or the chaser's own
+history; a needed average under 2 is called what it is — near-perfect
+rounds — and under 1 the pass is impossible, since a 1 is the best a day
+can be. Those two thresholds are the whole of the judgement; everything
+else is the number.
+
 **A day's score and monthly wins are the same shape.** The model supplies
 a date (worked out from the day it is given, so "yesterday" and "July 5"
 resolve) or nothing; the store has the result, or does not. Wins come from

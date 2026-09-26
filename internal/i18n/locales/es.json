@@ -745,7 +745,7 @@
   "search.players": "Jugadores",
   "search.pages": "Páginas",
   "search.noResults": "No hay coincidencias para esa búsqueda.",
-  "reply.help": "Puedo decir quién va en cabeza (este mes, los últimos N días o en total), cómo va un jugador, las rachas, el puzle de hoy, el resultado de un jugador en un día, las victorias mensuales y qué significa una palabra de una publicación. Menciónname y pregunta.",
+  "reply.help": "Puedo decir quién va en cabeza o último (este mes, los últimos N días o en total), cómo va un jugador, si alguien aún puede ganar el mes, las rachas, el puzle de hoy, el resultado de un jugador en un día, las victorias mensuales y qué significa una palabra de una publicación. Menciónname y pregunta.",
   "reply.notready": "Todavía me estoy preparando — pregunta otra vez en unos minutos.",
   "reply.failed": "Eso no lo he entendido. Prueba a preguntarlo de otra forma.",
   "reply.span.days": "los últimos %d días",
@@ -784,5 +784,17 @@
   "reply.wins.player": "%s: %d victorias mensuales.",
   "reply.last": "%s: %s cierra la tabla con %s de media.",
   "reply.last.tie": "%s: %s comparten el último puesto con %s.",
-  "reply.last.none": "%s: muy pocos han jugado la mayoría de los días para nombrar un último."
+  "reply.last.none": "%s: muy pocos han jugado la mayoría de los días para nombrar un último.",
+  "reply.catchup.notPlayed": "%s todavía no ha jugado en %s.",
+  "reply.catchup.alone": "%s va en cabeza en %s — nadie más ha jugado todavía.",
+  "reply.catchup.safe": "%s va en cabeza en %s por %d puntos con %d días por jugar: ya nadie puede alcanzarle.",
+  "reply.catchup.leads": "%s va en cabeza en %s por %d puntos con %d días por jugar. %s necesitaría una media de %s o mejor para adelantar, si %s sigue con una media de %s.",
+  "reply.catchup.over": "%s: %s está %d puntos por detrás de %s y el mes ya está jugado.",
+  "reply.catchup.impossible": "%s: %s está %d puntos por detrás de %s con %d días por jugar — fuera de alcance, ni un 1 cada día bastaría.",
+  "reply.catchup.hard": "%s: %s está %d puntos por detrás de %s con %d días por jugar. Adelantar exige una media de %s en esos días — rondas casi perfectas, pero no imposible.",
+  "reply.catchup.possible": "%s: %s está %d puntos por detrás de %s con %d días por jugar. Una media de %s o mejor en esos días basta, si %s sigue con una media de %s.",
+  "reply.catchup.head": "%s: %s va en cabeza con %s y %d días por jugar.",
+  "reply.catchup.in": "Todavía con opciones: %s.",
+  "reply.catchup.out": "Fuera de alcance: %s.",
+  "reply.catchup.needs": "%s (necesita %s)"
 }

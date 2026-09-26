@@ -157,7 +157,7 @@ var requestSchema = map[string]any{
 	"properties": map[string]any{
 		"kind": map[string]any{"type": "string", "enum": []string{
 			string(KindLeader), string(KindStanding), string(KindStreak), string(KindToday),
-			string(KindScore), string(KindWins), string(KindRules), string(KindUnknown)}},
+			string(KindScore), string(KindWins), string(KindCatchup), string(KindRules), string(KindUnknown)}},
 		"span":   map[string]any{"type": "string", "enum": []string{string(SpanMonth), string(SpanDays), string(SpanAll)}},
 		"days":   map[string]any{"type": "integer"},
 		"worst":  map[string]any{"type": "boolean"},
@@ -232,7 +232,7 @@ func parseRequest(content string) (Request, error) {
 		return Request{}, fmt.Errorf("model did not answer with a request: %w", err)
 	}
 	switch r.Kind {
-	case KindLeader, KindStanding, KindStreak, KindToday, KindScore, KindWins, KindRules:
+	case KindLeader, KindStanding, KindStreak, KindToday, KindScore, KindWins, KindCatchup, KindRules:
 	default:
 		r.Kind = KindUnknown
 	}
@@ -292,6 +292,9 @@ Fields:
   "score" for one player's result on one particular day ("my score on July 5",
   "what did Bo get yesterday");
   "wins" for who has won the most months, monthly wins, titles;
+  "catchup" for whether somebody can still win or catch up this month, how far
+  behind they are, what they need to win, whether the leader is safe ("kan Bo
+  komma ikapp?", "can I still win?", "is Alma safe?");
   "rules" for what something means or how it is counted — a miss, points, the
   average, a streak, how the month is scored, hard mode, form, who is ranked;
   "unknown" for anything else, including anything not about this Wordle group's
