@@ -176,7 +176,8 @@ form, who is ranked). That is all the model does. The figures come from the
 same code the board runs, and every sentence — the rule explanations
 included — from the same catalogues the announcements use, so the model can
 misread a question but cannot get a number or a rule wrong. A question it
-cannot place gets a line saying what can be asked.
+cannot place gets a line saying what can be asked; thanks or praise gets a
+thanks back.
 
 **Replying to one of the bot's posts** works too: tap the bot's name into a
 reply to a daily recap and ask "what does 'points' mean here?", "vad fick
