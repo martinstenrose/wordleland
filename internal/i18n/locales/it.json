@@ -745,7 +745,7 @@
   "search.players": "Giocatori",
   "search.pages": "Pagine",
   "search.noResults": "Nessun risultato per questa ricerca.",
-  "reply.help": "Posso dire chi è in testa (questo mese, gli ultimi N giorni o in totale), come va un giocatore, le serie, il puzzle di oggi, il risultato di un giocatore in un giorno, le vittorie mensili e cosa significa una parola in un messaggio. Menzionami e chiedi.",
+  "reply.help": "Posso dire chi è in testa o ultimo (questo mese, gli ultimi N giorni o in totale), come va un giocatore, se qualcuno può ancora vincere il mese, le serie, il puzzle di oggi, il risultato di un giocatore in un giorno, le vittorie mensili e cosa significa una parola in un messaggio. Menzionami e chiedi.",
   "reply.notready": "Mi sto ancora preparando — richiedi tra qualche minuto.",
   "reply.failed": "Questa non l'ho capita. Prova a chiederla in un altro modo.",
   "reply.span.days": "gli ultimi %d giorni",
@@ -784,5 +784,17 @@
   "reply.wins.player": "%s: %d vittorie mensili.",
   "reply.last": "%s: %s chiude la classifica con %s di media.",
   "reply.last.tie": "%s: %s condividono l'ultimo posto con %s.",
-  "reply.last.none": "%s: troppo pochi hanno giocato la maggior parte dei giorni per nominare un ultimo."
+  "reply.last.none": "%s: troppo pochi hanno giocato la maggior parte dei giorni per nominare un ultimo.",
+  "reply.catchup.notPlayed": "%s non ha ancora giocato a %s.",
+  "reply.catchup.alone": "%s è in testa a %s — nessun altro ha ancora giocato.",
+  "reply.catchup.safe": "%s è in testa a %s con %d punti di vantaggio e %d giorni rimasti: nessuno può più raggiungerlo.",
+  "reply.catchup.leads": "%s è in testa a %s con %d punti di vantaggio e %d giorni rimasti. A %s servirebbe una media di %s o meglio per superarlo, se %s continua con una media di %s.",
+  "reply.catchup.over": "%s: %s è %d punti dietro %s e il mese è concluso.",
+  "reply.catchup.impossible": "%s: %s è %d punti dietro %s con %d giorni rimasti — fuori portata, nemmeno un 1 al giorno basterebbe.",
+  "reply.catchup.hard": "%s: %s è %d punti dietro %s con %d giorni rimasti. Superarlo richiede una media di %s in quei giorni — partite quasi perfette, ma non impossibile.",
+  "reply.catchup.possible": "%s: %s è %d punti dietro %s con %d giorni rimasti. Una media di %s o meglio in quei giorni basta, se %s continua con una media di %s.",
+  "reply.catchup.head": "%s: %s è in testa con %s e %d giorni rimasti.",
+  "reply.catchup.in": "Ancora in corsa: %s.",
+  "reply.catchup.out": "Fuori portata: %s.",
+  "reply.catchup.needs": "%s (serve %s)"
 }

@@ -745,7 +745,7 @@
   "search.players": "Players",
   "search.pages": "Pages",
   "search.noResults": "No matches for that search.",
-  "reply.help": "I can answer who is leading (this month, the last N days, or all time), how a player is doing, streaks, today's puzzle, a player's score on a day, monthly wins, and what a word in a post means. Mention me and ask.",
+  "reply.help": "I can answer who is leading or last (this month, the last N days, or all time), how a player is doing, whether somebody can still win the month, streaks, today's puzzle, a player's score on a day, monthly wins, and what a word in a post means. Mention me and ask.",
   "reply.notready": "I'm still getting set up — ask me again in a few minutes.",
   "reply.failed": "I couldn't work that one out. Try asking it another way.",
   "reply.span.days": "the last %d days",
@@ -784,5 +784,17 @@
   "reply.wins.player": "%s: %d monthly wins.",
   "reply.last": "%s: %s brings up the rear on %s on average.",
   "reply.last.tie": "%s: %s share the bottom spot on %s.",
-  "reply.last.none": "%s: too few have played most of the days to name a last place."
+  "reply.last.none": "%s: too few have played most of the days to name a last place.",
+  "reply.catchup.notPlayed": "%s hasn't played in %s yet.",
+  "reply.catchup.alone": "%s leads %s — nobody else has played yet.",
+  "reply.catchup.safe": "%s leads %s by %d points with %d days left: nobody can catch them now.",
+  "reply.catchup.leads": "%s leads %s by %d points with %d days left. %s would need to average %s or better to pass, if %s keeps averaging %s.",
+  "reply.catchup.over": "%s: %s is %d points behind %s and the month is played out.",
+  "reply.catchup.impossible": "%s: %s is %d points behind %s with %d days left — out of reach, even a 1 every day wouldn't do it.",
+  "reply.catchup.hard": "%s: %s is %d points behind %s with %d days left. Passing takes an average of %s over those days — near-perfect rounds, but not impossible.",
+  "reply.catchup.possible": "%s: %s is %d points behind %s with %d days left. An average of %s or better over those days does it, if %s keeps averaging %s.",
+  "reply.catchup.head": "%s: %s leads on %s with %d days left.",
+  "reply.catchup.in": "Still in it: %s.",
+  "reply.catchup.out": "Out of reach: %s.",
+  "reply.catchup.needs": "%s (needs %s)"
 }

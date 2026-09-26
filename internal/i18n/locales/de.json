@@ -745,7 +745,7 @@
   "search.players": "Spieler",
   "search.pages": "Seiten",
   "search.noResults": "Keine Treffer für diese Suche.",
-  "reply.help": "Ich kann sagen, wer führt (diesen Monat, in den letzten N Tagen oder insgesamt), wie ein Spieler steht, Serien, das heutige Rätsel, das Ergebnis eines Spielers an einem Tag, Monatssiege und was ein Wort in einem Beitrag bedeutet. Erwähne mich und frag.",
+  "reply.help": "Ich kann sagen, wer führt oder Letzter ist (diesen Monat, in den letzten N Tagen oder insgesamt), wie ein Spieler steht, ob jemand den Monat noch gewinnen kann, Serien, das heutige Rätsel, das Ergebnis eines Spielers an einem Tag, Monatssiege und was ein Wort in einem Beitrag bedeutet. Erwähne mich und frag.",
   "reply.notready": "Ich richte mich noch ein — frag in ein paar Minuten noch einmal.",
   "reply.failed": "Das habe ich nicht verstanden. Versuch es anders zu fragen.",
   "reply.span.days": "die letzten %d Tage",
@@ -784,5 +784,17 @@
   "reply.wins.player": "%s: %d Monatssiege.",
   "reply.last": "%s: %s bildet mit %s im Schnitt das Schlusslicht.",
   "reply.last.tie": "%s: %s teilen sich mit %s den letzten Platz.",
-  "reply.last.none": "%s: zu wenige haben an den meisten Tagen gespielt, um ein Schlusslicht zu nennen."
+  "reply.last.none": "%s: zu wenige haben an den meisten Tagen gespielt, um ein Schlusslicht zu nennen.",
+  "reply.catchup.notPlayed": "%s hat im %s noch nicht gespielt.",
+  "reply.catchup.alone": "%s führt im %s — sonst hat noch niemand gespielt.",
+  "reply.catchup.safe": "%s führt im %s mit %d Punkten bei %d Tagen Rest: niemand kann mehr aufholen.",
+  "reply.catchup.leads": "%s führt im %s mit %d Punkten bei %d Tagen Rest. %s bräuchte einen Schnitt von %s oder besser, um vorbeizuziehen, wenn %s weiter %s im Schnitt spielt.",
+  "reply.catchup.over": "%s: %s liegt %d Punkte hinter %s, und der Monat ist ausgespielt.",
+  "reply.catchup.impossible": "%s: %s liegt %d Punkte hinter %s bei %d Tagen Rest — außer Reichweite, selbst eine 1 an jedem Tag würde nicht reichen.",
+  "reply.catchup.hard": "%s: %s liegt %d Punkte hinter %s bei %d Tagen Rest. Zum Vorbeiziehen braucht es einen Schnitt von %s über diese Tage — fast perfekte Runden, aber nicht unmöglich.",
+  "reply.catchup.possible": "%s: %s liegt %d Punkte hinter %s bei %d Tagen Rest. Ein Schnitt von %s oder besser über diese Tage reicht, wenn %s weiter %s im Schnitt spielt.",
+  "reply.catchup.head": "%s: %s führt mit %s bei %d Tagen Rest.",
+  "reply.catchup.in": "Noch im Rennen: %s.",
+  "reply.catchup.out": "Außer Reichweite: %s.",
+  "reply.catchup.needs": "%s (braucht %s)"
 }

@@ -45,6 +45,9 @@ const (
 	KindScore Kind = "score"
 	// KindWins is who has won the most months.
 	KindWins Kind = "wins"
+	// KindCatchup is whether somebody can still win the month: the gap to
+	// the leader, the days left, and what it would take.
+	KindCatchup Kind = "catchup"
 	// KindRules is what a word in a post means: a miss, points, a streak.
 	// Answered from the catalogues, never by the model, because how a
 	// score is counted is the one thing the bot must not get creative

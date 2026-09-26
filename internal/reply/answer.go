@@ -33,6 +33,8 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 		return score(t, req, asker, players, results, now)
 	case KindWins:
 		return wins(t, req, asker, players, results, now)
+	case KindCatchup:
+		return catchup(t, req, asker, players, results, now)
 	case KindRules:
 		return rules(t, req)
 	default:
