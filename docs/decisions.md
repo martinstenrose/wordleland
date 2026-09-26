@@ -1588,6 +1588,33 @@ in the log. "The model is still loading" is an answer, not a failure, since
 the first start of the stack pulls the model and a question during those
 minutes is ordinary.
 
+**The model is told names and a date, and nothing else.** `reply.Prompt` is
+the whole of what it sees: the player names (which the board shows anyone),
+the asker's name, today's date and the question. No results, no email
+addresses, no account state, nothing from the users table. Combined with
+the model producing only a `Request`, this is the guardrail: a question
+about anything but the board cannot be answered wrongly because the answer
+does not exist anywhere the model can reach, and the request it becomes is
+"unknown", which is the help line. `TestTheModelIsToldOnlyNamesAndTheDate`
+pins the contract; a new field on `Prompt` is a new thing the model is
+told, and that test is where it is decided.
+
+**Rule explanations are catalogue text, not model text.** "What counts as a
+miss?" is answered by a `rules` request with a topic from a fixed list, and
+the topic's explanation is written by hand in every language to say what
+`internal/stats` actually does. The tempting alternative — let the model
+explain from a rules document — is exactly where a small model starts
+inventing, and a bot that explains the scoring wrongly is worse than one
+that names the wrong leader: the leader can be checked on the board, the
+rule is the thing people would check it against. A rule that changes in
+code changes its sentence here, in every language.
+
+**A day's score and monthly wins are the same shape.** The model supplies
+a date (worked out from the day it is given, so "yesterday" and "July 5"
+resolve) or nothing; the store has the result, or does not. Wins come from
+`stats.ComputeSeason`, which counts closed months only, so the month in
+progress hands nobody a title.
+
 **"Last N days" got the month's rules.** `stats.ComputeRecent` ranks a span
 of puzzles ending today the way `ComputeMonths` ranks a calendar month — a
 concluded day not played is a failure, ties share a place — because "who is
