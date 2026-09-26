@@ -32,6 +32,8 @@ services:
       SIGNAL_ANNOUNCE_DAYS: ${SIGNAL_ANNOUNCE_DAYS:-}
       SIGNAL_ANNOUNCE_WEEKS: ${SIGNAL_ANNOUNCE_WEEKS:-}
       SIGNAL_LOCALE: ${SIGNAL_LOCALE:-}
+      SIGNAL_REPLIES: ${SIGNAL_REPLIES:-}
+      LLM_MODEL: ${LLM_MODEL:-}
     volumes:
       - data:/data
 
@@ -43,6 +45,35 @@ services:
     volumes:
       - signal-cli-config:/home/.local/share/signal-cli
 
+  # The language model that reads questions asked of the bot in the group.
+  # Off-the-shelf; the app pulls the model it needs on first start, so
+  # nothing here is configured by hand. Not published: only app talks to it.
+  #
+  # To run without it: SIGNAL_REPLIES=false in .env, and delete this block.
+  # app does not depend on it — it keeps looking for the model until it
+  # appears — so removing the service breaks nothing else.
+  ollama:
+    image: ollama/ollama:0.34.4
+    restart: unless-stopped
+    environment:
+      # Keep the model loaded between questions. A CPU takes seconds to
+      # load it again, and RAM held for a model nobody is asking is cheaper
+      # than every first question of the evening waiting on the disk.
+      OLLAMA_KEEP_ALIVE: -1
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      # The image's own CLI asking its server what is loaded, which fails
+      # until the server answers. Healthy means the server is up, not that
+      # the model is present: that is app's job, and app says so in its
+      # log. Nothing depends on this; it is what `docker compose ps` shows.
+      test: ["CMD", "ollama", "ps"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
 volumes:
   data:
   signal-cli-config:
+  ollama:

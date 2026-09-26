@@ -80,7 +80,7 @@ func testFilerAtLevel(t *testing.T, level slog.Level, replies ...reply) (*filer,
 	}
 
 	logger := slog.New(slog.NewTextHandler(cap.logs, &slog.HandlerOptions{Level: level}))
-	f := newFiler(testGroupID, deliver, nil, logger, nil)
+	f := newFiler(testGroupID, deliver, nil, nil, logger, nil)
 
 	// A fixed "today" so the back-dating window is deterministic.
 	today, err := wordle.DateForPuzzle(1891)
@@ -405,7 +405,7 @@ func TestSlowDeliveryDoesNotBlockTheReader(t *testing.T) {
 	defer close(release)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	f := newFiler(testGroupID, deliver, nil, logger, nil)
+	f := newFiler(testGroupID, deliver, nil, nil, logger, nil)
 	today, _ := wordle.DateForPuzzle(1891)
 	f.now = func() time.Time { return today }
 	f.sleep = func(context.Context, time.Duration) {}
@@ -498,7 +498,7 @@ func TestFailingDeliveryTurnsTheStatusRed(t *testing.T) {
 	deliver := func(context.Context, ingest.Submission) (ingest.Result, error) {
 		return ingest.Result{}, errors.New("database is locked")
 	}
-	f := newFiler(testGroupID, deliver, nil, logger, h)
+	f := newFiler(testGroupID, deliver, nil, nil, logger, h)
 	today, err := wordle.DateForPuzzle(1891)
 	if err != nil {
 		t.Fatalf("DateForPuzzle: %v", err)
@@ -533,7 +533,7 @@ func TestRejectedResultIsReportedAsLossNotFailure(t *testing.T) {
 	deliver := func(context.Context, ingest.Submission) (ingest.Result, error) {
 		return ingest.Result{}, &ingest.ValidationError{}
 	}
-	f := newFiler(testGroupID, deliver, nil, logger, h)
+	f := newFiler(testGroupID, deliver, nil, nil, logger, h)
 	today, _ := wordle.DateForPuzzle(1891)
 	f.now = func() time.Time { return today }
 	f.sleep = func(context.Context, time.Duration) {}
@@ -566,7 +566,7 @@ func TestStatusRecoversAfterDeliveryResumes(t *testing.T) {
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	f := newFiler(testGroupID, deliver, nil, logger, h)
+	f := newFiler(testGroupID, deliver, nil, nil, logger, h)
 	today, _ := wordle.DateForPuzzle(1891)
 	f.now = func() time.Time { return today }
 	f.sleep = func(context.Context, time.Duration) { c.advance(30 * time.Second) }

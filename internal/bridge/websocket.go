@@ -36,8 +36,11 @@ const (
 // websocketSource receives from signal-cli-rest-api and reconnects on its
 // own, so nothing above this layer has to know the connection dropped.
 type websocketSource struct {
-	url    string
-	logger *slog.Logger
+	url string
+	// account is the bridge's own number, so a frame can say whether the
+	// bot was mentioned in it.
+	account string
+	logger  *slog.Logger
 	// health is notified as the connection comes and goes.
 	health *health
 
@@ -65,10 +68,11 @@ func newWebsocketSource(apiURL, account string, logger *slog.Logger, h *health) 
 	base.Path = strings.TrimRight(base.Path, "/") + "/v1/receive/" + url.PathEscape(account)
 
 	return &websocketSource{
-		url:    base.String(),
-		logger: logger,
-		health: h,
-		dialer: &websocket.Dialer{HandshakeTimeout: handshakeTimeout},
+		url:     base.String(),
+		account: account,
+		logger:  logger,
+		health:  h,
+		dialer:  &websocket.Dialer{HandshakeTimeout: handshakeTimeout},
 	}, nil
 }
 
@@ -163,7 +167,7 @@ func (s *websocketSource) stream(ctx context.Context, out chan<- Message) (read 
 		}
 		s.health.received()
 
-		msg, ok := decode(data, s.logger)
+		msg, ok := decode(data, s.account, s.logger)
 		if !ok {
 			continue
 		}
@@ -182,7 +186,8 @@ func (s *websocketSource) stream(ctx context.Context, out chan<- Message) (read 
 }
 
 // decode turns a frame into a message, reporting whether there was one.
-func decode(data []byte, logger *slog.Logger) (Message, bool) {
+// account is the bridge's own number, see envelope.message.
+func decode(data []byte, account string, logger *slog.Logger) (Message, bool) {
 	// The server also writes {"error":"..."} frames when signal-cli reports
 	// a problem.
 	var wsErr struct {
@@ -203,7 +208,7 @@ func decode(data []byte, logger *slog.Logger) (Message, bool) {
 			"error", sanitizeRemote(err.Error()))
 		return Message{}, false
 	}
-	return env.message(logger)
+	return env.message(account, logger)
 }
 
 // jitter spreads reconnects so a whole-stack restart does not produce a

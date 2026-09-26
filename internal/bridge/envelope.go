@@ -82,7 +82,23 @@ type dataMessage struct {
 	GroupInfo *struct {
 		GroupID string `json:"groupId"`
 	} `json:"groupInfo"`
+
+	// Mentions is who the sender tapped into the message. A mention is
+	// not text: the body carries a placeholder character where the name
+	// sits, and this list says which account it stands for, so renaming
+	// the bot's profile changes nothing about whether it was addressed.
+	//
+	// Only the number is read, and only to compare against the bridge's
+	// own account: whether somebody else was mentioned is none of the
+	// bridge's business, and the value never leaves message().
+	Mentions []struct {
+		Number string `json:"number"`
+	} `json:"mentions"`
 }
+
+// MentionPlaceholder is the character Signal puts in a message body where a
+// mention sits. It is the object replacement character, U+FFFC.
+const MentionPlaceholder = "￼"
 
 // Message is one incoming message reduced to what the bridge needs.
 type Message struct {
@@ -99,16 +115,30 @@ type Message struct {
 	// PostedAt is when the message reached the group: Signal's server time,
 	// falling back to the sender's, zero when the frame carried neither.
 	PostedAt time.Time
+	// MentionsBot says the sender tapped the bridge's own account into the
+	// message: a question for the bot rather than a result or conversation.
+	// Never set on the account's own sent messages, so the bot cannot be
+	// made to answer itself.
+	MentionsBot bool
 }
 
 // message extracts what the bridge acts on, reporting whether the frame
-// carried a group message at all.
+// carried a group message at all. account is the bridge's own number, for
+// telling a mention of the bot from any other.
 //
 // Receipts, typing indicators, read markers and everything else that is not
 // a message simply have neither field set, which is the common case on a
 // busy account.
-func (e envelope) message(logger *slog.Logger) (Message, bool) {
+func (e envelope) message(account string, logger *slog.Logger) (Message, bool) {
 	body := e.Envelope.DataMessage
+	mentionsBot := false
+	if body != nil {
+		for _, m := range body.Mentions {
+			if m.Number != "" && m.Number == account {
+				mentionsBot = true
+			}
+		}
+	}
 	if body == nil && e.Envelope.SyncMessage != nil {
 		body = e.Envelope.SyncMessage.SentMessage
 	}
@@ -134,11 +164,12 @@ func (e envelope) message(logger *slog.Logger) (Message, bool) {
 	}
 
 	return Message{
-		SenderUUID: e.Envelope.SourceUUID,
-		SenderName: e.Envelope.SourceName,
-		GroupID:    body.GroupInfo.GroupID,
-		Body:       body.Message,
-		PostedAt:   e.postedAt(),
+		SenderUUID:  e.Envelope.SourceUUID,
+		SenderName:  e.Envelope.SourceName,
+		GroupID:     body.GroupInfo.GroupID,
+		Body:        body.Message,
+		PostedAt:    e.postedAt(),
+		MentionsBot: mentionsBot,
 	}, true
 }
 
