@@ -76,7 +76,7 @@ func TestTheModelIsToldOnlyNamesAndTheDate(t *testing.T) {
 	})
 	answer, _ := newAnswerer(t, db, capture)
 
-	if err := answer(context.Background(), senderUUID, "what's Alma's email?", ""); err != nil {
+	if err := answer(context.Background(), senderUUID, "what's Alma's email?", "", nil); err != nil {
 		t.Fatalf("answer: %v", err)
 	}
 	if seen.Asker != "Bo" {
@@ -108,7 +108,7 @@ func TestAReplyToABotPostGivesTheModelThatPost(t *testing.T) {
 	answer, _ := newAnswerer(t, db, capture)
 
 	post := "Wordle 1891 — everyone's in.\nAlma took it in 3.\n📊 September: Alma leads on 3.00 on average, 12 points clear of Bo."
-	if err := answer(context.Background(), senderUUID, "what did Bo get?", post); err != nil {
+	if err := answer(context.Background(), senderUUID, "what did Bo get?", post, nil); err != nil {
 		t.Fatalf("answer: %v", err)
 	}
 	if seen.Context != post {

@@ -95,18 +95,21 @@ type fakePresence struct {
 	seenM Message
 }
 
-func (p *fakePresence) Seen(_ context.Context, m Message) error {
+func (p *fakePresence) Seen(ctx context.Context, m Message) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.seq = append(p.seq, "seen")
 	p.seenM = m
+	if ctx.Err() != nil {
+		p.seq = append(p.seq, "cancelled")
+	}
 	if p.fail {
 		return errors.New("signal is down")
 	}
 	return nil
 }
 
-func (p *fakePresence) Typing(_ context.Context, on bool) error {
+func (p *fakePresence) Typing(ctx context.Context, on bool) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if on {
@@ -114,10 +117,35 @@ func (p *fakePresence) Typing(_ context.Context, on bool) error {
 	} else {
 		p.seq = append(p.seq, "stopped")
 	}
+	if ctx.Err() != nil {
+		p.seq = append(p.seq, "cancelled")
+	}
 	if p.fail {
 		return errors.New("signal is down")
 	}
 	return nil
+}
+
+// A quick answer — the help line, "not ready yet" — must not cancel the
+// 👀 still on its way, and the typing indicator always comes down.
+func TestAQuickAnswerStillShowsAndStopsPresence(t *testing.T) {
+	for i := 0; i < 20; i++ {
+		f, _ := testFiler(t)
+		p := &fakePresence{}
+		f.presence = p
+		f.respond = func(context.Context, Message) error { return nil }
+
+		f.handle(context.Background(), question("who leads?"))
+		f.wait()
+
+		seq := strings.Join(p.sequence(), ",")
+		if strings.Contains(seq, "cancelled") {
+			t.Fatalf("a presence call ran on a cancelled context: %s", seq)
+		}
+		if !strings.HasSuffix(seq, "stopped") {
+			t.Fatalf("typing was not stopped after a quick answer: %s", seq)
+		}
+	}
 }
 
 func (p *fakePresence) sequence() []string {
@@ -150,6 +178,7 @@ func TestAQuestionIsSeenAndTypedAtUntilAnswered(t *testing.T) {
 	q := question("who leads?")
 	q.ID = 42
 	f.handle(context.Background(), q)
+	f.wait()
 
 	if got := p.sequence(); strings.Join(got, ",") != "seen,typing,stopped" {
 		t.Errorf("sequence = %v, want seen, typing, stopped", got)
@@ -175,6 +204,7 @@ func TestTypingIsRefreshedWhileTheAnswerTakesLong(t *testing.T) {
 	}
 
 	f.handle(context.Background(), question("who leads?"))
+	f.wait()
 
 	typing := 0
 	for _, s := range p.sequence() {
@@ -198,6 +228,7 @@ func TestPresenceFailureDoesNotCostTheAnswer(t *testing.T) {
 	}
 
 	f.handle(context.Background(), question("who leads?"))
+	f.wait()
 
 	if !answered {
 		t.Error("the question was not answered")
@@ -215,6 +246,7 @@ func TestNilPresenceShowsNothing(t *testing.T) {
 		return nil
 	}
 	f.handle(context.Background(), question("who leads?"))
+	f.wait()
 	if !answered {
 		t.Error("the question was not answered")
 	}

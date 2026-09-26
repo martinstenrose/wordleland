@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -218,10 +217,10 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 				model = reply.NewOllama(bridgeCfg.LLMURL, bridgeCfg.LLMModel)
 				answer := reply.New(db, cats, bridgeCfg.AnnounceLocale, model, send, logger)
 				respond = func(ctx context.Context, m bridge.Message) error {
-					// The mention itself is a placeholder character in the
-					// text; the question is what is left. A reply to one of
-					// the bot's own posts brings that post along.
-					return answer(ctx, m.SenderUUID, strings.ReplaceAll(m.Body, bridge.MentionPlaceholder, ""), m.Quoted)
+					// The body still carries every mention as a placeholder;
+					// reply puts names back where they sit. A reply to one
+					// of the bot's own posts brings that post along.
+					return answer(ctx, m.SenderUUID, m.Body, m.Quoted, m.Mentions)
 				}
 			}
 			if bridgeCfg.AnnounceDays {

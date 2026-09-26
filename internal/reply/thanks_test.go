@@ -16,7 +16,7 @@ func TestPraiseIsAnsweredInKind(t *testing.T) {
 }
 
 func TestParseRequestDropsAPlayerWhereNoneCanBeMeant(t *testing.T) {
-	for _, kind := range []Kind{KindThanks, KindUnknown, KindToday, KindRules} {
+	for _, kind := range []Kind{KindThanks, KindUnknown, KindToday, KindRules, KindLeader} {
 		got, err := parseRequest(`{"kind":"` + string(kind) + `","span":"month","days":0,"worst":false,"player":"Bo","topic":"","date":"","month":"","guesses":0}`)
 		if err != nil {
 			t.Fatalf("%s: %v", kind, err)
@@ -33,7 +33,9 @@ func TestParseRequestDropsAPlayerWhereNoneCanBeMeant(t *testing.T) {
 
 func TestThePromptSaysANonQuestionIsNotAQuestion(t *testing.T) {
 	system := systemPrompt(Prompt{Players: []string{"Alma"}})
-	for _, want := range []string{`"thanks"`, "asks nothing", `Always ""`} {
+	for _, want := range []string{`"thanks"`, "asks nothing", `Always ""`,
+		// "Who is best?" is a career question; "who leads?" is the month's.
+		`"vem är bäst?"`, "who is leading or winning when no"} {
 		if !strings.Contains(system, want) {
 			t.Errorf("system prompt lacks %q", want)
 		}

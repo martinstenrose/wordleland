@@ -472,7 +472,10 @@ device. It works, but it ties the bot to a personal number, and the link step
 needs a QR code scanned within about a minute. It also makes answering
 questions awkward: the bot answers when its account is mentioned, and on a
 linked device that account is the operator's, so every mention of them in
-the group is a question for the bot.
+the group is a question for the bot — and a reply to any of the operator's
+own messages is read as a reply to a bot post, carrying their words along
+as if the bot had written them. Turn replies off (`SIGNAL_REPLIES=false`)
+on a linked device, or give the bot its own number.
 
 ```sh
 sig 'http://signal-cli-rest-api:8080/v1/qrcodelink/raw?device_name=wordleland' \

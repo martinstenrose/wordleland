@@ -226,6 +226,10 @@ func (o *Ollama) Interpret(ctx context.Context, p Prompt) (Request, error) {
 	return parseRequest(chat.Message.Content)
 }
 
+// maxSpanDays is the longest "last N days" that is still a span rather
+// than all time. A year; beyond it the board's own table is the answer.
+const maxSpanDays = 366
+
 // parseRequest reads what the model wrote, and treats anything outside the
 // known values as a question it did not understand rather than an error:
 // the group gets the help line, and nothing is logged as broken.
@@ -268,6 +272,11 @@ func parseRequest(content string) (Request, error) {
 		if r.Days <= 0 {
 			r.Span = SpanMonth
 		}
+		if r.Days > maxSpanDays {
+			// "The last billion days" is all time, and scoring it day by
+			// day would be work the answer's deadline cannot interrupt.
+			r.Span, r.Days = SpanAll, 0
+		}
 	case SpanAll:
 	default:
 		r.Span = SpanMonth
@@ -280,7 +289,7 @@ func parseRequest(content string) (Request, error) {
 	}
 	r.Player = strings.TrimSpace(r.Player)
 	switch r.Kind {
-	case KindToday, KindRules, KindThanks, KindUnknown:
+	case KindLeader, KindToday, KindRules, KindThanks, KindUnknown:
 		// Nothing to be about a player: a name here is the model filling
 		// a field in, which it does for a message that asks nothing.
 		r.Player = ""
@@ -337,8 +346,11 @@ Fields:
   anything not about this Wordle group's scores (people's contact details,
   accounts, settings, other subjects). Never pick a kind that was not asked
   for: a message with no question in it is "thanks" or "unknown".
-- span: "month" for this month or when no period is given; "days" for a number
-  of recent days (a week is 7, two weeks 14); "all" for all time, ever, overall.
+- span: "month" for this month, and for who is leading or winning when no
+  period is given (a month is the competition being led); "all" for all time,
+  ever, overall, and for who is best, the best player, or has the best average
+  when no period is given ("vem är bäst?", "who's the best?" are all time);
+  "days" for a number of recent days (a week is 7, two weeks 14).
 - days: the number of days when span is "days", otherwise 0.
 - worst: true when a "leader" question asks for the other end of the table —
   who is last, worst, lowest, struggling, has the worst form; otherwise false.

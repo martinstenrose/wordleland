@@ -3,6 +3,7 @@ package reply
 import (
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/martinstenrose/wordleland/internal/i18n"
@@ -62,7 +63,10 @@ func catchup(t i18n.Translator, req Request, asker *store.Player,
 	leaders := joinNames(t, names(m.Winners))
 	leaderAvg := t.Decimal(race.leader, 2)
 
-	if req.Player != "" || asker != nil {
+	// A player named — the asker's own name when they ask about themselves,
+	// which is how the model reports "can I still win". Nobody named is
+	// the whole field, whoever is asking: "can anyone still catch up?"
+	if req.Player != "" {
 		p, ok, text := whom(t, req, asker, players)
 		if !ok {
 			return text
@@ -93,7 +97,9 @@ func catchup(t i18n.Translator, req Request, asker *store.Player,
 		}
 	}
 
-	// Nobody in particular: everyone's chances at once.
+	// Nobody in particular: everyone's chances at once. The days left are
+	// the month's, today included, and each need says its own days, since
+	// somebody who has already played today has one fewer.
 	var in, out []string
 	for _, mp := range m.Ranked {
 		if isWinner(m, mp.ID) {
@@ -104,16 +110,16 @@ func catchup(t i18n.Translator, req Request, asker *store.Player,
 			out = append(out, mp.Name)
 			continue
 		}
-		in = append(in, t.T("reply.catchup.needs", mp.Name, t.Decimal(need, 2)))
+		in = append(in, t.T("reply.catchup.needs", mp.Name, t.Decimal(need, 2), left))
 	}
-	lines := []string{t.T("reply.catchup.head", capitalized(label), leaders, leaderAvg, race.afterNow)}
+	lines := []string{t.T("reply.catchup.head", capitalized(label), leaders, leaderAvg, race.afterNow+1)}
 	if len(in) > 0 {
 		lines = append(lines, t.T("reply.catchup.in", joinNames(t, in)))
 	}
 	if len(out) > 0 {
 		lines = append(lines, t.T("reply.catchup.out", joinNames(t, out)))
 	}
-	return joinLines(lines)
+	return strings.Join(lines, "\n")
 }
 
 // leadersView is the question from the top of the table: how safe the lead
@@ -182,15 +188,4 @@ func isWinner(m stats.Month, id int64) bool {
 		}
 	}
 	return false
-}
-
-func joinLines(lines []string) string {
-	out := ""
-	for i, l := range lines {
-		if i > 0 {
-			out += "\n"
-		}
-		out += l
-	}
-	return out
 }
