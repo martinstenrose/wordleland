@@ -41,6 +41,8 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 		return habits(t, req, asker, players, results, now)
 	case KindRules:
 		return rules(t, req)
+	case KindThanks:
+		return t.T("reply.thanks")
 	default:
 		return t.T("reply.help")
 	}

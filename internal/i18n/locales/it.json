@@ -813,5 +813,6 @@
   "reply.habits.player.none": "%s: nessun orario di pubblicazione registrato.",
   "reply.habits.first": "Apre la giornata più spesso: %s, %d degli ultimi %d giorni.",
   "reply.habits.last": "La chiude più spesso: %s, %d.",
-  "reply.habits.none": "Nessun ordine di pubblicazione registrato ancora."
+  "reply.habits.none": "Nessun ordine di pubblicazione registrato ancora.",
+  "reply.thanks": "Grazie! 🙂"
 }
