@@ -35,6 +35,10 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 		return wins(t, req, asker, players, results, now)
 	case KindCatchup:
 		return catchup(t, req, asker, players, results, now)
+	case KindCount:
+		return count(t, req, asker, players, results, now)
+	case KindHabits:
+		return habits(t, req, asker, players, results, now)
 	case KindRules:
 		return rules(t, req)
 	default:
@@ -148,15 +152,36 @@ func standingOver(t i18n.Translator, req Request, players []store.Player,
 	case SpanAll:
 		return t.T("reply.span.all"), boardAsStanding(stats.Compute(players, results, opts))
 	default:
-		months := stats.ComputeMonths(players, results, opts)
-		label := t.T("month." + strconv.Itoa(int(now.Month())))
-		for _, m := range months {
-			if m.Year == now.Year() && m.Month == now.Month() {
+		year, month := namedMonth(req, now)
+		label := t.T("month." + strconv.Itoa(int(month)))
+		if year != now.Year() {
+			label += " " + strconv.Itoa(year)
+		}
+		for _, m := range stats.ComputeMonths(players, results, opts) {
+			if m.Year == year && m.Month == month {
 				return label, m
 			}
 		}
-		return label, stats.Month{Year: now.Year(), Month: now.Month()}
+		return label, stats.Month{Year: year, Month: month}
 	}
+}
+
+// namedMonth is the month a request names, or the current one. The layout
+// is checked by parseRequest, so a bad value has already become "".
+func namedMonth(req Request, now time.Time) (int, time.Month) {
+	if req.Month != "" {
+		if m, err := time.ParseInLocation(MonthLayout, req.Month, now.Location()); err == nil {
+			return m.Year(), m.Month()
+		}
+	}
+	return now.Year(), now.Month()
+}
+
+// closedMonth says a request names a month that has ended, whose leader is
+// its winner and is spoken of as such.
+func closedMonth(req Request, now time.Time) bool {
+	year, month := namedMonth(req, now)
+	return stats.Month{Year: year, Month: month}.Complete(now)
 }
 
 // boardAsStanding reads the board's ranked table into the month's shape, so
@@ -201,6 +226,18 @@ func leader(t i18n.Translator, req Request, players []store.Player,
 	}
 	leaders := joinNames(t, names(m.Winners))
 	avg := t.Decimal(*m.Winners[0].Average, 2)
+	if req.Span == SpanMonth && closedMonth(req, now) {
+		// A month that has ended has a winner, not a leader: the 🏆
+		// message's own wording, since that is the result being asked for.
+		switch {
+		case len(m.Winners) > 1:
+			return "🏆 " + leaders + ": " + t.T("announce.line.tie", avg)
+		case m.Margin != nil:
+			return "🏆 " + t.T("announce.line.margin", leaders, label, avg, t.Decimal(*m.Margin, 2), m.Days)
+		default:
+			return "🏆 " + t.T("announce.line.alone", leaders, avg, m.Days)
+		}
+	}
 	switch {
 	case len(m.Winners) > 1:
 		return "📊 " + t.T("announce.daily.month.tie", label, leaders, avg)
