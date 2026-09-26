@@ -29,9 +29,106 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 		return streak(t, req, asker, players, results, now)
 	case KindToday:
 		return today(t, players, results, now)
+	case KindScore:
+		return score(t, req, asker, players, results, now)
+	case KindWins:
+		return wins(t, req, asker, players, results, now)
+	case KindRules:
+		return rules(t, req)
 	default:
 		return t.T("reply.help")
 	}
+}
+
+// score is one player's result on one day, looked up in the history rather
+// than computed: the one kind of question with a single stored answer.
+func score(t i18n.Translator, req Request, asker *store.Player,
+	players []store.Player, results []store.BoardResult, now time.Time) string {
+
+	p, ok, text := whom(t, req, asker, players)
+	if !ok {
+		return text
+	}
+	date := now
+	if req.Date != "" {
+		// Validated by parseRequest; a bad one is already "".
+		date, _ = time.ParseInLocation(DateLayout, req.Date, now.Location())
+	}
+	label := t.T("reply.date", date.Day(), t.T("month."+strconv.Itoa(int(date.Month()))))
+	puzzle := wordle.PuzzleForDate(date)
+	if puzzle > wordle.PuzzleForDate(now) {
+		return t.T("reply.score.future", label)
+	}
+	for _, r := range results {
+		if r.PlayerID != p.ID || r.PuzzleNo != puzzle {
+			continue
+		}
+		switch {
+		case !r.Solved:
+			return t.T("reply.score.failed", p.Name, label)
+		case r.HardMode:
+			return t.T("reply.score.hard", p.Name, label, r.Guesses)
+		default:
+			return t.T("reply.score.solved", p.Name, label, r.Guesses)
+		}
+	}
+	return t.T("reply.score.none", p.Name, label)
+}
+
+// wins reads the season, whose Wins counts closed months only: a month
+// still running has no winner yet.
+func wins(t i18n.Translator, req Request, asker *store.Player,
+	players []store.Player, results []store.BoardResult, now time.Time) string {
+
+	season := stats.ComputeSeason(stats.ComputeMonths(players, results, stats.DefaultOptions(now)), now)
+
+	if req.Player != "" {
+		p, ok, text := whom(t, req, asker, players)
+		if !ok {
+			return text
+		}
+		for _, row := range season.Rows {
+			if row.ID == p.ID {
+				return t.T("reply.wins.player", p.Name, row.Wins)
+			}
+		}
+		return t.T("reply.wins.player", p.Name, 0)
+	}
+
+	best := 0
+	for _, row := range season.Rows {
+		if row.Wins > best {
+			best = row.Wins
+		}
+	}
+	if best == 0 {
+		return t.T("reply.wins.none")
+	}
+	var leaders, rest []string
+	for _, row := range season.Rows {
+		switch {
+		case row.Wins == best:
+			leaders = append(leaders, row.Name)
+		case row.Wins > 0:
+			rest = append(rest, row.Name+" ("+t.Integer(row.Wins)+")")
+		}
+	}
+	sort.Strings(leaders)
+	line := "🏆 " + t.T("reply.wins", joinNames(t, leaders), best)
+	if len(rest) > 0 {
+		line += " " + t.T("reply.wins.then", strings.Join(rest, ", "))
+	}
+	return line
+}
+
+// rules is one catalogue text per topic. The texts describe what
+// internal/stats does and are kept true by hand: a change to a rule there
+// is a change to its sentence here, in every language.
+func rules(t i18n.Translator, req Request) string {
+	if req.Topic == "" {
+		return t.T("reply.rules.which")
+	}
+	return t.T("reply.rules." + string(req.Topic))
 }
 
 // standingOver ranks the span a request names, and labels it. The month's
@@ -94,6 +191,9 @@ func leader(t i18n.Translator, req Request, players []store.Player,
 
 	label, m := standingOver(t, req, players, results, now)
 	label = capitalized(label)
+	if req.Worst {
+		return last(t, label, m)
+	}
 	if len(m.Winners) == 0 {
 		return t.T("reply.leader.none", label)
 	}
@@ -109,6 +209,40 @@ func leader(t i18n.Translator, req Request, players []store.Player,
 	default:
 		return "📊 " + t.T("announce.daily.month.alone", label, leaders, avg)
 	}
+}
+
+// regularShare is the share of a span's days a player must have played to
+// be named for coming last: the weekly recap's five of seven, applied to
+// any span. A missed day scores 7, so without it last place would go to
+// whoever was away, and naming absentees is what the bot never does.
+const regularShare = 5.0 / 7
+
+// last names the bottom of the table among those who played most of the
+// span. An all-time table has no days to count; there the board's own
+// minimum of games already keeps absentees off it.
+func last(t i18n.Translator, label string, m stats.Month) string {
+	need := int(math.Ceil(float64(m.Days) * regularShare))
+	var regulars []stats.MonthPlayer
+	for _, p := range m.Ranked {
+		if p.Games >= need {
+			regulars = append(regulars, p)
+		}
+	}
+	if len(regulars) < 2 {
+		return t.T("reply.last.none", label)
+	}
+	worst := *regulars[len(regulars)-1].Average
+	var bottom []string
+	for _, p := range regulars {
+		if *p.Average == worst {
+			bottom = append(bottom, p.Name)
+		}
+	}
+	avg := t.Decimal(worst, 2)
+	if len(bottom) > 1 {
+		return "🥄 " + t.T("reply.last.tie", label, joinNames(t, bottom), avg)
+	}
+	return "🥄 " + t.T("reply.last", label, bottom[0], avg)
 }
 
 func standing(t i18n.Translator, req Request, asker *store.Player,
