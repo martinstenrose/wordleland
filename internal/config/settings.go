@@ -116,6 +116,9 @@ func (c *Config) Settings(b *Bridge) []Setting {
 		orDefault(toggle("SIGNAL_ANNOUNCE_WEEKS", b.AnnounceWeeks), "SIGNAL_ANNOUNCE_WEEKS"),
 		orDefault(text("SIGNAL_LOCALE", b.AnnounceLocale), "SIGNAL_LOCALE"),
 		orDefault(text("SIGNAL_API_URL", b.SignalAPIURL), "SIGNAL_API_URL"),
+		orDefault(toggle("SIGNAL_REPLIES", b.Replies), "SIGNAL_REPLIES"),
+		orDefault(text("LLM_MODEL", b.LLMModel), "LLM_MODEL"),
+		orDefault(text("LLM_URL", b.LLMURL), "LLM_URL"),
 	)
 }
 

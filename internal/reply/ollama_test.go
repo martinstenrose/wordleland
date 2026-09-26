@@ -152,8 +152,8 @@ func TestParseRequestNormalises(t *testing.T) {
 		content string
 		want    Request
 	}{
-		{`{"kind":"leader","span":"month","days":0,"player":" Bo "}`,
-			Request{Kind: KindLeader, Span: SpanMonth, Player: "Bo"}},
+		{`{"kind":"standing","span":"month","days":0,"player":" Bo "}`,
+			Request{Kind: KindStanding, Span: SpanMonth, Player: "Bo"}},
 		{`{"kind":"weather","span":"month","days":0,"player":""}`,
 			Request{Kind: KindUnknown, Span: SpanMonth}},
 		{`{"kind":"leader","span":"days","days":0,"player":""}`,
