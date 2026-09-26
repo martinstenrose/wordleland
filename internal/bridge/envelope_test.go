@@ -18,6 +18,9 @@ const (
 	testUUID    = "b1d4e8a2-0000-4000-8000-0123456789ab"
 	testGroupID = "c2FtcGxlLWdyb3VwLWlkLXZhbHVlLWZvci10ZXN0cw=="
 	testName    = "Sample Sender"
+	// testAccount is the bridge's own number in these tests: the shape a real
+	// one has, and not one.
+	testAccount = "+46700000000"
 )
 
 // dataEnvelope is the shape a message from someone else arrives in, with
@@ -89,7 +92,7 @@ func decodeEnvelopeLogged(t *testing.T, raw string) (Message, bool, string) {
 	}
 	var logs bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	msg, ok := env.message(logger)
+	msg, ok := env.message(testAccount, logger)
 	return msg, ok, logs.String()
 }
 

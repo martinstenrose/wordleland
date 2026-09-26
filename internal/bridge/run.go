@@ -49,8 +49,10 @@ type Bridge struct {
 //
 // announce may be nil, meaning the bridge receives without ever posting
 // back — unconfigured, or turned off with SIGNAL_ANNOUNCE_MONTHS,
-// SIGNAL_ANNOUNCE_DAYS and SIGNAL_ANNOUNCE_WEEKS.
-func New(cfg config.Bridge, deliver Deliverer, announce Announcer, logger *slog.Logger) (*Bridge, error) {
+// SIGNAL_ANNOUNCE_DAYS and SIGNAL_ANNOUNCE_WEEKS. respond may be nil the
+// same way, meaning a message that mentions the bot is treated as any other
+// conversation.
+func New(cfg config.Bridge, deliver Deliverer, announce Announcer, respond Responder, logger *slog.Logger) (*Bridge, error) {
 	h := newHealth(time.Now)
 	source, err := newWebsocketSource(cfg.SignalAPIURL, cfg.SignalAccount, logger, h)
 	if err != nil {
@@ -60,7 +62,7 @@ func New(cfg config.Bridge, deliver Deliverer, announce Announcer, logger *slog.
 	return &Bridge{
 		health:   h,
 		source:   source,
-		filer:    newFiler(cfg.SignalGroupID, deliver, announce, logger, h),
+		filer:    newFiler(cfg.SignalGroupID, deliver, announce, respond, logger, h),
 		verifier: newVerifier(cfg.SignalAPIURL, cfg.SignalAccount, cfg.SignalGroupID),
 		logger:   logger,
 	}, nil

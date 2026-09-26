@@ -68,7 +68,7 @@ func TestDecodeDoesNotLogARemoteErrorVerbatim(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	if _, ok := decode(frame, logger); ok {
+	if _, ok := decode(frame, testAccount, logger); ok {
 		t.Fatal("an error frame decoded as a message")
 	}
 
