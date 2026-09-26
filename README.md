@@ -167,7 +167,9 @@ vunnit flest månader?", "what counts as a miss?". A language model reads the
 question and turns it into one of a handful of requests: who is leading —
 or last, among those who played most of the days — (this month, the last N
 days, or all time), one player's standing, whether somebody can still win
-the month and what it would take, streaks,
+the month and what it would take, a past month's result, how many 2s (or
+X's) somebody has, who usually posts first or last and when somebody
+usually posts, streaks,
 today's puzzle, one player's score on one day, monthly wins, or what a word
 in a post means (a miss, points, streaks, how a month is scored, hard mode,
 form, who is ranked). That is all the model does. The figures come from the

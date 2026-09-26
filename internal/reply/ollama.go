@@ -157,15 +157,18 @@ var requestSchema = map[string]any{
 	"properties": map[string]any{
 		"kind": map[string]any{"type": "string", "enum": []string{
 			string(KindLeader), string(KindStanding), string(KindStreak), string(KindToday),
-			string(KindScore), string(KindWins), string(KindCatchup), string(KindRules), string(KindUnknown)}},
-		"span":   map[string]any{"type": "string", "enum": []string{string(SpanMonth), string(SpanDays), string(SpanAll)}},
-		"days":   map[string]any{"type": "integer"},
-		"worst":  map[string]any{"type": "boolean"},
-		"player": map[string]any{"type": "string"},
-		"topic":  map[string]any{"type": "string", "enum": topicNames()},
-		"date":   map[string]any{"type": "string"},
+			string(KindScore), string(KindWins), string(KindCatchup), string(KindCount), string(KindHabits),
+			string(KindRules), string(KindUnknown)}},
+		"span":    map[string]any{"type": "string", "enum": []string{string(SpanMonth), string(SpanDays), string(SpanAll)}},
+		"days":    map[string]any{"type": "integer"},
+		"worst":   map[string]any{"type": "boolean"},
+		"player":  map[string]any{"type": "string"},
+		"topic":   map[string]any{"type": "string", "enum": topicNames()},
+		"date":    map[string]any{"type": "string"},
+		"month":   map[string]any{"type": "string"},
+		"guesses": map[string]any{"type": "integer"},
 	},
-	"required": []string{"kind", "span", "days", "worst", "player", "topic", "date"},
+	"required": []string{"kind", "span", "days", "worst", "player", "topic", "date", "month", "guesses"},
 }
 
 // topicNames is every Topic plus the empty string for "not a rules
@@ -232,7 +235,8 @@ func parseRequest(content string) (Request, error) {
 		return Request{}, fmt.Errorf("model did not answer with a request: %w", err)
 	}
 	switch r.Kind {
-	case KindLeader, KindStanding, KindStreak, KindToday, KindScore, KindWins, KindCatchup, KindRules:
+	case KindLeader, KindStanding, KindStreak, KindToday, KindScore, KindWins, KindCatchup,
+		KindCount, KindHabits, KindRules:
 	default:
 		r.Kind = KindUnknown
 	}
@@ -247,6 +251,17 @@ func parseRequest(content string) (Request, error) {
 		// A date the model could not write properly is today, which is
 		// the likeliest day to be asked about anyway.
 		r.Date = ""
+	}
+	r.Month = strings.TrimSpace(r.Month)
+	if _, err := time.Parse(MonthLayout, r.Month); err != nil || (r.Kind != KindLeader && r.Kind != KindStanding) {
+		r.Month = ""
+	}
+	if r.Month != "" {
+		// A named month is a month: whatever span the model also wrote.
+		r.Span, r.Days = SpanMonth, 0
+	}
+	if r.Kind != KindCount || r.Guesses < 0 || r.Guesses > 7 {
+		r.Guesses = 0
 	}
 	switch r.Span {
 	case SpanDays:
@@ -295,6 +310,10 @@ Fields:
   "catchup" for whether somebody can still win or catch up this month, how far
   behind they are, what they need to win, whether the leader is safe ("kan Bo
   komma ikapp?", "can I still win?", "is Alma safe?");
+  "count" for how many times a player has scored a given number or failed
+  ("hur många 2:or har jag?", "how often does Bo fail?", "do I have any 1s?"),
+  or their whole distribution;
+  "habits" for who usually posts first or last, or when somebody usually posts;
   "rules" for what something means or how it is counted — a miss, points, the
   average, a streak, how the month is scored, hard mode, form, who is ranked;
   "unknown" for anything else, including anything not about this Wordle group's
@@ -309,6 +328,12 @@ Fields:
 - topic: when kind is "rules", which rule: "miss" (a missed day), "average" (the
   average, points), "streak", "month" (how a month is scored and won), "hardmode",
   "form", "ranked" (who is ranked on the board and why not); otherwise "".
+- month: when a "leader" or "standing" question names a particular past month
+  ("vem vann juli?", "last month", "how did I do in August"), that month as
+  YYYY-MM, worked out from today's date (a month without a year is the most
+  recent one that has happened); otherwise "".
+- guesses: when kind is "count", the score asked about: 1 to 6, 7 for a failure
+  (X), 0 for the whole distribution; otherwise 0.
 - date: when kind is "score", the day asked about as YYYY-MM-DD, worked out from
   today's date ("yesterday", "last Friday", "July 5" — a month without a year is
   the most recent one that has happened); "" for today or when kind is not "score".
