@@ -111,10 +111,28 @@ func (b *Bridge) Run(ctx context.Context) error {
 	err := b.source.Run(ctx, queue)
 
 	close(queue)
+	// One deadline for both waits, as a context rather than a channel: a
+	// channel from time.After is consumed by the first select that takes
+	// it, and the second would then wait for ever.
+	drain, cancel := context.WithTimeout(context.Background(), drainTimeout)
+	defer cancel()
 	select {
 	case <-done:
-	case <-time.After(drainTimeout):
+	case <-drain.Done():
 		b.logger.Warn("gave up draining queued results", "timeout", drainTimeout)
+	}
+	// An answer being worked out beside the worker gets the rest of the
+	// same deadline: a question is not a result, but an answer already
+	// being typed should not be cut off mid-sentence for nothing.
+	answered := make(chan struct{})
+	go func() {
+		b.filer.wait()
+		close(answered)
+	}()
+	select {
+	case <-answered:
+	case <-drain.Done():
+		b.logger.Warn("gave up waiting for an answer in progress", "timeout", drainTimeout)
 	}
 	return err
 }

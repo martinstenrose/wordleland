@@ -21,7 +21,9 @@ func habits(t i18n.Translator, req Request, asker *store.Player,
 	current := wordle.PuzzleForDate(now)
 	h := stats.ComputePostingHabits(results, current)
 
-	if req.Player != "" || asker != nil {
+	// Nobody named is the group's habits, whoever is asking: "who posts
+	// first?" from a claimed player is not about them.
+	if req.Player != "" {
 		p, ok, text := whom(t, req, asker, players)
 		if !ok {
 			return text

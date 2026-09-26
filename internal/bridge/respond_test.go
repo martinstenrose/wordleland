@@ -41,6 +41,7 @@ func TestAMentionIsAnsweredNotFiled(t *testing.T) {
 	f.respond = a.responder(nil)
 
 	f.handle(context.Background(), question("who is leading this month?"))
+	f.wait()
 
 	if got := a.got(); len(got) != 1 || !strings.Contains(got[0].Body, "who is leading") {
 		t.Fatalf("responder got %v, want the question", got)
@@ -87,6 +88,7 @@ func TestNilResponderTreatsAMentionAsConversation(t *testing.T) {
 	f, cap := testFiler(t)
 
 	f.handle(context.Background(), question("hello?"))
+	f.wait()
 
 	if len(cap.sent()) != 0 {
 		t.Errorf("filed something: %v", cap.sent())
@@ -102,6 +104,7 @@ func TestResponderFailureIsLoggedWithoutTheQuestion(t *testing.T) {
 	f.respond = a.responder(errors.New("model unreachable"))
 
 	f.handle(context.Background(), question("secret question text"))
+	f.wait()
 
 	log := cap.log()
 	if !strings.Contains(log, "could not answer") || !strings.Contains(log, "model unreachable") {
@@ -121,6 +124,7 @@ func TestResponderContextCarriesADeadline(t *testing.T) {
 	}
 
 	f.handle(context.Background(), question("anything"))
+	f.wait()
 
 	if !deadline {
 		t.Error("the responder ran without a deadline")
