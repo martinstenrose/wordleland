@@ -45,11 +45,14 @@ func RunMonthly(ctx context.Context, check func(context.Context, time.Time) erro
 // the day before startup as done when nothing has ever been announced, so a
 // fresh deployment opens with the puzzle the group is currently playing.
 //
+// The week's check rides on the same run, after the day's, so check may be
+// both joined; a week closes at a midnight like any day.
+//
 // Same failure handling as RunMonthly — an unrecorded day is retried by the
 // next live result, not by a tight loop here.
 func RunDaily(ctx context.Context, check func(context.Context, time.Time) error, logger *slog.Logger) {
 	runSchedule(ctx, check, logger, time.Now, waitContext, nextDailyRun, true,
-		"could not post the day's recap; will retry on the next live message")
+		"could not post the day's or the week's recap; will retry on the next live message")
 }
 
 // runSchedule is the loop both announcements share: sleep until next says,

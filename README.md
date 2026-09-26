@@ -81,6 +81,7 @@ and an extra URL that commonly attract spam-filter rules.
 | `SIGNAL_GROUP_ID` | See below — this one is easy to get wrong. |
 | `SIGNAL_ANNOUNCE_MONTHS` | Optional, default `true`. Post the month's winner back into the group when a month closes. |
 | `SIGNAL_ANNOUNCE_DAYS` | Optional, default `true`. Post the day's recap — the day's best result, who posted first and last, the day's events when there are any (a new month leader, a streak milestone, a first ever 2, a run at 3 or better up to the group's record), one remark when the day earned one (a hard or easy puzzle, who failed it, or somebody well under their own average), and where the month stands — as soon as every active player has filed, or just after midnight if they have not. Independent of the variable above; set both to `false` for a bridge that receives without the bot ever speaking. |
+| `SIGNAL_ANNOUNCE_WEEKS` | Optional, default `true`. Post the Monday-to-Sunday week's recap — the podium, last place among those who played at least five days, and the group's average against the week before, plus up to three extras when the week earned them — right after Sunday's recap: as soon as every active player has filed Sunday's puzzle, or just after midnight if they have not. Independent of the variables above. |
 | `SIGNAL_LOCALE` | Optional, default `en`. The language the announcements above are written in — one fixed choice for the whole group, not a per-member preference. |
 
 `SIGNAL_API_URL` is not configured. It defaults to
@@ -133,6 +134,17 @@ history, and the marker is set to the day before startup. Enable it at midday
 and the first message is about that day's puzzle — immediately if everyone has
 already filed, otherwise when the last player does or just after midnight.
 Nothing is ever posted about the days before.
+
+**And once a week.** Right after Sunday's recap it sends one message about the
+Monday-to-Sunday week: the podium, who came last among those who played at
+least five of the seven days, and the group's average against the week
+before. Up to three extras follow when the week earned them: a run of weeks at
+the top (or the end of a long one), who had the day's best most often, a close
+finish, somebody well under their own average, a 2 and an X in the same week
+(or the same score all seven days), everyone playing every day, and who
+usually posts first. A day not played counts as an X, as it does for the month. The
+same catch-up and first-run rules apply: one week back at most, and the week
+before the app first starts is never posted.
 
 ### Set `TRUSTED_PROXIES`
 

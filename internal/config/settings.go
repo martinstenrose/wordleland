@@ -113,6 +113,7 @@ func (c *Config) Settings(b *Bridge) []Setting {
 		Setting{Name: "SIGNAL_GROUP_ID", Value: b.SignalGroupID, Kind: SettingValue, Mono: true},
 		orDefault(toggle("SIGNAL_ANNOUNCE_MONTHS", b.AnnounceMonths), "SIGNAL_ANNOUNCE_MONTHS"),
 		orDefault(toggle("SIGNAL_ANNOUNCE_DAYS", b.AnnounceDays), "SIGNAL_ANNOUNCE_DAYS"),
+		orDefault(toggle("SIGNAL_ANNOUNCE_WEEKS", b.AnnounceWeeks), "SIGNAL_ANNOUNCE_WEEKS"),
 		orDefault(text("SIGNAL_LOCALE", b.AnnounceLocale), "SIGNAL_LOCALE"),
 		orDefault(text("SIGNAL_API_URL", b.SignalAPIURL), "SIGNAL_API_URL"),
 	)

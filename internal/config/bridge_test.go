@@ -23,7 +23,8 @@ func setEnv(t *testing.T, env map[string]string) {
 	t.Helper()
 	for _, k := range []string{
 		"SIGNAL_API_URL", "SIGNAL_ACCOUNT", "SIGNAL_GROUP_ID",
-		"SIGNAL_ANNOUNCE_MONTHS", "SIGNAL_ANNOUNCE_DAYS", "SIGNAL_LOCALE",
+		"SIGNAL_ANNOUNCE_MONTHS", "SIGNAL_ANNOUNCE_DAYS", "SIGNAL_ANNOUNCE_WEEKS",
+		"SIGNAL_LOCALE",
 	} {
 		t.Setenv(k, env[k])
 	}
@@ -256,6 +257,26 @@ func TestTheTwoAnnouncementsAreSwitchedSeparately(t *testing.T) {
 	}
 	if !cfg.AnnounceMonths {
 		t.Error("AnnounceMonths = false; turning the daily recap off must not take the month with it")
+	}
+	if !cfg.AnnounceWeeks {
+		t.Error("AnnounceWeeks = false; turning the daily recap off must not take the week with it")
+	}
+}
+
+func TestTheWeeklyRecapHasItsOwnSwitch(t *testing.T) {
+	env := bridgeEnv()
+	env["SIGNAL_ANNOUNCE_WEEKS"] = "false"
+	setEnv(t, env)
+
+	cfg, err := LoadBridge()
+	if err != nil {
+		t.Fatalf("LoadBridge() failed: %v", err)
+	}
+	if cfg.AnnounceWeeks {
+		t.Error("AnnounceWeeks = true, want false with SIGNAL_ANNOUNCE_WEEKS=false")
+	}
+	if !cfg.AnnounceDays || !cfg.AnnounceMonths {
+		t.Error("turning the week off took another announcement with it")
 	}
 }
 

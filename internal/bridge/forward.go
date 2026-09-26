@@ -41,8 +41,8 @@ type Deliverer func(context.Context, ingest.Submission) (ingest.Result, error)
 // What it actually covers is assembled in cmd/wordleland/serve.go; the
 // bridge deliberately knows only that something might want saying after a
 // result lands. A nil Announcer means announcing is off — unconfigured, or
-// disabled by SIGNAL_ANNOUNCE_MONTHS and SIGNAL_ANNOUNCE_DAYS — and is
-// never called.
+// disabled by SIGNAL_ANNOUNCE_MONTHS, SIGNAL_ANNOUNCE_DAYS and
+// SIGNAL_ANNOUNCE_WEEKS — and is never called.
 //
 // An error is a genuine failure — the store, or the send, went wrong — not
 // "nothing to announce yet", which the Announcer reports by returning nil.

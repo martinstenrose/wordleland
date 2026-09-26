@@ -1473,6 +1473,63 @@ of every row to be null. The puzzle number is the same identifier the
 results table and the parser use, so there is no second notion of "which
 day" to keep in step with `wordle.PuzzleForDate`.
 
+## The week's recap
+
+Once a week the bridge posts a recap of the Monday-to-Sunday week, in its own
+message right after Sunday's daily one.
+
+**It closes when Sunday does.** Sunday's last active player filing ends the
+week early, the run just after midnight ends it otherwise. The week's check
+rides on the daily run rather than a timer of its own, after the day's check,
+and waits for Sunday's recap to be out when the day's recap is configured: the
+two share a trigger, and the group should read about Sunday before the week it
+closed. It stops waiting once Sunday's recap can no longer come — the day's
+check looks one day back — so an outage costs at most the day, not both. Like
+the day's, it looks one week back and no further, and on a first run marks the
+previous week done rather than opening with it.
+
+**Scored as a month is.** `stats.ComputeWeek` is the month's scoring over a
+seven-puzzle span (`scoreSpan`, which the month now also goes through): a day
+not played counts as 7, so the podium cannot be won by playing only the good
+days. The week is scored as of the following Monday even when posted on
+Sunday evening — it is only posted early once every active player is in.
+
+**Last place is named only among those who played at least five days.** With
+missed days counted as 7, the bottom of the table is usually whoever was
+away, and naming absentees is the one thing the recaps never do. So the 🥄
+line takes the last of the regulars, and is left out when that player is on
+the podium, which in a small group they can be. The same five days gate the
+close-finish and turnaround lines, which also name people for where they
+finished.
+
+**A core and at most three extras.** The core — head, podium, last place,
+average — is there every week. The extras each have a threshold and a fixed
+priority (a run of weeks at the top, daily bests, close finish, turnaround,
+rollercoaster or metronome, full attendance, early bird), and the first three
+that fire go out. Once a week can carry more than the day's three or four
+lines, but not all of them: a message that needs scrolling is the one nobody
+reads, and a varying set keeps it from being the same message every Sunday.
+
+**Every line has to be able to stay away.** Three were tried and dropped
+because they would have been there almost every week. The easiest and
+hardest day always exist, however flat the week was, and a day that really
+stood out has already been called by the day's own 🧱/🪶 line. A tally of 2s
+and Xs fires whenever there is one of either, which is most weeks. And a list
+of who played every day names, by elimination, who did not, so attendance is
+said only when it was everyone. For the same reason the metronome wants the
+same score all seven days, not a week of 3s and 4s, which is just a week.
+
+**A run of weeks is said from the second, its end from the third.** A shared
+win counts for everyone sharing it, as a shared month does. Ending a run of
+two is just a new winner, which the podium already says.
+
+**Keyed by the Monday's puzzle number**, in `signal_week_announcements`, for
+the reasons the day's table gives. An ISO week number restarts every January;
+the puzzle number does not, and a Monday is every seventh one from puzzle 2.
+
+**Its own switch, `SIGNAL_ANNOUNCE_WEEKS`, defaulting on**, for the reason the
+day has one.
+
 ## CI and security scanning
 
 **CodeQL's `go/log-injection` alerts on `internal/web` are false positives,

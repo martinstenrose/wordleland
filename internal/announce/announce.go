@@ -1,6 +1,6 @@
 // Package announce builds what the Signal bridge posts back into the group.
 //
-// There are two announcements, each a closure of the same shape — given the
+// There are three announcements, each a closure of the same shape — given the
 // current time, work out whether there is anything to say and say it — and
 // each restart-safe through a row it writes only after a send succeeds:
 //
@@ -8,6 +8,8 @@
 //     first of a month or after a later live message.
 //   - NewDaily posts the day's recap, once every active player has filed or
 //     just after midnight, whichever comes first.
+//   - NewWeekly posts the Monday-to-Sunday week's recap, right after
+//     Sunday's, by the same rule.
 //
 // It sits above internal/store, internal/stats and internal/i18n — none of
 // which the bridge package itself depends on — so bridge stays able to

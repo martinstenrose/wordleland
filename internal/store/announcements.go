@@ -78,3 +78,41 @@ func RecordDayAnnouncement(ctx context.Context, q Querier, puzzleNo int) error {
 	}
 	return nil
 }
+
+// WeekAnnounced reports whether the bridge has already posted the recap of
+// the week starting on puzzle first, which is a Monday's.
+func WeekAnnounced(ctx context.Context, q Querier, first int) (bool, error) {
+	var n int
+	err := q.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM signal_week_announcements WHERE first_puzzle = ?`,
+		first,
+	).Scan(&n)
+	if err != nil {
+		return false, fmt.Errorf("check week announcement: %w", err)
+	}
+	return n > 0, nil
+}
+
+// AnyWeekAnnounced is AnyDayAnnounced for the week.
+func AnyWeekAnnounced(ctx context.Context, q Querier) (bool, error) {
+	var exists int
+	err := q.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM signal_week_announcements)`,
+	).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check whether any week has been announced: %w", err)
+	}
+	return exists == 1, nil
+}
+
+// RecordWeekAnnouncement marks a week as announced, after the send, for the
+// same reason RecordMonthAnnouncement does.
+func RecordWeekAnnouncement(ctx context.Context, q Querier, first int) error {
+	if _, err := q.ExecContext(ctx,
+		`INSERT INTO signal_week_announcements (first_puzzle) VALUES (?)`,
+		first,
+	); err != nil {
+		return fmt.Errorf("record week announcement: %w", err)
+	}
+	return nil
+}
