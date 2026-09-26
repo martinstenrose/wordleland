@@ -72,6 +72,20 @@ type Responder func(ctx context.Context, m Message) error
 // finish, short enough that a hung one cannot hold results back for long.
 const respondTimeout = 90 * time.Second
 
+// Presence is how the bot shows it has read a question before the answer
+// arrives: a reaction on the message, and the typing indicator while the
+// answer is being worked out. Both are best effort — a failure is a debug
+// line, never a missing answer — and nil means neither is shown.
+type Presence interface {
+	Seen(ctx context.Context, m Message) error
+	Typing(ctx context.Context, on bool) error
+}
+
+// typingRefresh is how often the typing indicator is started again while
+// an answer is still being worked out. Signal's clients stop showing it
+// about fifteen seconds after the last start.
+const typingRefresh = 10 * time.Second
+
 // Back-dating window, in puzzles either side of today's.
 //
 // Explicitly labeled Archive shares are rejected before this window. The
@@ -123,6 +137,12 @@ type filer struct {
 	// respond answers a message that mentions the bot. Nil when replies
 	// are off.
 	respond Responder
+	// presence shows a question has been seen while respond works. Nil
+	// when replies are off, or in tests that do not care.
+	presence Presence
+	// typingRefresh is swapped in tests so a refresh can be observed
+	// without waiting ten seconds.
+	typingRefresh time.Duration
 
 	// now is swapped in tests so the back-dating window can be exercised
 	// without waiting for the calendar.
@@ -139,8 +159,9 @@ func newFiler(groupID string, deliver Deliverer, announce Announcer, respond Res
 	return &filer{
 		groupID: groupID, deliver: deliver, announce: announce, respond: respond,
 		logger: logger, health: h,
-		now:   time.Now,
-		sleep: sleepContext,
+		typingRefresh: typingRefresh,
+		now:           time.Now,
+		sleep:         sleepContext,
 	}
 }
 
@@ -242,10 +263,57 @@ func (f *filer) maybeAnnounce(ctx context.Context) {
 func (f *filer) maybeRespond(ctx context.Context, m Message) {
 	rctx, cancel := context.WithTimeout(ctx, respondTimeout)
 	defer cancel()
-	if err := f.respond(rctx, m); err != nil {
+	stop := f.showPresence(rctx, m)
+	err := f.respond(rctx, m)
+	stop()
+	if err != nil {
 		// The question itself is never logged, for the same reason a
 		// message body never is: only that one went unanswered.
 		f.logger.Warn("could not answer a question in the group", "error", err)
+	}
+}
+
+// showPresence marks the question seen and keeps the typing indicator up
+// until the returned function is called, which also takes it down. All of
+// it runs beside the answer, not before it: a slow signal-cli must not
+// delay the model being asked, and nothing here can fail the answer.
+func (f *filer) showPresence(ctx context.Context, m Message) func() {
+	if f.presence == nil {
+		return func() {}
+	}
+	done := make(chan struct{})
+	finished := make(chan struct{})
+	go func() {
+		defer close(finished)
+		if err := f.presence.Seen(ctx, m); err != nil {
+			f.logger.Debug("could not react to a question", "error", err)
+		}
+		ticker := time.NewTicker(f.typingRefresh)
+		defer ticker.Stop()
+		for {
+			if err := f.presence.Typing(ctx, true); err != nil {
+				f.logger.Debug("could not show typing", "error", err)
+			}
+			select {
+			case <-done:
+				// Its own short deadline, detached from the answer's:
+				// the answer is out by now, and the indicator should go
+				// with it even if the answer's context has expired.
+				sctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), sendTimeout)
+				defer cancel()
+				if err := f.presence.Typing(sctx, false); err != nil {
+					f.logger.Debug("could not stop typing", "error", err)
+				}
+				return
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
+	return func() {
+		close(done)
+		<-finished
 	}
 }
 
