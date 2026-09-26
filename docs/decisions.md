@@ -505,9 +505,10 @@ from it:
   reads the board. Manrope is self-hosted for the same reason.
 - **Its shell.** The prototype is React, and its rail, drawer, theme picker and
   collapse state are component state. Here the rail is server-rendered, the
-  drawer is a `<details>`, the theme is three links, and the collapsed width is
-  a cookie set by following a link — the same mechanism the theme has used all
-  along.
+  drawer is a `<details>`, the theme is three links — see *Theme and language
+  live in the account slot*, below, for where those three links ended up — and
+  the collapsed width is a cookie set by following a link, the same mechanism
+  the theme has used all along.
 
   Collapsing the rail was the first place script was worth adding on top, and
   it set the pattern the rest followed — see *Switching pages in place*,
@@ -541,6 +542,91 @@ server-rendered can add them. It is therefore marked up as the disclosure it
 is and not as a modal dialog. None of that is verifiable here: this project has
 no headless browser, and adding one is a dependency that needs its own
 argument, so the drawer's behaviour is checked by looking at it.
+
+## Theme and language live in the account slot
+
+The bar carried four things: the wordmark, the drawer, search, and then a
+track of three theme links and a language menu. Two of its five controls were
+settings — a theme a reader picks once and a language most of this group never
+changes at all — sitting in front of every page at every width, and on a phone
+each had a second, smaller form of itself for a bar with less room to give.
+
+Four homes were drawn for them. Pinned to the foot of the navigation drawer;
+stated as a quiet line at the end of the page with a "change" link, on the
+argument that the defaults already follow the device; folded into one "more"
+sheet with help, privacy and the repository. The one taken is the account
+slot, for the reason the others each miss on the half of the audience that
+arrives on a shared link: **a reader with no session is not missing a menu,
+they are missing an account.**
+
+So the circle at the end of the bar is in the same place for everyone. Signed
+in it is their initials, and the sheet behind it holds the account, the two
+settings and the way out. On a shared link or the privacy notice it is the
+outline of a person, and the sheet says the view is read-only, holds the same
+two settings, and offers the way in. Two controls leave the bar and none is
+added — the sign-in button goes with them, into the sheet as its last row.
+
+Both settings are tracks of links rather than menus, which is what the theme
+always was: the choices are few and fixed and they all fit, and making a
+reader open something inside the thing they have just opened is a press spent
+on nothing. The languages are their two-letter codes, with the name on each
+as its accessible name and the one in force spelt out in the label above —
+five language names do not fit a row this wide, and the codes are what makes
+one track work at a phone's width and a desktop's without a second form.
+
+What this costs, and is worth: changing the theme is two presses rather than
+one. What it does not cost: every control in the sheet is still a link or a
+form, and works with no script at all.
+
+**The sheet stays open when a setting is chosen**, because a reader who has
+just picked a theme may well want the language too, and following either link
+replaces the whole body and takes the `<details>` with it. The link carries
+`menu=account` and the page that comes back renders the sheet open: the page
+is rendered again either way — swapped in by htmx, or loaded outright — so
+the server is the only thing that can know it was open, and a parameter it
+reads is the version that works with the script absent, disabled, or failing
+to load. It is not state on `<html>` that no cookie backs, which the list
+above names as a sign the script has started fighting its library.
+
+The marker is dropped by every builder of a link back to the current URL and
+put back by the two that belong to the sheet. That is what `dropRequestOnly`
+is: those builders carry the whole query through, which is what keeps a
+filter alive across a language switch, and it would have kept this alive too
+— a sort column pressed after a theme would have opened the sheet on top of
+the board. Three builders had each grown their own copy of the same paragraph
+about `partial=1`; there is one place now saying which parameters are not a
+reader's view of the page, and a fourth builder inherits it.
+
+Two things the swap then needed, both in `app.js` and neither load-bearing:
+
+- **The outgoing menus are closed before the incoming body lands.** A
+  `<details name=...>` that arrives open is closed *on arrival* if one with
+  the same name is still open in the page it replaces — exclusivity within
+  the group applies to the element being inserted, which is right for a
+  reader opening a second menu and backwards when the two are the same menu
+  either side of a swap. The outgoing ones are being thrown away regardless,
+  and the view transition's picture of them is taken before this runs, so
+  nothing blinks. A full navigation never had the problem; with the script
+  absent the sheet still arrives open, because there is no old page to lose
+  to.
+- **Focus goes back to the setting that was pressed**, as a fourth case in
+  the same `focusRule` that already aims a ranking row, a section bar and a
+  rail row. By position in the track rather than by href: every one of these
+  links is built from the page it is on, so the same setting is a different
+  string on the page that comes back.
+
+**The door gets the same slot.** The sign-in family has its own much shorter
+row — the wordmark in one corner and this in the other — and it renders the
+same partial with neither an account to show nor a sign-in row to offer on
+the page that is the sign-in. One definition of the control rather than two
+that drift, and a theme or language chosen at the door is the one in force on
+the other side of it.
+
+What a browser had to answer, and did: whether the three theme names and the
+five codes fit their segments in all five languages, at a phone's width and a
+desktop's, with the sheet still on screen. They do —
+`TestBrowserTheAccountSheetFitsBothWidths` measures it rather than trusting
+the artboard, which is drawn at one width in English.
 
 ## A card's heading is the control that changes it
 

@@ -21,23 +21,23 @@
 </svg>
 {{end}}
 
-{{/* The switchers are links, the drawer and the account menu are <details>.
-     Nothing here needs JavaScript for opening, summary-click closing or
-     exclusivity — those work from HTML and CSS alone, which is the point: a
-     control that only works once a script has run is a control that sometimes
-     does not work. app.js also closes topbar menus when a click lands outside
-     them.
+{{/* The two settings are links, the drawer and the account slot are
+     <details>. Nothing here needs JavaScript for opening, summary-click
+     closing or exclusivity — those work from HTML and CSS alone, which is the
+     point: a control that only works once a script has run is a control that
+     sometimes does not work. app.js also closes topbar menus when a click
+     lands outside them.
 
      Two kinds of disclosure share this pattern, each exclusive within
      itself but not with the other — a plain <details> with a name= the
      browser uses to close the rest of its own group:
-       - name="menu-group": the navigation drawer, the two pickers, the
-         account menu and the board's ranking menu — a choice or an action,
-         not just information. Each has one fixed spot on the page, so it
-         anchors itself in app.css. The group was called "topbar-menu" while
-         every one of them was in the bar; the ranking menu is the first that
-         is not, and a name that says where they live rather than what they
-         are was the wrong half to keep.
+       - name="menu-group": the navigation drawer, the account slot and the
+         board's ranking menu — a choice or an action, not just information.
+         Each has one fixed spot on the page, so it anchors itself in
+         app.css. The group was called "topbar-menu" while every one of them
+         was in the bar; the ranking menu is the first that is not, and a
+         name that says where they live rather than what they are was the
+         wrong half to keep.
        - name="popup": a trait's explanation, a result cell's detail — read-
          only information with nothing to choose, and no fixed spot: either
          can open anywhere on the page. app.js nudges these back on screen
@@ -47,47 +47,118 @@
          just without the nudge.
      A menu open and a popup open at once is fine; two menus or two popups
      open at once is not. A new one joins whichever group it actually is,
-     rather than a third name of its own.
+     rather than a third name of its own. */}}
 
-     The theme picker is not among them. It offers three fixed choices and
-     nothing else, so on a wide bar it is simply those three links side by
-     side, and on a narrow one a single link to the next of them — no
-     disclosure to open, and one fewer thing that can be open at a time. */}}
+{{/* Theme and language, as two tracks of links.
 
-{{/* Three links in a track on a wide bar; on a narrow one the track gives way
-     to a single link carrying the setting in force, which moves to the next.
-     Both are in the markup and app.css decides which is shown, so neither
-     depends on knowing the viewport server-side. */}}
-{{define "theme-picker"}}
-<div class="theme-track" role="group" aria-label="{{.ThemeLabel}}">
-  {{range .Themes}}
-    <a class="theme-opt{{if .On}} on{{end}}" href="{{.Href}}" title="{{.Label}}" aria-label="{{.Label}}"{{if .On}} aria-current="true"{{end}}>
-      {{template "theme-icon" .Code}}
-    </a>
-  {{end}}
+     They were two controls in the bar of their own — a track of three theme
+     links and a language menu — which cost every reader, on every page, two
+     of the four things in the bar for a setting almost nobody changes twice.
+     A guest is not missing a menu, they are missing an account: the circle
+     at the end of the bar is in the same place for everyone, and this is
+     what is inside it. See docs/decisions.md.
+
+     Each is a track rather than a menu for the reason the theme always was:
+     the choices are few and fixed, they all fit, and making a reader open a
+     second thing inside the one they have already opened is a press spent on
+     nothing. The languages are their codes, not their names — five names do
+     not fit a 252px sheet in a row — with the name on each as its accessible
+     name and its tooltip, and spelt out in full in the label above.
+
+     Rendered once per page: inside the account sheet in the application, and
+     in the much shorter row at the door. */}}
+{{define "pref-controls"}}
+<div class="prefs">
+  <div class="pref">
+    <p class="kicker">{{.T.T "theme.label"}}</p>
+    <div class="track" role="group" aria-label="{{.T.T "theme.label"}}">
+      {{range .Themes}}
+        {{/* The name is visible and is the accessible name; title is for
+             the tooltip, and for the case the label has to crop. */}}
+        <a class="theme-opt{{if .On}} on{{end}}" href="{{.Href}}" title="{{.Label}}"{{if .On}} aria-current="true"{{end}}>
+          {{template "theme-icon" .Code}}
+          <span class="opt-label">{{.Label}}</span>
+        </a>
+      {{end}}
+    </div>
+  </div>
+  <div class="pref">
+    {{/* The label carries the language in force spelt out, which is the half
+         the codes below cannot say. */}}
+    <p class="kicker">{{.LangLabel}}</p>
+    <div class="track" role="group" aria-label="{{.T.T "lang.label"}}">
+      {{range .Languages}}
+        <a class="lang-opt{{if .On}} on{{end}}" href="{{.Href}}" title="{{.Label}}" aria-label="{{.Label}}"{{if .On}} aria-current="true"{{end}}>{{.Code}}</a>
+      {{end}}
+    </div>
+  </div>
 </div>
-<a class="menu-btn theme-cycle" href="{{.ThemeNext.Href}}" title="{{.ThemeNext.Label}}" aria-label="{{.ThemeNext.Label}}">
-  {{template "theme-icon" .Theme}}
-</a>
 {{end}}
 
-{{define "language-picker"}}
-<details class="menu" name="menu-group">
-  <summary class="menu-btn lang-btn" aria-label="{{.LangLabel}}" title="{{.LangLabel}}">
-    {{template "globe-icon" .}}
-    <span class="lang-code">{{.Lang}}</span>
-    {{template "chevron-down" .}}
+{{/* The account slot: one circle at the end of the bar, in the same place
+     whoever is reading. Signed in it is their initials and the sheet carries
+     the account; on a shared link it is the outline of a person and the sheet
+     says what a shared link is and offers the way in. Both sheets carry the
+     two settings above, which is what took them out of the bar.
+
+     The guest's sheet is the one that decided the shape. The alternative was
+     to hide the slot without a session, which is what the bar did before —
+     and then the two settings need a home of their own for exactly the
+     readers who have no account, which is the second control this removes. */}}
+{{define "account-slot"}}
+{{/* Rendered open on a page reached by one of the settings inside it, so
+     that changing the theme and then the language is not two openings. The
+     server decides it, off the marker those links carry — see prefHref in
+     chrome.go — which is why it survives a swap, a full navigation, and a
+     reader with no script at all. */}}
+<details class="account" name="menu-group"{{if .AccountOpen}} open{{end}}>
+  <summary aria-label="{{.T.T "account.menu"}}" title="{{.T.T "account.menu"}}">
+    {{if .SignedIn}}
+      <span class="avatar" aria-hidden="true">{{.Initials}}</span>
+    {{else}}
+      <span class="avatar guest" aria-hidden="true">{{template "person-icon" .}}</span>
+    {{end}}
   </summary>
-  <div class="menu-panel">
-    <p class="kicker">{{.T.T "lang.label"}}</p>
-    {{range .Languages}}
-      {{/* The name of the language, in that language, and nothing else.
-           Flags were drawn here and have gone: a flag is a country, not a
-           language, and at 16px two of the ones this app offers are a blue
-           field with a cross on it. The word is never a second look. */}}
-      <a class="menu-row{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>
-        <span>{{.Label}}</span>
-        <span class="menu-check" aria-hidden="true">{{if .On}}✓{{end}}</span>
+  <div class="account-menu">
+    {{if .SignedIn}}
+      <div class="account-who">
+        <span class="avatar" aria-hidden="true">{{.Initials}}</span>
+        <span class="account-id">
+          <span class="account-name">{{.T.T "account.title"}}</span>
+          <span class="account-email">{{.User.Email}}</span>
+        </span>
+      </div>
+      <hr>
+      <a href="/settings">{{.T.T "nav.settings"}}</a>
+      <hr>
+    {{else if .ReadOnly}}
+      {{/* What this view is, in the place the account would be. It is the
+           only thing that says so now that the sign-in button has left the
+           bar for the row at the foot of this sheet — and it is true of both
+           readers who get here without a session: the shared board, and a
+           stranger on the privacy notice. */}}
+      <div class="account-who">
+        <span class="account-id">
+          <span class="account-name">{{.T.T "share.readOnly"}}</span>
+          <span class="account-email">{{.T.T "account.readOnlyHint"}}</span>
+        </span>
+      </div>
+      <hr>
+    {{end}}
+
+    {{template "pref-controls" .}}
+
+    {{if .SignedIn}}
+      <hr>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <button class="danger" type="submit">{{.T.T "nav.signOut"}}</button>
+      </form>
+    {{else if .ReadOnly}}
+      <hr>
+      <a class="account-in" href="/">
+        {{template "signin-icon" .}}
+        <span>{{.T.T "nav.signIn"}}</span>
       </a>
     {{end}}
   </div>
@@ -177,71 +248,30 @@
   </div>
 
   <div class="topbar-controls">
-    {{/* Both in the bar. Theme is per-device; language belongs to the
-         account and is written there when a signed-in reader picks one, so
-         it follows them to another device and decides what language their
-         mail arrives in. */}}
-    {{template "theme-picker" .}}
-    {{template "language-picker" .}}
-
-    {{if .ReadOnly}}
-      {{/* No account menu here to hold it, and the share link is how the
-           group reads the board before anyone has an account (§10), so the
-           language control stays in the bar rather than disappearing. */}}
-      {{/* aria-label carries the accessible name on its own, since the
-           label text — the only other source of one — hides on a narrow
-           screen where the bar has no room to spare for it. */}}
-      <a class="btn" href="/" aria-label="{{.T.T "nav.signIn"}}">
-        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-          <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 3h4.4A1.6 1.6 0 0120 4.6v14.8A1.6 1.6 0 0118.4 21H14"/>
-            <path d="M10 7.5L14.5 12 10 16.5M14.5 12H3.5"/>
-          </g>
-        </svg>
-        <span class="btn-label">{{.T.T "nav.signIn"}}</span>
-      </a>
-    {{else if .SignedIn}}
-      <details class="account" name="menu-group">
-        <summary aria-label="{{.T.T "account.menu"}}">
-          <span class="avatar" aria-hidden="true">{{.Initials}}</span>
-        </summary>
-        <div class="account-menu">
-          <div class="account-who">
-            <span class="avatar" aria-hidden="true">{{.Initials}}</span>
-            <span class="account-id">
-              <span class="account-name">{{.T.T "account.title"}}</span>
-              <span class="account-email">{{.User.Email}}</span>
-            </span>
-          </div>
-          <hr>
-          <a href="/settings">{{.T.T "nav.settings"}}</a>
-          <hr>
-          <form method="post" action="/logout">
-            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <button class="danger" type="submit">{{.T.T "nav.signOut"}}</button>
-          </form>
-        </div>
-      </details>
-    {{end}}
+    {{/* One control, whoever is reading. Theme is per-device; language
+         belongs to the account and is written there when a signed-in reader
+         picks one, so it follows them to another device and decides what
+         language their mail arrives in. Both are inside the sheet. */}}
+    {{template "account-slot" .}}
   </div>
 </header>
 {{end}}
 
-{{/* The sign-in family's chrome: the wordmark in one corner, the two pickers
-     in the other, and nothing between them. No search, no account menu and no
-     navigation — there is no session yet for any of them to act on — so this
-     is not the top bar with pieces removed but its own, much shorter, row.
+{{/* The sign-in family's chrome: the wordmark in one corner, the account slot
+     in the other, and nothing between them. No search and no navigation —
+     there is no session yet for either to act on — so this is not the top bar
+     with pieces removed but its own, much shorter, row.
 
-     The pickers are the same partials the bar uses, which is the point: a
-     theme or language chosen at the door is the one in force on the other
-     side of it, and there is one definition of each control rather than two
-     that drift. */}}
+     The slot is the same partial the bar uses, which is the point: a theme or
+     language chosen at the door is the one in force on the other side of it,
+     and there is one definition of the control rather than two that drift.
+     Here it is the only thing in the sheet: there is no account to show and
+     no sign-in row to offer on the page that is the sign-in. */}}
 {{define "auth-chrome"}}
 <header class="auth-chrome">
   {{template "sidebar-brand" .}}
   <div class="auth-controls">
-    {{template "theme-picker" .}}
-    {{template "language-picker" .}}
+    {{template "account-slot" .}}
   </div>
 </header>
 {{end}}

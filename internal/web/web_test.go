@@ -873,10 +873,11 @@ func TestSwitchingAPageLeavesItAtTheTop(t *testing.T) {
 			t.Errorf("a focus that scrolls the page: %s", strings.TrimSpace(line))
 		}
 	}
-	// Four: the region, and the three controls the switcher aims at instead
-	// — a ranking row, a section bar, a rail row.
-	if n := strings.Count(switcher, "preventScroll: true"); n != 4 {
-		t.Errorf("%d of the switcher's focus calls prevent scrolling, want 4", n)
+	// Five: the region, and the four controls the switcher aims at instead
+	// — a ranking row, a section bar, a rail row, a setting in the account
+	// sheet.
+	if n := strings.Count(switcher, "preventScroll: true"); n != 5 {
+		t.Errorf("%d of the switcher's focus calls prevent scrolling, want 5", n)
 	}
 }
 

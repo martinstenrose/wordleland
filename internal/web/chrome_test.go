@@ -5,6 +5,7 @@ import (
 	"html"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -66,16 +67,17 @@ func TestEveryPageCarriesThemeAndLocale(t *testing.T) {
 	}
 }
 
-// The navigation drawer, the language picker and the account menu all offer
-// a choice or an action, so they share name="menu-group": the browser closes
-// whichever one was open when another opens. Without a shared name they open
+// The navigation drawer and the account slot both offer a choice or an
+// action, so they share name="menu-group": the browser closes whichever one
+// was open when another opens. Without a shared name they open
 // independently, which is how the language picker used to leave the theme
 // picker open.
 //
-// The theme picker is no longer among them — it is three links rather than a
-// disclosure — but the reason the group exists outlives it, and the drawer
-// joining it is what keeps a full-height panel from staying open behind a
-// menu.
+// Neither setting is among them any more. They are tracks of links inside
+// the account sheet — nothing to open, and nothing that can be left open
+// behind something else — but the reason the group exists outlives them,
+// and the drawer joining it is what keeps a full-height panel from staying
+// open behind a menu.
 func TestTopbarMenusAreMutuallyExclusive(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
@@ -84,14 +86,16 @@ func TestTopbarMenusAreMutuallyExclusive(t *testing.T) {
 	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
 	for _, open := range []string{
 		`<details class="drawer" name="menu-group">`,
-		`<details class="menu" name="menu-group">`,
+		`<details class="account" name="menu-group">`,
 	} {
 		if !strings.Contains(body, open) {
 			t.Errorf("%s is not in the menu-group group", open)
 		}
 	}
-	if strings.Contains(body, `<details class="theme`) {
-		t.Error("the theme picker is a disclosure again; it is meant to be three links")
+	for _, gone := range []string{`<details class="theme`, `<details class="menu" name="menu-group">`} {
+		if strings.Contains(body, gone) {
+			t.Errorf("%s is a disclosure again; both settings are tracks of links now", gone)
+		}
 	}
 }
 
@@ -163,9 +167,13 @@ func TestLanguageSwitcherChangesTheCopy(t *testing.T) {
 	}
 }
 
-// Switching one setting must not discard the other, or the board's filters.
-// The account menu is for people with accounts.
-func TestAccountMenuOnlyForSignedInUsers(t *testing.T) {
+// The slot is in the same place for everyone; what is inside it is not.
+//
+// A reader with no session is not missing a menu, they are missing an
+// account: the circle is there either way, because the two settings inside
+// it are everyone's, and the sheet behind it carries the account and the way
+// out only where there is an account to carry.
+func TestTheAccountSlotIsThereForEveryoneAndTheAccountIsNot(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -178,13 +186,23 @@ func TestAccountMenuOnlyForSignedInUsers(t *testing.T) {
 	}
 
 	shared := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	if strings.Contains(shared, "account-menu") {
-		t.Error("the shared board offers an account menu")
+	if !strings.Contains(shared, "account-menu") {
+		t.Error("the shared board has no account slot, and so no way to reach the settings")
 	}
-	// No badge: the sign-in button is what marks the view as read-only, and
-	// two things saying it was one too many.
-	if strings.Contains(shared, "account-menu") {
-		t.Error("the shared board offers an account menu")
+	if !strings.Contains(shared, `class="avatar guest"`) {
+		t.Error("the shared board draws initials for a reader who has no account")
+	}
+	// What a guest's sheet must not contain: an identity, the account's own
+	// page, or a way out of a session that does not exist.
+	for _, gone := range []string{"admin@example.tld", `href="/settings"`, `action="/logout"`} {
+		if strings.Contains(shared, gone) {
+			t.Errorf("the shared board's sheet offers %q", gone)
+		}
+	}
+	// It says what the view is instead, which is what the sign-in button in
+	// the bar used to say before it became the last row of this sheet.
+	if !strings.Contains(shared, "Read-only") {
+		t.Error("the shared board's sheet does not say the view is read-only")
 	}
 
 	as := func(u store.User) string {
@@ -651,10 +669,10 @@ func TestPickersPreserveTheRestOfTheQuery(t *testing.T) {
 	}
 }
 
-// The language picker is its own menu in the bar, on every surface. What
-// it changes for a signed-in reader is their account, not just this
+// Both settings are reachable on every surface, signed in or not. What the
+// language changes for a signed-in reader is their account, not just this
 // browser — see TestSettingsLanguagePersistsToTheAccount.
-func TestLanguagePickerIsAvailableEverywhere(t *testing.T) {
+func TestBothSettingsAreAvailableEverywhere(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -665,10 +683,10 @@ func TestLanguagePickerIsAvailableEverywhere(t *testing.T) {
 	bar := board[strings.Index(board, `class="topbar`):]
 	bar = bar[:strings.Index(bar, "</header>")]
 	if !strings.Contains(bar, "lang=sv") {
-		t.Error("no language picker when signed in")
+		t.Error("no language control when signed in")
 	}
 	if !strings.Contains(bar, "theme=") {
-		t.Error("the top bar lost the theme picker")
+		t.Error("the top bar lost the theme control")
 	}
 
 	// Settings does not carry a second one: two doors to one setting. The
@@ -679,9 +697,6 @@ func TestLanguagePickerIsAvailableEverywhere(t *testing.T) {
 	}
 
 	shared := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	if strings.Contains(shared, "account-menu") {
-		t.Fatal("the shared board grew an account menu")
-	}
 	if !strings.Contains(shared, "lang=sv") {
 		t.Error("the shared board has no way to change language")
 	}
@@ -691,8 +706,9 @@ func TestLanguagePickerIsAvailableEverywhere(t *testing.T) {
 	}
 }
 
-// The shared bar carries what the design gives it: the read-only badge, the
-// note, and a sign-in button rather than a bare link.
+// The way in is the last row of the guest's sheet: named, with its glyph,
+// and pointing at the login page. It was a button in the bar, which cost
+// the bar a control for something a reader does once.
 func TestSharedBarOffersSignIn(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
@@ -701,20 +717,24 @@ func TestSharedBarOffersSignIn(t *testing.T) {
 	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
 	bar := body[strings.Index(body, "topbar-controls"):strings.Index(body, "</header>")]
 
-	for _, want := range []string{`class="btn"`, "Sign in", "<svg"} {
+	for _, want := range []string{`class="account-in"`, "Sign in", "<svg"} {
 		if !strings.Contains(bar, want) {
 			t.Errorf("the shared bar is missing %q", want)
 		}
 	}
-	if !strings.Contains(bar, `href="/"`) {
-		t.Error("the sign-in button does not point at the login page")
+	row := bar[strings.Index(bar, `class="account-in"`):]
+	if !strings.Contains(row[:strings.Index(row, "</a>")], "Sign in") {
+		t.Error("the sign-in row is not the one carrying the words")
+	}
+	if !strings.Contains(bar, `class="account-in" href="/"`) {
+		t.Error("the sign-in row does not point at the login page")
 	}
 
 	// Signed in, there is nothing to sign in to.
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 	in := fetchAs(t, srv, "/today", signIn(t, srv, admin.ID)).Body.String()
-	if strings.Contains(in[:strings.Index(in, "</header>")], `class="btn"`) {
-		t.Error("a signed-in reader is offered a sign-in button")
+	if strings.Contains(in[:strings.Index(in, "</header>")], `class="account-in"`) {
+		t.Error("a signed-in reader is offered a way to sign in")
 	}
 }
 
@@ -771,26 +791,34 @@ func cssRule(t *testing.T, css, prefix string) string {
 	return css[start : start+end]
 }
 
-// On a narrow screen the sign-in button drops its text and keeps just the
-// icon, matching the search button's own label-hiding rule at the same
-// breakpoint — aria-label is what carries the accessible name once the
-// visible text is display:none.
-func TestSignInButtonDropsItsLabelOnMobile(t *testing.T) {
+// The bar holds one control at the end of it at every width, and the sheet
+// behind it is the same sheet on a phone as on a desktop: the sign-in row
+// keeps its words, the settings keep their labels, and nothing is hidden by
+// a breakpoint. The bar used to carry a sign-in button that dropped its text
+// on a narrow screen, and two pickers that each had a second, smaller form.
+func TestTheBarHasNoNarrowScreenVariantOfTheSlot(t *testing.T) {
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	if !strings.Contains(body, `aria-label="Sign in"`) {
-		t.Fatal("the sign-in button has no accessible name to fall back on")
-	}
-	if !strings.Contains(body, `<span class="btn-label">Sign in</span>`) {
-		t.Fatal("the sign-in button's label is not its own element to hide")
+	bar := body[strings.Index(body, `class="topbar`):strings.Index(body, "</header>")]
+	// One circle, and the drawer's. Not a second copy of either setting for
+	// a bar with less room.
+	if n := strings.Count(bar, `class="track"`); n != 2 {
+		t.Errorf("the bar renders %d tracks, want the two in the one sheet", n)
 	}
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	if !strings.Contains(css, ".btn-label { display: none; }") {
-		t.Error("no rule hides the sign-in label on a narrow screen")
+	for _, gone := range []string{".theme-cycle", ".lang-btn", ".lang-code", ".btn-label"} {
+		if strings.Contains(css, gone) {
+			t.Errorf("the stylesheet still dresses %s, which nothing renders", gone)
+		}
+	}
+	// The slot grows with its neighbours where they do, so the row stays
+	// level on a phone.
+	if !strings.Contains(css, ".topbar-controls .avatar {") {
+		t.Error("the account circle is not sized with the bar's other controls on a narrow screen")
 	}
 }
 
@@ -997,4 +1025,153 @@ func TestTheErrorsSpeakTheReadersLanguage(t *testing.T) {
 		t.Error("a rejected code answers in English to a Swedish reader")
 	}
 	_ = cookies
+}
+
+// The bar itself carries neither setting: one circle at the end of it, and
+// both tracks inside the sheet behind it.
+//
+// This is the whole of the change, and the one thing nothing else here would
+// notice: a picker put back in the bar would render, work, and pass every
+// other test in this file. The links are found by the value they set rather
+// than by a class, so moving one back under a different name still fails.
+func TestNeitherSettingIsInTheBarItself(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	session := signIn(t, srv, admin.ID)
+
+	for _, tt := range []struct {
+		name    string
+		path    string
+		cookie  *http.Cookie
+		opening string
+	}{
+		{"the shared board", "/share/" + slug + "/", nil, `<header class="topbar">`},
+		{"a signed-in reader", "/leaderboard", session, `<header class="topbar">`},
+		{"the door", "/", nil, `<header class="auth-chrome">`},
+	} {
+		body := fetchAs(t, srv, tt.path, tt.cookie).Body.String()
+		at := strings.Index(body, tt.opening)
+		if at < 0 {
+			t.Errorf("%s: no %s", tt.name, tt.opening)
+			continue
+		}
+		bar := body[at:]
+		bar = bar[:strings.Index(bar, "</header>")]
+
+		sheet := strings.Index(bar, `class="account-menu"`)
+		if sheet < 0 {
+			t.Errorf("%s: the bar has no account sheet", tt.name)
+			continue
+		}
+		for _, link := range []string{"theme=dark", "lang=sv"} {
+			if strings.Contains(bar[:sheet], link) {
+				t.Errorf("%s: %q is a control in the bar rather than in the sheet", tt.name, link)
+			}
+			if !strings.Contains(bar[sheet:], link) {
+				t.Errorf("%s: the sheet does not offer %q at all", tt.name, link)
+			}
+		}
+	}
+}
+
+// Changing a setting leaves the sheet open, with no script at all.
+//
+// Following either of them replaces the page — swapped in by htmx, or loaded
+// outright without it — and a <details> goes with the body it was in. So the
+// two links carry a marker and the server renders the sheet open when it sees
+// one: a reader changing the theme and then the language opens the sheet once
+// rather than twice. See prefHref.
+func TestChangingASettingLeavesTheSheetOpen(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	session := signIn(t, srv, admin.ID)
+
+	const open = `<details class="account" name="menu-group" open>`
+
+	for _, tt := range []struct {
+		name    string
+		path    string
+		cookie  *http.Cookie
+		setting string
+	}{
+		{"a signed-in reader", "/leaderboard", session, "Dark"},
+		{"a guest", "/share/" + slug + "/", nil, "Dark"},
+		{"the door", "/", nil, "Dark"},
+		{"a signed-in reader", "/leaderboard", session, "Svenska"},
+		{"a guest", "/share/" + slug + "/", nil, "Svenska"},
+		{"the door", "/", nil, "Svenska"},
+	} {
+		body := fetchAs(t, srv, tt.path, tt.cookie).Body.String()
+		if strings.Contains(body, open) {
+			t.Errorf("%s: %s arrives with the sheet already open", tt.name, tt.path)
+		}
+
+		href := strings.ReplaceAll(hrefForName(t, body, tt.setting), "&amp;", "&")
+		if !strings.Contains(href, "menu=account") {
+			t.Errorf("%s: the %s link carries no marker: %s", tt.name, tt.setting, href)
+			continue
+		}
+		next := fetchAs(t, srv, href, tt.cookie)
+		if next.Code != http.StatusOK {
+			t.Errorf("%s: following %s = %d", tt.name, href, next.Code)
+			continue
+		}
+		if !strings.Contains(next.Body.String(), open) {
+			t.Errorf("%s: choosing %s closed the sheet on the reader", tt.name, tt.setting)
+		}
+	}
+}
+
+// And the marker belongs to those two links alone. Every other control is
+// built from the current URL too, so one pressed after a setting would carry
+// the marker along and reopen the sheet on a page nobody opened it on.
+func TestTheMarkerDoesNotTravelOnOtherControls(t *testing.T) {
+	srv := testServer(t)
+	seedBoard(t, srv)
+	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	session := signIn(t, srv, admin.ID)
+
+	// The page as it is after a theme has just been chosen: the marker is in
+	// the address, because that is where the link put it.
+	body := fetchAs(t, srv, "/leaderboard?theme=dark&menu=account&mode=hard", session).Body.String()
+
+	// The links inside the sheet: the ones the marker is for. Not matched by
+	// what they set — every control on this board carries "theme=dark" now,
+	// because each is this URL with one thing changed — but by where they
+	// are, which is the only thing that actually distinguishes them.
+	sheet := body[strings.Index(body, `class="prefs"`):]
+	sheet = sheet[:strings.Index(sheet, "</details>")]
+
+	anchor := regexp.MustCompile(`href="([^"]*)"`)
+	settings := map[string]bool{}
+	for _, m := range anchor.FindAllStringSubmatch(sheet, -1) {
+		settings[strings.ReplaceAll(m[1], "&amp;", "&")] = true
+	}
+	// Three themes and five languages, every one of them marked.
+	if len(settings) != 8 {
+		t.Fatalf("the sheet offers %d settings, want 8: %v", len(settings), settings)
+	}
+	for href := range settings {
+		if !strings.Contains(href, "menu=account") {
+			t.Errorf("a setting in the sheet carries no marker: %s", href)
+		}
+	}
+
+	// And nothing else on the page carries it: the board's filters, its sort
+	// columns and the rail's collapse are all built from this URL too, and
+	// each of them would otherwise open the sheet on the page it leads to.
+	var carried []string
+	for _, m := range anchor.FindAllStringSubmatch(body, -1) {
+		href := strings.ReplaceAll(m[1], "&amp;", "&")
+		if strings.Contains(href, "menu=") && !settings[href] {
+			carried = append(carried, href)
+		}
+	}
+	if len(carried) > 0 {
+		t.Errorf("the marker travelled on controls that are not the settings: %v", carried)
+	}
 }

@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 	"unicode"
@@ -40,6 +41,16 @@ func validTheme(v string) bool {
 	return v == themeSystem || v == themeLight || v == themeDark
 }
 
+// menuParam marks a link as one pressed inside a menu, so that the page it
+// leads to renders that menu still open. One menu needs it — the account
+// sheet, whose two settings a reader may well change one after the other —
+// and the value names it rather than saying "yes", so a second one later is
+// a value and not a second parameter.
+const (
+	menuParam   = "menu"
+	menuAccount = "account"
+)
+
 // The three arrangements a page can be drawn in. See chrome.Frame.
 const (
 	frameApp  = "app"
@@ -74,10 +85,10 @@ type chrome struct {
 	Themes    []chromeOpt
 	Languages []chromeOpt
 
-	// ThemeLabel and LangLabel name the current setting for the button
-	// that opens each menu.
-	ThemeLabel string
-	LangLabel  string
+	// LangLabel names the language in force, spelt out, for the label over
+	// the track of codes — which is the one thing five two-letter codes
+	// cannot say for themselves.
+	LangLabel string
 
 	// Nav is the view switcher. Only views that exist appear: a tab that
 	// leads nowhere is worse than an absent one.
@@ -91,8 +102,8 @@ type chrome struct {
 	//
 	// frameApp is the application shell: the rail, the top bar, the page
 	// well. frameAuth is the sign-in family — a card centred on the canvas,
-	// with the wordmark in one corner and the pickers in the other and no
-	// navigation at all, because there is nothing yet to navigate. frameBare
+	// with the wordmark in one corner and the account slot in the other and
+	// no navigation at all, because there is nothing yet to navigate. frameBare
 	// is an error page: chrome for a stranger, where a full navigation
 	// wrapped around "there is nothing at this address" would be offering
 	// the rest of the application to somebody who has not got it.
@@ -107,23 +118,24 @@ type chrome struct {
 	// works with no script at all.
 	SidebarToggle chromeOpt
 
-	// ThemeNext is the theme the single-button control moves to, for a bar
-	// too narrow to carry all three.
-	ThemeNext chromeOpt
-
 	// Subtitle sits under the wordmark where the page has something to put
 	// there — the design's "N days". Blank elsewhere rather than costing a
 	// query on every page that has no board data to hand.
 	Subtitle string
 
 	// User is nil when nobody is signed in, which is also how a read-only
-	// page suppresses the account menu.
+	// page decides which sheet the account slot holds.
 	User      *store.User
 	Initials  string
 	CSRFToken string
 
-	// ReadOnly hides everything that implies an account.
+	// ReadOnly hides everything that implies an account, and turns the
+	// account slot's sheet into what a read-only view is and the way in.
 	ReadOnly bool
+
+	// AccountOpen renders the account sheet already open, on a page reached
+	// by one of the controls inside it. See prefHref.
+	AccountOpen bool
 
 	// AdminTab marks which admin page is open, for the bar they share.
 	AdminTab string
@@ -154,10 +166,14 @@ type chrome struct {
 	SearchPath string
 }
 
-// SignedIn reports whether the account menu should render.
+// SignedIn reports whether the account slot has an account to show.
+//
+// Not whether the slot renders: it renders for everyone, because the two
+// settings inside it are everyone's. What this decides is which sheet —
+// the account and the way out, or what a read-only view is and the way in.
 func (c chrome) SignedIn() bool { return c.User != nil && !c.ReadOnly }
 
-// IsAdmin reports whether the admin entries belong in the account menu.
+// IsAdmin reports whether the admin entries belong in the rail.
 func (c chrome) IsAdmin() bool { return c.SignedIn() && c.User.IsAdmin }
 
 // SidebarRows is the rail's contents: the views, then the admin area for an
@@ -258,11 +274,12 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 		c.Subtitle = t.TN("chrome.days", days)
 	}
 
+	c.AccountOpen = r.URL.Query().Get(menuParam) == menuAccount
 	for _, code := range s.localeCodes {
 		c.Languages = append(c.Languages, chromeOpt{
 			Code:  code,
 			Label: s.catalogues[code]["locale.name"],
-			Href:  urlWith(r, "lang", code),
+			Href:  prefHref(r, "lang", code),
 			On:    code == c.Lang,
 		})
 	}
@@ -270,28 +287,11 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 		c.Themes = append(c.Themes, chromeOpt{
 			Code:  theme,
 			Label: t.T("theme." + theme),
-			Href:  urlWith(r, "theme", theme),
+			Href:  prefHref(r, "theme", theme),
 			On:    theme == c.Theme,
 		})
 	}
-	c.ThemeLabel = t.T("theme.label") + ": " + t.T("theme."+c.Theme)
 	c.LangLabel = t.T("lang.label") + ": " + s.catalogues[c.Lang]["locale.name"]
-
-	// A bar too narrow for three theme buttons gets one that moves to the
-	// next setting, in the order the three are offered in.
-	order := []string{themeLight, themeSystem, themeDark}
-	for i, theme := range order {
-		if theme != c.Theme {
-			continue
-		}
-		next := order[(i+1)%len(order)]
-		c.ThemeNext = chromeOpt{
-			Code:  next,
-			Label: t.T("theme.cycle", t.T("theme."+c.Theme), t.T("theme."+next)),
-			Href:  urlWith(r, "theme", next),
-		}
-		break
-	}
 
 	// Collapsing the rail is a per-device preference like the theme, and it
 	// travels the same way: a link back to this URL with the other width,
@@ -392,25 +392,62 @@ func (s *Server) sidebarFor(w http.ResponseWriter, r *http.Request) string {
 	return sidebarWide
 }
 
-// urlWith returns the current URL with one query parameter set.
+// urlWith returns the current URL with query parameters set, given as
+// alternating names and values.
 //
 // The rest of the query is carried through, so switching language on a
 // filtered board does not also reset the filter.
-func urlWith(r *http.Request, key, value string) string {
+func urlWith(r *http.Request, pairs ...string) string {
 	q := r.URL.Query()
-	q.Set(key, value)
-	// Never this one. "partial=1" asks a handler for a fragment instead of a
-	// page — it is how a request was made, not part of what is being looked
-	// at — and a link built while serving one would hand a reader a bare
-	// card with no page around it the moment they followed it without a
-	// script to catch the press.
-	q.Del("partial")
+	dropRequestOnly(q)
+	for i := 0; i+1 < len(pairs); i += 2 {
+		q.Set(pairs[i], pairs[i+1])
+	}
 
 	path := r.URL.EscapedPath()
 	if path == "" {
 		path = "/"
 	}
 	return path + "?" + q.Encode()
+}
+
+// dropRequestOnly removes the parameters that say how a page was asked for
+// rather than what is being looked at. Every builder of a link back to the
+// current URL calls it — urlWith here, boardQuery.with and sortHref — because
+// each of them carries the whole query through, which is what keeps a filter
+// alive across a language switch and would keep these two alive as well.
+//
+// Three builders rather than one is the shape this already had; what it did
+// not have is one place saying which parameters are not a reader's view of
+// the page, so each grew its own copy of the same paragraph about "partial"
+// and a fourth would have started without one.
+func dropRequestOnly(q url.Values) {
+	// "partial=1" asks a handler for a fragment instead of a page, and a
+	// link built while serving one would hand a reader a bare card with no
+	// page around it the moment they followed it without a script to catch
+	// the press.
+	q.Del("partial")
+	// "menu=account" says a menu was open when this page was asked for. That
+	// is true of the press that carried it and of nothing else on the page
+	// it lands on: a filter or a sort pressed afterwards would otherwise
+	// open the account sheet on top of the board. prefHref puts it back on
+	// the two links it belongs to.
+	q.Del(menuParam)
+}
+
+// prefHref is what a control inside the account sheet points at: this URL
+// with one setting changed, and the marker that has the page coming back
+// render the sheet still open.
+//
+// Without it, changing the theme and then the language is four presses
+// rather than three: following either link replaces the whole body, the
+// <details> goes with it, and the sheet closes under a reader who is not
+// finished with it. Only the server can say it was open — the page is
+// rendered again either way, swapped in by htmx or loaded outright — so this
+// is a parameter it reads rather than state the script would have to hold,
+// and it works with the script absent, disabled, or failing to load.
+func prefHref(r *http.Request, key, value string) string {
+	return urlWith(r, key, value, menuParam, menuAccount)
 }
 
 // initialsFor derives up to two letters for the account avatar.
@@ -449,7 +486,7 @@ func (s *Server) signedOutChrome(w http.ResponseWriter, r *http.Request, token s
 	// Its own frame rather than the application shell. A rail emptied down
 	// to the wordmark is a navigation with nothing in it, which reads as an
 	// app that has lost its menu rather than as a door: the design puts the
-	// wordmark in one corner, the two pickers in the other, and the card in
+	// wordmark in one corner, the account slot in the other, and the card in
 	// the middle of the canvas. Nav is cleared all the same: every view needs
 	// a session, so offering one here would be offering a round trip back to
 	// this page.
@@ -461,8 +498,10 @@ func (s *Server) signedOutChrome(w http.ResponseWriter, r *http.Request, token s
 	// where that panel does not fit, this is the only place it is said.
 	c.Frame = frameAuth
 	c.Nav = nil
-	// The account menu has nothing to show yet, and on the two-factor step
-	// there is a session that is deliberately not yet an identity.
+	// The account slot has no account to show yet, and on the two-factor
+	// step there is a session that is deliberately not yet an identity. It
+	// still renders, carrying the theme and language: those belong to
+	// whoever is at the door as much as to whoever is through it.
 	c.User = nil
 	// newChrome may have set this from a session that is fully valid but
 	// simply landed here (a bookmark to /forgot-password, say): clear it

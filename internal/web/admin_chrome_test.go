@@ -9,7 +9,10 @@ import (
 // selfLink matches the picker links that carry the current path. csrfValue
 // masks tokens where these isolated requests do not carry a browser cookie.
 var (
-	selfLink  = regexp.MustCompile(`href="[^"?]*\?(theme=|lang=)`)
+	// A theme or language link, which points back at the page it is on. The
+	// marker that keeps the account sheet open sorts between "lang" and
+	// "theme", so a theme link's query begins with it.
+	selfLink  = regexp.MustCompile(`href="[^"?]*\?((?:menu=account&amp;)?(?:theme=|lang=))`)
 	csrfValue = regexp.MustCompile(`name="csrf_token" value="[^"]*"`)
 )
 
@@ -131,7 +134,7 @@ func TestRosterSwitchHintIsNotUppercased(t *testing.T) {
 // each card, which fixed the jumping and left every auth page carrying its own
 // copy of the chrome. The chrome carries it now, and the cards carry none —
 // the top bar inside the application, its own much shorter row at the door.
-func TestAuthPickersAreInTheChromeOnly(t *testing.T) {
+func TestAuthSettingsAreInTheChromeOnly(t *testing.T) {
 	srv := testServer(t)
 
 	for _, path := range []string{"/", "/forgot-password", "/reset-password?token=x", "/invite?token=x"} {
@@ -147,12 +150,26 @@ func TestAuthPickersAreInTheChromeOnly(t *testing.T) {
 		if strings.Contains(body, `class="sidebar"`) {
 			t.Errorf("%s draws the application rail", path)
 		}
-		for _, control := range []string{`class="theme-track"`, `<details class="menu" name="menu-group">`} {
-			if n := strings.Count(body, control); n != 1 {
-				t.Errorf("%s renders %s %d times, want 1", path, control, n)
+		// One slot, and the two tracks inside it: the same partial the
+		// application's bar uses, so a theme or language chosen at the door
+		// is the one in force on the other side of it.
+		for control, want := range map[string]int{
+			`<details class="account" name="menu-group">`: 1,
+			`class="prefs"`: 1,
+			`class="track"`: 2,
+		} {
+			if n := strings.Count(body, control); n != want {
+				t.Errorf("%s renders %s %d times, want %d", path, control, n, want)
 			}
 			if strings.Index(body, control) < bar {
 				t.Errorf("%s renders %s outside the top bar", path, control)
+			}
+		}
+		// And nothing else in the sheet: there is no account to show, and no
+		// sign-in row to offer on the page that is the sign-in.
+		for _, gone := range []string{`class="account-in"`, `action="/logout"`, `class="account-who"`} {
+			if strings.Contains(body, gone) {
+				t.Errorf("%s puts %s in the door's sheet", path, gone)
 			}
 		}
 	}
@@ -193,8 +210,8 @@ func TestTheChromeIsIdenticalOnEveryPage(t *testing.T) {
 
 		combined := bar + brand
 		// Three things are meant to differ: which view is marked current,
-		// the theme and language links, which point back at the page you
-		// are on so switching keeps you there, and the sign-out form's
+		// the two settings' links, which point back at the page you are
+		// on so switching keeps you there, and the sign-out form's
 		// CSRF token: these isolated requests do not share a cookie jar.
 		combined = strings.ReplaceAll(combined, " on", "")
 		combined = strings.ReplaceAll(combined, ` aria-current="page"`, "")

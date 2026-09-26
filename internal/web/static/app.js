@@ -698,6 +698,22 @@ var onPageChange = (function () {
       if (value === null) root.removeAttribute(name);
       else root.setAttribute(name, value);
     });
+    // And the other thing a body swap gets wrong that a navigation does
+    // not: a <details name=...> that arrives open is closed on arrival if
+    // one with the same name is still open in the page it is replacing.
+    // Exclusivity within the group applies to the element being inserted,
+    // not to the one already there — which is right for a reader opening a
+    // second menu, and backwards here, where the two are the same menu
+    // either side of a swap. The account sheet is rendered open on a page
+    // reached from inside it (prefHref in chrome.go), so without this the
+    // sheet a reader is working in shuts itself at the moment it is
+    // replaced. The outgoing ones are about to be thrown away regardless,
+    // and the view transition's picture of them was taken before this runs,
+    // so nothing blinks. Absent, the page still arrives and the setting is
+    // still applied; the sheet closes, which is what it used to do.
+    document.querySelectorAll("details[name][open]").forEach(function (menu) {
+      menu.open = false;
+    });
     // The page is the authority, so anything item 5 set ahead of this
     // reply is confirmed or corrected by the lines above, and there is
     // nothing left to put back.
@@ -741,7 +757,7 @@ var onPageChange = (function () {
     main.addEventListener("blur", function () { main.removeAttribute("tabindex"); }, { once: true });
   }
 
-  // Where focus goes instead, for the three controls that are a place in the
+  // Where focus goes instead, for the four controls that are a place in the
   // page rather than a step out of it. Each returns false if the page that
   // arrived does not have what it was looking for, and the main region takes
   // over. link is the anchor that was pressed, detached now but intact.
@@ -769,6 +785,28 @@ var onPageChange = (function () {
         var bar = document.querySelector("details.switcher > summary");
         if (!bar) return false;
         bar.focus({ preventScroll: true });
+        return true;
+      };
+    }
+    if (link.closest(".prefs")) {
+      // A theme or a language, inside the account sheet. The sheet the page
+      // arrives with is already open — the server renders it so, off the
+      // marker the link carries, see prefHref in chrome.go — and this only
+      // puts focus back on the setting that was pressed, so the next press
+      // is the neighbouring one rather than the top of the page. Nothing
+      // here opens anything: with this absent the sheet is still open.
+      //
+      // By position, not by href: every one of these links is built from
+      // the page it is on, so the same setting is a different string on the
+      // page that comes back.
+      var prefs = link.closest(".prefs");
+      var seat = Array.prototype.indexOf.call(prefs.querySelectorAll("a"), link);
+      return function () {
+        var arrived = document.querySelector(".account[open] .prefs");
+        if (!arrived) return false;
+        var opt = arrived.querySelectorAll("a")[seat];
+        if (!opt || !opt.getClientRects().length) return false;
+        opt.focus({ preventScroll: true });
         return true;
       };
     }
