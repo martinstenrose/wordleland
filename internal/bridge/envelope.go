@@ -126,6 +126,9 @@ type Message struct {
 	// PostedAt is when the message reached the group: Signal's server time,
 	// falling back to the sender's, zero when the frame carried neither.
 	PostedAt time.Time
+	// ID is Signal's id for the message — the sender's timestamp, in
+	// milliseconds — which is what a reaction to it has to name.
+	ID int64
 	// MentionsBot says the sender tapped the bridge's own account into the
 	// message: a question for the bot rather than a result or conversation.
 	// Never set on the account's own sent messages, so the bot cannot be
@@ -187,6 +190,7 @@ func (e envelope) message(account string, logger *slog.Logger) (Message, bool) {
 		GroupID:     body.GroupInfo.GroupID,
 		Body:        body.Message,
 		PostedAt:    e.postedAt(),
+		ID:          e.Envelope.Timestamp,
 		MentionsBot: mentionsBot,
 		Quoted:      quoted,
 	}, true
