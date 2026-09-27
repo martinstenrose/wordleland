@@ -155,3 +155,47 @@ func TestTheSegueCarriesARealFigure(t *testing.T) {
 		}
 	}
 }
+
+// What has aged out is gone from memory, not only from what is read.
+func TestTheConversationForgets(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, time.September, 27, 12, 0, 0, 0, time.UTC)
+	var c conversation
+	c.add(turn{at: now.Add(-time.Hour), question: "old"})
+	c.add(turn{at: now.Add(-2 * time.Hour), question: "older"})
+	c.recent(now)
+	c.mu.Lock()
+	n := len(c.turns)
+	c.mu.Unlock()
+	if n != 0 {
+		t.Errorf("%d turns held after a read past the window", n)
+	}
+
+	c.add(turn{at: now, question: "new"})
+	c.clear()
+	if got := c.recent(now); len(got) != 0 {
+		t.Errorf("%d turns remembered after clear", len(got))
+	}
+	c.mu.Lock()
+	armed := c.forget != nil
+	c.mu.Unlock()
+	if !armed {
+		t.Error("no timer set to forget the conversation")
+	}
+}
+
+// Without the agent nothing reads the conversation, so nothing is held.
+func TestNothingIsRememberedWithoutTheAgent(t *testing.T) {
+	t.Parallel()
+	db := replyDB(t)
+	var rec recording
+	answer, _ := newAgentAnswerer(t, db, &rec, nil)
+	for range 2 {
+		if err := answer(context.Background(), senderUUID, "tack", "", nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if h := rec.prompts[1].History; len(h) != 0 {
+		t.Errorf("remembered %v without an agent", h)
+	}
+}

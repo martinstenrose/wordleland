@@ -342,7 +342,11 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter, ag
 		case KindThanks, KindHelp, KindUnknown:
 			tp = topicNeutral
 		}
-		conv.add(turn{at: now, asker: prompt.Asker, question: question, answer: text, topic: tp})
+		if agent != nil {
+			// Only the agent reads the conversation; without it there is
+			// no reason to hold the group's questions at all.
+			conv.add(turn{at: now, asker: prompt.Asker, question: question, answer: text, topic: tp})
+		}
 		return send(ctx, text)
 	}
 }

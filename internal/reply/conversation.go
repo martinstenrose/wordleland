@@ -42,14 +42,18 @@ type turn struct {
 //
 // It lives in memory and nowhere else, for memoryWindow: the questions are
 // the group's conversation, which is why the log never carries them and
-// why this is not written down either. A restart forgets it, which costs a
-// follow-up at most.
+// why this is not written down either. Every read drops what has aged out,
+// and a timer drops the rest a window after the last question, so the
+// evening's last question does not sit in memory until the next one. A
+// restart forgets it, which costs a follow-up at most.
 type conversation struct {
 	mu    sync.Mutex
 	turns []turn
 	// segues counts the lines steering back to the game, so consecutive
 	// ones say different things.
 	segues int
+	// forget empties turns a window after the last one was added.
+	forget *time.Timer
 }
 
 const (
@@ -72,6 +76,19 @@ func (c *conversation) add(t turn) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.turns = append(c.recentLocked(t.at), t)
+	if c.forget == nil {
+		c.forget = time.AfterFunc(memoryWindow, c.clear)
+	} else {
+		c.forget.Reset(memoryWindow)
+	}
+}
+
+// clear forgets every turn. By the time it runs the newest is a window
+// old, and so is every other.
+func (c *conversation) clear() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.turns = nil
 }
 
 // recent is the turns still remembered at now, oldest first, at most
@@ -79,7 +96,8 @@ func (c *conversation) add(t turn) {
 func (c *conversation) recent(now time.Time) []turn {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	out := c.recentLocked(now)
+	c.turns = c.recentLocked(now)
+	out := c.turns
 	if len(out) > maxTurns {
 		out = out[len(out)-maxTurns:]
 	}
@@ -104,7 +122,8 @@ func (c *conversation) recentLocked(now time.Time) []turn {
 func (c *conversation) offTopicRun(now time.Time) int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	turns := c.recentLocked(now)
+	c.turns = c.recentLocked(now)
+	turns := c.turns
 	run := 0
 	for i := len(turns) - 1; i >= 0; i-- {
 		switch turns[i].topic {
