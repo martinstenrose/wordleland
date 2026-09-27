@@ -34,6 +34,7 @@ services:
       SIGNAL_LOCALE: ${SIGNAL_LOCALE:-}
       SIGNAL_REPLIES: ${SIGNAL_REPLIES:-}
       LLM_MODEL: ${LLM_MODEL:-}
+      LLM_AGENT_MODEL: ${LLM_AGENT_MODEL:-}
     volumes:
       - data:/data
 
@@ -60,6 +61,10 @@ services:
       # load it again, and RAM held for a model nobody is asking is cheaper
       # than every first question of the evening waiting on the disk.
       OLLAMA_KEEP_ALIVE: -1
+      # With LLM_AGENT_MODEL set there are two models, both kept loaded:
+      # the small one places every question, the large one takes what it
+      # cannot. The server's default of three loaded models on a CPU
+      # already allows it; the RAM is the two together.
     volumes:
       - ollama:/root/.ollama
     healthcheck:
