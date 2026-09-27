@@ -15,11 +15,11 @@ func TestWorstNamesTheBottomAmongRegulars(t *testing.T) {
 	now := fixtureNow()
 
 	got := answer(translator(t, "en"), Request{Kind: KindLeader, Span: SpanDays, Days: 7, Worst: true}, nil, players, results, now)
-	if got != "🥄 The last 7 days: Bo brings up the rear on 4.00 on average." {
+	if got != "🥄 The last 7 days: Bo brings up the rear on 4.00 on average. Somebody has to." {
 		t.Errorf("en: %q", got)
 	}
 	got = answer(translator(t, "sv"), Request{Kind: KindLeader, Span: SpanMonth, Worst: true}, nil, players, results, now)
-	if got != "🥄 September: Bo är jumbo på 4,20 i snitt." {
+	if got != "🥄 September: Bo är jumbo på 4,20 i snitt. Någon måste ju." {
 		t.Errorf("sv: %q", got)
 	}
 }
@@ -35,7 +35,7 @@ func TestWorstLeavesOutWhoeverWasAway(t *testing.T) {
 
 	got := answer(translator(t, "en"), Request{Kind: KindLeader, Span: SpanDays, Days: 2, Worst: true},
 		nil, []store.Player{alma, bo, cid}, results, now)
-	if got != "🥄 The last 2 days: Bo brings up the rear on 4.00 on average." {
+	if got != "🥄 The last 2 days: Bo brings up the rear on 4.00 on average. Somebody has to." {
 		t.Errorf("got %q", got)
 	}
 
@@ -56,7 +56,7 @@ func TestWorstTieNamesEveryone(t *testing.T) {
 
 	got := answer(translator(t, "en"), Request{Kind: KindLeader, Span: SpanDays, Days: 7, Worst: true},
 		nil, []store.Player{alma, bo, cid}, results, now)
-	if got != "🥄 The last 7 days: Bo and Cid Larsson share the bottom spot on 5.00." {
+	if got != "🥄 The last 7 days: Bo and Cid Larsson share the bottom spot on 5.00. Misery loves company." {
 		t.Errorf("got %q", got)
 	}
 }

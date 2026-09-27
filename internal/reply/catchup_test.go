@@ -55,7 +55,7 @@ func TestCatchupOutOfReach(t *testing.T) {
 	results = append(results, play(t, cid.ID, current-14, current, 6, 0)...)
 
 	got := answer(translator(t, "en"), Request{Kind: KindCatchup, Player: "Cid"}, nil, players, results, now)
-	want := "September: Cid Larsson is 300 points behind Alma with 15 days left — out of reach, even a 1 every day wouldn't do it."
+	want := "September: Cid Larsson is 300 points behind Alma with 15 days left — out of reach, even a 1 every day wouldn't do it. Next month, maybe."
 	if got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
@@ -118,7 +118,7 @@ func TestCatchupWhenTheMonthIsPlayedOut(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 	got = answer(translator(t, "en"), Request{Kind: KindCatchup, Player: "Alma"}, nil, []store.Player{alma, bo}, results, now)
-	if got != "Alma leads September by 100 points with 0 days left: nobody can catch them now." {
+	if got != "Alma leads September by 100 points with 0 days left: nobody can catch them now. Start engraving the trophy." {
 		t.Errorf("got %q", got)
 	}
 }

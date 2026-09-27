@@ -62,7 +62,7 @@ func TestMonthlyWins(t *testing.T) {
 	now := fixtureNow()
 
 	got := answer(translator(t, "en"), Request{Kind: KindWins}, nil, players, results, now)
-	if got != "No month has been won yet." {
+	if got != "No month has been won yet. The throne is empty." {
 		t.Errorf("with only the running month: %q", got)
 	}
 
