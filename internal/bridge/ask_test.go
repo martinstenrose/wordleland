@@ -132,3 +132,26 @@ func TestTheAnswerRunsUnderTheFilersDeadline(t *testing.T) {
 		t.Errorf("answer had %v, want more than %v", got, respondTimeout)
 	}
 }
+
+// A panic while answering is logged and costs that answer, not the
+// process, and the next question is still answered.
+func TestAPanickingAnswerIsContained(t *testing.T) {
+	f, cap := testFiler(t)
+	var calls atomic.Int32
+	f.respond = func(context.Context, Message) error {
+		if calls.Add(1) == 1 {
+			panic("assignment to entry in nil map")
+		}
+		return nil
+	}
+	f.handle(context.Background(), question("who leads?"))
+	f.wait()
+	f.handle(context.Background(), question("and now?"))
+	f.wait()
+	if calls.Load() != 2 {
+		t.Errorf("%d answers attempted, want 2", calls.Load())
+	}
+	if !strings.Contains(cap.log(), "answering a question panicked") {
+		t.Errorf("the panic was not logged:\n%s", cap.log())
+	}
+}

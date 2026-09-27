@@ -15,6 +15,7 @@ import (
 	"errors"
 	"log/slog"
 	"math/rand"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -236,6 +237,15 @@ func (f *filer) ask(ctx context.Context, m Message) {
 	go func() {
 		defer f.answers.Done()
 		defer func() { <-f.asking }()
+		// The Supervisor's recover does not reach this goroutine, and an
+		// answer runs code steered by a language model's output: a bug it
+		// finds must cost the answer, not the process.
+		defer func() {
+			if r := recover(); r != nil {
+				f.logger.Error("answering a question panicked",
+					"panic", r, "stack", string(debug.Stack()))
+			}
+		}()
 		f.answering.Lock()
 		defer f.answering.Unlock()
 		if waited := f.now().Sub(arrived); waited > maxQuestionWait {

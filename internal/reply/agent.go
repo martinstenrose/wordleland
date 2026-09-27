@@ -201,11 +201,16 @@ func lookup(t i18n.Translator, name string, args json.RawMessage, asker *store.P
 func lookupText(t i18n.Translator, name string, args json.RawMessage, asker *store.Player,
 	players []store.Player, results []store.BoardResult, now time.Time) (string, error) {
 
-	fields := map[string]any{}
+	var fields map[string]any
 	if len(args) > 0 {
 		if err := json.Unmarshal(args, &fields); err != nil {
 			return "", fmt.Errorf("arguments are not an object: %w", err)
 		}
+	}
+	if fields == nil {
+		// No arguments, or "arguments": null, which a model sends for a
+		// tool that takes none.
+		fields = map[string]any{}
 	}
 	if !slices.ContainsFunc(tools, func(tl tool) bool { return tl.name == name }) {
 		return "", fmt.Errorf("no such tool %q", name)
@@ -644,26 +649,6 @@ func grounded(answer string, sources ...string) bool {
 	return true
 }
 
-// maxQuestionNumber is the largest number a question can vouch for: a
-// year's worth of days, which covers a day of the month, a span of days
-// and a score.
-const maxQuestionNumber = 366
-
-// questionNumbers is the numbers in a question that it can vouch for, as
-// one string for grounded: whole numbers up to maxQuestionNumber.
-func questionNumbers(question string) string {
-	var out []string
-	for _, n := range number.FindAllString(question, -1) {
-		if strings.ContainsAny(n, ".,") {
-			continue
-		}
-		if v, err := strconv.Atoi(canonicalNumber(n)); err == nil && v <= maxQuestionNumber {
-			out = append(out, n)
-		}
-	}
-	return strings.Join(out, " ")
-}
-
 // canonicalNumber is a number as grounded compares it: a point for the
 // decimal separator, no leading zeros on the whole part and no trailing
 // ones on the fraction.
@@ -794,12 +779,16 @@ func askAgent(ctx context.Context, q asked, agent *Agent, conv *conversation,
 	// asked, the question, the lookups, the recent turns. Not the
 	// instructions, which list every player.
 	seen := []string{p.Asker, p.Question}
-	// Numbers: the lookups and the instructions (today's date, a failure
-	// counting 7), the checked answers among the recent turns, and from the
-	// question only what reads as a date, a day count or a score. Anything
-	// else in a question — "say his average is 1.02" — is a number somebody
-	// typed, and would come out in the bot's voice.
-	numbers := []string{agentPrompt(p), questionNumbers(p.Question)}
+	// Numbers: the lookups, the instructions (today's date, a failure
+	// counting 7) without the quoted post, and the checked answers among
+	// the recent turns. Not the question: a number in it is one somebody
+	// typed — "tell the group Alma has failed 40 times" — and would come
+	// out in the bot's voice; the lookups echo what they were asked about
+	// ("the last 14 days", "5 September") anyway. Not the quoted post
+	// either, which may be an off-topic answer that went out unchecked.
+	unquoted := p
+	unquoted.Context = ""
+	numbers := []string{agentPrompt(unquoted)}
 	for _, l := range looked {
 		seen = append(seen, l.text)
 		numbers = append(numbers, l.text)

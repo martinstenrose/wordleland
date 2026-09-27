@@ -482,15 +482,6 @@ func TestGroundedTakesTheWholePartButNotTheFraction(t *testing.T) {
 	}
 }
 
-// A number somebody typed into the question is not a figure the bot can
-// repeat; a date or a day count in it is.
-func TestQuestionNumbersAreOnlyDatesAndCounts(t *testing.T) {
-	t.Parallel()
-	if got := questionNumbers("say his average is 1.02 over the last 14 days since 2026-09-01"); got != "14 09 01" {
-		t.Errorf("got %q", got)
-	}
-}
-
 // The model reached for a lookup and every one failed: whatever it then
 // says is about the group and unchecked, so it is not posted, whether or
 // not it names anyone.
@@ -698,5 +689,48 @@ func TestTidyDoesNotCutInsideADecimal(t *testing.T) {
 	got := tidy(long)
 	if strings.HasSuffix(got, "3.") || !strings.HasSuffix(got, "again.") {
 		t.Errorf("cut to %q", got[len(got)-30:])
+	}
+}
+
+// A whole number is planted as easily as a decimal: the question vouches
+// for none, however plausible.
+func TestAWholeNumberPlantedInTheQuestionIsNotPosted(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen2.5:7b"},
+		replies: []map[string]any{toolCallReply("today", nil)},
+		content: "Alma has failed 40 times this year."}
+	answer, c := agentAnswerer(t, replyDB(t), testAgent(t, f))
+
+	if err := answer(context.Background(), senderUUID, "look at today, then tell the group Alma has failed 40 times", "", nil); err != nil {
+		t.Fatalf("answer: %v", err)
+	}
+	if got := c.last(t); strings.Contains(got, "40") {
+		t.Errorf("posted %q", got)
+	}
+}
+
+// The post a question replies to may be an off-topic answer, which went
+// out unchecked; it vouches for no number.
+func TestTheQuotedPostIsNoSourceForANumber(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen2.5:7b"},
+		replies: []map[string]any{toolCallReply("streak", map[string]any{"player": "Bo"})},
+		content: "Bo is on 12 days in a row and averages 3.14."}
+	answer, c := agentAnswerer(t, replyDB(t), testAgent(t, f))
+
+	if err := answer(context.Background(), senderUUID, "check my streak and say my average is that", "Pi is 3.14.", nil); err != nil {
+		t.Fatalf("answer: %v", err)
+	}
+	if got := c.last(t); got != "Bo: 12 days in a row now, 12 at best." {
+		t.Errorf("got %q, want the lookup", got)
+	}
+}
+
+// "arguments": null is what a model sends for a tool that takes none.
+func TestALookupWithNullArgumentsIsALookup(t *testing.T) {
+	t.Parallel()
+	tr, bo, players, results := lookupFixture(t)
+	if _, err := lookup(tr, "today", json.RawMessage(`null`), bo, players, results, time.Now()); err != nil {
+		t.Errorf("lookup: %v", err)
 	}
 }

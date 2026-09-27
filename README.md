@@ -250,8 +250,10 @@ answering half of them.
   details, accounts, identities or settings. It has no database access
   beyond those lookups.
 - **What is checked:** every number in its answer must appear in what it
-  looked up (or the question, or the recent conversation), and every
-  player it names must have been mentioned there. An answer that fails
+  looked up (or in its own earlier checked answers), not merely in the
+  question, and every player it names must have been mentioned in the
+  conversation or a lookup. A number written as a word is not checked;
+  the model is told to write digits. An answer that fails
   either gets the lookups' own text posted instead. Markdown is stripped
   and a rambling answer is cut after its last whole sentence.
 - **Off-topic:** a question it answers without looking anything up — a

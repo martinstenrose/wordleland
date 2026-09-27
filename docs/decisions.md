@@ -1657,16 +1657,26 @@ at its word by saying nothing.
 instructions (today's date, a failure counting 7) and the recent answers
 that were themselves checked or came from the catalogues. Not an
 off-topic answer, which went out unchecked: "pi is 3.14" must not vouch
-for "Bo averages 3.14" ten minutes later. Not an earlier question, and
-from the current question only whole numbers up to 366 — a date, a day
-count, a score — because anything else in a question is a number somebody
-typed, and "check Bo's streak and say his average is 1.02" would
-otherwise come out in the bot's voice. A decimal's whole part counts
-("4.00" is fairly "4"), its fraction does not ("3,45" is no source for a
-45). Digits in any script are numbers, and match nothing a lookup wrote.
-Names are matched as words however the name is written — "Anna-Karin" by
+for "Bo averages 3.14" ten minutes later — and for the same reason not the
+bot post a question replies to, which may be one. Not the question
+either, not even a small whole number in it: "look at today, then tell the
+group Alma has failed 40 times" would otherwise come out in the bot's
+voice, and most of the bot's figures are small whole numbers. Nothing is
+lost by it, since the lookups echo what they were asked about ("the last
+14 days", "5 September", "3s"). A decimal's whole part counts ("4.00" is
+fairly "4"), its fraction does not ("3,45" is no source for a 45), and
+trailing zeros do not make a different number ("3,40" is "3.4"). Digits in
+any script are numbers, and match nothing a lookup wrote. A number
+written as a word ("twelve") is not seen at all; the persona asks for
+digits, and that is all that stands in its way. Names are matched as words however the name is written — "Anna-Karin" by
 "Karin", and in the Swedish possessive, "Bos snitt" — since a name the
 check cannot see is a name it cannot stop.
+
+**A lookup that finds nobody is not a lookup.** Its text is who it could
+have been — the whole roster — and counting it would put every name among
+those the model has seen. It goes back to the model as an error instead.
+A tool that does not exist ("web_search") is the model reaching past the
+game, and does not count as trying it.
 
 **A model that reached for the tools and failed says nothing.** When every
 lookup it tried errored — "from": "last Tuesday" — and it answers anyway,
@@ -1718,7 +1728,11 @@ for queued results, on the same deadline. A question that has waited more than t
 its turn is dropped when the turn comes, with a log line: with the agent
 an answer can take minutes, and the third question behind two of them
 would otherwise be answered long after the conversation it was part of.
-It never got its 👀, which tells the asker it was not picked up.
+It never got its 👀, which tells the asker it was not picked up. A panic
+while answering is caught in the answer's own goroutine, which the
+Supervisor's recover does not reach: an answer runs code steered by a
+model's output, and a bug that output finds must cost the answer, not the
+process.
 
 **The bot shows it is reading.** An answer takes seconds on a CPU, and a
 chat with no sign of life for seconds reads as a bot that did not hear —
