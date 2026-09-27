@@ -483,23 +483,71 @@ const persona = "Your personality: witty, dry and a little cocky, like a friend 
 // is also a word ("Bo") blocks that word too, which errs on the side of the
 // unknown line.
 func offTopic(answer string, players []store.Player) bool {
-	if answer == "" {
-		return false
-	}
+	return answer != "" && len(namedPlayers(answer, players)) == 0
+}
+
+// namedPlayers is the players a text mentions, by any part of their name
+// as a whole word, ignoring case.
+func namedPlayers(text string, players []store.Player) []int64 {
 	words := map[string]bool{}
-	for _, w := range strings.FieldsFunc(strings.ToLower(answer), func(r rune) bool {
+	for _, w := range strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
 	}) {
 		words[w] = true
 	}
+	var out []int64
 	for _, p := range players {
 		for _, part := range strings.Fields(strings.ToLower(p.Name)) {
 			if words[part] {
-				return false
+				out = append(out, p.ID)
+				break
 			}
 		}
 	}
+	return out
+}
+
+// namesGrounded reports whether every player the answer names is named in
+// the sources too. It does not catch a score pinned on the wrong one of
+// two players the lookups both mention; it does catch a player brought in
+// from nowhere, which is how a model filling in a sentence goes wrong.
+func namesGrounded(answer string, players []store.Player, sources ...string) bool {
+	known := namedPlayers(strings.Join(sources, "\n"), players)
+	for _, id := range namedPlayers(answer, players) {
+		if !slices.Contains(known, id) {
+			return false
+		}
+	}
 	return true
+}
+
+// maxAnswerRunes is the longest answer posted as the model wrote it: about
+// five short sentences. The model is asked for one to three; past this it
+// is rambling, and a chat is not the place.
+const maxAnswerRunes = 500
+
+// tidy makes the model's text fit a chat: Signal shows markdown as the
+// characters, so the markers go, and a long answer is cut after the last
+// whole sentence that fits, or at a word with an ellipsis when none does.
+func tidy(text string) string {
+	text = strings.NewReplacer("**", "", "__", "", "`", "").Replace(text)
+	var lines []string
+	for _, l := range strings.Split(text, "\n") {
+		lines = append(lines, strings.TrimLeft(l, "# "))
+	}
+	text = strings.TrimSpace(strings.Join(lines, "\n"))
+	r := []rune(text)
+	if len(r) <= maxAnswerRunes {
+		return text
+	}
+	cut := string(r[:maxAnswerRunes])
+	if i := strings.LastIndexAny(cut, ".!?\n"); i > 0 {
+		return strings.TrimSpace(cut[:i+1])
+	}
+	if i := strings.LastIndex(cut, " "); i > 0 {
+		cut = cut[:i]
+	}
+	return strings.TrimSpace(cut) + "…"
 }
 
 // number is a figure as written: digits, with a decimal part after either
@@ -611,6 +659,7 @@ func askAgent(ctx context.Context, q asked, agent *Agent, conv *conversation,
 		defer cancel()
 	}
 	text, looked, err := agent.Run(actx, p, look)
+	text = tidy(text)
 	switch {
 	case errors.Is(err, errNoLookup) && offTopic(text, q.players):
 		steer := segue(t, conv.nextSegue(), q.players, q.results, q.now)
@@ -635,14 +684,20 @@ func askAgent(ctx context.Context, q asked, agent *Agent, conv *conversation,
 		// the model's failure is only worth a line in the log.
 		logger.Warn("the agent stopped before answering; posting its lookups", "error", err)
 	}
-	sources := []string{p.Question, agentPrompt(p)}
+	// What the model saw of the group: who asked and what, the lookups
+	// and the conversation. The instructions are a source for numbers
+	// (today's date, a failure counting 7) but not for names, since they
+	// list every player.
+	seen := []string{p.Asker, p.Question}
 	for _, l := range looked {
-		sources = append(sources, l.text)
+		seen = append(seen, l.text)
 	}
 	for _, h := range p.History {
-		sources = append(sources, h.Question, h.Answer)
+		seen = append(seen, h.Question, h.Answer)
 	}
-	isGrounded := err == nil && text != "" && grounded(text, sources...)
+	isGrounded := err == nil && text != "" &&
+		grounded(text, append(seen, agentPrompt(p))...) &&
+		namesGrounded(text, q.players, seen...)
 	logger.Info("answering a question in the group", "kind", "agent",
 		"lookups", len(looked), "grounded", isGrounded)
 	if !isGrounded {

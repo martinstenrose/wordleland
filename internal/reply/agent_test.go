@@ -251,6 +251,7 @@ func TestAnAnswerFromNothingIsPostedOnlyOffTopic(t *testing.T) {
 		want string
 	}{
 		{"Stockholm, obviously.", "Stockholm, obviously."},
+		{"**Stockholm**, obviously.", "Stockholm, obviously."},
 		{"Bo is leading, naturally.", "No idea what that was."},
 		{"bo is leading, naturally.", "No idea what that was."},
 		{"Gustav Vasa was born in 1496.", "Gustav Vasa was born in 1496."},
@@ -353,5 +354,59 @@ func TestTheAgentIsAnnouncedOnlyOnceReady(t *testing.T) {
 	if rec.prompts[0].Agent || !rec.prompts[1].Agent {
 		t.Errorf("Agent = %v then %v, want false before Prepare and true after",
 			rec.prompts[0].Agent, rec.prompts[1].Agent)
+	}
+}
+
+// A player the lookups never mentioned is a player the model brought in
+// itself, and its sentence gives way to the lookups — even though every
+// player is listed in its instructions.
+func TestAnAnswerNamingAPlayerNothingMentionedIsReplaced(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen2.5:7b"},
+		replies: []map[string]any{toolCallReply("streak", map[string]any{"player": "Bo"})},
+		content: "Bo is on 12 days in a row, and Alma is jealous."}
+	answer, c := agentAnswerer(t, replyDB(t), testAgent(t, f))
+
+	if err := answer(context.Background(), senderUUID, "how long is my streak?", "", nil); err != nil {
+		t.Fatalf("answer: %v", err)
+	}
+	if got := c.last(t); got != "Bo: 12 days in a row now, 12 at best." {
+		t.Errorf("got %q, want the lookup", got)
+	}
+}
+
+func TestTidyFitsTheAnswerToAChat(t *testing.T) {
+	t.Parallel()
+	if got := tidy("## Leader\n**Alma** leads with `3.00`."); got != "Leader\nAlma leads with 3.00." {
+		t.Errorf("markdown: got %q", got)
+	}
+	long := strings.Repeat("Alma leads again. ", 40)
+	got := tidy(long)
+	if n := len([]rune(got)); n > maxAnswerRunes || !strings.HasSuffix(got, "again.") {
+		t.Errorf("a long answer: %d runes ending %q", n, got[len(got)-10:])
+	}
+	got = tidy(strings.Repeat("word ", 200))
+	if n := len([]rune(got)); n > maxAnswerRunes+1 || !strings.HasSuffix(got, "word…") {
+		t.Errorf("no sentence end: %d runes ending %q", n, got[len(got)-10:])
+	}
+}
+
+func TestNamesGroundedAllowsOnlyPlayersSeen(t *testing.T) {
+	t.Parallel()
+	players := []store.Player{{ID: 1, Name: "Alma"}, {ID: 2, Name: "Bo"}, {ID: 3, Name: "Cid Larsson"}}
+	tests := []struct {
+		answer string
+		want   bool
+	}{
+		{"Bo, you're on a roll.", true},
+		{"Alma leads.", true},
+		{"alma leads.", true},
+		{"Larsson is lurking.", false},
+		{"Nobody special.", true},
+	}
+	for _, tc := range tests {
+		if got := namesGrounded(tc.answer, players, "Bo", "Alma: 3.00"); got != tc.want {
+			t.Errorf("namesGrounded(%q) = %v, want %v", tc.answer, got, tc.want)
+		}
 	}
 }
