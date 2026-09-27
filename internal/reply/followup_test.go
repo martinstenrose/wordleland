@@ -44,6 +44,23 @@ func TestRuleTextsAreShort(t *testing.T) {
 	}
 }
 
+// The month's rule says when its result is posted, and that changed: a
+// month closes the way a day does, not at noon on the first. The text
+// said noon for a while after the code stopped doing it.
+func TestTheMonthRuleSaysWhenTheResultPosts(t *testing.T) {
+	for locale, wantWord := range map[string]string{"en": "when the last day closes", "sv": "när sista dagen stänger"} {
+		text := translator(t, locale).T("reply.rules.month")
+		if !strings.Contains(text, wantWord) {
+			t.Errorf("%s: %q does not say the result posts when the month's last day closes", locale, text)
+		}
+		for _, stale := range []string{"noon", "tolv", "12:00"} {
+			if strings.Contains(text, stale) {
+				t.Errorf("%s: %q still says noon", locale, text)
+			}
+		}
+	}
+}
+
 // A question the model could not place is kept, text only; help, thanks
 // and answered questions are not.
 func TestUnplacedQuestionsAreKept(t *testing.T) {

@@ -194,16 +194,20 @@ docker compose exec app /wordleland questions list
 reply to a daily recap and ask "what does 'points' mean here?", "vad fick
 Bo den dagen?", "why is Bo behind?". The bot's own post travels with the
 question, so "this", "that day" and a name in the post mean what they mean
-there. Only the bot's own posts: a reply to another member's message brings
-nothing along. The tag is still what triggers it — a plain reply to the
-recap is conversation.
+there. Only the bot's own posts, and verified as such: the reply is matched
+to the post by Signal's message id against what the app itself sent, and
+the app's own copy of the text is what travels — never what the replying
+client says the post was. A reply to another member's message brings
+nothing along, and neither does a reply to a bot post from before the app
+last started, which it no longer remembers. The tag is still what triggers
+it — a plain reply to the recap is conversation.
 
 The model is told only the players' names, the asker's name, the date, and
 — for a reply — the bot's own post being replied to. It is never shown
 results, contact details or account state, and it never writes a sentence
 of its own, so there is nothing a question could get out of it: "what's
-Anna's email?" is a question it cannot place, and gets the list of what it
-can answer.
+Anna's email?" is a question it cannot place, and gets the short line
+saying so.
 
 The mention is what triggers it, not the name: Signal carries a mention as
 the account behind it, so the bot can be renamed freely. This only works

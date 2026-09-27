@@ -71,7 +71,9 @@ const (
 	// list. Its own kind so that asking for help is not counted among the
 	// questions the bot could not place.
 	KindHelp Kind = "help"
-	// KindUnknown is anything else, answered with what can be asked.
+	// KindUnknown is anything else: answered with one short line inviting
+	// a question the bot can take, and kept for the owner to read, since
+	// what the group asks and the bot cannot place is the next kind.
 	KindUnknown Kind = "unknown"
 )
 
