@@ -410,3 +410,29 @@ func TestNamesGroundedAllowsOnlyPlayersSeen(t *testing.T) {
 		}
 	}
 }
+
+// The help line says there is more to ask once the agent can answer it,
+// and not before.
+func TestHelpMentionsTheAgentOnlyWhenReady(t *testing.T) {
+	t.Parallel()
+	db := replyDB(t)
+	f := &fakeOllama{models: []string{"qwen2.5:7b"}}
+	srv := httptest.NewServer(f.handler())
+	t.Cleanup(srv.Close)
+	a := NewAgent(srv.URL, "qwen2.5:7b")
+	answer, c := newAgentAnswerer(t, db, canned{req: Request{Kind: KindHelp}}, a)
+
+	for i, ready := range []bool{false, true} {
+		if ready {
+			a.Prepare(context.Background(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+		}
+		for _, q := range []string{"what can you do?", ""} {
+			if err := answer(context.Background(), senderUUID, q, "", nil); err != nil {
+				t.Fatal(err)
+			}
+			if got := strings.Contains(c.last(t), "big brain"); got != ready {
+				t.Errorf("round %d, question %q: mentions the agent = %v, want %v", i, q, got, ready)
+			}
+		}
+	}
+}

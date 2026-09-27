@@ -183,6 +183,15 @@ type Exchange struct {
 	Answer   string
 }
 
+// help is the list of what can be asked, and with the agent ready, the
+// line saying that is not all.
+func help(t i18n.Translator, agent *Agent) string {
+	if agent != nil && agent.Ready() {
+		return t.T("reply.help") + " " + t.T("reply.help.agent")
+	}
+	return t.T("reply.help")
+}
+
 // keepUnanswered records a question the bot could not place, so a kind
 // can be added for it later. Failing to record one is a warning, never a
 // failed answer: the answer already went out.
@@ -250,7 +259,7 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter, ag
 		question = strings.TrimSpace(strings.ReplaceAll(question, mentionPlaceholder, ""))
 		if question == "" {
 			// A bare mention. Saying what can be asked is the answer.
-			return send(ctx, t.T("reply.help"))
+			return send(ctx, help(t, agent))
 		}
 
 		players, err := store.ListPlayers(ctx, db)
@@ -321,6 +330,9 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter, ag
 		}
 
 		text := answer(t, req, asker, players, results, now)
+		if req.Kind == KindHelp {
+			text = help(t, agent)
+		}
 		tp := topicWordle
 		switch req.Kind {
 		case KindThanks, KindHelp, KindUnknown:

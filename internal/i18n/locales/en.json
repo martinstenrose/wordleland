@@ -746,6 +746,7 @@
   "search.pages": "Pages",
   "search.noResults": "No matches for that search.",
   "reply.help": "Ask me who's leading or propping up the table (this month, a past month, the last N days, or all time), how somebody is doing, whether they can still win the month, streaks, today's puzzle, somebody's score on a day, how many 2s they have, who usually posts first, monthly wins, or what a word in my posts means. Mention me and ask. I don't do weather.",
+  "reply.help.agent": "With the big brain switched on I also take follow-ups, comparisons, “roast me” and most things you can think of.",
   "reply.notready": "Still waking up. Give me a few minutes — even Wordle gives you six tries.",
   "reply.failed": "That one broke my brain. Try again, with fewer riddles.",
   "reply.span.days": "the last %d days",
