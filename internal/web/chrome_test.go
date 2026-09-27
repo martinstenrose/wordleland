@@ -955,9 +955,9 @@ func TestTheOneExternalLinkSaysThatItLeaves(t *testing.T) {
 //
 // The error page, the sign-in form, the two-factor prompt and the password
 // reset all had their messages written into the Go rather than into the
-// catalogue, so a reader in any of the four other languages got a translated
-// page with an English sentence under it — invisible in English, which is
-// the language everybody who wrote them was reading in.
+// catalogue, so a Swedish reader got a translated page with an English
+// sentence under it — invisible in English, which is the language everybody
+// who wrote them was reading in.
 func TestTheErrorsSpeakTheReadersLanguage(t *testing.T) {
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
@@ -965,7 +965,6 @@ func TestTheErrorsSpeakTheReadersLanguage(t *testing.T) {
 	// The error page, for a stranger who has picked Swedish.
 	for _, tt := range []struct{ path, want, never string }{
 		{"/no-such-page?lang=sv", "Det finns ingenting på den här adressen.", "There is nothing at this address"},
-		{"/no-such-page?lang=de", "Unter dieser Adresse gibt es nichts.", "There is nothing at this address"},
 	} {
 		body := fetchAs(t, srv, tt.path, nil).Body.String()
 		if !strings.Contains(body, tt.want) {

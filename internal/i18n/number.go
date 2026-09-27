@@ -10,8 +10,8 @@ import (
 // numberFormat is how one locale writes a number: what separates the
 // fractional part, and what — if anything — groups the thousands.
 //
-// English is the odd one here with no grouping at all. That is deliberate
-// and predates the other locales: the application wrote bare digits before
+// English has no grouping at all. That is deliberate and predates Swedish:
+// the application wrote bare digits before
 // any of this existed, and the puzzle numbers this mostly formats read
 // better as "1918" than as "1,918".
 type numberFormat struct {
@@ -20,13 +20,9 @@ type numberFormat struct {
 }
 
 // Locales that write a number the way English does need no entry. Swedish
-// groups with a space; German, Spanish and Italian group with a full stop.
-// All four put a comma before the fraction.
+// groups with a space and puts a comma before the fraction.
 var numberFormats = map[string]numberFormat{
 	"sv": {decimal: ",", group: " "},
-	"de": {decimal: ",", group: "."},
-	"es": {decimal: ",", group: "."},
-	"it": {decimal: ",", group: "."},
 }
 
 // Integer formats a whole number for display.
@@ -40,8 +36,8 @@ func Integer(locale string, value int) string {
 // It is the same digits in every language, because grouping them is what a
 // reader does to a quantity: "#1.918" invites the eye to read a magnitude out
 // of a name, and nobody writes a house number or a flight number that way
-// either. English arrived at this by having no grouping to apply; the rest
-// get it on purpose.
+// either. English arrived at this by having no grouping to apply; Swedish
+// gets it on purpose.
 func Identifier(value int) string {
 	return strconv.Itoa(value)
 }
