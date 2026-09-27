@@ -310,8 +310,10 @@ func TestAProfileIsEveryAnswerAboutOnePlayer(t *testing.T) {
 		}
 	}
 
+	// Nobody by that name: an error for the model, said once, rather than
+	// a lookup that worked and listed the whole roster.
 	got, err = lookup(tr, toolProfile, json.RawMessage(`{"player":"Dag"}`), bo, players, results, now)
-	if err != nil || strings.Count(got, "Dag") != 1 {
+	if err == nil || got != "" || strings.Count(err.Error(), "Dag") != 1 {
 		t.Errorf("an unknown player: got %q, %v", got, err)
 	}
 }
@@ -636,5 +638,65 @@ func TestThePersonaHasNoNumbers(t *testing.T) {
 	t.Parallel()
 	if n := number.FindAllString(persona, -1); len(n) > 0 {
 		t.Errorf("the persona holds numbers %v", n)
+	}
+}
+
+// A lookup of nobody found nothing: the model's answer after it is about
+// the group and unchecked — the roster the miss would have listed does
+// not make "Alma" a name it has seen.
+func TestALookupOfNobodyIsNotALookup(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen2.5:7b"},
+		replies: []map[string]any{toolCallReply(toolProfile, map[string]any{"player": "Zed"})},
+		content: "Alma choked this week, as always."}
+	answer, c := agentAnswerer(t, replyDB(t), testAgent(t, f))
+
+	if err := answer(context.Background(), senderUUID, "roast Zed", "", nil); err != nil {
+		t.Fatalf("answer: %v", err)
+	}
+	if got := c.last(t); !strings.HasPrefix(got, "No idea what that was.") {
+		t.Errorf("got %q", got)
+	}
+	msgs := f.chats[1]["messages"].([]any)
+	if tool := msgs[len(msgs)-1].(map[string]any)["content"].(string); !strings.HasPrefix(tool, "Error: Never heard of Zed.") {
+		t.Errorf("the model was told %q", tool)
+	}
+}
+
+// A tool that does not exist is the model reaching past the game: what it
+// then says is an off-topic answer, not a failed lookup.
+func TestAnInventedToolIsNotAnAttemptAtTheGame(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen2.5:7b"},
+		replies: []map[string]any{toolCallReply("web_search", map[string]any{"query": "capital of Sweden"})},
+		content: "Stockholm, obviously."}
+	answer, c := agentAnswerer(t, replyDB(t), testAgent(t, f))
+
+	if err := answer(context.Background(), senderUUID, "capital of Sweden?", "", nil); err != nil {
+		t.Fatalf("answer: %v", err)
+	}
+	if got := c.last(t); !strings.HasPrefix(got, "Stockholm, obviously.\nAnyway") {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestGroundedIgnoresTrailingZeros(t *testing.T) {
+	t.Parallel()
+	if !grounded("Alma averages 3.4.", "Alma: 3,40") || !grounded("Bo averages 4.", "Bo: 4.00") {
+		t.Error("a trailing zero made the same number a different one")
+	}
+	if grounded("Alma averages 3.04.", "Alma: 3,40") {
+		t.Error("3.04 was taken for 3,40")
+	}
+}
+
+// The point in a decimal ends no sentence: a long answer is not cut to
+// "averages 3.", which would pass the check as a whole part.
+func TestTidyDoesNotCutInsideADecimal(t *testing.T) {
+	t.Parallel()
+	long := strings.Repeat("Alma leads again. ", 26) + "Bo averages 3.45 and nobody minds at all, truly, not one bit."
+	got := tidy(long)
+	if strings.HasSuffix(got, "3.") || !strings.HasSuffix(got, "again.") {
+		t.Errorf("cut to %q", got[len(got)-30:])
 	}
 }

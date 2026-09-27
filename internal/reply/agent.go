@@ -180,6 +180,27 @@ func toolDefinitions() []map[string]any {
 func lookup(t i18n.Translator, name string, args json.RawMessage, asker *store.Player,
 	players []store.Player, results []store.BoardResult, now time.Time) (string, error) {
 
+	text, err := lookupText(t, name, args, asker, players, results, now)
+	if err != nil {
+		return "", err
+	}
+	// A lookup that found no player answers with who it could have been:
+	// the whole roster, as found. That is not a finding — it would count
+	// as a lookup that worked and put every name among those the model
+	// has seen — so it goes back to the model as an error instead.
+	var fields map[string]any
+	_ = json.Unmarshal(args, &fields)
+	player, _ := fields["player"].(string)
+	player = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(player), "@"))
+	if _, ok, miss := whom(t, Request{Player: player}, asker, players); !ok && text == miss {
+		return "", errors.New(miss)
+	}
+	return text, nil
+}
+
+func lookupText(t i18n.Translator, name string, args json.RawMessage, asker *store.Player,
+	players []store.Player, results []store.BoardResult, now time.Time) (string, error) {
+
 	fields := map[string]any{}
 	if len(args) > 0 {
 		if err := json.Unmarshal(args, &fields); err != nil {
@@ -378,7 +399,11 @@ func (a *Agent) Run(ctx context.Context, p Prompt,
 			calls = calls[:maxCallsInRound]
 		}
 		messages = append(messages, chatMessage{Role: "assistant", Content: reply.Content, ToolCalls: calls})
-		tried = true
+		for _, c := range calls {
+			// A tool that does not exist — "web_search" for the capital
+			// of Sweden — is a model reaching past the game, not into it.
+			tried = tried || slices.ContainsFunc(tools, func(tl tool) bool { return tl.name == c.Function.Name })
+		}
 		for _, c := range calls {
 			text, err := look(c.Function.Name, callArguments(c.Function.Arguments))
 			if err != nil {
@@ -450,7 +475,8 @@ func agentPrompt(p Prompt) string {
 		"so in one sentence. A question about this group's players, scores or standings is always " +
 		"answered from the tools, never from memory. Anything else you may answer from what you know, " +
 		"in one or two sentences, and leave the game out of that answer: the bot adds a line about " +
-		"Wordle after it. If you are not sure, say you don't know.\n")
+		"Wordle after it. In an answer without the tools, call the person asking \"you\" and name " +
+		"no one. If you are not sure, say you don't know.\n")
 	if len(p.History) > 0 {
 		b.WriteString("The messages before the last are the recent conversation, each question " +
 			"prefixed with who asked. Use them to read a follow-up (\"and last week?\", \"what about " +
@@ -492,7 +518,7 @@ const persona = "Your personality: witty, dry and a little cocky, like a friend 
 	"The voice, by example (the name is made up):\n" +
 	"- Sam leads the month, and has started walking differently.\n" +
 	"- An X yesterday. We light a candle and move on.\n" +
-	"- The capital of Sweden is Stockholm. Easier than today's word, anyway.\n"
+	"- The capital of Sweden is Stockholm. Next you'll ask me what colour the sky is.\n"
 
 // offTopic reports whether an answer made without a lookup may be posted:
 // it says something, and names no player. Without a lookup the model knows
@@ -503,6 +529,10 @@ const persona = "Your personality: witty, dry and a little cocky, like a friend 
 // word by word, any part of it, so "Larsson" is Cid Larsson; a name that
 // is also a word ("Bo") blocks that word too, which errs on the side of the
 // unknown line.
+//
+// The asker is no exception, though "Hej Bo!" to Bo is harmless: "Bo
+// leads" to Bo is not, and the two cannot be told apart. The model is
+// told to say "you" instead, which is the same greeting.
 func offTopic(answer string, players []store.Player) bool {
 	return answer != "" && len(namedPlayers(answer, players)) == 0
 }
@@ -556,6 +586,8 @@ func namesGrounded(answer string, players []store.Player, sources ...string) boo
 // is rambling, and a chat is not the place.
 const maxAnswerRunes = 500
 
+var sentenceEnds = regexp.MustCompile(`[.!?…]\s|\n`)
+
 // tidy makes the model's text fit a chat: Signal shows markdown as the
 // characters, so the markers go, and a long answer is cut after the last
 // whole sentence that fits, or at a word with an ellipsis when none does.
@@ -571,8 +603,10 @@ func tidy(text string) string {
 		return text
 	}
 	cut := string(r[:maxAnswerRunes])
-	if i := strings.LastIndexAny(cut, ".!?\n"); i > 0 {
-		return strings.TrimSpace(cut[:i+1])
+	// A sentence ends at a mark followed by a space or a line break, or at
+	// the cut itself: the point in "3.45" ends nothing.
+	if loc := sentenceEnds.FindAllStringIndex(cut+" ", -1); len(loc) > 0 {
+		return strings.TrimSpace(cut[:loc[len(loc)-1][0]+1])
 	}
 	if i := strings.LastIndex(cut, " "); i > 0 {
 		cut = cut[:i]
@@ -631,7 +665,8 @@ func questionNumbers(question string) string {
 }
 
 // canonicalNumber is a number as grounded compares it: a point for the
-// decimal separator, and no leading zeros on the whole part.
+// decimal separator, no leading zeros on the whole part and no trailing
+// ones on the fraction.
 func canonicalNumber(n string) string {
 	n = strings.ReplaceAll(n, ",", ".")
 	whole, frac, isDecimal := strings.Cut(n, ".")
@@ -639,7 +674,8 @@ func canonicalNumber(n string) string {
 	if whole == "" {
 		whole = "0"
 	}
-	if isDecimal {
+	// "3,40" and "3.4" are the same number, and so are "4.00" and "4".
+	if frac = strings.TrimRight(frac, "0"); isDecimal && frac != "" {
 		return whole + "." + frac
 	}
 	return whole
