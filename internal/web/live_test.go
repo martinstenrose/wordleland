@@ -88,6 +88,27 @@ func (s *stream) ended(wait time.Duration) bool {
 	}
 }
 
+// Close waits for the poller, so the database can be closed after it and
+// nothing reads the clock once a test has ended.
+func TestCloseWaitsForThePoller(t *testing.T) {
+	t.Parallel()
+
+	h := testServer(t).live
+	ch, ok := h.subscribe()
+	if !ok {
+		t.Fatal("subscribe() refused the first stream")
+	}
+	h.unsubscribe(ch)
+	h.Close()
+
+	h.mu.Lock()
+	polling := h.polling
+	h.mu.Unlock()
+	if polling {
+		t.Error("Close() returned while the poller was still running")
+	}
+}
+
 // file lands one result for a player through the same rules the bridge
 // uses, which is what moves the mark.
 func file(t *testing.T, srv *Server, slug string, puzzle, guesses int) {
