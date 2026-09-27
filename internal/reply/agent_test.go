@@ -629,3 +629,12 @@ func TestAnAgentThatNeverStopsIsStopped(t *testing.T) {
 		t.Errorf("%d calls answered in the first round, want %d", tools, maxCallsInRound)
 	}
 }
+
+// The instructions vouch for every number in them, so the persona, its
+// examples included, must have none a model could repeat unchecked.
+func TestThePersonaHasNoNumbers(t *testing.T) {
+	t.Parallel()
+	if n := number.FindAllString(persona, -1); len(n) > 0 {
+		t.Errorf("the persona holds numbers %v", n)
+	}
+}

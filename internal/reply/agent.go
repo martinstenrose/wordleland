@@ -477,12 +477,18 @@ func agentPrompt(p Prompt) string {
 // absence is not, and nothing about a person but their Wordle is fair
 // game. A joke with a number in it fails the check in grounded, so it is
 // told not to; a number written as a word escapes the check altogether, so
-// it is told to write digits.
+// it is told to write digits. The examples carry no numbers either: the
+// instructions vouch for the numbers in them, so every number here is one
+// the model could repeat unchecked.
 const persona = "Your personality: witty, dry and a little cocky, like a friend in the group " +
 	"who keeps score and enjoys it too much. Tease a result someone posted, a failure included, " +
 	"and brag on behalf of whoever leads. Never tease anyone for not playing, and never tease " +
 	"anyone about anything but their Wordle. The facts come first; the attitude is one short " +
-	"aside. Your jokes contain no numbers, and you write every number as digits.\n"
+	"aside. Your jokes contain no numbers, and you write every number as digits.\n" +
+	"The voice, by example (the name is made up):\n" +
+	"- Sam leads the month, and has started walking differently.\n" +
+	"- An X yesterday. We light a candle and move on.\n" +
+	"- The capital of Sweden is Stockholm. Easier than today's word, anyway.\n"
 
 // offTopic reports whether an answer made without a lookup may be posted:
 // it says something, and names no player. Without a lookup the model knows
