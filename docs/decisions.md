@@ -1708,7 +1708,11 @@ questions are in hand — one being answered, two waiting. A fourth is
 dropped with a log line rather than answered a minute later to a
 conversation that has moved on; three at once is a group testing the bot,
 not asking it. Shutdown waits for an answer in progress the way it waits
-for queued results, on the same deadline.
+for queued results, on the same deadline. A question that has waited more than two minutes for
+its turn is dropped when the turn comes, with a log line: with the agent
+an answer can take minutes, and the third question behind two of them
+would otherwise be answered long after the conversation it was part of.
+It never got its 👀, which tells the asker it was not picked up.
 
 **The bot shows it is reading.** An answer takes seconds on a CPU, and a
 chat with no sign of life for seconds reads as a bot that did not hear —

@@ -80,3 +80,55 @@ func TestAQuestionBeyondTheLineIsDropped(t *testing.T) {
 		t.Errorf("the dropped questions were not logged:\n%s", cap.log())
 	}
 }
+
+// A question that waited behind slow answers past maxQuestionWait is
+// dropped when its turn comes, not answered to a conversation that has
+// moved on.
+func TestAQuestionThatWaitedTooLongIsDropped(t *testing.T) {
+	f, cap := testFiler(t)
+	start := time.Date(2026, time.September, 27, 20, 0, 0, 0, time.UTC)
+	var elapsed atomic.Int64
+	f.now = func() time.Time { return start.Add(time.Duration(elapsed.Load())) }
+	release := make(chan struct{})
+	started := make(chan struct{}, 2)
+	var answered atomic.Int32
+	f.respond = func(context.Context, Message) error {
+		started <- struct{}{}
+		<-release
+		answered.Add(1)
+		return nil
+	}
+
+	f.handle(context.Background(), question("who leads?"))
+	<-started // the first has its turn; the clock moves while it answers
+	f.handle(context.Background(), question("and last week?"))
+	elapsed.Store(int64(maxQuestionWait + time.Second))
+	close(release)
+	f.wait()
+
+	if got := answered.Load(); got != 1 {
+		t.Errorf("answered %d questions, want 1", got)
+	}
+	if !strings.Contains(cap.log(), "waited too long") {
+		t.Errorf("the dropped question was not logged:\n%s", cap.log())
+	}
+}
+
+// The deadline the answer runs under is the filer's, not the constant: an
+// agent's answer gets its minutes.
+func TestTheAnswerRunsUnderTheFilersDeadline(t *testing.T) {
+	f, _ := testFiler(t)
+	f.respondTimeout = agentRespondTimeout
+	var left atomic.Int64
+	f.respond = func(ctx context.Context, _ Message) error {
+		if d, ok := ctx.Deadline(); ok {
+			left.Store(int64(time.Until(d)))
+		}
+		return nil
+	}
+	f.handle(context.Background(), question("who leads?"))
+	f.wait()
+	if got := time.Duration(left.Load()); got <= respondTimeout {
+		t.Errorf("answer had %v, want more than %v", got, respondTimeout)
+	}
+}

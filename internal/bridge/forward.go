@@ -201,6 +201,13 @@ func newFiler(groupID string, deliver Deliverer, announce Announcer, respond Res
 // fourth was answered the conversation would have moved on.
 const maxQuestionsInHand = 3
 
+// maxQuestionWait is how long a question may wait for its turn before it
+// is dropped rather than answered. With the agent an answer can take
+// minutes, and a question behind two of them would otherwise be answered
+// long after the conversation it belonged to. It never got its 👀, which
+// is the sign to the asker that it was not picked up.
+const maxQuestionWait = 2 * time.Minute
+
 // ask answers a question beside the worker rather than on it. The model
 // takes seconds and a result posted meanwhile must not wait for it: scores
 // are what the bridge is for, and chat is what it also does. Answers still
@@ -225,11 +232,17 @@ func (f *filer) ask(ctx context.Context, m Message) {
 		return
 	}
 	f.answers.Add(1)
+	arrived := f.now()
 	go func() {
 		defer f.answers.Done()
 		defer func() { <-f.asking }()
 		f.answering.Lock()
 		defer f.answering.Unlock()
+		if waited := f.now().Sub(arrived); waited > maxQuestionWait {
+			f.logger.Info("dropping a question; it waited too long for its turn",
+				"waited", waited.Round(time.Second))
+			return
+		}
 		f.maybeRespond(ctx, m)
 	}()
 }
