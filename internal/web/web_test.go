@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/martinstenrose/wordleland/internal/auth/authtest"
 	"github.com/martinstenrose/wordleland/internal/config"
 	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/wordle"
@@ -44,6 +45,7 @@ func testServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
+	srv.hashPassword = authtest.HashPassword
 	return srv
 }
 

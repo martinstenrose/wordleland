@@ -379,7 +379,7 @@ func bootstrapAdmin(ctx context.Context, db *sql.DB, cfg *config.Config, logger 
 	if cfg.AdminEmail == "" {
 		return nil
 	}
-	hash, err := auth.HashPassword(cfg.AdminPassword)
+	hash, err := hashPassword(cfg.AdminPassword)
 	if err != nil {
 		return fmt.Errorf("hash the bootstrap password: %w", err)
 	}

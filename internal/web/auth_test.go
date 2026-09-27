@@ -20,7 +20,7 @@ const testPassword = "correct horse battery staple"
 func seedLogin(t *testing.T, srv *Server, email string, admin bool) store.User {
 	t.Helper()
 
-	hash, err := auth.HashPassword(testPassword)
+	hash, err := srv.hashPassword(testPassword)
 	if err != nil {
 		t.Fatalf("HashPassword() failed: %v", err)
 	}

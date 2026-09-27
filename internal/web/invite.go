@@ -86,7 +86,7 @@ func (s *Server) handleInviteSubmit(w http.ResponseWriter, r *http.Request) {
 	var hash string
 	if err := s.limiter.WithHashSlot(r.Context(), func() error {
 		var err error
-		hash, err = auth.HashPassword(password)
+		hash, err = s.hashPassword(password)
 		return err
 	}); err != nil {
 		s.logger.Error("hash password", "error", err)

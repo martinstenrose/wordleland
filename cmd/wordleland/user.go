@@ -8,6 +8,10 @@ import (
 	"github.com/martinstenrose/wordleland/internal/store"
 )
 
+// hashPassword is auth.HashPassword. It is a variable only so TestMain can
+// make it cheap before any test runs; nothing else assigns it.
+var hashPassword = auth.HashPassword
+
 func runUser(e *env, args []string) error {
 	return dispatch(e, "user", []subcommand{
 		{"create", "create a login", userCreate},
@@ -53,7 +57,7 @@ func userCreate(e *env, args []string) error {
 	if err != nil {
 		return err
 	}
-	hash, err := auth.HashPassword(password)
+	hash, err := hashPassword(password)
 	if err != nil {
 		return err
 	}
@@ -106,7 +110,7 @@ func userResetPassword(e *env, args []string) error {
 	if err != nil {
 		return err
 	}
-	hash, err := auth.HashPassword(password)
+	hash, err := hashPassword(password)
 	if err != nil {
 		return err
 	}
