@@ -22,6 +22,8 @@ type fakeOllama struct {
 	pulled  []string
 	chats   []map[string]any
 	content string
+	// warmed is the models loaded ahead of a question.
+	warmed []string
 	// replies, when set, are the chat's messages in turn, for a
 	// conversation of more than one round; content is used after them.
 	replies []map[string]any
@@ -48,6 +50,14 @@ func (f *fakeOllama) handler() http.Handler {
 		f.models = append(f.models, req.Model)
 		f.mu.Unlock()
 		json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+	})
+	mux.HandleFunc("POST /api/generate", func(w http.ResponseWriter, r *http.Request) {
+		var req map[string]any
+		json.NewDecoder(r.Body).Decode(&req)
+		f.mu.Lock()
+		f.warmed = append(f.warmed, req["model"].(string))
+		f.mu.Unlock()
+		json.NewEncoder(w).Encode(map[string]any{"done": true})
 	})
 	mux.HandleFunc("POST /api/chat", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -181,5 +191,19 @@ func TestParseRequestNormalises(t *testing.T) {
 	}
 	if _, err := parseRequest("Sure! Here is the JSON:"); err == nil {
 		t.Error("prose parsed as a request")
+	}
+}
+
+// Once present, the model is loaded ahead of the first question, with a
+// request that asks it nothing.
+func TestPrepareLoadsTheModel(t *testing.T) {
+	f := &fakeOllama{models: []string{"qwen2.5:3b"}}
+	o := testOllama(t, f)
+	o.Prepare(context.Background(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if len(f.warmed) != 1 || f.warmed[0] != "qwen2.5:3b" {
+		t.Errorf("warmed %v, want the model once", f.warmed)
+	}
+	if len(f.chats) != 0 {
+		t.Errorf("%d chats while warming, want none", len(f.chats))
 	}
 }

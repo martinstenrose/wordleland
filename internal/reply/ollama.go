@@ -34,6 +34,9 @@ type Ollama struct {
 const (
 	chatTimeout = 75 * time.Second
 	tagsTimeout = 10 * time.Second
+	// warmTimeout bounds loading the model from disk ahead of time: a few
+	// gigabytes off a slow disk.
+	warmTimeout = 5 * time.Minute
 	// Checked again at this interval while the model is still missing or
 	// the server unreachable — it starts after the app, or is still
 	// downloading, both ordinary at boot.
@@ -61,6 +64,7 @@ func (o *Ollama) Prepare(ctx context.Context, logger *slog.Logger) {
 		if err == nil {
 			o.ready.Store(true)
 			logger.Info("language model ready", "model", o.model)
+			o.warm(ctx, logger)
 			return
 		}
 		if ctx.Err() != nil {
@@ -78,6 +82,30 @@ func (o *Ollama) Prepare(ctx context.Context, logger *slog.Logger) {
 
 // Ready reports whether Prepare has confirmed the model.
 func (o *Ollama) Ready() bool { return o.ready.Load() }
+
+// warm loads the model into memory now rather than at the first question,
+// which on a CPU would otherwise wait tens of seconds for the disk before
+// the model even starts. The server keeps it loaded after (compose.yml
+// sets OLLAMA_KEEP_ALIVE). Best effort: the model is ready either way, and
+// a question meanwhile simply waits its turn at the server.
+func (o *Ollama) warm(ctx context.Context, logger *slog.Logger) {
+	ctx, cancel := context.WithTimeout(ctx, warmTimeout)
+	defer cancel()
+	// A generate request with no prompt only loads the model.
+	body, _ := json.Marshal(map[string]any{"model": o.model})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, o.url+"/api/generate", bytes.NewReader(body))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	var out struct {
+		Error string `json:"error"`
+	}
+	if err := o.do(req, &out); err != nil || out.Error != "" {
+		logger.Info("could not load the language model ahead of the first question",
+			"model", o.model, "error", err, "server_error", out.Error)
+	}
+}
 
 func (o *Ollama) ensureModel(ctx context.Context, logger *slog.Logger) error {
 	present, err := o.hasModel(ctx)
