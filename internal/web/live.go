@@ -52,6 +52,9 @@ type liveHub struct {
 
 	closed    chan struct{}
 	closeOnce sync.Once
+	// poller is the running poll goroutine, so Close can wait it out
+	// rather than leave it querying a database about to be closed.
+	poller sync.WaitGroup
 }
 
 func newLiveHub(db *sql.DB, logger *slog.Logger) *liveHub {
@@ -84,6 +87,9 @@ func (h *liveHub) subscribe() (chan struct{}, bool) {
 	h.subs[ch] = struct{}{}
 	if !h.polling {
 		h.polling = true
+		// Under the lock Close takes to close the hub, so no Add can
+		// follow its Wait.
+		h.poller.Add(1)
 		go h.poll()
 	}
 	return ch, true
@@ -106,11 +112,15 @@ func (h *liveHub) current() int64 {
 // It stops itself once nobody is listening, so an idle server runs no
 // query at all.
 func (h *liveHub) poll() {
+	defer h.poller.Done()
 	ticker := time.NewTicker(h.interval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-h.closed:
+			h.mu.Lock()
+			h.polling = false
+			h.mu.Unlock()
 			return
 		case <-ticker.C:
 		}
@@ -146,8 +156,14 @@ func (h *liveHub) poll() {
 // Close ends every stream. Registered with the HTTP server's shutdown by
 // cmd/wordleland: a stream is never idle, so without this Shutdown would
 // wait its whole grace period for readers who are not going anywhere.
+//
+// It returns once the poller has stopped, which is at most one read of the
+// mark away, so the database can be closed after it.
 func (h *liveHub) Close() {
+	h.mu.Lock()
 	h.closeOnce.Do(func() { close(h.closed) })
+	h.mu.Unlock()
+	h.poller.Wait()
 }
 
 // liveView is what a page that subscribes carries: where its stream is and
