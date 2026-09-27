@@ -464,7 +464,7 @@ func (a *Agent) repair(ctx context.Context, transcript []chatMessage, draft, pro
 
 // repairRequest tells the model what in its answer no lookup backed.
 // English, as all its instructions are; the figures and names are its own.
-func repairRequest(numbers, names []string) string {
+func repairRequest(numbers, names []string, lang string) string {
 	var what []string
 	if len(numbers) > 0 {
 		what = append(what, "the numbers "+strings.Join(numbers, ", "))
@@ -474,8 +474,8 @@ func repairRequest(numbers, names []string) string {
 	}
 	return "Your answer mentions " + strings.Join(what, " and ") + ", which nothing you looked up " +
 		"says. Rewrite it using only what the lookups said: leave those claims out rather than " +
-		"restating them, and write any number as digits. Same voice, as short, in the language of " +
-		"the question. Answer with the rewritten message only."
+		"restating them, and write any number as digits. Same voice, as short, in " + lang + ". " +
+		"Answer with the rewritten message only."
 }
 
 // numberWords are numbers spelled out, in the languages the group uses —
@@ -526,7 +526,9 @@ func (a *Agent) chat(ctx context.Context, messages []chatMessage) (chatMessage, 
 		"tools":  toolDefinitions(),
 		// Not zero, as the placing model's is: the same question may
 		// get a different quip, and the numbers are checked either way.
-		"options":  map[string]any{"temperature": 0.6},
+		// num_predict caps a rambling answer's cost: three short
+		// sentences are well under it, and tidy cuts what is over.
+		"options":  map[string]any{"temperature": 0.6, "num_predict": 300},
 		"messages": messages,
 	})
 	if err != nil {
@@ -567,9 +569,12 @@ func agentPrompt(p Prompt) string {
 			"prefixed with who asked. Use them to read a follow-up (\"and last week?\", \"what about " +
 			"Bo?\"), but answer only the last message, and look its figures up again.\n")
 	}
-	b.WriteString("Reply in the language the question is asked in, in one to three short sentences " +
-		"of plain text, no markdown.\n")
+	fmt.Fprintf(&b, "Reply in %s, in one to three short sentences of plain text, no markdown.\n",
+		language(p))
 	b.WriteString(persona)
+	if p.Voice != "" {
+		b.WriteString("The voice, by example (the name is made up):\n" + p.Voice + "\n")
+	}
 	b.WriteString("A lower average is better. A failed puzzle counts as 7.\n\n")
 	fmt.Fprintf(&b, "Today is %s (%s).\n", p.Today.Format("Monday 2 January 2006"), p.Today.Format(DateLayout))
 	if p.Asker != "" {
@@ -583,7 +588,19 @@ func agentPrompt(p Prompt) string {
 	if p.Context != "" {
 		b.WriteString("\nThe question replies to this earlier post of yours:\n<<<\n" + p.Context + "\n>>>\n")
 	}
+	// Last, where a small model weighs it most: the group reads one
+	// language, and every other line the bot posts is in it.
+	fmt.Fprintf(&b, "\nAlways write your reply in %s, whatever language the question or the tool "+
+		"results are in.\n", language(p))
 	return b.String()
+}
+
+// language is the group's, as the agent is told it; English when unset.
+func language(p Prompt) string {
+	if p.Language == "" {
+		return "English"
+	}
+	return p.Language
 }
 
 // persona is the bot's voice. The fixed replies in the catalogues are
@@ -592,18 +609,18 @@ func agentPrompt(p Prompt) string {
 // absence is not, and nothing about a person but their Wordle is fair
 // game. A joke with a number in it fails the check in grounded, so it is
 // told not to; a number written as a word escapes the check altogether, so
-// it is told to write digits. The examples carry no numbers either: the
-// instructions vouch for the numbers in them, so every number here is one
-// the model could repeat unchecked.
+// it is told to write digits.
+//
+// The examples of the voice are in the catalogues (reply.agent.voice), in
+// the group's language: English examples pulled a Swedish group's answers
+// into English. They carry no numbers either — the instructions vouch for
+// the numbers in them, so any number there is one the model could repeat
+// unchecked.
 const persona = "Your personality: witty, dry and a little cocky, like a friend in the group " +
 	"who keeps score and enjoys it too much. Tease a result someone posted, a failure included, " +
 	"and brag on behalf of whoever leads. Never tease anyone for not playing, and never tease " +
 	"anyone about anything but their Wordle. The facts come first; the attitude is one short " +
-	"aside. Your jokes contain no numbers, and you write every number as digits.\n" +
-	"The voice, by example (the name is made up):\n" +
-	"- Sam leads the month, and has started walking differently.\n" +
-	"- An X yesterday. We light a candle and move on.\n" +
-	"- The capital of Sweden is Stockholm. Next you'll ask me what colour the sky is.\n"
+	"aside. Your jokes contain no numbers, and you write every number as digits.\n"
 
 // offTopic reports whether an answer made without a lookup may be posted:
 // it says something, and names no player. Without a lookup the model knows
@@ -930,7 +947,7 @@ func askAgent(ctx context.Context, q asked, agent *Agent, conv *conversation,
 		// One rewrite, told what failed, before giving up on the model's
 		// sentence: the lookups alone are true but read as a data dump,
 		// which "roast Alma" should not get.
-		if again, rerr := agent.repair(actx, res.transcript, text, repairRequest(nums, names)); rerr == nil {
+		if again, rerr := agent.repair(actx, res.transcript, text, repairRequest(nums, names, language(p))); rerr == nil {
 			again = tidy(again)
 			if n, m := check(again); again != "" && len(n) == 0 && len(m) == 0 && !spellsANumber(again) {
 				text, isGrounded, repaired = again, true, true

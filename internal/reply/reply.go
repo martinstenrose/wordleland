@@ -170,6 +170,13 @@ type Prompt struct {
 	// which widens what "unknown" should mean: see systemPrompt.
 	Agent bool
 
+	// Language is the group's language by its own name ("Svenska"), and
+	// Voice examples of the bot's voice in it; both only for the agent,
+	// which writes its own sentences. Every other line the bot posts is in
+	// that language already.
+	Language string
+	Voice    string
+
 	// History is the last few questions put to the bot and what it
 	// answered, oldest first, for a follow-up that means nothing alone.
 	// Only the agent is shown it; see conversation.
@@ -309,7 +316,8 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter, ag
 			names = append(names, p.Name)
 		}
 		now := time.Now()
-		prompt := Prompt{Question: question, Players: names, Today: now, Agent: agent != nil && agent.Ready()}
+		prompt := Prompt{Question: question, Players: names, Today: now, Agent: agent != nil && agent.Ready(),
+			Language: t.T("locale.name"), Voice: t.T("reply.agent.voice")}
 		if asker != nil {
 			prompt.Asker = asker.Name
 		}

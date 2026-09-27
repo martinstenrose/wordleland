@@ -1620,6 +1620,16 @@ the "tell me about Bo" and "roast Alma" questions: every answer about one
 player in one call, since a small model does better with one call per
 player than with six it has to think of.
 
+**The agent writes in the group's language, not the question's.** Told
+to answer "in the language the question is asked in", a 7B model answered
+a Swedish question in English, and the segue after it came out in Swedish:
+two languages in one message. Every other line the bot posts is in the
+group's configured language, so the agent is told that language by name,
+first and again as the last line of its instructions, and shown examples of
+its voice in it (`reply.agent.voice`, one per catalogue): English examples
+were pulling it towards English. Its instructions stay English, which the
+models follow best.
+
 **Off-topic gets an answer, then the way back, then a no.** A group chat
 drifts, and a bot that answers "what's the capital of Sweden?" with a
 stock line is a menu, not a member. But a bot that answers everything is

@@ -745,6 +745,7 @@
   "search.players": "Spelare",
   "search.pages": "Sidor",
   "search.noResults": "Inga träffar för den sökningen.",
+  "reply.agent.voice": "- Sam leder månaden och har börjat gå annorlunda.\n- Ett X i går. Vi tänder ett ljus och går vidare.\n- Sveriges huvudstad är Stockholm. Snart frågar du vilken färg himlen har.",
   "reply.help": "Fråga mig vem som leder eller har jumbolampan (den här månaden, en tidigare månad, de senaste N dagarna eller totalt), hur någon ligger till, om någon fortfarande kan vinna månaden, sviter, dagens pussel, någons resultat en viss dag, hur många 2:or någon har, vem som brukar posta först, månadsvinster eller vad ett ord i mina inlägg betyder. Nämn mig och fråga. Väder gör jag inte.",
   "reply.help.agent": "Jag tar också följdfrågor, jämförelser, ”roasta mig” och det mesta ni kan komma på.",
   "reply.notready": "Jag håller på att vakna. Ge mig några minuter — till och med Wordle ger dig sex försök.",

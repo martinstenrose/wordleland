@@ -636,6 +636,12 @@ func TestThePersonaHasNoNumbers(t *testing.T) {
 	if n := number.FindAllString(persona, -1); len(n) > 0 {
 		t.Errorf("the persona holds numbers %v", n)
 	}
+	for _, locale := range []string{"en", "sv"} {
+		voice := translator(t, locale).T("reply.agent.voice")
+		if n := number.FindAllString(voice, -1); len(n) > 0 || spellsANumber(voice) {
+			t.Errorf("%s: the examples of the voice hold numbers: %q", locale, voice)
+		}
+	}
 }
 
 // A lookup of nobody found nothing: the model's answer after it is about
@@ -833,5 +839,32 @@ func TestTidyCutsWholeCharacters(t *testing.T) {
 	got := tidy(long)
 	if !utf8.ValidString(got) || !strings.HasSuffix(got, "leads…") {
 		t.Errorf("cut to %q", got[len(got)-12:])
+	}
+}
+
+// The agent writes in the group's language, as every other line does,
+// shown by example in it — not in whatever the question looked like.
+func TestTheAgentIsToldTheGroupsLanguage(t *testing.T) {
+	t.Parallel()
+	db := replyDB(t)
+	cats, err := i18n.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := &fakeOllama{models: []string{"qwen2.5:7b"}, content: "Ja."}
+	var c collector
+	answer := New(db, cats, "sv", canned{req: Request{Kind: KindUnknown}}, testAgent(t, f), c.send,
+		slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err := answer(context.Background(), senderUUID, "Är Wordle kul?", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	system := f.chats[0]["messages"].([]any)[0].(map[string]any)["content"].(string)
+	for _, want := range []string{"Reply in Svenska", "Always write your reply in Svenska", "Vi tänder ett ljus"} {
+		if !strings.Contains(system, want) {
+			t.Errorf("system prompt lacks %q", want)
+		}
+	}
+	if strings.Contains(system, "We light a candle") {
+		t.Error("a Swedish group's agent was shown English examples")
 	}
 }
