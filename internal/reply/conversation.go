@@ -56,6 +56,10 @@ type conversation struct {
 	forget *time.Timer
 	// quiet is memoryWindow, shortened in a test that waits for forget.
 	quiet time.Duration
+	// active is the wall-clock time of the last question read or answer
+	// kept. forget clears only once that is a window old, so a question
+	// being answered as the window closes keeps its conversation.
+	active time.Time
 }
 
 const (
@@ -88,6 +92,12 @@ func (c *conversation) add(t turn) {
 	if len(c.turns) > maxKept {
 		c.turns = c.turns[len(c.turns)-maxKept:]
 	}
+	c.touchLocked()
+}
+
+// touchLocked marks the conversation active now and (re)arms forget.
+func (c *conversation) touchLocked() {
+	c.active = time.Now()
 	if c.forget == nil {
 		c.forget = time.AfterFunc(c.window(), c.clear)
 	} else {
@@ -102,11 +112,17 @@ func (c *conversation) window() time.Duration {
 	return memoryWindow
 }
 
-// clear forgets every turn. It runs a window after the newest, which ends
-// the conversation.
+// clear forgets every turn once the conversation has been quiet for a
+// window. A question read or an answer kept since the timer was set — the
+// two can race it — means it is not quiet yet, and the timer is set again
+// for what is left.
 func (c *conversation) clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if left := c.window() - time.Since(c.active); left > 0 {
+		c.forget.Reset(left)
+		return
+	}
 	c.turns = nil
 }
 
@@ -116,6 +132,11 @@ func (c *conversation) recent(now time.Time) []turn {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.turns = c.recentLocked(now)
+	if len(c.turns) > 0 {
+		// A question is being answered: the conversation is live until its
+		// answer is kept, however long that takes.
+		c.touchLocked()
+	}
 	out := c.turns
 	if len(out) > maxTurns {
 		out = out[len(out)-maxTurns:]

@@ -185,13 +185,13 @@ func TestTheConversationForgets(t *testing.T) {
 		t.Errorf("%d turns held after a read past the window", n)
 	}
 
-	c = conversation{quiet: 20 * time.Millisecond}
-	c.add(turn{at: time.Now(), question: "new"})
+	quick := &conversation{quiet: 20 * time.Millisecond}
+	quick.add(turn{at: time.Now(), question: "new"})
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		c.mu.Lock()
-		n = len(c.turns)
-		c.mu.Unlock()
+		quick.mu.Lock()
+		n = len(quick.turns)
+		quick.mu.Unlock()
 		if n == 0 {
 			break
 		}
@@ -215,5 +215,23 @@ func TestNothingIsRememberedWithoutTheAgent(t *testing.T) {
 	}
 	if h := rec.prompts[1].History; len(h) != 0 {
 		t.Errorf("remembered %v without an agent", h)
+	}
+}
+
+// A question read just before the window closes keeps the conversation:
+// the timer that fires while it is being answered finds it active and
+// waits, rather than clearing what the answer is about to add to.
+func TestAQuestionBeingAnsweredKeepsTheConversation(t *testing.T) {
+	t.Parallel()
+	c := &conversation{quiet: 100 * time.Millisecond}
+	c.add(turn{at: time.Now(), question: "first", topic: topicOff})
+	time.Sleep(70 * time.Millisecond)
+	asked := time.Now() // the next question arrives, and is read
+	c.recent(asked)
+	time.Sleep(70 * time.Millisecond)
+	// The answer is done past the first window: the conversation is still
+	// there for it, judged as askAgent judges it, at the question's time.
+	if got := c.offTopicRun(asked); got != 1 {
+		t.Errorf("run = %d mid-answer, want 1", got)
 	}
 }

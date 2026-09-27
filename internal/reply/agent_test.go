@@ -779,6 +779,9 @@ func TestARepairThatFailsGivesTheLookups(t *testing.T) {
 	t.Parallel()
 	for name, after := range map[string]map[string]any{
 		"fails again": {"role": "assistant", "content": "Bo is on 41 days."},
+		// The figure it was told no lookup backs, spelled out instead.
+		"spells it":  {"role": "assistant", "content": "Bo is on forty days in a row."},
+		"stavar det": {"role": "assistant", "content": "Bo har fyrtio dagar i rad."},
 		// A rewrite that would pass, but reached for a lookup to get there.
 		"looks up": {"role": "assistant", "content": "Bo is on 12 days in a row.", "tool_calls": []map[string]any{
 			{"function": map[string]any{"name": "today", "arguments": map[string]any{}}}}},
@@ -795,6 +798,9 @@ func TestARepairThatFailsGivesTheLookups(t *testing.T) {
 		}
 		if got := c.last(t); got != "Bo: 12 days in a row now, 12 at best." {
 			t.Errorf("%s: got %q, want the lookup", name, got)
+		}
+		if len(f.chats) != 3 {
+			t.Errorf("%s: %d chat calls, want 3: one repair, no more", name, len(f.chats))
 		}
 	}
 }

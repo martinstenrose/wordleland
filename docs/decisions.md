@@ -1678,8 +1678,11 @@ lookups are always true, but posted raw they read as a data dump, which
 "roast Alma" should not get. So an answer that fails a check goes back to
 the model once, with exactly what failed ("the numbers 40 and the players
 Alma, which nothing you looked up says"), to rewrite from what it already
-has. The rewrite is checked the same way; it may not look anything more
-up, and with less than 45 seconds left before the deadline there is no
+has, told to leave those claims out and to write numbers as digits. The
+rewrite is checked the same way, and is refused outright if it spells a
+number out ("forty" for the "40" it was just told about — the one way
+past a check that reads digits). It may not look anything more up, and
+with less than a minute left before the answer's deadline there is no
 rewrite at all. The log says which check failed and whether the rewrite
 passed — never the text — since how often each happens is what says
 whether the prompt or the model needs work.

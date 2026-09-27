@@ -27,16 +27,19 @@ import (
 //
 // The lookups are the answers the bot already gives — each Kind is a tool,
 // rendered by answer from internal/stats exactly as a placed question is —
-// plus one that lists a player's results day by day. The model may call
-// several, and combine them: "who has the most 2s, and is their streak
-// still going?" is two lookups and one sentence.
+// plus a whole-player profile and one that lists a player's results day by
+// day. The model may call several, and combine them: "who has the most 2s,
+// and is their streak still going?" is two lookups and one sentence.
 //
-// The model writes the sentence, so it could write a number of its own.
-// It is not trusted to: every number in its answer must appear in what the
-// lookups returned, the question, or the instructions it was given. An
-// answer that fails the check is replaced by the lookups themselves, which
-// are the bot's own words and figures. What the model is trusted with is
-// which lookups to make and how to phrase what they said.
+// The model writes the sentence, so it could write a number or a name of
+// its own. It is not trusted to: every number in its answer must appear in
+// what the lookups returned, the instructions or an earlier checked answer
+// — never the question — and every player it names must have been seen in
+// the conversation. An answer that fails is sent back once to be rewritten,
+// and if the rewrite fails too it is replaced by the lookups themselves,
+// which are the bot's own words and figures. What the model is trusted with
+// is which lookups to make and how to phrase what they said. askAgent has
+// the details, docs/decisions.md the reasons.
 type Agent struct {
 	*Ollama
 }
@@ -470,8 +473,38 @@ func repairRequest(numbers, names []string) string {
 		what = append(what, "the players "+strings.Join(names, ", "))
 	}
 	return "Your answer mentions " + strings.Join(what, " and ") + ", which nothing you looked up " +
-		"says. Rewrite it using only what the lookups said, in the same voice and as short, " +
-		"in the language of the question. Answer with the rewritten message only."
+		"says. Rewrite it using only what the lookups said: leave those claims out rather than " +
+		"restating them, and write any number as digits. Same voice, as short, in the language of " +
+		"the question. Answer with the rewritten message only."
+}
+
+// numberWords are numbers spelled out, in the languages the group uses —
+// the one way a figure gets past grounded. "One" and "en"/"ett" are left
+// out: they are words far more often than numbers.
+var numberWords = map[string]bool{}
+
+func init() {
+	for _, w := range strings.Fields(`two three four five six seven eight nine ten eleven twelve
+		thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty thirty forty fifty
+		sixty seventy eighty ninety hundred thousand dozen
+		två tre fyra fem sex sju åtta nio tio elva tolv tretton fjorton femton sexton sjutton arton
+		nitton tjugo trettio fyrtio femtio sextio sjuttio åttio nittio hundra tusen`) {
+		numberWords[w] = true
+	}
+}
+
+// spellsANumber reports whether a text has a number in words. A rewrite
+// with one is refused: it has just been told which figure no lookup backs,
+// and "forty" for "40" is the obvious way round being told. Crude — "all
+// three of you" is refused too — and only asked of rewrites, where erring
+// towards the lookups costs little.
+func spellsANumber(text string) bool {
+	for _, w := range nameWords(text) {
+		if numberWords[w] {
+			return true
+		}
+	}
+	return false
 }
 
 // saidBy is a question as the agent is shown it: prefixed with who asked,
@@ -896,7 +929,7 @@ func askAgent(ctx context.Context, q asked, agent *Agent, conv *conversation,
 		// which "roast Alma" should not get.
 		if again, rerr := agent.repair(actx, res.transcript, text, repairRequest(nums, names)); rerr == nil {
 			again = tidy(again)
-			if n, m := check(again); again != "" && len(n) == 0 && len(m) == 0 {
+			if n, m := check(again); again != "" && len(n) == 0 && len(m) == 0 && !spellsANumber(again) {
 				text, isGrounded, repaired = again, true, true
 			}
 		}
