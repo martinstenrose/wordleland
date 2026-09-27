@@ -39,8 +39,11 @@ type Server struct {
 		n  int
 		at time.Time
 	}
-	cipher       *auth.Cipher
-	mailer       *auth.Mailer
+	cipher *auth.Cipher
+	mailer *auth.Mailer
+	// hashPassword is auth.HashPassword. Every hash the server makes goes
+	// through it, the timing-equalisation one included, so tests can swap
+	// in a cheap one.
 	hashPassword func(string) (string, error)
 
 	// bridge is the Signal bridge, nil when none is configured. The

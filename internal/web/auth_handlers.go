@@ -211,7 +211,7 @@ func (s *Server) authenticate(r *http.Request, email, password string) (store.Us
 // costs the same as a known one.
 func (s *Server) wasteTime(r *http.Request) {
 	_ = s.limiter.WithHashSlot(r.Context(), func() error {
-		_, _ = auth.HashPassword("timing equalisation")
+		_, _ = s.hashPassword("timing equalisation")
 		return nil
 	})
 }

@@ -16,6 +16,7 @@ import (
 	"bytes"
 
 	"github.com/martinstenrose/wordleland/internal/auth"
+	"github.com/martinstenrose/wordleland/internal/auth/authtest"
 	"github.com/martinstenrose/wordleland/internal/config"
 	"github.com/martinstenrose/wordleland/internal/store"
 )
@@ -45,6 +46,7 @@ func mailServer(t *testing.T) (*Server, *[]string) {
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
+	srv.hashPassword = authtest.HashPassword
 
 	var sent []string
 	srv.mailer.SetSender(func(_ string, _ smtp.Auth, _ string, _ []string, msg []byte) error {

@@ -16,7 +16,7 @@ import (
 // settingsUser makes a signed-in reader with a known password.
 func settingsUser(t *testing.T, srv *Server, email, password string, admin bool) (store.User, *http.Cookie) {
 	t.Helper()
-	hash, err := auth.HashPassword(password)
+	hash, err := srv.hashPassword(password)
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
 	}
