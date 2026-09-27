@@ -46,10 +46,17 @@ func testServer(t *testing.T) *Server {
 		t.Fatalf("New() failed: %v", err)
 	}
 	srv.hashPassword = authtest.HashPassword
+	// A test that opens an event stream starts the live poller, which
+	// otherwise outlives the test and reads the clock while a later one
+	// is setting time.Local. Registered after the database's, so it runs
+	// first.
+	t.Cleanup(srv.Close)
 	return srv
 }
 
 func TestHealthz(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
@@ -65,6 +72,8 @@ func TestHealthz(t *testing.T) {
 }
 
 func TestHealthzReportsDatabaseFailure(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	// A closed pool is the closest stand-in for the database going away
@@ -84,6 +93,8 @@ func TestHealthzReportsDatabaseFailure(t *testing.T) {
 // other pattern claims. Without an explicit guard, an arbitrary path would
 // render the root page under a 200.
 func TestRootIsNotACatchAll(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	tests := []struct {
@@ -112,6 +123,8 @@ func TestRootIsNotACatchAll(t *testing.T) {
 // : the share link is a capability in the URL path, so it must not be
 // handed to external sites in a Referer header.
 func TestSecurityHeaders(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -132,6 +145,8 @@ func TestSecurityHeaders(t *testing.T) {
 }
 
 func TestContentSecurityPolicyAllowsOnlyUsedSources(t *testing.T) {
+	t.Parallel()
+
 	for _, directive := range []string{
 		"default-src 'self'",
 		"script-src 'self'",
@@ -161,6 +176,8 @@ func TestContentSecurityPolicyAllowsOnlyUsedSources(t *testing.T) {
 }
 
 func TestSecurityHeadersOnErrorResponses(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/nope", nil)
@@ -176,6 +193,8 @@ func TestSecurityHeadersOnErrorResponses(t *testing.T) {
 }
 
 func TestPanicRecovery(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	mux := http.NewServeMux()
@@ -197,6 +216,8 @@ func TestPanicRecovery(t *testing.T) {
 }
 
 func TestRootServesLoginForm(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -216,6 +237,8 @@ func TestRootServesLoginForm(t *testing.T) {
 }
 
 func TestRenderErrorDoesNotLeakDetail(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/does-not-exist", nil)
@@ -232,6 +255,8 @@ func TestRenderErrorDoesNotLeakDetail(t *testing.T) {
 }
 
 func TestParseTemplates(t *testing.T) {
+	t.Parallel()
+
 	tmpl, err := parseTemplates()
 	if err != nil {
 		t.Fatalf("parseTemplates() failed: %v", err)
@@ -252,6 +277,8 @@ func TestParseTemplates(t *testing.T) {
 // pill-nav) relies on to build its data inline from a page template's
 // pipeline; without it those partials are unreachable from any page.
 func TestDictBuildsPartialData(t *testing.T) {
+	t.Parallel()
+
 	got, err := dict("Label", "x", "Dashed", true)
 	if err != nil {
 		t.Fatalf("dict() failed: %v", err)
@@ -272,6 +299,8 @@ func TestDictBuildsPartialData(t *testing.T) {
 // confirms that round trip actually renders, not just that dict itself
 // builds a map.
 func TestChipPartialRendersDictData(t *testing.T) {
+	t.Parallel()
+
 	tmpl, err := parseTemplates()
 	if err != nil {
 		t.Fatalf("parseTemplates() failed: %v", err)
@@ -292,6 +321,8 @@ func TestChipPartialRendersDictData(t *testing.T) {
 }
 
 func TestRenderUnknownTemplate(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -321,6 +352,8 @@ func mustDate(t *testing.T, puzzle int) time.Time {
 // ugly. Catching it here means a template referencing a string nobody wrote
 // fails the build rather than shipping "player.hardMode" to the page.
 func TestEveryTemplateKeyHasAString(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	catalogue := srv.catalogues["en"]
 
@@ -357,6 +390,8 @@ func TestEveryTemplateKeyHasAString(t *testing.T) {
 // The request log carries the client address, resolved the same way the
 // rate limiter resolves it.
 func TestRequestLogCarriesTheClientAddress(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
@@ -384,6 +419,8 @@ func TestRequestLogCarriesTheClientAddress(t *testing.T) {
 // Nothing here is meant to be found by search. robots.txt turns away the
 // crawlers that read it; the header covers the ones that do not.
 func TestCrawlersAreTurnedAway(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -414,6 +451,8 @@ func TestCrawlersAreTurnedAway(t *testing.T) {
 // its size by a bad edit and still served a clean 200, so nothing failed
 // until a person looked at an unstyled page.
 func TestStylesheetIsWhole(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	rec := fetchAs(t, srv, "/static/app.css", nil)
@@ -467,6 +506,8 @@ func TestStylesheetIsWhole(t *testing.T) {
 // the three outcomes worth telling apart at a glance the three that looked
 // alike. Each tier naming its own token is what stops that closing up again.
 func TestEveryScoreTierHasItsOwnFill(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
 
@@ -512,6 +553,8 @@ func ruleFor(css, selector string) (string, bool) {
 // the thing that breaks — a file added to static/ but not reachable through
 // it — so this asks the server for the bytes the @font-face names.
 func TestTheTypefaceIsServed(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
@@ -538,6 +581,8 @@ func TestTheTypefaceIsServed(t *testing.T) {
 // columns while the rows had seven and everything after Player sat one
 // place to the left.
 func TestTableHeadersAlignWithTheirRows(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -591,6 +636,8 @@ func TestTableHeadersAlignWithTheirRows(t *testing.T) {
 // The mark doubles as the app icon, so a tab shows the same thing the home
 // link does.
 func TestFaviconIsServed(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	for _, tc := range []struct{ path, contentType string }{
@@ -637,6 +684,8 @@ func TestFaviconIsServed(t *testing.T) {
 // been replaced, or search, the raised outcome and the copy button stop
 // working after the first switch.
 func TestEveryLinkIsBoostedExceptTheOnesScriptTakes(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -680,6 +729,8 @@ func appJS(t *testing.T, srv *Server) string {
 // Every frame has one, because it is both what the skip link points at and
 // where app.js puts focus once htmx has swapped a page in.
 func TestEveryFrameCarriesTheMainRegion(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -712,6 +763,8 @@ func TestEveryFrameCarriesTheMainRegion(t *testing.T) {
 // This pins the vocabulary rather than any one screen: a <button> or an
 // action anchor carries .btn, and .link never lands on a button.
 func TestEveryControlIsOneOfTheFour(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
@@ -779,6 +832,8 @@ func TestEveryControlIsOneOfTheFour(t *testing.T) {
 // that silences every authenticator app holding the old secret and cancels
 // the recovery codes.
 func TestADestructiveActAsksBeforeItActs(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	// seedLogin rather than seedBoard: this needs an account that can
 	// actually sign in, and a share slug for the rotation to be offered.
@@ -854,6 +909,8 @@ func TestADestructiveActAsksBeforeItActs(t *testing.T) {
 // Focus without scroll is the whole fix, and this pins it because nothing
 // that runs in CI can see a scroll position.
 func TestSwitchingAPageLeavesItAtTheTop(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	js := fetchAs(t, srv, "/static/app.js", nil).Body.String()
 
@@ -894,6 +951,8 @@ func TestSwitchingAPageLeavesItAtTheTop(t *testing.T) {
 // Geometry is not something CI can see, so this pins the three rules it comes
 // out of: one heading treatment, one box around it, and a name in it.
 func TestThePageTitleDoesNotMoveBetweenPages(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
@@ -967,6 +1026,8 @@ func TestThePageTitleDoesNotMoveBetweenPages(t *testing.T) {
 // One press to the section or the player next door, and both ends wrap so
 // neither arrow is ever the disabled control a first or last item would need.
 func TestTheSectionBarStepsToItsNeighbours(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
@@ -1026,6 +1087,8 @@ func TestTheSectionBarStepsToItsNeighbours(t *testing.T) {
 // progress bar sets it inline, per instance, which is the whole reason it is
 // a property and not a width.
 func TestEveryTokenTheStylesheetReadsIsOneItDefines(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
 

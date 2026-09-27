@@ -15,6 +15,8 @@ import (
 // loads it before app.js, which listens for its events, and configures it
 // through the meta tag htmx reads at start-up.
 func TestHtmxIsServedAndLoadedOnce(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -52,6 +54,8 @@ func TestHtmxIsServedAndLoadedOnce(t *testing.T) {
 // swapped page. And a 4xx or 5xx is swapped like any other page, so a link
 // to nowhere shows the error frame in place rather than doing nothing.
 func TestHtmxConfigForbidsEvalAndSwapsErrorPages(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -110,6 +114,8 @@ func TestHtmxConfigForbidsEvalAndSwapsErrorPages(t *testing.T) {
 // every debounced keypress would freeze the page as you type. Each says so
 // on its own hx-swap, because the config makes the transition the default.
 func TestALiveRegionAndTheSearchOverlayDoNotCrossFade(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	seedLogin(t, srv, "reader@example.tld", true)

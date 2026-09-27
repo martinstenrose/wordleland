@@ -29,6 +29,8 @@ func resultRows(t *testing.T, body string) [][4]string {
 // good day for that person or a bad one. Both are answered by figures the
 // page already had.
 func TestTodayListsTheDayBestFirstWithEachPlayersOwnDelta(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -60,6 +62,8 @@ func TestTodayListsTheDayBestFirstWithEachPlayersOwnDelta(t *testing.T) {
 // wrong reason. They are still in the day, which is a fact about the day
 // rather than about the board.
 func TestAnUnrankedPlayerTakesNoPositionFromAnyoneElse(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -85,6 +89,8 @@ func TestAnUnrankedPlayerTakesNoPositionFromAnyoneElse(t *testing.T) {
 // A miss has no distance from an average: it is off the scale the average is
 // measured on, and "▲ 2.61" would invent one.
 func TestAMissSaysSoRatherThanInventingADistance(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	ctx := context.Background()
 	admin, err := store.CreateUser(ctx, srv.db, store.SystemActor(), "admin@example.tld", "hash", true)
@@ -134,6 +140,8 @@ func TestAMissSaysSoRatherThanInventingADistance(t *testing.T) {
 // somebody asks, so they are behind a disclosure — but in the markup either
 // way, which is one round trip and one script fewer than fetching them.
 func TestTheDaysProgressIsAFigureAndTheNamesAreADisclosure(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -169,6 +177,8 @@ func TestTheDaysProgressIsAFigureAndTheNamesAreADisclosure(t *testing.T) {
 // a blank column beside the form table and a phone skipped straight from the
 // header to the callouts. A placeholder takes its place instead.
 func TestTheResultsTableHasAPlaceholderBeforeAnyoneFiles(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	ctx := context.Background()
 	admin, err := store.CreateUser(ctx, srv.db, store.SystemActor(), "admin@example.tld", "hash", true)
@@ -211,6 +221,8 @@ func TestTheResultsTableHasAPlaceholderBeforeAnyoneFiles(t *testing.T) {
 // the front page is about who is playing, and this list grows forever as
 // people drift away.
 func TestTheUnrankedAreBehindADisclosureWithTheirReason(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -241,6 +253,8 @@ func TestTheUnrankedAreBehindADisclosureWithTheirReason(t *testing.T) {
 // Easy's 4 played hard, because hard mode orders equal results rather than
 // discounting unequal ones.
 func TestHardModeLeadsATiedScoreButNeverBeatsABetterOne(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	ctx := context.Background()
 	admin, err := store.CreateUser(ctx, srv.db, store.SystemActor(), "admin@example.tld", "hash", true)

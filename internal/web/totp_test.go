@@ -81,6 +81,8 @@ func codeFor(t *testing.T, secret string, at time.Time) string {
 
 // The enrolment page must offer a scannable code, not only a string to type.
 func TestEnrolmentPageOffersQRCode(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 
@@ -106,6 +108,8 @@ func TestEnrolmentPageOffersQRCode(t *testing.T) {
 // The secret stays pending until a code proves the phone holds it, so a
 // mis-scanned QR cannot lock anyone out.
 func TestEnrolmentSecretStaysPendingUntilConfirmed(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user := seedLogin(t, srv, "admin@example.tld", true)
 
@@ -128,6 +132,8 @@ func TestEnrolmentSecretStaysPendingUntilConfirmed(t *testing.T) {
 }
 
 func TestEnrolmentCompletes(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user := seedLogin(t, srv, "admin@example.tld", true)
 
@@ -157,6 +163,8 @@ func TestEnrolmentCompletes(t *testing.T) {
 }
 
 func TestEnrolmentRejectsWrongCode(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user := seedLogin(t, srv, "admin@example.tld", true)
 
@@ -178,6 +186,8 @@ func TestEnrolmentRejectsWrongCode(t *testing.T) {
 
 // Full two-step login for an enrolled account.
 func TestLoginRequiresTOTPWhenEnrolled(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 
@@ -217,6 +227,8 @@ func TestLoginRequiresTOTPWhenEnrolled(t *testing.T) {
 // enough to reach a fresh enrolment, which would let that password replace
 // the real secret and delete the recovery codes with it.
 func TestEnrolmentFormBlockedWhenAlreadyEnrolled(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 
@@ -255,6 +267,8 @@ func TestEnrolmentFormBlockedWhenAlreadyEnrolled(t *testing.T) {
 // handler's guard: a POST with only a pending session must not be able to
 // promote a fresh secret over the account's real one.
 func TestEnrolmentSubmitCannotOverwriteExistingSecret(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 
@@ -293,6 +307,8 @@ func TestEnrolmentSubmitCannotOverwriteExistingSecret(t *testing.T) {
 // A code from a step already accepted is refused, so one observed over a
 // shoulder cannot be reused inside its window.
 func TestTOTPCodeCannotBeReplayed(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 
@@ -323,6 +339,8 @@ func TestTOTPCodeCannotBeReplayed(t *testing.T) {
 }
 
 func TestTOTPIsRateLimited(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 
@@ -355,6 +373,8 @@ func TestTOTPIsRateLimited(t *testing.T) {
 // the account key — and it only survives the rename if that key is not the
 // address.
 func TestTOTPRateLimitSurvivesAnEmailChange(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 
@@ -400,6 +420,8 @@ func TestTOTPRateLimitSurvivesAnEmailChange(t *testing.T) {
 // An admin who has not enrolled belongs in enrolment, not at a prompt for a
 // secret that does not exist.
 func TestUnenrolledAdminAtTOTPPromptGoesToEnrolment(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 
@@ -420,6 +442,8 @@ func TestUnenrolledAdminAtTOTPPromptGoesToEnrolment(t *testing.T) {
 
 // The second factor is a privilege change, so the token must change with it.
 func TestSessionRotatesAfterTOTP(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 
@@ -460,6 +484,8 @@ func sessionCookieValue(t *testing.T, cookies []*http.Cookie) string {
 // rejection, and it is worth pinning because it looks like a bug the first
 // time it is hit.
 func TestEnrollingCodeCannotBeReusedToLogIn(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 
@@ -481,6 +507,8 @@ func TestEnrollingCodeCannotBeReusedToLogIn(t *testing.T) {
 // The code page names the account it is verifying and explains the timing,
 // as the design's copy does.
 func TestTOTPPageFollowsTheDesign(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 
@@ -521,6 +549,8 @@ func TestTOTPPageFollowsTheDesign(t *testing.T) {
 // away: it refused anybody who already had a secret, which is exactly who the
 // link is for, and the redirect landed them back on Today with nothing said.
 func TestAnEnrolledAccountCanRotateItsSecret(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user := seedLogin(t, srv, "admin@example.tld", true)
 
@@ -580,6 +610,8 @@ func TestAnEnrolledAccountCanRotateItsSecret(t *testing.T) {
 // stops a borrowed screen taking the second factor off an account — and with
 // it the recovery codes, which promotion discards along with the old secret.
 func TestReplacingAnAuthenticatorNeedsThePassword(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user := seedLogin(t, srv, "admin@example.tld", true)
 
@@ -640,6 +672,8 @@ func liveSecret(t *testing.T, srv *Server, userID int64) string {
 // off again: an account that can only ever add one has a setting it cannot
 // undo without an admin and a shell.
 func TestAPlayerCanTurnTwoFactorOff(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user := seedLogin(t, srv, "player@example.tld", false)
 
@@ -696,6 +730,8 @@ func TestAPlayerCanTurnTwoFactorOff(t *testing.T) {
 // The password is the whole of what stands between a borrowed screen and an
 // account with no second factor and no recovery codes.
 func TestTurningTwoFactorOffNeedsThePassword(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user := seedLogin(t, srv, "player@example.tld", false)
 
@@ -724,6 +760,8 @@ func TestTurningTwoFactorOffNeedsThePassword(t *testing.T) {
 // offered and the handler decides what is allowed, and only one of those is
 // reachable by typing a URL.
 func TestAnAdminCannotTurnTwoFactorOff(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user := seedLogin(t, srv, "admin@example.tld", true)
 

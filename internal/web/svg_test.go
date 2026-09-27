@@ -6,6 +6,8 @@ import (
 )
 
 func TestSparkPath(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		series []float64
@@ -47,6 +49,8 @@ func TestSparkPath(t *testing.T) {
 // Zero and below are the "no game" sentinel rather than scores, so the
 // clamp is exercised with values that are positive but outside 1..7.
 func TestSparkPathClampsToTheBox(t *testing.T) {
+	t.Parallel()
+
 	got := sparkPath([]float64{0.5, 99}, 100, 60, 0)
 	for _, coord := range []string{"-", "60.1", "99"} {
 		if strings.Contains(got, coord) {
@@ -59,6 +63,8 @@ func TestSparkPathClampsToTheBox(t *testing.T) {
 }
 
 func TestHasSparkline(t *testing.T) {
+	t.Parallel()
+
 	tests := map[string]struct {
 		series []float64
 		want   bool
@@ -82,6 +88,8 @@ func TestHasSparkline(t *testing.T) {
 // the rules were placed by the stylesheet spreading them evenly and the line
 // by its own arithmetic, which agreed only while the scale touched both edges.
 func TestScoreYPlacesTheScaleInsideItsInset(t *testing.T) {
+	t.Parallel()
+
 	const height, inset = 140.0, 6.0
 
 	if got := scoreY(bestScore, height, inset); got != inset {

@@ -16,6 +16,8 @@ import (
 // the two lists share one vocabulary. Newest on the right, a day not played
 // a gap rather than a score.
 func TestTodaysFormSpellsOutTheLastFiveInTheDaysOwnChip(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	ctx := context.Background()
 	admin, err := store.CreateUser(ctx, srv.db, store.SystemActor(), "admin@example.tld", "hash", true)
@@ -71,6 +73,8 @@ func TestTodaysFormSpellsOutTheLastFiveInTheDaysOwnChip(t *testing.T) {
 }
 
 func TestTodayShowsThirtyDayFormWithBothRanks(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	ctx := context.Background()
 	admin, err := store.CreateUser(ctx, srv.db, store.SystemActor(), "admin@example.tld", "hash", true)

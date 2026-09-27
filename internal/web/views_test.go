@@ -19,6 +19,8 @@ import (
 // The nav offers only views that exist. A tab leading to a 404 is worse
 // than an absent one.
 func TestNavLinksAllResolve(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -65,6 +67,8 @@ func TestNavLinksAllResolve(t *testing.T) {
 }
 
 func TestTodayShowsTheCurrentPuzzleAndWhoIsOut(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -93,6 +97,8 @@ func TestTodayShowsTheCurrentPuzzleAndWhoIsOut(t *testing.T) {
 // locale — "Monday", "January" — so the headline date builds its own from
 // the catalogue instead, the same way the grid's date column does.
 func TestTodayHeadlineDateIsFullyLocalised(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -138,6 +144,8 @@ func TestTodayHeadlineDateIsFullyLocalised(t *testing.T) {
 
 // When nothing clears its threshold the card is omitted, not padded.
 func TestCalloutsAreOmittedWhenNothingIsRemarkable(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	ctx := context.Background()
 
@@ -165,6 +173,8 @@ func TestCalloutsAreOmittedWhenNothingIsRemarkable(t *testing.T) {
 }
 
 func TestMonthsRanksPlayers(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -204,6 +214,8 @@ func TestMonthsRanksPlayers(t *testing.T) {
 
 // Selecting a month is a link, and it changes what is shown.
 func TestMonthSelectionChangesTheTable(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -234,6 +246,8 @@ func TestMonthSelectionChangesTheTable(t *testing.T) {
 // The filters carry across the views, so a reader is not comparing numbers
 // computed on different terms as they move between them.
 func TestViewsHonourTheHardModeFilter(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -248,6 +262,8 @@ func TestViewsHonourTheHardModeFilter(t *testing.T) {
 }
 
 func TestSharedViewsExposeNoAuthenticatedSurface(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -264,6 +280,8 @@ func TestSharedViewsExposeNoAuthenticatedSurface(t *testing.T) {
 }
 
 func TestAuthenticatedViewsRequireASession(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 
@@ -277,6 +295,8 @@ func TestAuthenticatedViewsRequireASession(t *testing.T) {
 // time.Month.String() is always English, so month names come from the
 // catalogue like everything else.
 func TestMonthNamesAreLocalised(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -309,6 +329,8 @@ func TestMonthNamesAreLocalised(t *testing.T) {
 }
 
 func TestSwedishWinnerListsUseOch(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	tr := translator{
 		locale: "sv", strings: srv.catalogues["sv"], fallback: srv.catalogues["en"],
@@ -324,6 +346,8 @@ func TestSwedishWinnerListsUseOch(t *testing.T) {
 }
 
 func TestGridRendersDaysByPlayers(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -355,6 +379,8 @@ func TestGridRendersDaysByPlayers(t *testing.T) {
 // never worked on a phone. The note explains the asterisk in the same words
 // the strip's own legend does.
 func TestGridCellsCarryTheAsteriskAndOpenAPopup(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -394,6 +420,8 @@ func TestGridCellsCarryTheAsteriskAndOpenAPopup(t *testing.T) {
 // locale — "Aug", never "aug" — so the grid's date column has to build its
 // own from the catalogue instead, the way the months view already does.
 func TestGridDateUsesTheLocalisedMonthAbbreviation(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -423,6 +451,8 @@ func TestGridDateUsesTheLocalisedMonthAbbreviation(t *testing.T) {
 
 // Zero-game players are hidden by default and shown on request.
 func TestGridInactiveToggle(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	ctx := context.Background()
@@ -452,6 +482,8 @@ func TestGridInactiveToggle(t *testing.T) {
 // one press away in the bar either way, and the bar now names the player it is
 // showing rather than looking like a control that has not been used yet.
 func TestThePlayersViewOpensOnTheLeader(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -483,6 +515,8 @@ func TestThePlayersViewOpensOnTheLeader(t *testing.T) {
 // Reaching a player directly is still the same view, so the nav keeps its
 // place rather than losing the highlight.
 func TestPlayerDetailHighlightsThePlayersTab(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -507,6 +541,8 @@ func TestPlayerDetailHighlightsThePlayersTab(t *testing.T) {
 // what the scrolling tab strip it replaces was built to avoid, and what
 // nesting the admin screens gives this one a fresh chance to get wrong.
 func TestTheDrawerCarriesTheSameRowsAsTheRail(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -561,6 +597,8 @@ func sectionOf(body, open, close string) (string, bool) {
 // A trait is earned from the figures and explained on hover, so a player
 // can find out why rather than guess.
 func TestTraitsAppearAndExplainThemselves(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -585,6 +623,8 @@ func TestTraitsAppearAndExplainThemselves(t *testing.T) {
 // Nothing earned means nothing shown: padding everyone out would make the
 // ones that mean something worthless.
 func TestNoTraitWhenNothingIsEarned(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	ctx := context.Background()
 
@@ -629,6 +669,8 @@ func TestNoTraitWhenNothingIsEarned(t *testing.T) {
 
 // The labels are localised like everything else.
 func TestTraitsAreLocalised(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -647,6 +689,8 @@ func TestTraitsAreLocalised(t *testing.T) {
 // The front page is what a signed-in reader lands on, and what the bare
 // share URL shows. The leaderboard is a click away, not the doorstep.
 func TestTodayIsTheFrontPage(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -672,6 +716,8 @@ func TestTodayIsTheFrontPage(t *testing.T) {
 // Each view's controls link back to that view. One shared path would send
 // every filter and sort to whichever view held the bare prefix.
 func TestEachViewsControlsPointAtItself(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -689,6 +735,8 @@ func TestEachViewsControlsPointAtItself(t *testing.T) {
 // A player who has left the group is behind the toggle even though they
 // were playing right up to the day they left.
 func TestGridHidesRetiredPlayersUntilToggled(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	ctx := context.Background()
@@ -742,6 +790,8 @@ func seedCompletedWinningMonth(t *testing.T, srv *Server) time.Time {
 }
 
 func TestMonthWinnerPaneShowsTheStats(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	target := seedCompletedWinningMonth(t, srv)
@@ -776,6 +826,8 @@ func TestMonthWinnerPaneShowsTheStats(t *testing.T) {
 // instead — and so was widening every chip to fit a month and a year, which
 // is what the detail directly beneath the row is for.
 func TestMonthChipsAreSmallAndTheMonthIsNamedInFullBelow(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -828,6 +880,8 @@ func TestMonthChipsAreSmallAndTheMonthIsNamedInFullBelow(t *testing.T) {
 // form figure, so it has to be ordered by form. It was ordered by the
 // board's all-time ranking, which put a 3.90 above a 3.59.
 func TestFrontPageFormTableIsOrderedByForm(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -870,6 +924,8 @@ func min(a, b int) int {
 // A month with days left in it has a leader, not a winner, so the line
 // describing it belongs in the present tense.
 func TestRunningMonthReadsAsUnfinished(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -912,6 +968,8 @@ func TestRunningMonthReadsAsUnfinished(t *testing.T) {
 // trait, and the season table has wins, top-three, best month and a mark
 // per month.
 func TestMonthViewMatchesTheDesign(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	target := seedCompletedWinningMonth(t, srv)
@@ -950,6 +1008,8 @@ func TestMonthViewMatchesTheDesign(t *testing.T) {
 
 // A star marks a title; a placing is a number; not ranked is a dot.
 func TestSeasonMarksReadAtAGlance(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	seedCompletedWinningMonth(t, srv)
@@ -980,6 +1040,8 @@ func TestSeasonMarksReadAtAGlance(t *testing.T) {
 // names, or the delta against it — so this pins the shape rather than the
 // headings that used to carry the explanation.
 func TestFormPaneIsConsistent(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -1028,6 +1090,8 @@ func TestFormPaneIsConsistent(t *testing.T) {
 // A tooltip is a desktop-only affordance. The explanation has to be
 // reachable by tapping, which means an element that opens without script.
 func TestTraitExplanationIsReachableWithoutHover(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -1057,6 +1121,8 @@ func TestTraitExplanationIsReachableWithoutHover(t *testing.T) {
 // clipping, the same as the month tables — and a column hidden at that
 // width has to be hidden in the header too, or the two rows misalign.
 func TestBoardScrollsSidewaysOnNarrowScreens(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -1094,6 +1160,8 @@ func TestBoardScrollsSidewaysOnNarrowScreens(t *testing.T) {
 // columns stay in name order so a reader finds the same person in the same
 // place whatever the range.
 func TestGridRanksOverTheSelectedWindow(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	srv := testServer(t)
 	admin, err := store.CreateUser(ctx, srv.db, store.SystemActor(), "admin@example.tld", "hash", true)
@@ -1157,6 +1225,8 @@ func TestGridRanksOverTheSelectedWindow(t *testing.T) {
 // Columns keep their places whatever the range, so the table can be read.
 // The rail beside them is a standings table and follows the window instead.
 func TestGridColumnsStayInNameOrder(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	srv := testServer(t)
 	admin, _ := store.CreateUser(ctx, srv.db, store.SystemActor(), "admin@example.tld", "hash", true)
@@ -1221,6 +1291,8 @@ func TestGridColumnsStayInNameOrder(t *testing.T) {
 
 // A range control that cannot change anything is not offered.
 func TestGridHidesTheSpanToggleWhenThereIsNothingToChoose(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
@@ -1234,6 +1306,8 @@ func TestGridHidesTheSpanToggleWhenThereIsNothingToChoose(t *testing.T) {
 // The month kicker states the rule the code applies, including the missed
 // day, and drops the clause when the toggle it depends on is off.
 func TestMonthsKickerStatesTheScoringRule(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -1255,6 +1329,8 @@ func TestMonthsKickerStatesTheScoringRule(t *testing.T) {
 }
 
 func TestTodayShowsFourBanterHeadlinesInBothLanguages(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	ctx := context.Background()
@@ -1292,6 +1368,8 @@ func TestTodayShowsFourBanterHeadlinesInBothLanguages(t *testing.T) {
 }
 
 func TestEveryBanterHasDetails(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	for _, locale := range []string{"en", "sv"} {
 		tr := translator{locale: locale, strings: srv.catalogues[locale], fallback: srv.catalogues["en"]}
@@ -1336,6 +1414,8 @@ func TestEveryBanterHasDetails(t *testing.T) {
 // people, retiring them and attaching logins, none of which a trait bears on.
 // In all four the name column is for the name.
 func TestTraitBadgesAreOnlyWhereTheyMeanSomething(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
@@ -1360,6 +1440,8 @@ func TestTraitBadgesAreOnlyWhereTheyMeanSomething(t *testing.T) {
 // Neither is a third hue invented for the purpose, and both clear 4.5:1 on
 // their own theme's surface at the 11px uppercase a chip is set in.
 func TestAWinAndASecondPlaceAreDifferentTones(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
@@ -1398,6 +1480,8 @@ func TestAWinAndASecondPlaceAreDifferentTones(t *testing.T) {
 // different heights. Two marks in the same row, in cells of identical height,
 // came out 5.4px apart, and a grid of places read as a grid that had slipped.
 func TestASeasonMarkIsNotAlignedOnTheTextBaseline(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
 
@@ -1424,6 +1508,8 @@ func TestASeasonMarkIsNotAlignedOnTheTextBaseline(t *testing.T) {
 // One token holds the first cell's width and the indent the table without a
 // rank takes instead.
 func TestEveryRankedTableIndentsItsNamesTheSame(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
@@ -1461,6 +1547,8 @@ func TestEveryRankedTableIndentsItsNamesTheSame(t *testing.T) {
 // a min-height counts the padding and the rule, and a row with nothing tall
 // in it settles short of one carrying a 30px score tile.
 func TestTodaysTwoListsShareOneRowShape(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
 

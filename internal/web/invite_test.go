@@ -51,6 +51,8 @@ func inviteToken(t *testing.T, srv *Server, sent *[]byte, session *http.Cookie, 
 // Accepting creates the account, links it to the player and signs them in —
 // all of it, or none.
 func TestInvitationClaimsThePlayer(t *testing.T) {
+	t.Parallel()
+
 	srv, sent, to := invitingServer(t)
 	_, session := adminSession(t, srv)
 	ctx := context.Background()
@@ -140,6 +142,8 @@ func postInvite(t *testing.T, srv *Server, token, password, confirm string) *htt
 // A token works once. A second use must not hand the player to somebody
 // else, or make a second account.
 func TestInvitationIsSingleUse(t *testing.T) {
+	t.Parallel()
+
 	srv, sent, _ := invitingServer(t)
 	_, session := adminSession(t, srv)
 
@@ -160,6 +164,8 @@ func TestInvitationIsSingleUse(t *testing.T) {
 // Re-inviting spends the earlier token, so two live links never point at
 // one player.
 func TestReinvitingSpendsTheEarlierToken(t *testing.T) {
+	t.Parallel()
+
 	srv, sent, _ := invitingServer(t)
 	_, session := adminSession(t, srv)
 
@@ -175,6 +181,8 @@ func TestReinvitingSpendsTheEarlierToken(t *testing.T) {
 }
 
 func TestInvitationRejectsBadPasswords(t *testing.T) {
+	t.Parallel()
+
 	srv, sent, _ := invitingServer(t)
 	_, session := adminSession(t, srv)
 	token := inviteToken(t, srv, sent, session, "harda", "harda@example.tld")
@@ -199,6 +207,8 @@ func TestInvitationRejectsBadPasswords(t *testing.T) {
 
 // A player who already has a login has nothing to claim.
 func TestCannotInviteAPlayerWithALogin(t *testing.T) {
+	t.Parallel()
+
 	srv, sent, _ := invitingServer(t)
 	admin, session := adminSession(t, srv)
 	ctx := context.Background()
@@ -222,6 +232,8 @@ func TestCannotInviteAPlayerWithALogin(t *testing.T) {
 
 // An address that already has an account should be linked, not invited.
 func TestCannotInviteAnExistingAccount(t *testing.T) {
+	t.Parallel()
+
 	srv, _, _ := invitingServer(t)
 	admin, session := adminSession(t, srv)
 
@@ -243,6 +255,8 @@ func TestCannotInviteAnExistingAccount(t *testing.T) {
 // The panel shows an outstanding invitation rather than looking as though
 // nothing has happened.
 func TestAdminPanelShowsAPendingInvitation(t *testing.T) {
+	t.Parallel()
+
 	srv, sent, _ := invitingServer(t)
 	_, session := adminSession(t, srv)
 	inviteToken(t, srv, sent, session, "harda", "harda@example.tld")
@@ -260,6 +274,8 @@ func TestAdminPanelShowsAPendingInvitation(t *testing.T) {
 // through the real claim flow rather than against a hand-made user,
 // because the flow is what actually creates them.
 func TestInvitedUserIsNotAnAdmin(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	srv, sent, _ := invitingServer(t)
 	_, adminSess := adminSession(t, srv)
@@ -330,6 +346,8 @@ func TestInvitedUserIsNotAnAdmin(t *testing.T) {
 // the account it creates starts in that language. Not the admin's: an
 // admin reading in Swedish does not make the invitee a Swedish speaker.
 func TestInvitationCarriesItsLanguage(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	srv, sent, _ := invitingServer(t)
 	_, session := adminSession(t, srv)
@@ -359,6 +377,8 @@ func TestInvitationCarriesItsLanguage(t *testing.T) {
 
 // No choice, or one nobody has strings for, means English.
 func TestInvitationLanguageDefaultsToEnglish(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	srv, sent, _ := invitingServer(t)
 	_, session := adminSession(t, srv)
@@ -401,6 +421,8 @@ func lastInviteToken(t *testing.T, sent *[]byte) string {
 // Mail goes to the recipient in their language, not in whatever the
 // browser that triggered it was set to.
 func TestResetEmailUsesTheRecipientsLanguage(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	srv, sent, _ := invitingServer(t)
 

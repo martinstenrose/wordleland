@@ -21,6 +21,8 @@ func totpFixture(t *testing.T) (*sql.DB, int64, Actor) {
 // A mis-scanned QR code must not lock anyone out, so the secret stays pending
 // until a code proves the phone holds the same one.
 func TestPendingSecretIsNotLive(t *testing.T) {
+	t.Parallel()
+
 	db, userID, _ := totpFixture(t)
 	ctx := context.Background()
 
@@ -51,6 +53,8 @@ func TestPendingSecretIsNotLive(t *testing.T) {
 }
 
 func TestPromotePendingSecret(t *testing.T) {
+	t.Parallel()
+
 	db, userID, actor := totpFixture(t)
 	ctx := context.Background()
 
@@ -88,6 +92,8 @@ func TestPromotePendingSecret(t *testing.T) {
 }
 
 func TestPromoteWithoutPendingSecret(t *testing.T) {
+	t.Parallel()
+
 	db, userID, actor := totpFixture(t)
 
 	if err := PromotePendingTOTPSecret(context.Background(), db, actor, userID, 1); !errors.Is(err, ErrNoPendingSecret) {
@@ -98,6 +104,8 @@ func TestPromoteWithoutPendingSecret(t *testing.T) {
 // : a code from a step already accepted is rejected, so an observed
 // code cannot be reused inside its thirty-second window.
 func TestRecordTOTPStepRejectsReplay(t *testing.T) {
+	t.Parallel()
+
 	db, userID, _ := totpFixture(t)
 	ctx := context.Background()
 
@@ -120,6 +128,8 @@ func TestRecordTOTPStepRejectsReplay(t *testing.T) {
 // The comparison lives in the UPDATE so two simultaneous submissions of the
 // same code cannot both pass a check-then-write.
 func TestRecordTOTPStepIsAtomic(t *testing.T) {
+	t.Parallel()
+
 	db, userID, _ := totpFixture(t)
 	ctx := context.Background()
 
@@ -145,6 +155,8 @@ func TestRecordTOTPStepIsAtomic(t *testing.T) {
 }
 
 func TestClearPendingTOTPSecret(t *testing.T) {
+	t.Parallel()
+
 	db, userID, _ := totpFixture(t)
 	ctx := context.Background()
 
@@ -162,6 +174,8 @@ func TestClearPendingTOTPSecret(t *testing.T) {
 // ResetUserTOTP must clear everything, so an admin reset genuinely returns the
 // account to un-enrolled rather than leaving a usable secret behind.
 func TestResetClearsEnrolmentEntirely(t *testing.T) {
+	t.Parallel()
+
 	db, userID, actor := totpFixture(t)
 	ctx := context.Background()
 

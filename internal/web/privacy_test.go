@@ -13,6 +13,8 @@ import (
 // prefix they point at "/today" and friends, which need a session and would
 // just bounce back to login.
 func TestPrivacyPageForAStranger(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 
@@ -38,6 +40,8 @@ func TestPrivacyPageForAStranger(t *testing.T) {
 // pills work because a session exists to carry them, and the account menu
 // names them.
 func TestPrivacyPageForASignedInReader(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
@@ -55,6 +59,8 @@ func TestPrivacyPageForASignedInReader(t *testing.T) {
 }
 
 func TestPrivacyPageIsPublic(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 

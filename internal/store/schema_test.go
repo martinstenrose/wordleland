@@ -49,6 +49,8 @@ func seedPlayer(t *testing.T, db *sql.DB, slug string) int64 {
 }
 
 func TestSchemaTablesExist(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 
 	want := []string{
@@ -74,6 +76,8 @@ func TestSchemaTablesExist(t *testing.T) {
 // delete would arm the bridge to revert every correction that user made.
 // The point of the FK is that this is impossible, not merely discouraged.
 func TestDeletingUserWithResultsIsRefused(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 
 	userID := seedUser(t, db, "martin@example.tld", true)
@@ -107,6 +111,8 @@ func TestDeletingUserWithResultsIsRefused(t *testing.T) {
 
 // A user who has entered nothing may be deleted outright.
 func TestDeletingUserWithoutResultsIsAllowed(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	userID := seedUser(t, db, "nobody@example.tld", false)
 
@@ -118,6 +124,8 @@ func TestDeletingUserWithoutResultsIsAllowed(t *testing.T) {
 // : players.user_id is SET NULL — unlinking a login from a scoreboard
 // entity is normal and loses nothing.
 func TestDeletingUserUnlinksPlayer(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 
 	userID := seedUser(t, db, "player@example.tld", false)
@@ -143,6 +151,8 @@ func TestDeletingUserUnlinksPlayer(t *testing.T) {
 // hard-deleted. This test documents the destruction rather than endorsing it —
 // retirement is active = false, and the CLI exposes no player delete.
 func TestDeletingPlayerCascadesResults(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	playerID := seedPlayer(t, db, "martin")
 
@@ -173,6 +183,8 @@ func TestDeletingPlayerCascadesResults(t *testing.T) {
 // : solved carries a guess count, failed carries none. A missed day is
 // the absence of a row, not a row with both NULL.
 func TestResultsSolvedGuessesConsistency(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	playerID := seedPlayer(t, db, "martin")
 
@@ -214,6 +226,8 @@ func TestResultsSolvedGuessesConsistency(t *testing.T) {
 }
 
 func TestResultsUniquePerPuzzleAndPlayer(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	playerID := seedPlayer(t, db, "martin")
 
@@ -234,6 +248,8 @@ func TestResultsUniquePerPuzzleAndPlayer(t *testing.T) {
 }
 
 func TestResultsHardModeDefaultsFalse(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	playerID := seedPlayer(t, db, "martin")
 
@@ -257,6 +273,8 @@ func TestResultsHardModeDefaultsFalse(t *testing.T) {
 
 // : a repost of the same puzzle overwrites rather than accumulating.
 func TestPendingResultsUpsertOnRepost(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 
 	const upsert = `
@@ -303,6 +321,8 @@ func TestPendingResultsUpsertOnRepost(t *testing.T) {
 // Different puzzles from the same sender are separate held results; only the
 // same puzzle collapses.
 func TestPendingResultsAccumulateAcrossPuzzles(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 
 	for _, puzzle := range []int{1888, 1889, 1890} {
@@ -325,6 +345,8 @@ func TestPendingResultsAccumulateAcrossPuzzles(t *testing.T) {
 }
 
 func TestPendingResultsSolvedGuessesConsistency(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 
 	// A payload that could never become a result must not be storable as a
@@ -341,6 +363,8 @@ func TestPendingResultsSolvedGuessesConsistency(t *testing.T) {
 
 // : one external identity maps to exactly one player.
 func TestPlayerIdentitiesUniquePerSourceAndExternalID(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	first := seedPlayer(t, db, "martin")
 	second := seedPlayer(t, db, "alex")
@@ -371,6 +395,8 @@ func TestPlayerIdentitiesUniquePerSourceAndExternalID(t *testing.T) {
 // display_hint is cosmetic and explicitly not unique: two people can set the
 // same Signal profile name, which is why resolution uses the UUID.
 func TestPlayerIdentitiesDisplayHintNeedNotBeUnique(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	first := seedPlayer(t, db, "martin")
 	second := seedPlayer(t, db, "alex")
@@ -387,6 +413,8 @@ func TestPlayerIdentitiesDisplayHintNeedNotBeUnique(t *testing.T) {
 }
 
 func TestPlayersActiveDefaultsTrue(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	playerID := seedPlayer(t, db, "martin")
 
@@ -402,6 +430,8 @@ func TestPlayersActiveDefaultsTrue(t *testing.T) {
 // The single-row constraint is a property of the schema, not a convention
 // every caller has to honour.
 func TestSettingsIsSingleRow(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 
 	if _, err := db.Exec(`INSERT INTO settings (id, share_slug) VALUES (1, ?)`, "abc123"); err != nil {
@@ -414,6 +444,8 @@ func TestSettingsIsSingleRow(t *testing.T) {
 
 // : an activity entry must identify its actor unless the system acted.
 func TestActivityLogActorConstraint(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	userID := seedUser(t, db, "martin@example.tld", true)
 
@@ -471,6 +503,8 @@ func TestActivityLogActorConstraint(t *testing.T) {
 // An activity log that can be erased by deleting a row elsewhere is not a
 // log. This is also why a token is revoked via revoked_at, not deletion.
 func TestActivityLogBlocksActorDeletion(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 
 	userID := seedUser(t, db, "martin@example.tld", true)
@@ -514,6 +548,8 @@ func TestActivityLogBlocksActorDeletion(t *testing.T) {
 // Sessions and reset tokens are disposable: deleting a user takes them with
 // it, which is what makes a user with no results deletable at all.
 func TestUserDeletionCascadesSessionsAndTokens(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	userID := seedUser(t, db, "martin@example.tld", false)
 
@@ -548,6 +584,8 @@ func TestUserDeletionCascadesSessionsAndTokens(t *testing.T) {
 }
 
 func TestAPITokenHashIsUnique(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 
 	if _, err := db.Exec(`INSERT INTO api_tokens (label, token_hash) VALUES (?, ?)`, "import-script", "hash-1"); err != nil {

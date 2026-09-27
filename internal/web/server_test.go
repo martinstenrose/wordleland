@@ -6,6 +6,8 @@ import "testing"
 // unset value as "not https" would quietly drop Secure from the session
 // cookie on a deployment that is in fact behind TLS.
 func TestSecureCookiesFailClosed(t *testing.T) {
+	t.Parallel()
+
 	for _, tt := range []struct {
 		appURL string
 		want   bool

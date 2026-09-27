@@ -55,6 +55,8 @@ func enrolWithCodes(t *testing.T, srv *Server, cookies []*http.Cookie) (string, 
 // Enrolment hands over a full set, once. Doing it later is doing it after
 // the phone is already gone.
 func TestEnrolmentIssuesRecoveryCodes(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user := seedLogin(t, srv, "admin@example.tld", true)
 	_, cookies := login(t, srv, "admin@example.tld", testPassword)
@@ -75,6 +77,8 @@ func TestEnrolmentIssuesRecoveryCodes(t *testing.T) {
 
 // The whole point: a code signs in when the authenticator app cannot.
 func TestRecoveryCodeCompletesSignIn(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 	_, cookies := login(t, srv, "admin@example.tld", testPassword)
@@ -111,6 +115,8 @@ func TestRecoveryCodeCompletesSignIn(t *testing.T) {
 
 // Single use, end to end: the same code must not open a second session.
 func TestRecoveryCodeCannotBeReused(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 	_, cookies := login(t, srv, "admin@example.tld", testPassword)
@@ -136,6 +142,8 @@ func TestRecoveryCodeCannotBeReused(t *testing.T) {
 // Knowing an email is not enough. Without a password-verified session the
 // page is a way to spend somebody else's codes.
 func TestRecoveryNeedsAPasswordFirst(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 	_, cookies := login(t, srv, "admin@example.tld", testPassword)
@@ -159,6 +167,8 @@ func TestRecoveryNeedsAPasswordFirst(t *testing.T) {
 // Recovery shares the TOTP allowance rather than getting its own, which
 // would double the guesses an attacker gets at one account.
 func TestRecoveryIsRateLimited(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 	_, cookies := login(t, srv, "admin@example.tld", testPassword)
@@ -186,6 +196,8 @@ func TestRecoveryIsRateLimited(t *testing.T) {
 // The codes are shown once and never again: there must be no route that
 // re-renders the set a person already has.
 func TestRecoveryCodesAreNotRetrievable(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 	_, cookies := login(t, srv, "admin@example.tld", testPassword)

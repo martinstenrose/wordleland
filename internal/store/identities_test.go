@@ -24,6 +24,8 @@ func holdResult(t *testing.T, db *sql.DB, puzzle int, guesses int, hardMode bool
 }
 
 func TestResolveIdentityNotFound(t *testing.T) {
+	t.Parallel()
+
 	db, _, _, _ := identityFixture(t)
 
 	_, _, err := ResolveIdentity(context.Background(), db, "signal", testUUID)
@@ -33,6 +35,8 @@ func TestResolveIdentityNotFound(t *testing.T) {
 }
 
 func TestListPendingSendersAggregates(t *testing.T) {
+	t.Parallel()
+
 	db, _, _, _ := identityFixture(t)
 
 	holdResult(t, db, 1888, 4, false)
@@ -57,6 +61,8 @@ func TestListPendingSendersAggregates(t *testing.T) {
 // Claiming recovers everything that arrived while the sender was unclaimed —
 // the whole reason pending_results holds payloads rather than a counter.
 func TestLinkIdentityReplaysHeldResults(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, actor := identityFixture(t)
 	ctx := context.Background()
 
@@ -107,6 +113,8 @@ func TestLinkIdentityReplaysHeldResults(t *testing.T) {
 // held row is still consumed — leaving it would keep a claimed sender in the
 // pending list forever with something that can never apply.
 func TestLinkIdentityRespectsPrecedence(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, adminID, actor := identityFixture(t)
 	ctx := context.Background()
 
@@ -151,6 +159,8 @@ func TestLinkIdentityRespectsPrecedence(t *testing.T) {
 // half-replayed cannot be recovered by re-running, because claiming refuses a
 // sender that already resolves.
 func TestLinkIdentityIsAtomic(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, actor := identityFixture(t)
 	ctx := context.Background()
 
@@ -187,6 +197,8 @@ func TestLinkIdentityIsAtomic(t *testing.T) {
 }
 
 func TestLinkIdentityDryRun(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, adminID, actor := identityFixture(t)
 	ctx := context.Background()
 
@@ -221,6 +233,8 @@ func TestLinkIdentityDryRun(t *testing.T) {
 }
 
 func TestLinkIdentityRejectsAlreadyClaimed(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, actor := identityFixture(t)
 	ctx := context.Background()
 
@@ -236,6 +250,8 @@ func TestLinkIdentityRejectsAlreadyClaimed(t *testing.T) {
 // Adding an identity directly must replay too, or held results are orphaned
 // with nothing left to link them.
 func TestLinkIdentityWithoutHeldResults(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, actor := identityFixture(t)
 	ctx := context.Background()
 
@@ -252,6 +268,8 @@ func TestLinkIdentityWithoutHeldResults(t *testing.T) {
 }
 
 func TestDiscardPendingResults(t *testing.T) {
+	t.Parallel()
+
 	db, _, _, actor := identityFixture(t)
 	ctx := context.Background()
 
@@ -282,6 +300,8 @@ func TestDiscardPendingResults(t *testing.T) {
 // Zero retention means unlimited, so nothing is purged regardless of age;
 // past the window, a held result is dropped.
 func TestDeleteExpiredPendingResults(t *testing.T) {
+	t.Parallel()
+
 	db, _, _, _ := identityFixture(t)
 	ctx := context.Background()
 
@@ -316,6 +336,8 @@ func TestDeleteExpiredPendingResults(t *testing.T) {
 }
 
 func TestDiscardPendingResultsNothingHeld(t *testing.T) {
+	t.Parallel()
+
 	db, _, _, actor := identityFixture(t)
 
 	if _, err := DiscardPendingResults(context.Background(), db, actor, "signal", testUUID); !errors.Is(err, ErrNoPendingResults) {
@@ -326,6 +348,8 @@ func TestDiscardPendingResultsNothingHeld(t *testing.T) {
 // The hint is cosmetic, so a sender renaming themselves must not disturb the
 // mapping — that is why resolution uses the UUID.
 func TestRefreshDisplayHint(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, actor := identityFixture(t)
 	ctx := context.Background()
 
@@ -356,6 +380,8 @@ func TestRefreshDisplayHint(t *testing.T) {
 }
 
 func TestListClaimedIdentitiesEmpty(t *testing.T) {
+	t.Parallel()
+
 	db, _, _, _ := identityFixture(t)
 
 	claimed, err := ListClaimedIdentities(context.Background(), db, nil)
@@ -368,6 +394,8 @@ func TestListClaimedIdentitiesEmpty(t *testing.T) {
 }
 
 func TestListClaimedIdentitiesScopesToPlayer(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, actor := identityFixture(t)
 	ctx := context.Background()
 
@@ -404,6 +432,8 @@ func TestListClaimedIdentitiesScopesToPlayer(t *testing.T) {
 // results. Reassigning one must move only what it wrote, never results a
 // different identity produced for the same player.
 func TestReassignIdentityMovesOnlyItsOwnResults(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, actor := identityFixture(t)
 	ctx := context.Background()
 
@@ -455,6 +485,8 @@ func TestReassignIdentityMovesOnlyItsOwnResults(t *testing.T) {
 // the moved-from row must stay with the old player rather than being
 // dropped or overwriting a hand-entered value.
 func TestReassignIdentityLeavesConflictingResults(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, adminID, actor := identityFixture(t)
 	ctx := context.Background()
 
@@ -494,6 +526,8 @@ func TestReassignIdentityLeavesConflictingResults(t *testing.T) {
 // The mapping still moves even when moveResults is false — only the
 // results stay behind.
 func TestReassignIdentityWithoutMovingResults(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, actor := identityFixture(t)
 	ctx := context.Background()
 
@@ -531,6 +565,8 @@ func TestReassignIdentityWithoutMovingResults(t *testing.T) {
 // identity, so it must be reported rather than silently left behind
 // unmentioned or, worse, guessed at and moved.
 func TestReassignIdentityReportsUntrackedResults(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, actor := identityFixture(t)
 	ctx := context.Background()
 
@@ -571,6 +607,8 @@ func TestReassignIdentityReportsUntrackedResults(t *testing.T) {
 }
 
 func TestReassignIdentityDryRun(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, actor := identityFixture(t)
 	ctx := context.Background()
 
@@ -605,6 +643,8 @@ func TestReassignIdentityDryRun(t *testing.T) {
 }
 
 func TestReassignIdentityRejectsUnclaimed(t *testing.T) {
+	t.Parallel()
+
 	db, _, _, actor := identityFixture(t)
 	ctx := context.Background()
 
@@ -619,6 +659,8 @@ func TestReassignIdentityRejectsUnclaimed(t *testing.T) {
 }
 
 func TestReassignIdentityRejectsSamePlayer(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, actor := identityFixture(t)
 	ctx := context.Background()
 
@@ -632,6 +674,8 @@ func TestReassignIdentityRejectsSamePlayer(t *testing.T) {
 }
 
 func TestHoldPendingResultOverwritesRepost(t *testing.T) {
+	t.Parallel()
+
 	db, _, _, _ := identityFixture(t)
 	ctx := context.Background()
 
@@ -654,6 +698,8 @@ func TestHoldPendingResultOverwritesRepost(t *testing.T) {
 // replay hands it on: a newcomer who posts for a week before being claimed
 // was still first or last on those days.
 func TestLinkIdentityReplaysThePostingTime(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, actor := identityFixture(t)
 	ctx := context.Background()
 

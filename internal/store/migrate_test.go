@@ -13,6 +13,8 @@ import (
 // decide whether a migration run is starting: it must name what Migrate is
 // about to do, then report nothing once that work is done.
 func TestPendingMigrations(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db := testDB(t)
 
@@ -59,6 +61,8 @@ func TestPendingMigrations(t *testing.T) {
 // itself does not exist yet. Every migration should read as pending, not
 // error out on the missing tracking table.
 func TestPendingMigrationsOnFreshDatabase(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db := testDB(t)
 
@@ -82,6 +86,8 @@ func TestPendingMigrationsOnFreshDatabase(t *testing.T) {
 // The point of the rename is that history is not lost — a row seeded before
 // the migration must still be there under the new name afterward.
 func TestMigrateRenamesActivityLogTable(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db := testDB(t)
 
@@ -170,6 +176,8 @@ func migrationsBefore(name string) (fs.FS, error) {
 // puzzle, with the source recorded. Anything less stays NULL rather than
 // being guessed.
 func TestMigrateBackfillsPostedAtFromTheActivityLog(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db := testDB(t)
 
@@ -252,6 +260,8 @@ func TestMigrateBackfillsPostedAtFromTheActivityLog(t *testing.T) {
 // fraction of a second or Go's monotonic reading. Values already in the UTC
 // form and NULLs are left alone.
 func TestMigrateRewritesLocalTimestampsInUTC(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db := testDB(t)
 

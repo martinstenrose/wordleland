@@ -14,6 +14,8 @@ import (
 // day; a result that lands is in the subtitle within the minute, and a page
 // opened inside that minute still shows the count from before.
 func TestThePlayedPuzzleCountIsHeldBetweenPages(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	ctx := context.Background()

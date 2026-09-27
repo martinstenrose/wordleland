@@ -18,6 +18,8 @@ var (
 // exception — Players and Pending count what they hold, and Activity and
 // Diagnostics have nothing to count — so the comparison stops at the head.
 func TestAdminScreensShareTheirChrome(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -54,6 +56,8 @@ func TestAdminScreensShareTheirChrome(t *testing.T) {
 // Settings and the admin area kept losing their pills, which made them
 // look like a different site.
 func TestTopBarKeepsItsViewsEverywhere(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -89,6 +93,8 @@ func TestTopBarKeepsItsViewsEverywhere(t *testing.T) {
 // explanation is a whole sentence — .form label uppercases everything
 // inside it, so the hint needs its own reset or it shouts.
 func TestRosterSwitchHintIsNotUppercased(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
 	at := strings.Index(css, ".form label.switch .hint")
@@ -132,6 +138,8 @@ func TestRosterSwitchHintIsNotUppercased(t *testing.T) {
 // copy of the chrome. The chrome carries it now, and the cards carry none —
 // the top bar inside the application, its own much shorter row at the door.
 func TestAuthPickersAreInTheChromeOnly(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	for _, path := range []string{"/", "/forgot-password", "/reset-password?token=x", "/invite?token=x"} {
@@ -167,6 +175,8 @@ func TestAuthPickersAreInTheChromeOnly(t *testing.T) {
 // hang under the admin row. That the drawer and the rail agree is
 // TestTheDrawerCarriesTheSameRowsAsTheRail's job.
 func TestTheChromeIsIdenticalOnEveryPage(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -223,6 +233,8 @@ func TestTheChromeIsIdenticalOnEveryPage(t *testing.T) {
 // and on a phone — where the panel does not fit — the wordmark is the only
 // place it is said at all.
 func TestTheSignInPageSaysHowBigTheGroupIs(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 
@@ -240,6 +252,8 @@ func TestTheSignInPageSaysHowBigTheGroupIs(t *testing.T) {
 // The views live in the rail; the wordmark lives in the bar above it, where
 // it holds one place at every width — the rail is only ever navigation.
 func TestTheRailCarriesEveryViewAndTheBarTheWordmark(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -275,6 +289,8 @@ func TestTheRailCarriesEveryViewAndTheBarTheWordmark(t *testing.T) {
 // for the area, not five — and the four screens listed in both places would
 // be two lists of the same destinations to keep in step.
 func TestTheRailCarriesOneAdminRow(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -311,6 +327,8 @@ func TestTheRailCarriesOneAdminRow(t *testing.T) {
 // bar there would leave one screen with no way back out of it except the
 // browser's own, which is the failure this pins.
 func TestEveryAdminScreenCarriesTheSectionBar(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)

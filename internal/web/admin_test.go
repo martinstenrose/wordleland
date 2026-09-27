@@ -64,6 +64,8 @@ func postAdmin(t *testing.T, srv *Server, path string, form url.Values, session 
 // The admin area is for admins. A signed-in ordinary user gets 404 rather
 // than 403: there is nothing to tell them about.
 func TestAdminAreaIsAdminOnly(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	ctx := context.Background()
@@ -89,6 +91,8 @@ func TestAdminAreaIsAdminOnly(t *testing.T) {
 }
 
 func TestAdminEditsPlayerNameAndSlug(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -115,6 +119,8 @@ func TestAdminEditsPlayerNameAndSlug(t *testing.T) {
 // Clearing the box retires the player and keeps their history — the schema's
 // membership flag, not a delete.
 func TestAdminRetiresPlayerWithoutLosingHistory(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -144,6 +150,8 @@ func TestAdminRetiresPlayerWithoutLosingHistory(t *testing.T) {
 }
 
 func TestAdminRejectsDuplicateSlug(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -167,6 +175,8 @@ func TestAdminRejectsDuplicateSlug(t *testing.T) {
 }
 
 func TestAdminRejectsInvalidSlug(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -180,6 +190,8 @@ func TestAdminRejectsInvalidSlug(t *testing.T) {
 }
 
 func TestAdminLinksAndUnlinksALogin(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, session := adminSession(t, srv)
@@ -226,6 +238,8 @@ func TestAdminLinksAndUnlinksALogin(t *testing.T) {
 // mean "leave the link alone" — read as an empty selection it would unlink
 // every player somebody merely renamed.
 func TestSavingWithoutTheLinkFieldKeepsTheLogin(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	srv := testServer(t)
 	seedBoard(t, srv)
@@ -258,6 +272,8 @@ func TestSavingWithoutTheLinkFieldKeepsTheLogin(t *testing.T) {
 
 // And the control really is gone from the page.
 func TestPlayerEditorHidesTheLinkPicker(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -277,6 +293,8 @@ func TestPlayerEditorHidesTheLinkPicker(t *testing.T) {
 // players.user_id is UNIQUE, so one login belongs to one player. The second
 // attempt has to say so rather than fail opaquely.
 func TestAdminRefusesALoginLinkedElsewhere(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, session := adminSession(t, srv)
@@ -303,6 +321,8 @@ func TestAdminRefusesALoginLinkedElsewhere(t *testing.T) {
 // Every write goes through the store's actor, so the activity log records
 // who made the change.
 func TestAdminEditIsLogged(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, session := adminSession(t, srv)
@@ -337,6 +357,8 @@ func TestAdminEditIsLogged(t *testing.T) {
 }
 
 func TestAdminSubmitWithoutCSRFIsRejected(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -359,6 +381,8 @@ func TestAdminSubmitWithoutCSRFIsRejected(t *testing.T) {
 }
 
 func TestAdminUnknownPlayerIs404(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -371,6 +395,8 @@ func TestAdminUnknownPlayerIs404(t *testing.T) {
 // The roster list is the way in, so it has to show what an admin is picking
 // between.
 func TestAdminListShowsRosterState(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -389,6 +415,8 @@ func TestAdminListShowsRosterState(t *testing.T) {
 // The roster and the editor share one page: choosing a player is a link, so
 // nothing here needs script.
 func TestAdminListAndEditorAreOnePage(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -421,6 +449,8 @@ func TestAdminListAndEditorAreOnePage(t *testing.T) {
 
 // The counts under the heading are what the design puts there.
 func TestAdminPageCountsLogins(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, session := adminSession(t, srv)
@@ -443,6 +473,8 @@ func TestAdminPageCountsLogins(t *testing.T) {
 
 // The slug is editable, and the field shows the address it forms.
 func TestAdminCanChangeASlug(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)

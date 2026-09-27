@@ -16,6 +16,8 @@ func adminFixture(t *testing.T, db *sql.DB) (int64, Actor) {
 }
 
 func TestCreateUser(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -45,6 +47,8 @@ func TestCreateUser(t *testing.T) {
 // The handle is a WebAuthn user identifier: reusing one across accounts would
 // defeat the reason keeps it opaque.
 func TestCreateUserHandlesAreDistinct(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -64,6 +68,8 @@ func TestCreateUserHandlesAreDistinct(t *testing.T) {
 }
 
 func TestCreateUserRejectsDuplicateEmail(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -81,6 +87,8 @@ func TestCreateUserRejectsDuplicateEmail(t *testing.T) {
 }
 
 func TestCreateUserRejectsEmptyEmail(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -91,6 +99,8 @@ func TestCreateUserRejectsEmptyEmail(t *testing.T) {
 }
 
 func TestUserByEmailNotFound(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 
 	_, err := UserByEmail(context.Background(), db, "nobody@example.tld")
@@ -102,6 +112,8 @@ func TestUserByEmailNotFound(t *testing.T) {
 // A password reset that leaves old sessions alive does not lock anyone out,
 // which is the reason to reset in the first place.
 func TestSetUserPasswordInvalidatesSessions(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -130,6 +142,8 @@ func TestSetUserPasswordInvalidatesSessions(t *testing.T) {
 }
 
 func TestSetUserPasswordUnknownUser(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	_, actor := adminFixture(t, db)
 
@@ -142,6 +156,8 @@ func TestSetUserPasswordUnknownUser(t *testing.T) {
 // A session that already cleared TOTP must not outlive the secret it was
 // granted against.
 func TestResetUserTOTPClearsSecretsAndSessions(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -181,6 +197,8 @@ func TestResetUserTOTPClearsSecretsAndSessions(t *testing.T) {
 // Disabling must end existing sessions. Otherwise the account stays usable for
 // up to the session lifetime, which is not what "disabled" means.
 func TestSetUserDisabledInvalidatesSessions(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -208,6 +226,8 @@ func TestSetUserDisabledInvalidatesSessions(t *testing.T) {
 }
 
 func TestSetUserDisabledThenEnabled(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -236,6 +256,8 @@ func TestSetUserDisabledThenEnabled(t *testing.T) {
 // Attribution is the reason the activity log exists; a mutation that writes no
 // entry is invisible to the admin view later.
 func TestUserMutationsAreLogged(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	adminID, actor := adminFixture(t, db)
@@ -283,6 +305,8 @@ func TestUserMutationsAreLogged(t *testing.T) {
 }
 
 func TestNormalizeEmail(t *testing.T) {
+	t.Parallel()
+
 	tests := map[string]string{
 		"  Martin@Example.TLD ": "martin@example.tld",
 		"martin@example.tld":    "martin@example.tld",
@@ -298,6 +322,8 @@ func TestNormalizeEmail(t *testing.T) {
 // An accepted address is written straight into a To: header, so the cases
 // that matter are the ones "contains an @" waved through.
 func TestValidEmail(t *testing.T) {
+	t.Parallel()
+
 	tests := map[string]bool{
 		"martin@example.tld":        true,
 		"martin+wordle@example.tld": true,
@@ -321,6 +347,8 @@ func TestValidEmail(t *testing.T) {
 // The two writes that take an address from a form share the rule, so a
 // header break is refused before it can reach the mailer.
 func TestAddressWritesRejectAHeaderBreak(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	adminID, actor := adminFixture(t, db)
@@ -383,6 +411,8 @@ func activityActions(t *testing.T, db *sql.DB, subjectType string, subjectID int
 // between, so the activity entry records that something happened even though
 // disabled_at does not move.
 func TestSetUserDisabledTwiceKeepsOriginalTimestamp(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -433,6 +463,8 @@ func TestSetUserDisabledTwiceKeepsOriginalTimestamp(t *testing.T) {
 }
 
 func TestBootstrapAdminCreatesTheFirstUser(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 
@@ -462,6 +494,8 @@ func TestBootstrapAdminCreatesTheFirstUser(t *testing.T) {
 // Leaving the variables set must be harmless, which is what makes them
 // safe to keep in a compose file indefinitely.
 func TestBootstrapAdminIsANoOpWhenUsersExist(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 
@@ -490,6 +524,8 @@ func TestBootstrapAdminIsANoOpWhenUsersExist(t *testing.T) {
 // "First" means the installation, not the address. An email-specific check
 // would quietly recreate an account someone had removed on purpose.
 func TestBootstrapAdminDoesNotResurrectARemovedAccount(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -506,6 +542,8 @@ func TestBootstrapAdminDoesNotResurrectARemovedAccount(t *testing.T) {
 
 // Nothing authorised it, because nothing existed that could have.
 func TestBootstrapAdminIsLoggedAsSystem(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 
@@ -530,6 +568,8 @@ func TestBootstrapAdminIsLoggedAsSystem(t *testing.T) {
 
 // Two app instances racing on a fresh volume must not both succeed.
 func TestBootstrapAdminIsAtomic(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 
@@ -567,6 +607,8 @@ func TestBootstrapAdminIsAtomic(t *testing.T) {
 
 // A new account reads in the default language until it says otherwise.
 func TestUserLocaleDefaultsToEnglish(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db := migratedDB(t)
 

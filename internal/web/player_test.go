@@ -17,6 +17,8 @@ import (
 // inside a .panel; that rule should match the Leaderboard's footer-note
 // styling so explanatory copy reads consistently across pages.
 func TestPlayerPanelHintMatchesLeaderboardFootNote(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
 	at := strings.Index(css, ".panel .hint")
@@ -33,6 +35,8 @@ func TestPlayerPanelHintMatchesLeaderboardFootNote(t *testing.T) {
 }
 
 func TestPlayerPageShowsTheSameFiguresAsTheBoard(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -62,6 +66,8 @@ func TestPlayerPageShowsTheSameFiguresAsTheBoard(t *testing.T) {
 // The filter has to mean the same thing here as on the board: a player the
 // board left out has no page, rather than an empty one contradicting it.
 func TestPlayerPageHonoursTheFilter(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -78,6 +84,8 @@ func TestPlayerPageHonoursTheFilter(t *testing.T) {
 }
 
 func TestUnknownPlayerIs404(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -95,6 +103,8 @@ func TestUnknownPlayerIs404(t *testing.T) {
 // Below the ranking threshold the derived figures are withheld here too,
 // and the raw results are shown instead of charts.
 func TestThinPlayerGetsScoresRatherThanCharts(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -128,6 +138,8 @@ func TestThinPlayerGetsScoresRatherThanCharts(t *testing.T) {
 // its date — the two things the box itself cannot show. The guess count and
 // hard mode are already the box's label, so the popup does not repeat them.
 func TestRecentStripCellsOpenAPopupWithThePuzzleDetail(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -164,6 +176,8 @@ func TestRecentStripCellsOpenAPopupWithThePuzzleDetail(t *testing.T) {
 // day took as well as which puzzle it was: the square is blank, so unlike a
 // cell in the strip there is no digit on it to read the result off.
 func TestCalendarSquaresOpenAPopupWithTheResult(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -203,6 +217,8 @@ func TestCalendarSquaresOpenAPopupWithTheResult(t *testing.T) {
 }
 
 func TestPlayerPageWithNoGamesExplainsItself(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	ctx := context.Background()
@@ -225,6 +241,8 @@ func TestPlayerPageWithNoGamesExplainsItself(t *testing.T) {
 // The shared page must stay read-only and keep its links under the prefix,
 // exactly as the shared board does.
 func TestSharedPlayerPageExposesNoAuthenticatedSurface(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -244,6 +262,8 @@ func TestSharedPlayerPageExposesNoAuthenticatedSurface(t *testing.T) {
 // The authenticated page is reachable only with a session, and links back to
 // /leaderboard rather than to a share URL.
 func TestAuthenticatedPlayerPageRequiresASession(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 
@@ -272,6 +292,8 @@ func TestAuthenticatedPlayerPageRequiresASession(t *testing.T) {
 // A player with plenty of history who simply stopped is not short of games,
 // and must not be told they are.
 func TestLapsedPlayerIsNotCalledThin(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -295,6 +317,8 @@ func TestLapsedPlayerIsNotCalledThin(t *testing.T) {
 // but its rank can still move: the segment leading into it must be dashed
 // rather than drawn as a settled result.
 func TestBuildMonthRanksDashesTheSegmentIntoAnUnfinishedMonth(t *testing.T) {
+	t.Parallel()
+
 	const playerID = 1
 	others := []stats.MonthPlayer{{Player: store.Player{ID: 2}}, {Player: store.Player{ID: 3}}}
 
@@ -366,6 +390,8 @@ func withoutRoster(page string) string {
 // The roster lists everyone, so it is a second place the withheld figures
 // could leak out of — and the one nobody would think to look at.
 func TestTheRosterWithholdsFiguresBelowTheThreshold(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)

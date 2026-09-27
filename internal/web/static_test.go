@@ -31,6 +31,8 @@ func getStatic(t *testing.T, srv *Server, path string, headers map[string]string
 // this the file server sent every file in full on every page load, and the
 // comment on serveStatic promised a cache it did not have.
 func TestStaticAssetsAreCachedByContent(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	plain := getStatic(t, srv, "/static/app.css", nil)
@@ -91,6 +93,8 @@ func TestStaticAssetsAreCachedByContent(t *testing.T) {
 // the one the server would answer as immutable — a link with the wrong one,
 // or none, would be served but not kept.
 func TestThePageLinksStaticFilesByTheirDigest(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)

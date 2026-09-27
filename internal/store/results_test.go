@@ -32,6 +32,8 @@ func sampleResult(playerID int64, puzzle, guesses int) Result {
 }
 
 func TestUpsertResultCreates(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, _ := resultsFixture(t)
 	ctx := context.Background()
 
@@ -50,6 +52,8 @@ func TestUpsertResultCreates(t *testing.T) {
 // A token write may overwrite another token write: automated corrections of
 // automated values are how a repost fixes a typo.
 func TestTokenWriteOverwritesTokenWrite(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, _ := resultsFixture(t)
 	ctx := context.Background()
 
@@ -80,6 +84,8 @@ func TestTokenWriteOverwritesTokenWrite(t *testing.T) {
 // replaying old Signal history would otherwise silently revert every
 // correction ever made.
 func TestTokenWriteCannotOverwriteHumanEntry(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, adminID, _ := resultsFixture(t)
 	ctx := context.Background()
 
@@ -113,6 +119,8 @@ func TestTokenWriteCannotOverwriteHumanEntry(t *testing.T) {
 
 // A human write is never refused, whatever is already there.
 func TestHumanWriteOverwritesAnything(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, adminID, _ := resultsFixture(t)
 	ctx := context.Background()
 
@@ -131,6 +139,8 @@ func TestHumanWriteOverwritesAnything(t *testing.T) {
 }
 
 func TestUpsertResultStoresFailure(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, _ := resultsFixture(t)
 	ctx := context.Background()
 
@@ -151,6 +161,8 @@ func TestUpsertResultStoresFailure(t *testing.T) {
 }
 
 func TestUpsertResultCarriesHardMode(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, _ := resultsFixture(t)
 	ctx := context.Background()
 
@@ -172,6 +184,8 @@ func TestUpsertResultCarriesHardMode(t *testing.T) {
 // A missed day is the absence of a row, so unsetting deletes rather than
 // blanking. The CLI notes the consequence, which the next test pins.
 func TestDeleteResult(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, adminID, actor := resultsFixture(t)
 	ctx := context.Background()
 
@@ -199,6 +213,8 @@ func TestDeleteResult(t *testing.T) {
 // write is accepted. Stated and worth pinning, since it is the one way
 // a human's value stops winning.
 func TestDeleteResultFreesThePrecedenceLock(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, adminID, actor := resultsFixture(t)
 	ctx := context.Background()
 
@@ -223,6 +239,8 @@ func TestDeleteResultFreesThePrecedenceLock(t *testing.T) {
 }
 
 func TestDeleteResultNotFound(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, actor := resultsFixture(t)
 
 	if err := DeleteResult(context.Background(), db, actor, playerID, 1890); !errors.Is(err, ErrResultNotFound) {
@@ -233,6 +251,8 @@ func TestDeleteResultNotFound(t *testing.T) {
 // posted_at is the first known posting and never moves: a re-post carries
 // its own, later time and the row keeps the one it had.
 func TestPostedAtIsKeptFromTheFirstPosting(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, _ := resultsFixture(t)
 	ctx := context.Background()
 
@@ -265,6 +285,8 @@ func TestPostedAtIsKeptFromTheFirstPosting(t *testing.T) {
 // A row first written without a posting time — by a script or the CLI — and
 // then posted in the group did get posted, so the gap is filled.
 func TestPostedAtFillsARowThatHadNone(t *testing.T) {
+	t.Parallel()
+
 	db, playerID, _, _ := resultsFixture(t)
 	ctx := context.Background()
 

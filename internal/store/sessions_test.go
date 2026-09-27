@@ -9,6 +9,8 @@ import (
 )
 
 func TestCreateAndReadSession(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	userID := seedUser(t, db, "martin@example.tld", false)
@@ -36,6 +38,8 @@ func TestCreateAndReadSession(t *testing.T) {
 // Forging a session means guessing 32 random bytes; two sessions sharing an id
 // would mean it was not random at all.
 func TestSessionIDsAreDistinct(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	userID := seedUser(t, db, "martin@example.tld", false)
@@ -54,6 +58,8 @@ func TestSessionIDsAreDistinct(t *testing.T) {
 }
 
 func TestSessionUserUnknownID(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 
 	_, _, err := SessionUser(context.Background(), db, []byte("nonsense"))
@@ -65,6 +71,8 @@ func TestSessionUserUnknownID(t *testing.T) {
 // Expiry is enforced server-side, not merely by the cookie's own lifetime,
 // which the client controls.
 func TestSessionUserRejectsExpired(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	userID := seedUser(t, db, "martin@example.tld", false)
@@ -96,6 +104,8 @@ func TestSessionUserRejectsExpired(t *testing.T) {
 // until its session expired — up to a month, which is not what an admin means
 // by "disable".
 func TestSessionUserRejectsDisabledAccount(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -122,6 +132,8 @@ func TestSessionUserRejectsDisabledAccount(t *testing.T) {
 
 // A token captured before a privilege change must not work after it.
 func TestRotateSessionReplacesID(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	userID := seedUser(t, db, "martin@example.tld", false)
@@ -150,6 +162,8 @@ func TestRotateSessionReplacesID(t *testing.T) {
 }
 
 func TestDeleteSession(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	userID := seedUser(t, db, "martin@example.tld", false)
@@ -169,6 +183,8 @@ func TestDeleteSession(t *testing.T) {
 // Refreshing on every request would turn each page view into a write, and
 // writes serialise in SQLite.
 func TestTouchSessionThrottlesWrites(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	userID := seedUser(t, db, "martin@example.tld", false)
@@ -198,6 +214,8 @@ func TestTouchSessionThrottlesWrites(t *testing.T) {
 }
 
 func TestDeleteExpiredSessions(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	userID := seedUser(t, db, "martin@example.tld", false)

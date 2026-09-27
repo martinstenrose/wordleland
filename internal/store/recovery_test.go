@@ -20,6 +20,8 @@ func recoveryUser(t *testing.T, db *sql.DB) User {
 
 // A set is issued whole, in plaintext, exactly once.
 func TestReplaceRecoveryCodesIssuesAFullSet(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db := migratedDB(t)
 	user := recoveryUser(t, db)
@@ -56,6 +58,8 @@ func TestReplaceRecoveryCodesIssuesAFullSet(t *testing.T) {
 // A code works once, and the grouping dashes a person reads off paper are
 // not part of what has to match.
 func TestConsumeRecoveryCodeIsSingleUse(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db := migratedDB(t)
 	user := recoveryUser(t, db)
@@ -80,6 +84,8 @@ func TestConsumeRecoveryCodeIsSingleUse(t *testing.T) {
 
 // One account's codes must not open another's.
 func TestConsumeRecoveryCodeIsScopedToTheUser(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db := migratedDB(t)
 	mine := recoveryUser(t, db)
@@ -105,6 +111,8 @@ func TestConsumeRecoveryCodeIsScopedToTheUser(t *testing.T) {
 // Regenerating revokes what came before. A set written down and then
 // replaced has to stop working immediately, not once it is used.
 func TestReplaceRecoveryCodesRevokesTheOldSet(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db := migratedDB(t)
 	user := recoveryUser(t, db)
@@ -131,6 +139,8 @@ func TestReplaceRecoveryCodesRevokesTheOldSet(t *testing.T) {
 
 // Nonsense is refused rather than matching an empty hash.
 func TestConsumeRecoveryCodeRejectsRubbish(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db := migratedDB(t)
 	user := recoveryUser(t, db)
@@ -148,6 +158,8 @@ func TestConsumeRecoveryCodeRejectsRubbish(t *testing.T) {
 // Resetting an enrolment has to take the codes with it: one minted against
 // the old secret is a way straight past the new one.
 func TestDiscardRecoveryCodes(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db := migratedDB(t)
 	user := recoveryUser(t, db)
@@ -170,6 +182,8 @@ func TestDiscardRecoveryCodes(t *testing.T) {
 // Re-enrolling invalidates the previous set. Somebody replacing their
 // two-factor because it was compromised means the codes as well.
 func TestReEnrolmentRevokesRecoveryCodes(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db := migratedDB(t)
 	user := recoveryUser(t, db)
@@ -204,6 +218,8 @@ func TestReEnrolmentRevokesRecoveryCodes(t *testing.T) {
 
 // A CLI reset takes the codes with it, for the same reason.
 func TestResetUserTOTPRevokesRecoveryCodes(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db := migratedDB(t)
 	user := recoveryUser(t, db)

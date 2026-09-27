@@ -13,6 +13,8 @@ import (
 // The question this screen exists to answer is "what is this deployment
 // actually doing", which previously needed a shell in the container.
 func TestTheSettingsScreenNamesEveryVariableThisAppReads(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -56,6 +58,8 @@ func TestTheSettingsScreenNamesEveryVariableThisAppReads(t *testing.T) {
 // The screen is behind requireAdmin, but it is worth pinning: it is the one
 // page that collects the whole of an installation's configuration.
 func TestTheSettingsScreenIsAdminsOnly(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	member := seedLogin(t, srv, "member@example.tld", false)
@@ -74,6 +78,8 @@ func TestTheSettingsScreenIsAdminsOnly(t *testing.T) {
 // question that only appears once JavaScript has run is a question that
 // sometimes does not.
 func TestRotatingTheSlugIsAskedFirst(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -99,6 +105,8 @@ func TestRotatingTheSlugIsAskedFirst(t *testing.T) {
 }
 
 func TestRotatingTheSlugReplacesIt(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -137,6 +145,8 @@ func TestRotatingTheSlugReplacesIt(t *testing.T) {
 // Without a token the write does not happen — the same guard every other
 // admin action carries.
 func TestRotatingTheSlugNeedsItsToken(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -162,6 +172,8 @@ func TestRotatingTheSlugNeedsItsToken(t *testing.T) {
 // The code is in the URL, where anyone can type one. It is looked up in the
 // catalogue rather than printed, so an unknown code says nothing at all.
 func TestAnInventedNoticeCodeSaysNothing(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -180,6 +192,8 @@ func TestAnInventedNoticeCodeSaysNothing(t *testing.T) {
 // The area's own strip leads with Settings, and the rail's Admin row lands
 // there: it is the screen that answers what this installation is.
 func TestTheAdminAreaOpensOnSettings(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -194,6 +208,8 @@ func TestTheAdminAreaOpensOnSettings(t *testing.T) {
 // raises it into the centred panel the design draws, and carries the word for
 // that panel's button in the markup so the script holds no copy of its own.
 func TestAnOutcomeIsRenderedBeforeAnyScriptRunsIt(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -238,6 +254,8 @@ func cellAround(t *testing.T, body, needle string) string {
 // would put a control on the page for every reader whose browser will not let
 // it do anything.
 func TestTheShareLinkIsSelectableAndTheCopyButtonIsNot(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -283,6 +301,8 @@ func TestTheShareLinkIsSelectableAndTheCopyButtonIsNot(t *testing.T) {
 // With no APP_URL the link is a bare path, and copying it hands somebody
 // something that is not a link. No copy control is offered at all.
 func TestNoCopyControlWithoutAnOrigin(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -312,6 +332,8 @@ func TestNoCopyControlWithoutAnOrigin(t *testing.T) {
 // Every control stays a real one: the question is a link, the answer is a
 // form that posts its own token, and either works with the scripts gone.
 func TestTheShareSectionIsScopedAndStillWorksWithoutAScript(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -352,6 +374,8 @@ func TestTheShareSectionIsScopedAndStillWorksWithoutAScript(t *testing.T) {
 // ParseForm reads — so an enctype on the form would be the one thing that
 // could make the token go missing again.
 func TestTheRotationSwapsTheCardInPlace(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)

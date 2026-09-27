@@ -57,6 +57,8 @@ func postSettings(t *testing.T, srv *Server, path string, form url.Values, sessi
 }
 
 func TestSettingsShowsTheAccount(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user, session := settingsUser(t, srv, "reader@example.tld", "correct horse battery staple", false)
 
@@ -77,6 +79,8 @@ func TestSettingsShowsTheAccount(t *testing.T) {
 // The display name belongs to the player, so a reader with one can rename
 // themselves and it shows on the board.
 func TestSettingsRenamesTheLinkedPlayer(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	ctx := context.Background()
@@ -102,6 +106,8 @@ func TestSettingsRenamesTheLinkedPlayer(t *testing.T) {
 // The current password is required even though the session is already
 // authenticated: a borrowed screen should not be enough to take the account.
 func TestSettingsPasswordRequiresTheCurrentOne(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	const old = "correct horse battery staple"
 	user, session := settingsUser(t, srv, "reader@example.tld", old, false)
@@ -127,6 +133,8 @@ func TestSettingsPasswordRequiresTheCurrentOne(t *testing.T) {
 // the password on and a way to spend 64 MiB of the box's memory a request,
 // since every attempt is an argon2id verify.
 func TestSettingsPasswordIsRateLimited(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	_, session := settingsUser(t, srv, "reader@example.tld", "correct horse battery staple", false)
 
@@ -146,6 +154,8 @@ func TestSettingsPasswordIsRateLimited(t *testing.T) {
 }
 
 func TestSettingsChangesThePassword(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	const old, next = "correct horse battery staple", "an entirely different one"
 	user, session := settingsUser(t, srv, "reader@example.tld", old, false)
@@ -169,6 +179,8 @@ func TestSettingsChangesThePassword(t *testing.T) {
 }
 
 func TestSettingsPasswordHasAFloor(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	const old = "correct horse battery staple"
 	_, session := settingsUser(t, srv, "reader@example.tld", old, false)
@@ -184,6 +196,8 @@ func TestSettingsPasswordHasAFloor(t *testing.T) {
 // A new address waits to be confirmed. Sign-in keeps using the old one, so
 // a typo cannot lock somebody out of their own account.
 func TestSettingsEmailChangeWaitsForConfirmation(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user, session := settingsUser(t, srv, "old@example.tld", "correct horse battery staple", false)
 
@@ -239,6 +253,8 @@ func TestSettingsEmailChangeWaitsForConfirmation(t *testing.T) {
 // Saying "that address is taken" would tell whoever asks who else is on the
 // board, so a taken address reads the same as an unusable one.
 func TestSettingsEmailDoesNotRevealOtherAccounts(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	_, session := settingsUser(t, srv, "one@example.tld", "correct horse battery staple", false)
 	if _, err := store.CreateUser(context.Background(), srv.db, store.SystemActor(),
@@ -264,6 +280,8 @@ func TestSettingsEmailDoesNotRevealOtherAccounts(t *testing.T) {
 // second device. The control is the top bar's picker; this is about where
 // the choice lands, not where the control is.
 func TestLanguageChoicePersistsToTheAccount(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	srv := testServer(t)
 	seedBoard(t, srv)
@@ -294,6 +312,8 @@ func TestLanguageChoicePersistsToTheAccount(t *testing.T) {
 // An unknown language is ignored rather than stored, or it would mean the
 // fallback forever with nothing to show it had gone wrong.
 func TestUnknownLanguageIsIgnored(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	srv := testServer(t)
 	seedBoard(t, srv)
@@ -312,6 +332,8 @@ func TestUnknownLanguageIsIgnored(t *testing.T) {
 // for is what the URL means: a reader can link to a tab, and — since a tab is
 // read from the path — a rejected form comes back where it was sent from.
 func TestSettingsRendersOneTabAtATime(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	ctx := context.Background()
@@ -357,6 +379,8 @@ func TestSettingsRendersOneTabAtATime(t *testing.T) {
 // typed still in it — not on Profile, which is what a tab threaded through
 // every rejection path would eventually get wrong.
 func TestARejectedSettingsFormStaysOnItsTab(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	_, session := settingsUser(t, srv, "reader@example.tld", "correct horse battery staple", false)
 
@@ -378,6 +402,8 @@ func TestARejectedSettingsFormStaysOnItsTab(t *testing.T) {
 // Changing the address lands back on the tab that changed it, so the notice
 // is beside the field it is about.
 func TestChangingTheAddressLandsBackOnItsTab(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	_, session := settingsUser(t, srv, "reader@example.tld", "correct horse battery staple", false)
 	srv.mailer = auth.NewMailer("smtp.example.tld", "587", "", "", "wordle@example.tld")

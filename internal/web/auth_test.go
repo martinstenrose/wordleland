@@ -129,6 +129,8 @@ func loginFrom(t *testing.T, srv *Server, email, password, addr string) (*httpte
 }
 
 func TestLoginSucceeds(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "martin@example.tld", false)
 
@@ -160,6 +162,8 @@ func TestLoginSucceeds(t *testing.T) {
 }
 
 func TestLoginCreatesSessionRow(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user := seedLogin(t, srv, "martin@example.tld", false)
 
@@ -177,6 +181,8 @@ func TestLoginCreatesSessionRow(t *testing.T) {
 // A wrong address, a wrong password and a disabled account must be
 // indistinguishable, or the form becomes a way to enumerate accounts.
 func TestLoginFailuresAreIndistinguishable(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "martin@example.tld", false)
 
@@ -227,6 +233,8 @@ func extractError(body string) string {
 // A disabled account must not be able to sign in at all, checked at the login
 // handler rather than only when a session is later read.
 func TestLoginRefusesDisabledAccount(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user := seedLogin(t, srv, "martin@example.tld", false)
 	if err := store.SetUserDisabled(context.Background(), srv.db, store.SystemActor(), user.ID, true); err != nil {
@@ -250,6 +258,8 @@ func TestLoginRefusesDisabledAccount(t *testing.T) {
 // Disabling mid-session must take effect on the next request, not at expiry:
 // a session can last a month, which is not what an admin means by "disable".
 func TestDisablingEndsAccessImmediately(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user := seedLogin(t, srv, "martin@example.tld", false)
 
@@ -279,6 +289,8 @@ func TestDisablingEndsAccessImmediately(t *testing.T) {
 // 2FA is mandatory for admins. An admin without it cannot reach anything
 // until they enrol.
 func TestAdminWithoutTOTPIsSentToEnrolment(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 
@@ -306,6 +318,8 @@ func TestAdminWithoutTOTPIsSentToEnrolment(t *testing.T) {
 }
 
 func TestBoardRequiresAuthentication(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, landingPath, nil)
@@ -321,6 +335,8 @@ func TestBoardRequiresAuthentication(t *testing.T) {
 }
 
 func TestLoginRejectsMissingCSRFToken(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "martin@example.tld", false)
 
@@ -339,6 +355,8 @@ func TestLoginRejectsMissingCSRFToken(t *testing.T) {
 }
 
 func TestLoginRejectsMismatchedCSRFToken(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "martin@example.tld", false)
 
@@ -356,6 +374,8 @@ func TestLoginRejectsMismatchedCSRFToken(t *testing.T) {
 }
 
 func TestLoginRejectsMissingCSRFCookie(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "martin@example.tld", false)
 
@@ -377,6 +397,8 @@ func TestLoginRejectsMissingCSRFCookie(t *testing.T) {
 // The double-submit cookie is deliberately HttpOnly, unlike the textbook
 // pattern, because the server embeds the value in the form itself.
 func TestCSRFCookieFlags(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -402,6 +424,8 @@ func TestCSRFCookieFlags(t *testing.T) {
 }
 
 func TestSessionCookieFlags(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "martin@example.tld", false)
 
@@ -430,6 +454,8 @@ func TestSessionCookieFlags(t *testing.T) {
 
 // The limiter is checked before hashing, so a blocked attempt costs nothing.
 func TestLoginIsRateLimited(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "martin@example.tld", false)
 
@@ -457,6 +483,8 @@ func TestLoginIsRateLimited(t *testing.T) {
 // own account. The account counter clears; the address counter deliberately
 // does not.
 func TestSuccessfulLoginResetsTheAccountLimiter(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "martin@example.tld", false)
 
@@ -482,6 +510,8 @@ func TestSuccessfulLoginResetsTheAccountLimiter(t *testing.T) {
 // holding one valid account could refresh their budget at will and spray the
 // rest of the roster indefinitely.
 func TestSuccessfulLoginDoesNotResetTheAddressLimiter(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "martin@example.tld", false)
 	seedLogin(t, srv, "alex@example.tld", false)
@@ -506,6 +536,8 @@ func TestSuccessfulLoginDoesNotResetTheAddressLimiter(t *testing.T) {
 }
 
 func TestLogout(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user := seedLogin(t, srv, "martin@example.tld", false)
 
@@ -530,6 +562,8 @@ func TestLogout(t *testing.T) {
 // Rotating the double-submit cookie on every GET made logout intermittently
 // fail from another tab, browser history, or overlapping page requests.
 func TestLogoutSurvivesAnotherPageLoad(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user := seedLogin(t, srv, "martin@example.tld", false)
 
@@ -554,6 +588,8 @@ func TestLogoutSurvivesAnotherPageLoad(t *testing.T) {
 }
 
 func TestLogoutRequiresCSRF(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	user := seedLogin(t, srv, "martin@example.tld", false)
 
@@ -575,6 +611,8 @@ func TestLogoutRequiresCSRF(t *testing.T) {
 
 // A signed-in visitor should not be shown a form they do not need.
 func TestRootRedirectsWhenSignedIn(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "martin@example.tld", false)
 
@@ -597,6 +635,8 @@ func TestRootRedirectsWhenSignedIn(t *testing.T) {
 
 // A tampered or stale cookie must not be presented on every later request.
 func TestInvalidSessionCookieIsCleared(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)

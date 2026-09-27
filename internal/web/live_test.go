@@ -147,6 +147,8 @@ func currentMark(t *testing.T, srv *Server) int64 {
 // slug. A stranger learns nothing from it — and the shared copy exists so
 // the shared Today redraws too.
 func TestTheStreamIsBehindTheSameDoorAsThePages(t *testing.T) {
+	t.Parallel()
+
 	srv, ts := liveServer(t)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
@@ -178,6 +180,8 @@ func TestTheStreamIsBehindTheSameDoorAsThePages(t *testing.T) {
 // once when something has landed since, and hears nothing when nothing has.
 // Then every open stream hears a result the moment the poll sees it.
 func TestTheStreamCatchesUpAndThenBroadcasts(t *testing.T) {
+	t.Parallel()
+
 	srv, ts := liveServer(t)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 	_, session := adminSession(t, srv)
@@ -221,6 +225,8 @@ func TestTheStreamCatchesUpAndThenBroadcasts(t *testing.T) {
 // Each stream is a held connection, so there is a ceiling, and a client
 // over it is told to come back rather than left hanging.
 func TestTheStreamHasACeiling(t *testing.T) {
+	t.Parallel()
+
 	srv, ts := liveServer(t)
 	srv.live.limit = 2
 	_, session := adminSession(t, srv)
@@ -243,6 +249,8 @@ func TestTheStreamHasACeiling(t *testing.T) {
 // Closing the server ends every stream, so a restart is not held up by
 // readers who are not going anywhere.
 func TestCloseEndsEveryStream(t *testing.T) {
+	t.Parallel()
+
 	srv, ts := liveServer(t)
 	_, session := adminSession(t, srv)
 
@@ -263,6 +271,8 @@ func TestCloseEndsEveryStream(t *testing.T) {
 // rendered at and their own URL to fetch again; the shared copies point
 // under the share prefix; nothing else subscribes.
 func TestTodayAndTheBoardSubscribe(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
