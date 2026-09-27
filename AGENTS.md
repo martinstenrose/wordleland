@@ -168,12 +168,24 @@ meaning one page. If a rename is right, finish it — comments, test names,
 user-facing copy and commit scopes included — rather than leaving the old
 word in the places nothing compiles against.
 
-**Checks before pushing:** `gofmt -l ./cmd ./internal`, `go vet ./...`,
-`staticcheck ./...`, `go test -race ./...`. A change to `app.js`, `app.css`
+**Checks before every push, however small the change:** `gofmt -l ./cmd
+./internal`, `go vet ./...`, `staticcheck ./...`, `go test ./...`. The
+tests take seconds, so a push is never the first place they run. `go test
+-race ./...` takes minutes and has its own CI job; run it locally when a
+change touches goroutines or shared state. A change to `app.js`, `app.css`
 or a template also means `go test -tags browser -run TestBrowser
 ./internal/web/`, with a Chrome on PATH; CI runs it regardless. CI also
 runs `govulncheck` and CodeQL, weekly as well as per pull request. A deliberate lint exception
 carries a `//lint:ignore` naming the reason.
+
+**Keep the suite fast.** A top-level test starts with `t.Parallel()`,
+unless it changes process-wide state — assigns `time.Local`, sets the
+environment — and then it stays serial. A test helper that starts something
+closes it in `t.Cleanup`. Tests outside `internal/auth` hash passwords with
+`authtest.HashPassword`, argon2 at its minimum cost: the web tests through
+the server's `hashPassword` seam, the CLI's through its `hashPassword`
+variable. Code that hashes goes through one of those, never
+`auth.HashPassword` directly, so the tests can swap it.
 
 The `go` directive in `go.mod` is a **floor**, and CI installs exactly it.
 Dependabot does not raise the patch version, so it goes stale silently and
