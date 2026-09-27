@@ -1585,10 +1585,17 @@ the model knows nothing about the group, so a name would be made up ("Bo
 leads"). Numbers are let through, since a year or a distance is often the
 answer to a general question. What that leaves open is an answer about the
 group that names nobody — "you're leading", "the leader averages 3.4" from
-memory — which the prompt tells the model to look up and nothing checks. The
-check is on numbers, not names: a model that pins one player's score on
-another passes it. That is the residual risk, and the reason the agent is
-a fallback behind the kinds rather than a replacement for them.
+memory — which the prompt tells the model to look up and nothing checks.
+
+Names get a lighter check than numbers: every player the answer names must
+be named by the asker, the question, a lookup or the recent conversation —
+not merely by the instructions, which list everyone. That catches a player
+brought in from nowhere; it does not catch a score pinned on the wrong one
+of two players a lookup mentions. That is the residual risk, and the reason
+the agent is a fallback behind the kinds rather than a replacement for
+them. The answer is fitted to a chat before either check: markdown markers
+are removed, since Signal shows them as characters, and an answer past
+about five sentences is cut after the last whole one.
 
 Tool calling rather than retrieval over a vector store, because the data is
 a table: a question about it has an exact answer, and similarity search
