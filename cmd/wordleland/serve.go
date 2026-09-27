@@ -202,6 +202,7 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 	var announcer bridge.Announcer
 	var respond bridge.Responder
 	var model *reply.Ollama
+	var agent *reply.Agent
 	if bridgeCfg != nil {
 		// Delivery is a direct call now. The bridge writes as the
 		// application itself rather than as a token holder, because since
@@ -225,7 +226,10 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 			}
 			if bridgeCfg.Replies {
 				model = reply.NewOllama(bridgeCfg.LLMURL, bridgeCfg.LLMModel)
-				answer := reply.New(db, cats, bridgeCfg.AnnounceLocale, model, send, logger)
+				if bridgeCfg.LLMAgentModel != "" {
+					agent = reply.NewAgent(bridgeCfg.LLMURL, bridgeCfg.LLMAgentModel)
+				}
+				answer := reply.New(db, cats, bridgeCfg.AnnounceLocale, model, agent, send, logger)
 				respond = func(ctx context.Context, m bridge.Message) error {
 					// The body still carries every mention as a placeholder;
 					// reply puts names back where they sit. A reply to one
@@ -312,6 +316,16 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 			}()
 			logger.Info("replies started", "model", bridgeCfg.LLMModel,
 				"on", "a message that mentions the bot")
+		}
+		if agent != nil {
+			// Its own goroutine: the larger model takes longer to pull, and
+			// the small one answering meanwhile is the point of having both.
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				agent.Prepare(ctx, logger)
+			}()
+			logger.Info("agent started", "model", bridgeCfg.LLMAgentModel)
 		}
 
 		// One run just after midnight for all three, in the Announcer's

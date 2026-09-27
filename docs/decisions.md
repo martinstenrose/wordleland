@@ -1565,6 +1565,38 @@ was deliberately two, and AGENTS.md says so now; the constraint that matters
 pulls the model it needs on first start and nothing about the model is
 configured by hand.
 
+**A question the model cannot place can go to an agent, which is held to
+the same rule by checking.** Off by default (`LLM_AGENT_MODEL`). The small
+model's fixed set of kinds is what keeps its numbers right, and also what
+makes it a menu: "who has the most 2s, and is their streak still going?" is
+two kinds, and "what did Bo get this week?" is none. With a larger model
+configured, a question that came back `unknown` goes to `reply.Agent`
+instead of the "didn't get that" line. It is offered tools, not data: each
+kind is a tool, answered by the same `answer` function a placed question is,
+plus a day-by-day list of one player's results. It calls what it needs and
+writes the sentence itself — which is the break with the rule above, so the
+rule is enforced on what it writes rather than on what it is allowed to
+produce: every number in its answer must appear in a lookup, the question,
+or its instructions, and an answer that fails is replaced by the lookups
+themselves, which are the bot's own words. A model that looked nothing up
+gets no answer posted at all — that is a greeting, or a question about
+something other than this group's Wordle, which the bot does not take. The
+check is on numbers, not names: a model that pins one player's score on
+another passes it. That is the residual risk, and the reason the agent is
+a fallback behind the kinds rather than a replacement for them.
+
+Tool calling rather than retrieval over a vector store, because the data is
+a table: a question about it has an exact answer, and similarity search
+finds rows that look like the question rather than the rows that answer
+it. Rather than MCP, because the model and the tools are in one process;
+MCP is for offering tools to a client somewhere else. Rather than a SQL
+tool, because a model a CPU can run writes plausible SQL that is wrong, and
+the tool would be a way into every table. The 3B model that places questions is not
+expected to choose tools well, so the agent is a separate, larger model
+(7B or up; not yet measured against the group's questions). On a CPU that
+is expected to take tens of seconds per round, so the bridge's deadline for
+an answer is four minutes with the agent on.
+
 **A mention is the trigger, and only a mention.** Signal carries a mention
 as the mentioned account's identity, not as text, so the bot's profile name
 can change without the bridge caring, and nobody can trigger it by typing

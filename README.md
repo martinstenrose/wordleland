@@ -95,6 +95,7 @@ and an extra URL that commonly attract spam-filter rules.
 | `SIGNAL_LOCALE` | Optional, default `en`. The language the announcements above, and the bot's answers, are written in — one fixed choice for the whole group, not a per-member preference. |
 | `SIGNAL_REPLIES` | Optional, default `true`. Answer a message that mentions the bot — see below. Set it to `false` for a bridge that never answers, which also means the `ollama` container is not needed. |
 | `LLM_MODEL` | Optional, default `qwen2.5:3b`. The model that reads the questions, by its Ollama name. The app pulls it if the model container does not have it. Anything larger answers better and slower; on a CPU, 3B is the size that answers in seconds. |
+| `LLM_AGENT_MODEL` | Optional, default empty (off). A larger model, by its Ollama name, that takes the questions `LLM_MODEL` could not place: it looks the figures up itself, can combine several in one answer, and phrases the reply — see "It answers when mentioned" below. `qwen2.5:7b` is a reasonable start. It needs roughly twice the memory and takes tens of seconds per answer on a CPU. Pulled on first start like the other. |
 
 `SIGNAL_API_URL` and `LLM_URL` are not configured. They default to
 `http://signal-cli-rest-api:8080` and `http://ollama:11434` — service names
@@ -230,6 +231,17 @@ quick: the model lives in the `ollama` volume. A question the model cannot
 be reached for gets an apology in the group and a warning in the log; it is
 not retried, since an answer arriving after the conversation has moved on
 reads as the bot talking to itself.
+
+With `LLM_AGENT_MODEL` set, a question the small model cannot place goes to
+the larger one instead of getting "I didn't get that". It looks things up
+with the same answers the bot gives, plus a day-by-day list of a player's
+results, and writes the reply itself. Every number in that reply is checked
+against what it looked up; if one does not match, the group gets the
+lookups' own text instead. A question it answers without looking anything
+up (a greeting, the weather) still gets "I didn't get that". It is slower:
+allow up to a few minutes on a CPU, and the log line for its answers says
+`kind=agent`, with how many lookups it made and whether its sentence passed
+the check.
 
 ### Set `TRUSTED_PROXIES`
 

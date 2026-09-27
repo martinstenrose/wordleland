@@ -22,6 +22,9 @@ type fakeOllama struct {
 	pulled  []string
 	chats   []map[string]any
 	content string
+	// replies, when set, are the chat's messages in turn, for a
+	// conversation of more than one round; content is used after them.
+	replies []map[string]any
 }
 
 func (f *fakeOllama) handler() http.Handler {
@@ -52,9 +55,12 @@ func (f *fakeOllama) handler() http.Handler {
 		json.Unmarshal(body, &req)
 		f.mu.Lock()
 		f.chats = append(f.chats, req)
-		content := f.content
+		message := map[string]any{"role": "assistant", "content": f.content}
+		if len(f.replies) > 0 {
+			message, f.replies = f.replies[0], f.replies[1:]
+		}
 		f.mu.Unlock()
-		json.NewEncoder(w).Encode(map[string]any{"message": map[string]string{"role": "assistant", "content": content}})
+		json.NewEncoder(w).Encode(map[string]any{"message": message})
 	})
 	return mux
 }

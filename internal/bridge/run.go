@@ -70,6 +70,9 @@ func New(cfg config.Bridge, deliver Deliverer, announce Announcer, respond Respo
 		}
 		f.presence = client
 		f.posts = client
+		if cfg.LLMAgentModel != "" {
+			f.respondTimeout = agentRespondTimeout
+		}
 	}
 	return &Bridge{
 		health:   h,

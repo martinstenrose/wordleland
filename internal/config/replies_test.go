@@ -59,3 +59,25 @@ func TestLoadBridgeChecksTheModelURLOnlyWhenRepliesAreOn(t *testing.T) {
 		t.Errorf("a bad LLM_URL was refused with replies off: %v", err)
 	}
 }
+
+// The agent is off unless a model is named for it.
+func TestLoadBridgeAgentIsOptIn(t *testing.T) {
+	setEnv(t, bridgeEnv())
+	cfg, err := LoadBridge()
+	if err != nil {
+		t.Fatalf("LoadBridge() failed: %v", err)
+	}
+	if cfg.LLMAgentModel != "" {
+		t.Errorf("LLMAgentModel = %q, want empty by default", cfg.LLMAgentModel)
+	}
+
+	env := bridgeEnv()
+	env["LLM_AGENT_MODEL"] = " qwen2.5:7b "
+	setEnv(t, env)
+	if cfg, err = LoadBridge(); err != nil {
+		t.Fatalf("LoadBridge() failed: %v", err)
+	}
+	if cfg.LLMAgentModel != "qwen2.5:7b" {
+		t.Errorf("LLMAgentModel = %q, want qwen2.5:7b", cfg.LLMAgentModel)
+	}
+}

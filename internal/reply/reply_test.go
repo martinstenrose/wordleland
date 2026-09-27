@@ -100,7 +100,7 @@ func newAnswerer(t *testing.T, db *sql.DB, interp Interpreter) (func(context.Con
 		t.Fatalf("i18n.Load: %v", err)
 	}
 	var c collector
-	return New(db, cats, "en", interp, c.send, slog.New(slog.NewTextHandler(io.Discard, nil))), &c
+	return New(db, cats, "en", interp, nil, c.send, slog.New(slog.NewTextHandler(io.Discard, nil))), &c
 }
 
 // The sender's claimed identity is who "I" is.

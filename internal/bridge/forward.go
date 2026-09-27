@@ -73,6 +73,12 @@ type Responder func(ctx context.Context, m Message) error
 // finish, short enough that a hung one cannot hold results back for long.
 const respondTimeout = 90 * time.Second
 
+// agentRespondTimeout replaces it when the larger model is configured: the
+// placing model's seconds, then a few rounds of a model two or three times
+// its size looking things up. Results do not wait for it — answers run
+// beside the worker — but the next question does.
+const agentRespondTimeout = 4 * time.Minute
+
 // Presence is how the bot shows it has read a question before the answer
 // arrives: a reaction on the message, and the typing indicator while the
 // answer is being worked out. Both are best effort — a failure is a debug
@@ -154,6 +160,9 @@ type filer struct {
 	// typingRefresh is swapped in tests so a refresh can be observed
 	// without waiting ten seconds.
 	typingRefresh time.Duration
+	// respondTimeout bounds one answer: respondTimeout, or
+	// agentRespondTimeout with the agent configured.
+	respondTimeout time.Duration
 
 	// Questions are answered beside the worker, not on it: see ask.
 	// asking holds a ticket per question being answered or waiting to be;
@@ -178,10 +187,11 @@ func newFiler(groupID string, deliver Deliverer, announce Announcer, respond Res
 	return &filer{
 		groupID: groupID, deliver: deliver, announce: announce, respond: respond,
 		logger: logger, health: h,
-		typingRefresh: typingRefresh,
-		asking:        make(chan struct{}, maxQuestionsInHand),
-		now:           time.Now,
-		sleep:         sleepContext,
+		typingRefresh:  typingRefresh,
+		respondTimeout: respondTimeout,
+		asking:         make(chan struct{}, maxQuestionsInHand),
+		now:            time.Now,
+		sleep:          sleepContext,
 	}
 }
 
@@ -325,7 +335,7 @@ func (f *filer) maybeAnnounce(ctx context.Context) {
 // retried: the person asked a question in a chat, and an answer arriving
 // after the conversation has moved on reads as the bot talking to itself.
 func (f *filer) maybeRespond(ctx context.Context, m Message) {
-	rctx, cancel := context.WithTimeout(ctx, respondTimeout)
+	rctx, cancel := context.WithTimeout(ctx, f.respondTimeout)
 	defer cancel()
 	stop := f.showPresence(rctx, m)
 	err := f.respond(rctx, m)
@@ -353,7 +363,7 @@ func (f *filer) showPresence(ctx context.Context, m Message) func() {
 	// the moment the answer is out, which would abort a 👀 still in
 	// flight after a quick answer and race the stop below. Bounded by the
 	// same overall deadline so a hung signal-cli cannot keep this alive.
-	pctx, pcancel := context.WithTimeout(context.WithoutCancel(ctx), respondTimeout)
+	pctx, pcancel := context.WithTimeout(context.WithoutCancel(ctx), f.respondTimeout)
 	f.answers.Add(1)
 	go func() {
 		defer f.answers.Done()

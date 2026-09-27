@@ -6,7 +6,9 @@
 // The figures come from internal/stats, the same code the board runs, and
 // the sentence from the i18n catalogues. A model that is wrong about a
 // question produces the wrong answer to it; it can never produce a wrong
-// number.
+// number. A question it cannot place can go on to an Agent, a larger model
+// that looks the figures up and phrases the answer itself — held to the
+// same rule by checking its numbers against what it looked up.
 //
 // Like internal/announce it sits above store, stats and i18n and below the
 // bridge, which hands it a sender and a question and gets back an error or
@@ -203,7 +205,10 @@ var ErrNotReady = errors.New("the language model is not ready yet")
 // only the request it became. A question the model could not place is the
 // one exception, kept — text only, no sender — for thirty days, because it
 // is the list of what to teach the bot next; see store.RecordUnansweredQuestion.
-func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
+//
+// agent, when not nil, takes the questions interp could not place; see
+// Agent. Nil is the deployment without the larger model.
+func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter, agent *Agent,
 	send func(ctx context.Context, text string) error, logger *slog.Logger) func(context.Context, string, string, string, []string) error {
 
 	t := i18n.NewTranslator(cats, locale)
@@ -286,6 +291,9 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
 		logger.Info("answering a question in the group",
 			"kind", req.Kind, "span", req.Span, "days", req.Days, "named_player", req.Player != "")
 		if req.Kind == KindUnknown {
+			if agent != nil && agent.Ready() {
+				return askAgent(ctx, t, agent, prompt, asker, players, results, send, db, logger)
+			}
 			keepUnanswered(ctx, db, logger, question)
 		}
 
