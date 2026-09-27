@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -77,8 +78,31 @@ func TestALookupIsTheBotsOwnAnswer(t *testing.T) {
 		t.Errorf("lookup = %q, want the streak answer %q", got, want)
 	}
 
+	// What a small model writes for the same call: the name as a mention.
+	got, err = lookup(tr, "streak", json.RawMessage(`{"player":" @bo "}`), bo, players, results, now)
+	if err != nil || got != want {
+		t.Errorf("a mention: got %q, %v; want %q", got, err, want)
+	}
+
 	if _, err := lookup(tr, "weather", nil, bo, players, results, now); err == nil {
 		t.Error("an unknown tool was looked up")
+	}
+}
+
+// Numbers and yes/no as strings are what small models write; they have
+// one reading, so they are read.
+func TestLookupArgumentsAreReadLeniently(t *testing.T) {
+	t.Parallel()
+	tr, bo, players, results := lookupFixture(t)
+	now := time.Now()
+
+	got, err := lookup(tr, "leader", json.RawMessage(`{"span":"days","days":"7","worst":"false"}`), bo, players, results, now)
+	if err != nil {
+		t.Fatalf("lookup: %v", err)
+	}
+	want := answer(tr, Request{Kind: KindLeader, Span: SpanDays, Days: 7}, bo, players, results, now)
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 
@@ -96,12 +120,42 @@ func TestTheResultsLookupListsDays(t *testing.T) {
 	if lines[0] != "Bo:" || len(lines) != 8 {
 		t.Fatalf("got %q", got)
 	}
-	if want := now.Format(DateLayout) + " " + now.Weekday().String() + ": 4"; lines[7] != want {
+	if want := now.Weekday().String() + " " + strconv.Itoa(now.Day()) + " " + now.Month().String() + ": 4"; lines[7] != want {
 		t.Errorf("last line = %q, want %q", lines[7], want)
 	}
 
 	if _, err := lookup(tr, toolResults, json.RawMessage(`{"from":"last week"}`), bo, players, results, now); err == nil {
 		t.Error("a date that is not a date was accepted")
+	}
+}
+
+func TestGroundedIgnoresLeadingZeros(t *testing.T) {
+	t.Parallel()
+	if !grounded("Bo got a 4 on 1 September.", "2026-09-01: 4") {
+		t.Error("the 1 of 2026-09-01 was not found")
+	}
+	if !grounded("3,05 on average", "3.05") {
+		t.Error("a decimal with a zero after the point was not found")
+	}
+	if grounded("3.5 on average", "3.05") {
+		t.Error("3.5 was taken for 3.05")
+	}
+}
+
+// The lookups stand in for a failed sentence: each once, and the
+// day-by-day lists only when there is nothing else to post.
+func TestTheFallbackIsTheLookupsWithoutTheLists(t *testing.T) {
+	t.Parallel()
+	looked := []lookedUp{
+		{toolResults, "Bo:\nMonday 1 September: 4"},
+		{"streak", "Bo: 12 days in a row now, 12 at best."},
+		{"streak", "Bo: 12 days in a row now, 12 at best."},
+	}
+	if got := fallback(looked); got != "Bo: 12 days in a row now, 12 at best." {
+		t.Errorf("got %q", got)
+	}
+	if got := fallback(looked[:1]); got != looked[0].text {
+		t.Errorf("a list alone: got %q", got)
 	}
 }
 

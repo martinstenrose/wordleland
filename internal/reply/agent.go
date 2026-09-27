@@ -173,6 +173,7 @@ func lookup(t i18n.Translator, name string, args json.RawMessage, asker *store.P
 	if !slices.ContainsFunc(tools, func(tl tool) bool { return tl.name == name }) {
 		return "", fmt.Errorf("no such tool %q", name)
 	}
+	lenient(fields)
 	if name == toolResults {
 		return resultsList(t, fields, asker, players, results, now)
 	}
@@ -185,13 +186,35 @@ func lookup(t i18n.Translator, name string, args json.RawMessage, asker *store.P
 	return answer(t, req, asker, players, results, now), nil
 }
 
+// lenient repairs what small models get wrong about arguments in ways that
+// have one reading: a number or a yes/no written as a string ("7",
+// "true"), and a name written as a mention ("@Bo"). Anything else is left
+// for parseRequest to refuse, which tells the model.
+func lenient(fields map[string]any) {
+	for _, k := range []string{"days", "guesses"} {
+		if s, ok := fields[k].(string); ok {
+			if n, err := strconv.Atoi(strings.TrimSpace(s)); err == nil {
+				fields[k] = n
+			}
+		}
+	}
+	if s, ok := fields["worst"].(string); ok {
+		if b, err := strconv.ParseBool(strings.TrimSpace(s)); err == nil {
+			fields["worst"] = b
+		}
+	}
+	if s, ok := fields["player"].(string); ok {
+		fields["player"] = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(s), "@"))
+	}
+}
+
 // resultsList is a player's results day by day, for questions the answers
 // do not cover: "what did Bo get this week?", "did I play on Sunday?".
 func resultsList(t i18n.Translator, fields map[string]any, asker *store.Player,
 	players []store.Player, results []store.BoardResult, now time.Time) (string, error) {
 
 	player, _ := fields["player"].(string)
-	p, ok, text := whom(t, Request{Player: strings.TrimSpace(player)}, asker, players)
+	p, ok, text := whom(t, Request{Player: player}, asker, players)
 	if !ok {
 		return text, nil
 	}
@@ -247,7 +270,11 @@ func resultsList(t i18n.Translator, fields map[string]any, asker *store.Player,
 				mark += "*"
 			}
 		}
-		lines = append(lines, date.Format(DateLayout)+" "+date.Weekday().String()+": "+mark)
+		// The group's own words for the day, as the answers write dates,
+		// since this list is also what the group reads when the model's
+		// sentence fails its check.
+		label := t.T("reply.date", date.Day(), t.T("month."+strconv.Itoa(int(date.Month()))))
+		lines = append(lines, t.T("weekday."+strconv.Itoa(int(date.Weekday())))+" "+label+": "+mark)
 	}
 	return strings.Join(lines, "\n"), nil
 }
@@ -262,12 +289,18 @@ func callArguments(raw json.RawMessage) json.RawMessage {
 	return raw
 }
 
+// lookedUp is one lookup the model made, and what it returned.
+type lookedUp struct {
+	tool string
+	text string
+}
+
 // Run lets the model look things up until it answers, and reports the
 // answer with every lookup's text, which is what the answer is checked
 // against and what replaces it when the check fails. errNoLookup, with
 // what the model said, when it answered without looking anything up.
 func (a *Agent) Run(ctx context.Context, p Prompt,
-	look func(name string, args json.RawMessage) (string, error)) (string, []string, error) {
+	look func(name string, args json.RawMessage) (string, error)) (string, []lookedUp, error) {
 
 	if !a.Ready() {
 		return "", nil, ErrNotReady
@@ -276,7 +309,7 @@ func (a *Agent) Run(ctx context.Context, p Prompt,
 		{Role: "system", Content: agentPrompt(p)},
 		{Role: "user", Content: p.Question},
 	}
-	var looked []string
+	var looked []lookedUp
 	for range maxAgentRounds {
 		reply, err := a.chat(ctx, messages)
 		if err != nil {
@@ -299,7 +332,7 @@ func (a *Agent) Run(ctx context.Context, p Prompt,
 				// Told to the model, which can call again properly.
 				text = "Error: " + err.Error()
 			} else {
-				looked = append(looked, text)
+				looked = append(looked, lookedUp{c.Function.Name, text})
 			}
 			messages = append(messages, chatMessage{Role: "tool", Content: text, ToolName: c.Function.Name})
 		}
@@ -377,22 +410,25 @@ func agentPrompt(p Prompt) string {
 // persona is the bot's voice. The fixed replies in the catalogues are
 // written in it too; a change here is a change there. The limits are the
 // recaps': a result somebody posted is theirs to be teased about, an
-// absence is not, and nothing outside the game is fair game at all. A joke
-// with a number in it fails the check in grounded, so it is told not to.
+// absence is not, and nothing about a person but their Wordle is fair
+// game. A joke with a number in it fails the check in grounded, so it is
+// told not to; a number written as a word escapes the check altogether, so
+// it is told to write digits.
 const persona = "Your personality: witty, dry and a little cocky, like a friend in the group " +
 	"who keeps score and enjoys it too much. Tease a result someone posted, a failure included, " +
-	"and brag on behalf of whoever leads. Never tease anyone for not playing, and never " +
-	"about anything outside the game. The facts come first; the attitude is one short aside. " +
-	"Your jokes contain no numbers.\n"
+	"and brag on behalf of whoever leads. Never tease anyone for not playing, and never tease " +
+	"anyone about anything but their Wordle. The facts come first; the attitude is one short " +
+	"aside. Your jokes contain no numbers, and you write every number as digits.\n"
 
 // offTopic reports whether an answer made without a lookup may be posted:
 // it says something, and names no player. Without a lookup the model knows
 // nothing about the group, so a player in its answer is made up — "Bo
 // leads". Numbers are let through: a year or a distance in a general
 // answer is the point of answering, and an invented figure about the group
-// with nobody named in it is the risk taken for that. A name is matched word by word, any part of it, so "Larsson" is Cid
-// Larsson; a name that is also a word ("Bo") blocks that word too, which
-// errs on the side of the unknown line.
+// with nobody named in it is the risk taken for that. A name is matched
+// word by word, any part of it, so "Larsson" is Cid Larsson; a name that
+// is also a word ("Bo") blocks that word too, which errs on the side of the
+// unknown line.
 func offTopic(answer string, players []store.Player) bool {
 	if answer == "" {
 		return false
@@ -419,26 +455,63 @@ func offTopic(answer string, players []store.Player) bool {
 var number = regexp.MustCompile(`\d+(?:[.,]\d+)?`)
 
 // grounded reports whether every number in the answer appears in one of
-// the sources. A decimal matches in either notation; a whole number must
-// be one of the sources' whole numbers, not a part of a longer one.
+// the sources. A decimal matches in either notation, and a decimal's two
+// halves count as numbers too, which is how a grouped thousand ("1 234")
+// reads. Leading zeros do not count: "2026-09-01" holds the 1 of
+// "1 September".
 func grounded(answer string, sources ...string) bool {
 	known := map[string]bool{}
 	for _, s := range sources {
 		for _, n := range number.FindAllString(s, -1) {
-			known[strings.ReplaceAll(n, ",", ".")] = true
-			// "3,45" also holds 3 and 45 as they would read alone, which
-			// is how a grouped thousand ("1 234") reads too.
+			known[canonicalNumber(n)] = true
 			for _, part := range strings.FieldsFunc(n, func(r rune) bool { return r == ',' || r == '.' }) {
-				known[part] = true
+				known[canonicalNumber(part)] = true
 			}
 		}
 	}
 	for _, n := range number.FindAllString(answer, -1) {
-		if !known[strings.ReplaceAll(n, ",", ".")] {
+		if !known[canonicalNumber(n)] {
 			return false
 		}
 	}
 	return true
+}
+
+// canonicalNumber is a number as grounded compares it: a point for the
+// decimal separator, and no leading zeros on the whole part.
+func canonicalNumber(n string) string {
+	n = strings.ReplaceAll(n, ",", ".")
+	whole, frac, isDecimal := strings.Cut(n, ".")
+	whole = strings.TrimLeft(whole, "0")
+	if whole == "" {
+		whole = "0"
+	}
+	if isDecimal {
+		return whole + "." + frac
+	}
+	return whole
+}
+
+// fallback is the lookups posted in place of the model's sentence: each
+// once, and without the day-by-day lists when there is anything else, since
+// those are working material for the model and a wall of dates in a chat.
+func fallback(looked []lookedUp) string {
+	var out []string
+	lists := 0
+	for _, l := range looked {
+		if l.tool == toolResults {
+			lists++
+		}
+	}
+	for _, l := range looked {
+		if l.tool == toolResults && lists < len(looked) {
+			continue
+		}
+		if !slices.Contains(out, l.text) {
+			out = append(out, l.text)
+		}
+	}
+	return strings.Join(out, "\n\n")
 }
 
 // askAgent answers a question the Interpreter could not place. It posts
@@ -476,13 +549,22 @@ func askAgent(ctx context.Context, t i18n.Translator, agent *Agent, p Prompt, as
 		keepUnanswered(ctx, db, logger, p.Question)
 		return fmt.Errorf("agent: %w", err)
 	}
-	isGrounded := err == nil && text != "" && grounded(text, append(looked, p.Question, agentPrompt(p))...)
+	if err != nil {
+		// Out of time with lookups in hand: those are posted below, and
+		// the model's failure is only worth a line in the log.
+		logger.Warn("the agent stopped before answering; posting its lookups", "error", err)
+	}
+	sources := []string{p.Question, agentPrompt(p)}
+	for _, l := range looked {
+		sources = append(sources, l.text)
+	}
+	isGrounded := err == nil && text != "" && grounded(text, sources...)
 	logger.Info("answering a question in the group", "kind", "agent",
 		"lookups", len(looked), "grounded", isGrounded)
 	if !isGrounded {
 		// Out of time, out of rounds, or a number from nowhere: what was
 		// looked up is still a true answer to what was asked.
-		text = strings.Join(slices.Compact(looked), "\n\n")
+		text = fallback(looked)
 	}
 	return send(ctx, text)
 }
