@@ -35,7 +35,9 @@ func TestThePromptSaysANonQuestionIsNotAQuestion(t *testing.T) {
 	system := systemPrompt(Prompt{Players: []string{"Alma"}})
 	for _, want := range []string{`"thanks"`, "asks nothing", `Always ""`,
 		// "Who is best?" is a career question; "who leads?" is the month's.
-		`"vem är bäst?"`, "who is leading or winning when no"} {
+		`"vem är bäst?"`, "who is leading or winning when no",
+		// The standings with no period are the board, all time.
+		`"ställningarna"`} {
 		if !strings.Contains(system, want) {
 			t.Errorf("system prompt lacks %q", want)
 		}

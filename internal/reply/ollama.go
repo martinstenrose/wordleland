@@ -158,7 +158,7 @@ var requestSchema = map[string]any{
 		"kind": map[string]any{"type": "string", "enum": []string{
 			string(KindLeader), string(KindStanding), string(KindStreak), string(KindToday),
 			string(KindScore), string(KindWins), string(KindCatchup), string(KindCount), string(KindHabits),
-			string(KindRules), string(KindThanks), string(KindUnknown)}},
+			string(KindRules), string(KindThanks), string(KindHelp), string(KindUnknown)}},
 		"span":    map[string]any{"type": "string", "enum": []string{string(SpanMonth), string(SpanDays), string(SpanAll)}},
 		"days":    map[string]any{"type": "integer"},
 		"worst":   map[string]any{"type": "boolean"},
@@ -240,7 +240,7 @@ func parseRequest(content string) (Request, error) {
 	}
 	switch r.Kind {
 	case KindLeader, KindStanding, KindStreak, KindToday, KindScore, KindWins, KindCatchup,
-		KindCount, KindHabits, KindRules, KindThanks:
+		KindCount, KindHabits, KindRules, KindThanks, KindHelp:
 	default:
 		r.Kind = KindUnknown
 	}
@@ -289,7 +289,7 @@ func parseRequest(content string) (Request, error) {
 	}
 	r.Player = strings.TrimSpace(r.Player)
 	switch r.Kind {
-	case KindLeader, KindToday, KindRules, KindThanks, KindUnknown:
+	case KindLeader, KindToday, KindRules, KindThanks, KindHelp, KindUnknown:
 		// Nothing to be about a player: a name here is the model filling
 		// a field in, which it does for a message that asks nothing.
 		r.Player = ""
@@ -325,7 +325,9 @@ func systemPrompt(p Prompt) string {
 	b.WriteString(`
 Fields:
 - kind: "leader" for who is leading, winning, best, on top, or the ranking;
-  "standing" for how one particular player is doing, their place or average;
+  "standing" for how one particular player is doing, their place or average —
+  or, with no player, the whole table: everyone's standing, "ställningen",
+  "the standings", "how is everyone doing";
   "streak" for streaks or runs of solved days in a row;
   "today" for today's puzzle, who has posted, who is missing, the best score today;
   "score" for one player's result on one particular day ("my score on July 5",
@@ -340,6 +342,8 @@ Fields:
   "habits" for who usually posts first or last, or when somebody usually posts;
   "rules" for what something means or how it is counted — a miss, points, the
   average, a streak, how the month is scored, hard mode, form, who is ranked;
+  "help" for asking what the bot can do, how to use it, or which questions it
+  answers ("what can you do?", "vad kan du?", "help", "hjälp");
   "thanks" for thanks, praise or a compliment that asks nothing ("tack",
   "duktig bot", "good bot", "nice");
   "unknown" for anything else: a greeting or a remark that asks nothing, and
@@ -348,9 +352,11 @@ Fields:
   for: a message with no question in it is "thanks" or "unknown".
 - span: "month" for this month, and for who is leading or winning when no
   period is given (a month is the competition being led); "all" for all time,
-  ever, overall, and for who is best, the best player, or has the best average
-  when no period is given ("vem är bäst?", "who's the best?" are all time);
-  "days" for a number of recent days (a week is 7, two weeks 14).
+  ever, overall, and — when no period is given — for who is best, the best
+  player, the best average, and for any "standing" question, one player's or
+  the whole table ("vem är bäst?", "ställningarna", "how is Bo doing?" are all
+  time: the board); "days" for a number of recent days (a week is 7, two
+  weeks 14).
 - days: the number of days when span is "days", otherwise 0.
 - worst: true when a "leader" question asks for the other end of the table —
   who is last, worst, lowest, struggling, has the worst form; otherwise false.

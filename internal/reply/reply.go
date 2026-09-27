@@ -67,6 +67,10 @@ const (
 	// bot" — answered in kind rather than with the help line, which would
 	// read as the bot missing the point.
 	KindThanks Kind = "thanks"
+	// KindHelp asks what the bot can do — "vad kan du?" — and gets the
+	// list. Its own kind so that asking for help is not counted among the
+	// questions the bot could not place.
+	KindHelp Kind = "help"
 	// KindUnknown is anything else, answered with what can be asked.
 	KindUnknown Kind = "unknown"
 )
@@ -158,6 +162,15 @@ type Prompt struct {
 	ContextDate string
 }
 
+// keepUnanswered records a question the bot could not place, so a kind
+// can be added for it later. Failing to record one is a warning, never a
+// failed answer: the answer already went out.
+func keepUnanswered(ctx context.Context, db *sql.DB, logger *slog.Logger, question string) {
+	if err := store.RecordUnansweredQuestion(ctx, db, question); err != nil {
+		logger.Warn("could not keep an unanswered question", "error", err)
+	}
+}
+
 // puzzleInPost finds the puzzle a bot post is about: every recap opens
 // with "Wordle <number>", written by i18n.Identifier without grouping.
 var puzzleInPost = regexp.MustCompile(`Wordle (\d{3,5})\b`)
@@ -185,7 +198,9 @@ var ErrNotReady = errors.New("the language model is not ready yet")
 // that" and "not ready yet", both of which are answers — and an error only
 // when the store, the model or the send failed. The closure never logs the
 // question: what was asked is the group's conversation, and the log carries
-// only the request it became.
+// only the request it became. A question the model could not place is the
+// one exception, kept — text only, no sender — for thirty days, because it
+// is the list of what to teach the bot next; see store.RecordUnansweredQuestion.
 func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
 	send func(ctx context.Context, text string) error, logger *slog.Logger) func(context.Context, string, string, string, []string) error {
 
@@ -260,11 +275,17 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
 		case err != nil:
 			// Best effort, and the model's failure is what is reported
 			// whether or not the apology lands: it is the thing to fix.
+			// Kept with the unplaced questions: whatever it was, the bot
+			// did not answer it.
 			_ = send(ctx, t.T("reply.failed"))
+			keepUnanswered(ctx, db, logger, question)
 			return fmt.Errorf("interpret question: %w", err)
 		}
 		logger.Info("answering a question in the group",
 			"kind", req.Kind, "span", req.Span, "days", req.Days, "named_player", req.Player != "")
+		if req.Kind == KindUnknown {
+			keepUnanswered(ctx, db, logger, question)
+		}
 
 		return send(ctx, answer(t, req, asker, players, results, time.Now()))
 	}

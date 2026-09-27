@@ -175,9 +175,20 @@ in a post means (a miss, points, streaks, how a month is scored, hard mode,
 form, who is ranked). That is all the model does. The figures come from the
 same code the board runs, and every sentence — the rule explanations
 included — from the same catalogues the announcements use, so the model can
-misread a question but cannot get a number or a rule wrong. A question it
-cannot place gets a line saying what can be asked; thanks or praise gets a
-thanks back.
+misread a question but cannot get a number or a rule wrong. "What can you
+do?" gets the list of what can be asked; a question it cannot place gets
+one short line pointing at that question; thanks or praise gets a thanks
+back.
+
+**A question it could not place is kept for thirty days** — the text and
+when it was asked, not who asked — so a kind of answer can be added for
+what the group actually asks. This is the one place the group's own words
+are stored, it is swept after thirty days, and the privacy notice says so.
+Read it with:
+
+```sh
+docker compose exec app /wordleland questions list
+```
 
 **Replying to one of the bot's posts** works too: tap the bot's name into a
 reply to a daily recap and ask "what does 'points' mean here?", "vad fick
@@ -541,6 +552,10 @@ the schema has not been created or is the thing that is broken:
 docker compose exec app /wordleland version
 docker compose exec app /wordleland help
 ```
+
+`questions list` is read-only too: the questions the Signal bot could not
+answer over the last thirty days, newest first, for deciding what to teach
+it next.
 
 ```sh
 # An ingest token, for a curl client or another bridge. Shown once.

@@ -1,6 +1,7 @@
 package reply
 
 import (
+	"fmt"
 	"math"
 	"sort"
 	"strconv"
@@ -43,8 +44,13 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 		return rules(t, req)
 	case KindThanks:
 		return t.T("reply.thanks")
-	default:
+	case KindHelp:
 		return t.T("reply.help")
+	default:
+		// Short, because this is a chat: what the bot can do is one
+		// question away, and listing it after every misread reads as
+		// the bot lecturing the room.
+		return t.T("reply.unknown")
 	}
 }
 
@@ -290,6 +296,21 @@ func last(t i18n.Translator, label string, m stats.Month) string {
 
 func standing(t i18n.Translator, req Request, asker *store.Player,
 	players []store.Player, results []store.BoardResult, now time.Time) string {
+
+	// Nobody named is everybody: "ställningen", the whole table, whoever
+	// asks. "How am I doing" names the asker, by the prompt.
+	if req.Player == "" {
+		label, m := standingOver(t, req, players, results, now)
+		if len(m.Ranked) == 0 {
+			return t.T("reply.leader.none", capitalized(label))
+		}
+		lines := []string{capitalized(label) + ":"}
+		for _, p := range m.Ranked {
+			// Rank, name, average: the same in every language, so no key.
+			lines = append(lines, fmt.Sprintf("%d. %s %s", p.Rank, p.Name, t.Decimal(*p.Average, 2)))
+		}
+		return strings.Join(lines, "\n")
+	}
 
 	p, ok, text := whom(t, req, asker, players)
 	if !ok {

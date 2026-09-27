@@ -99,9 +99,9 @@ func TestAnswers(t *testing.T) {
 			want: "Bo: place 2 of 2 (September), 4.20 on average over 15 games.",
 		},
 		{
-			// "How am I doing" — the model names nobody, the asker is who.
+			// "How am I doing" — the model names the asker, by the prompt.
 			name: "the asker's own standing", asker: &bo,
-			req:  Request{Kind: KindStanding, Span: SpanMonth},
+			req:  Request{Kind: KindStanding, Span: SpanMonth, Player: "Bo"},
 			want: "Bo: place 2 of 2 (September), 4.20 on average over 15 games.",
 		},
 		{
@@ -115,8 +115,14 @@ func TestAnswers(t *testing.T) {
 			want: "I don't know Dag. I know Alma, Bo and Cid Larsson.",
 		},
 		{
-			name: "nobody named and the asker unknown",
+			// Nobody named is everybody: the table.
+			name: "nobody named is the whole table",
 			req:  Request{Kind: KindStanding, Span: SpanMonth},
+			want: "September:\n1. Alma 3.00\n2. Bo 4.20",
+		},
+		{
+			name: "nobody named and the asker unknown, for a day's score",
+			req:  Request{Kind: KindScore},
 			want: "Who do you mean? I know Alma, Bo and Cid Larsson.",
 		},
 		{
@@ -137,6 +143,11 @@ func TestAnswers(t *testing.T) {
 		{
 			name: "something else",
 			req:  Request{Kind: KindUnknown},
+			want: "I didn't get that.",
+		},
+		{
+			name: "what can you do",
+			req:  Request{Kind: KindHelp},
 			want: "I can answer who is leading",
 		},
 	}

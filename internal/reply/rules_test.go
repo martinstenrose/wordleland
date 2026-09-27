@@ -16,11 +16,11 @@ func TestRulesAreExplainedFromTheCatalogue(t *testing.T) {
 	players, results := fixture(t)
 
 	got := answer(translator(t, "en"), Request{Kind: KindRules, Topic: TopicMiss}, nil, players, results, fixtureNow())
-	if !strings.HasPrefix(got, "A miss is a day's puzzle you didn't post.") {
+	if !strings.HasPrefix(got, "A miss is a day you didn't post.") {
 		t.Errorf("miss, en: %q", got)
 	}
 	got = answer(translator(t, "sv"), Request{Kind: KindRules, Topic: TopicStreak}, nil, players, results, fixtureNow())
-	if !strings.HasPrefix(got, "En svit är lösta pussel i följd.") {
+	if !strings.HasPrefix(got, "Lösta dagar i rad.") {
 		t.Errorf("streak, sv: %q", got)
 	}
 	got = answer(translator(t, "en"), Request{Kind: KindRules}, nil, players, results, fixtureNow())

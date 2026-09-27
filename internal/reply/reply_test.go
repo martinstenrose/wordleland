@@ -106,7 +106,7 @@ func newAnswerer(t *testing.T, db *sql.DB, interp Interpreter) (func(context.Con
 // The sender's claimed identity is who "I" is.
 func TestAnswersAboutTheAsker(t *testing.T) {
 	db := replyDB(t)
-	answer, c := newAnswerer(t, db, canned{req: Request{Kind: KindStanding, Span: SpanDays, Days: 7}})
+	answer, c := newAnswerer(t, db, canned{req: Request{Kind: KindStanding, Span: SpanDays, Days: 7, Player: "Bo"}})
 
 	if err := answer(context.Background(), senderUUID, "how am I doing this week?", "", nil); err != nil {
 		t.Fatalf("answer: %v", err)
@@ -118,9 +118,9 @@ func TestAnswersAboutTheAsker(t *testing.T) {
 
 func TestAnUnclaimedSenderIsAskedWhoTheyMean(t *testing.T) {
 	db := replyDB(t)
-	answer, c := newAnswerer(t, db, canned{req: Request{Kind: KindStanding, Span: SpanMonth}})
+	answer, c := newAnswerer(t, db, canned{req: Request{Kind: KindScore}})
 
-	if err := answer(context.Background(), "nobody-in-particular", "how am I doing?", "", nil); err != nil {
+	if err := answer(context.Background(), "nobody-in-particular", "what did I get today?", "", nil); err != nil {
 		t.Fatalf("answer: %v", err)
 	}
 	if got := c.last(t); !strings.HasPrefix(got, "Who do you mean?") {
