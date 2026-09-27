@@ -14,6 +14,8 @@ import (
 // never having been given the string is a bug, not something to render
 // silently).
 func TestActivityActionsAreTranslatedInEveryLocale(t *testing.T) {
+	t.Parallel()
+
 	cats, err := loadCatalogues()
 	if err != nil {
 		t.Fatalf("loadCatalogues() failed: %v", err)
@@ -37,6 +39,8 @@ func TestActivityActionsAreTranslatedInEveryLocale(t *testing.T) {
 // Diagnostics may not be on the server's clock. sinceText needs to carry the
 // offset along with the time it renders.
 func TestSinceTextIncludesUTCOffset(t *testing.T) {
+	t.Parallel()
+
 	tr := translator{strings: catalogue{
 		"activity.todayAt":     "today at %s",
 		"activity.tomorrowAt":  "tomorrow at %s",
@@ -93,6 +97,8 @@ func TestSinceTextUsesCalendarDaysAcrossMidnight(t *testing.T) {
 }
 
 func TestAbsoluteTimeIncludesSeconds(t *testing.T) {
+	t.Parallel()
+
 	at := time.Date(2026, time.August, 30, 12, 34, 56, 0, time.Local)
 	if got, want := absoluteTime(at), "2026-08-30 12:34:56 "+at.Format("-0700"); got != want {
 		t.Errorf("absoluteTime() = %q, want %q", got, want)

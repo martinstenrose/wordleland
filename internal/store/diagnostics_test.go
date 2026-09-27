@@ -11,6 +11,8 @@ import (
 // The page's first question is whether results are still arriving, so an
 // empty database must answer it without pretending.
 func TestFreshnessOnAnEmptyDatabase(t *testing.T) {
+	t.Parallel()
+
 	f, err := ReadFreshness(context.Background(), migratedDB(t))
 	if err != nil {
 		t.Fatalf("ReadFreshness: %v", err)
@@ -27,6 +29,8 @@ func TestFreshnessOnAnEmptyDatabase(t *testing.T) {
 // backfill of last month is a result arriving now, and reading the date
 // would report the board as untouched for weeks.
 func TestFreshnessReadsArrivalNotPuzzleDate(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db, playerID, _, actor := resultsFixture(t)
 
@@ -59,6 +63,8 @@ func TestFreshnessReadsArrivalNotPuzzleDate(t *testing.T) {
 // A bridge working perfectly against senders nobody has claimed looks
 // healthy and puts nothing on the board, so the count has to be visible.
 func TestFreshnessCountsHeldResults(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db := migratedDB(t)
 
@@ -88,6 +94,8 @@ func TestFreshnessCountsHeldResults(t *testing.T) {
 // so a stream comparing two of them is comparing what the board could
 // have changed on.
 func TestLatestResultMarkMovesWithResultsOnly(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db, playerID, _, actor := resultsFixture(t)
 

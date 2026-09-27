@@ -24,6 +24,8 @@ func (b fakeBridge) Status() bridge.Status { return b.status }
 // disconnected must not fail it — signal-cli being unreachable is not fixed
 // by bouncing the application, and the retry loop is already handling it.
 func TestHealthzIsLivenessNotReachability(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		bridge Bridge
@@ -80,6 +82,8 @@ func TestHealthzIsLivenessNotReachability(t *testing.T) {
 // A stopped bridge has to say why, or the container goes unhealthy with
 // nothing to explain it.
 func TestHealthzExplainsAStoppedBridge(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	srv.SetBridge(fakeBridge{alive: false, reason: "panicked 5 times in 5m0s"})
 
@@ -92,6 +96,8 @@ func TestHealthzExplainsAStoppedBridge(t *testing.T) {
 // A typed nil must not look like a configured bridge: it satisfies the
 // interface and would panic on first use.
 func TestSetBridgeNormalisesATypedNil(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	var none *bridge.Supervisor
 	srv.SetBridge(none)
@@ -105,6 +111,8 @@ func TestSetBridgeNormalisesATypedNil(t *testing.T) {
 // answering, and delivering nothing because the group is wrong or the
 // senders are unclaimed. So freshness must be on it, and must lead.
 func TestDiagnosticsLeadsWithFreshness(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -133,6 +141,8 @@ func TestDiagnosticsLeadsWithFreshness(t *testing.T) {
 // Held results are the quiet failure. A bridge working perfectly against
 // senders nobody has claimed puts nothing on the board.
 func TestDiagnosticsSurfacesHeldResults(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -150,6 +160,8 @@ func TestDiagnosticsSurfacesHeldResults(t *testing.T) {
 
 // No bridge is a deployment choice, not a fault, and must not read as one.
 func TestDiagnosticsWithNoBridge(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -166,6 +178,8 @@ func TestDiagnosticsWithNoBridge(t *testing.T) {
 
 // Admin-only, like the rest of the area.
 func TestDiagnosticsIsAdminOnly(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	member := seedLogin(t, srv, "member@example.tld", false)
@@ -187,6 +201,8 @@ func TestDiagnosticsIsAdminOnly(t *testing.T) {
 // This test used to assert the opposite. The band it guards is still there,
 // for the two things that are genuinely wrong — see the test below.
 func TestHeldResultsAreNotRaisedOnTheWayIn(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -213,6 +229,8 @@ func TestHeldResultsAreNotRaisedOnTheWayIn(t *testing.T) {
 // A bridge that is down or a board gone quiet is read on Diagnostics, so that
 // is where the warning leads — and those two are all that is left of it.
 func TestAdminWarningLeadsToDiagnostics(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -229,6 +247,8 @@ func TestAdminWarningLeadsToDiagnostics(t *testing.T) {
 
 // A healthy deployment must be quiet, or the warning becomes wallpaper.
 func TestNoAdminWarningWhenNothingIsWrong(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)

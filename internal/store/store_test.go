@@ -24,6 +24,8 @@ func testDB(t *testing.T) *sql.DB {
 }
 
 func TestOpenAppliesPragmas(t *testing.T) {
+	t.Parallel()
+
 	db := testDB(t)
 
 	tests := []struct {
@@ -51,6 +53,8 @@ func TestOpenAppliesPragmas(t *testing.T) {
 }
 
 func TestMigrateAppliesInOrder(t *testing.T) {
+	t.Parallel()
+
 	db := testDB(t)
 	ctx := context.Background()
 
@@ -87,6 +91,8 @@ func TestMigrateAppliesInOrder(t *testing.T) {
 }
 
 func TestMigrateIsIdempotent(t *testing.T) {
+	t.Parallel()
+
 	db := testDB(t)
 	ctx := context.Background()
 
@@ -116,6 +122,8 @@ func TestMigrateIsIdempotent(t *testing.T) {
 }
 
 func TestMigrateAppliesOnlyNewFiles(t *testing.T) {
+	t.Parallel()
+
 	db := testDB(t)
 	ctx := context.Background()
 
@@ -153,6 +161,8 @@ func TestMigrateAppliesOnlyNewFiles(t *testing.T) {
 }
 
 func TestMigrateRollsBackFailedMigration(t *testing.T) {
+	t.Parallel()
+
 	db := testDB(t)
 	ctx := context.Background()
 
@@ -187,6 +197,8 @@ func TestMigrateRollsBackFailedMigration(t *testing.T) {
 }
 
 func TestMigrateEmptySet(t *testing.T) {
+	t.Parallel()
+
 	db := testDB(t)
 	ctx := context.Background()
 
@@ -205,6 +217,8 @@ func TestMigrateEmptySet(t *testing.T) {
 }
 
 func TestOpenMigratedRejectsUnmigratedDatabase(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "fresh.db")
 
@@ -223,6 +237,8 @@ func TestOpenMigratedRejectsUnmigratedDatabase(t *testing.T) {
 }
 
 func TestOpenMigratedAcceptsMigratedDatabase(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "migrated.db")
 
@@ -243,6 +259,8 @@ func TestOpenMigratedAcceptsMigratedDatabase(t *testing.T) {
 }
 
 func TestInTxRollsBackOnError(t *testing.T) {
+	t.Parallel()
+
 	db := testDB(t)
 	ctx := context.Background()
 
@@ -271,6 +289,8 @@ func TestInTxRollsBackOnError(t *testing.T) {
 }
 
 func TestInTxCommitsOnSuccess(t *testing.T) {
+	t.Parallel()
+
 	db := testDB(t)
 	ctx := context.Background()
 
@@ -295,6 +315,8 @@ func TestInTxCommitsOnSuccess(t *testing.T) {
 }
 
 func TestInTxRollsBackOnPanic(t *testing.T) {
+	t.Parallel()
+
 	db := testDB(t)
 	ctx := context.Background()
 
@@ -337,6 +359,8 @@ func TestInTxRollsBackOnPanic(t *testing.T) {
 // keeps the test from hanging forever; in production there is no deadline and
 // the request never returns.
 func TestQueryOnPoolDuringTransactionDeadlocks(t *testing.T) {
+	t.Parallel()
+
 	db := testDB(t)
 	ctx := context.Background()
 
@@ -375,6 +399,8 @@ func TestQueryOnPoolDuringTransactionDeadlocks(t *testing.T) {
 // TestQuerierAcceptsBothPoolAndTransaction is the compile-time guarantee in
 // executable form: one helper, called with each.
 func TestQuerierAcceptsBothPoolAndTransaction(t *testing.T) {
+	t.Parallel()
+
 	db := testDB(t)
 	ctx := context.Background()
 

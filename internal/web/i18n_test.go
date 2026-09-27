@@ -8,6 +8,8 @@ import (
 // A template cannot spread a slice into a variadic call, so callers pass
 // the slice. Without flattening, the page renders "[alma 37]".
 func TestTranslatorFlattensPrebuiltArguments(t *testing.T) {
+	t.Parallel()
+
 	tr := translator{
 		locale:   "en",
 		strings:  catalogue{"greet": "%s has %d"},
@@ -30,6 +32,8 @@ func TestTranslatorFlattensPrebuiltArguments(t *testing.T) {
 // A singular form spells the number out and has nowhere to put one.
 // Formatting it anyway appended "%!(EXTRA int=1)" to the page.
 func TestTranslatorLeavesVerblessStringsAlone(t *testing.T) {
+	t.Parallel()
+
 	tr := translator{
 		locale: "en",
 		strings: catalogue{
@@ -49,6 +53,8 @@ func TestTranslatorLeavesVerblessStringsAlone(t *testing.T) {
 
 // Every plural form in the shipped catalogues has to survive both paths.
 func TestNoCatalogueStringFormatsBadly(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	for locale, cat := range srv.catalogues {
 		tr := translator{locale: locale, strings: cat, fallback: srv.catalogues["en"]}

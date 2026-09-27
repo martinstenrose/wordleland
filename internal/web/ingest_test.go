@@ -68,6 +68,8 @@ func senderBody(puzzle, guesses int) map[string]any {
 }
 
 func TestIngestRejectsBadToken(t *testing.T) {
+	t.Parallel()
+
 	srv, valid, _, _ := ingestFixture(t)
 
 	for _, tc := range []struct{ name, token string }{
@@ -90,6 +92,8 @@ func TestIngestRejectsBadToken(t *testing.T) {
 }
 
 func TestIngestRejectsRevokedAndExpiredTokens(t *testing.T) {
+	t.Parallel()
+
 	srv, _, _, adminID := ingestFixture(t)
 	ctx := context.Background()
 	actor := store.AdminActor(adminID)
@@ -117,6 +121,8 @@ func TestIngestRejectsRevokedAndExpiredTokens(t *testing.T) {
 
 // The ingest response matrix, which exists so a caller need not infer the outcome.
 func TestIngestResponseMatrix(t *testing.T) {
+	t.Parallel()
+
 	srv, token, player, adminID := ingestFixture(t)
 	ctx := context.Background()
 
@@ -154,6 +160,8 @@ func TestIngestResponseMatrix(t *testing.T) {
 // held and becomes real once claimed. Reading it as an error would train
 // whoever watches this endpoint to ignore it.
 func TestIngestHoldsUnclaimedSender(t *testing.T) {
+	t.Parallel()
+
 	srv, token, _, _ := ingestFixture(t)
 
 	rec, body := postIngest(t, srv, token, map[string]any{
@@ -183,6 +191,8 @@ func TestIngestHoldsUnclaimedSender(t *testing.T) {
 // A bad slug is a caller error, so it is 404 and stores nothing — the
 // distinction the split exists to draw.
 func TestIngestNamedPlayerMissIs404AndStoresNothing(t *testing.T) {
+	t.Parallel()
+
 	srv, token, _, _ := ingestFixture(t)
 
 	rec, body := postIngest(t, srv, token, map[string]any{
@@ -202,6 +212,8 @@ func TestIngestNamedPlayerMissIs404AndStoresNothing(t *testing.T) {
 }
 
 func TestIngestByPlayerIDAndSlug(t *testing.T) {
+	t.Parallel()
+
 	srv, token, player, _ := ingestFixture(t)
 
 	rec, _ := postIngest(t, srv, token, map[string]any{
@@ -220,6 +232,8 @@ func TestIngestByPlayerIDAndSlug(t *testing.T) {
 }
 
 func TestIngestRejectsMalformedBodies(t *testing.T) {
+	t.Parallel()
+
 	srv, token, player, _ := ingestFixture(t)
 
 	tests := []struct {
@@ -262,6 +276,8 @@ func TestIngestRejectsMalformedBodies(t *testing.T) {
 // send source or sourceNumber, and silently accepting them would let
 // that slip in unnoticed.
 func TestIngestRejectsPhoneNumberFields(t *testing.T) {
+	t.Parallel()
+
 	srv, token, _, _ := ingestFixture(t)
 
 	rec, _ := postIngest(t, srv, token, map[string]any{
@@ -275,6 +291,8 @@ func TestIngestRejectsPhoneNumberFields(t *testing.T) {
 
 // Posting again is evidence of return, but only from a live post.
 func TestIngestReactivatesPlayerWhoPostsAgain(t *testing.T) {
+	t.Parallel()
+
 	srv, token, player, adminID := ingestFixture(t)
 	ctx := context.Background()
 	actor := store.AdminActor(adminID)
@@ -314,6 +332,8 @@ func TestIngestReactivatesPlayerWhoPostsAgain(t *testing.T) {
 // Naming a player directly is an admin or a script, which says nothing about
 // whether that person has rejoined the group.
 func TestIngestByNamedPlayerDoesNotReactivate(t *testing.T) {
+	t.Parallel()
+
 	srv, token, player, adminID := ingestFixture(t)
 	ctx := context.Background()
 
@@ -340,6 +360,8 @@ func TestIngestByNamedPlayerDoesNotReactivate(t *testing.T) {
 // The activity entry carries the previous value, which is what makes the log
 // a correction trail rather than a list of events.
 func TestIngestLogsWithPreviousValue(t *testing.T) {
+	t.Parallel()
+
 	srv, token, player, adminID := ingestFixture(t)
 	ctx := context.Background()
 
@@ -376,6 +398,8 @@ func TestIngestLogsWithPreviousValue(t *testing.T) {
 // A repost of the same puzzle overwrites what is held rather than
 // accumulating a second row.
 func TestIngestRepostOverwritesHeldResult(t *testing.T) {
+	t.Parallel()
+
 	srv, token, _, _ := ingestFixture(t)
 
 	postIngest(t, srv, token, senderBody(1890, 5))
@@ -395,6 +419,8 @@ func TestIngestRepostOverwritesHeldResult(t *testing.T) {
 
 // The whole point of holding payloads: claiming recovers everything.
 func TestIngestThenClaimReplaysHeldResults(t *testing.T) {
+	t.Parallel()
+
 	srv, token, player, adminID := ingestFixture(t)
 	ctx := context.Background()
 

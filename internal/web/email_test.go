@@ -47,6 +47,7 @@ func mailServer(t *testing.T) (*Server, *[]string) {
 		t.Fatalf("New() failed: %v", err)
 	}
 	srv.hashPassword = authtest.HashPassword
+	t.Cleanup(srv.Close)
 
 	var sent []string
 	srv.mailer.SetSender(func(_ string, _ smtp.Auth, _ string, _ []string, msg []byte) error {
@@ -61,6 +62,8 @@ var resetLinkPattern = regexp.MustCompile(`https://wordle\.example\.tld/reset-pa
 // : with SMTP unconfigured the flow is unavailable and the app runs
 // normally. It must not be a 500 or a startup failure.
 func TestForgotPasswordWithoutSMTP(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t) // no SMTP configured
 
 	rec := httptest.NewRecorder()
@@ -82,6 +85,8 @@ func TestForgotPasswordWithoutSMTP(t *testing.T) {
 }
 
 func TestForgotPasswordSubmitWithoutSMTP(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "martin@example.tld", false)
 
@@ -109,6 +114,8 @@ func TestForgotPasswordSubmitWithoutSMTP(t *testing.T) {
 // The response is identical whether or not the address exists, so the
 // endpoint does not confirm who has an account.
 func TestForgotPasswordDoesNotRevealAccounts(t *testing.T) {
+	t.Parallel()
+
 	srv, sent := mailServer(t)
 	seedLogin(t, srv, "martin@example.tld", false)
 
@@ -139,6 +146,8 @@ var csrfValuePattern = regexp.MustCompile(`value="[^"]*"`)
 func stripCSRF(body string) string { return csrfValuePattern.ReplaceAllString(body, "") }
 
 func TestPasswordResetRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	srv, sent := mailServer(t)
 	user := seedLogin(t, srv, "martin@example.tld", false)
 
@@ -186,6 +195,8 @@ func TestPasswordResetRoundTrip(t *testing.T) {
 }
 
 func TestResetLinkIsSingleUse(t *testing.T) {
+	t.Parallel()
+
 	srv, sent := mailServer(t)
 	seedLogin(t, srv, "martin@example.tld", false)
 
@@ -223,6 +234,8 @@ func TestResetLinkIsSingleUse(t *testing.T) {
 
 // A reset does not bypass 2FA. An enrolled user still owes a code.
 func TestResetDoesNotBypassTOTP(t *testing.T) {
+	t.Parallel()
+
 	srv, sent := mailServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 
@@ -261,6 +274,8 @@ func TestResetDoesNotBypassTOTP(t *testing.T) {
 }
 
 func TestResetInvalidatesSessions(t *testing.T) {
+	t.Parallel()
+
 	srv, sent := mailServer(t)
 	user := seedLogin(t, srv, "martin@example.tld", false)
 
@@ -301,6 +316,8 @@ func TestResetInvalidatesSessions(t *testing.T) {
 }
 
 func TestResetRejectsMismatchedPasswords(t *testing.T) {
+	t.Parallel()
+
 	srv, sent := mailServer(t)
 	seedLogin(t, srv, "martin@example.tld", false)
 
@@ -325,6 +342,8 @@ func TestResetRejectsMismatchedPasswords(t *testing.T) {
 }
 
 func TestResetRejectsShortPassword(t *testing.T) {
+	t.Parallel()
+
 	srv, sent := mailServer(t)
 	seedLogin(t, srv, "martin@example.tld", false)
 
@@ -349,6 +368,8 @@ func TestResetRejectsShortPassword(t *testing.T) {
 // Argon2, or concurrent guesses turn the public endpoint into a memory and CPU
 // exhaustion lever.
 func TestResetRejectsUnknownTokenBeforeHashing(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	hashes := 0
 	srv.hashPassword = func(string) (string, error) {
@@ -372,6 +393,8 @@ func TestResetRejectsUnknownTokenBeforeHashing(t *testing.T) {
 
 // A link issued before an account was retired is not a way back in.
 func TestResetRefusesDisabledAccount(t *testing.T) {
+	t.Parallel()
+
 	srv, sent := mailServer(t)
 	user := seedLogin(t, srv, "martin@example.tld", false)
 
@@ -400,6 +423,8 @@ func TestResetRefusesDisabledAccount(t *testing.T) {
 
 // A disabled account must not even generate a link.
 func TestForgotPasswordSkipsDisabledAccount(t *testing.T) {
+	t.Parallel()
+
 	srv, sent := mailServer(t)
 	user := seedLogin(t, srv, "martin@example.tld", false)
 	if err := store.SetUserDisabled(context.Background(), srv.db, store.SystemActor(), user.ID, true); err != nil {
@@ -420,6 +445,8 @@ func TestForgotPasswordSkipsDisabledAccount(t *testing.T) {
 }
 
 func TestEmailVerification(t *testing.T) {
+	t.Parallel()
+
 	srv, _ := mailServer(t)
 	user := seedLogin(t, srv, "martin@example.tld", false)
 
@@ -447,6 +474,8 @@ func TestEmailVerification(t *testing.T) {
 }
 
 func TestEmailVerificationRejectsBadToken(t *testing.T) {
+	t.Parallel()
+
 	srv, _ := mailServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/verify-email?token=nonsense", nil)
@@ -462,6 +491,8 @@ func TestEmailVerificationRejectsBadToken(t *testing.T) {
 // The reset email carries both parts. A client that will not render HTML
 // still has to receive the link, which is the whole point of the message.
 func TestResetEmailIsMultipartAndCarriesTheLink(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	var sent []byte
 	srv.mailer = auth.NewMailer("smtp.example.tld", "587", "", "", "wordle@example.tld")

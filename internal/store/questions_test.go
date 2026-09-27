@@ -11,6 +11,8 @@ import (
 // with a backdated row written the way the janitor compares, so the
 // comparison is like for like.
 func TestUnansweredQuestionsAreKeptThenSwept(t *testing.T) {
+	t.Parallel()
+
 	db := testDB(t)
 	ctx := context.Background()
 	if err := Migrate(ctx, db, Migrations()); err != nil {
@@ -63,6 +65,8 @@ func TestUnansweredQuestionsAreKeptThenSwept(t *testing.T) {
 }
 
 func TestALongQuestionIsCut(t *testing.T) {
+	t.Parallel()
+
 	db := testDB(t)
 	ctx := context.Background()
 	if err := Migrate(ctx, db, Migrations()); err != nil {

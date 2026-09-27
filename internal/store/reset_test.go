@@ -21,6 +21,8 @@ func resetFixture(t *testing.T) (*sql.DB, User, Actor) {
 
 // Only the hash is stored, so reading the database cannot mint a working link.
 func TestResetTokenIsStoredHashed(t *testing.T) {
+	t.Parallel()
+
 	db, user, _ := resetFixture(t)
 	ctx := context.Background()
 
@@ -42,6 +44,8 @@ func TestResetTokenIsStoredHashed(t *testing.T) {
 }
 
 func TestConsumeResetToken(t *testing.T) {
+	t.Parallel()
+
 	db, user, _ := resetFixture(t)
 	ctx := context.Background()
 
@@ -76,6 +80,8 @@ func TestConsumeResetToken(t *testing.T) {
 }
 
 func TestValidateResetTokenDoesNotSpendIt(t *testing.T) {
+	t.Parallel()
+
 	db, user, _ := resetFixture(t)
 	ctx := context.Background()
 
@@ -92,6 +98,8 @@ func TestValidateResetTokenDoesNotSpendIt(t *testing.T) {
 }
 
 func TestValidateResetTokenRejectsUnknown(t *testing.T) {
+	t.Parallel()
+
 	db, _, _ := resetFixture(t)
 
 	err := ValidatePasswordResetToken(context.Background(), db, "not-a-token")
@@ -102,6 +110,8 @@ func TestValidateResetTokenRejectsUnknown(t *testing.T) {
 
 // Single use: a link left in an inbox must not keep working.
 func TestConsumeResetTokenIsSingleUse(t *testing.T) {
+	t.Parallel()
+
 	db, user, _ := resetFixture(t)
 	ctx := context.Background()
 
@@ -127,6 +137,8 @@ func TestConsumeResetTokenIsSingleUse(t *testing.T) {
 
 // Requesting several resets and using one must retire the rest.
 func TestConsumeResetTokenInvalidatesSiblings(t *testing.T) {
+	t.Parallel()
+
 	db, user, _ := resetFixture(t)
 	ctx := context.Background()
 
@@ -148,6 +160,8 @@ func TestConsumeResetTokenInvalidatesSiblings(t *testing.T) {
 }
 
 func TestConsumeResetTokenRejectsExpired(t *testing.T) {
+	t.Parallel()
+
 	db, user, _ := resetFixture(t)
 	ctx := context.Background()
 
@@ -166,6 +180,8 @@ func TestConsumeResetTokenRejectsExpired(t *testing.T) {
 }
 
 func TestConsumeResetTokenRejectsUnknown(t *testing.T) {
+	t.Parallel()
+
 	db, _, _ := resetFixture(t)
 
 	if _, err := ConsumePasswordResetToken(context.Background(), db, "not-a-token", "hash"); !errors.Is(err, ErrResetTokenInvalid) {
@@ -175,6 +191,8 @@ func TestConsumeResetTokenRejectsUnknown(t *testing.T) {
 
 // A link issued before an account was retired must not be a way back in.
 func TestConsumeResetTokenRejectsDisabledAccount(t *testing.T) {
+	t.Parallel()
+
 	db, user, actor := resetFixture(t)
 	ctx := context.Background()
 
@@ -193,6 +211,8 @@ func TestConsumeResetTokenRejectsDisabledAccount(t *testing.T) {
 
 // The user reset it themselves; attributing it to an admin would be a lie.
 func TestConsumeResetTokenLogsAsTheUser(t *testing.T) {
+	t.Parallel()
+
 	db, user, _ := resetFixture(t)
 	ctx := context.Background()
 
@@ -217,6 +237,8 @@ func TestConsumeResetTokenLogsAsTheUser(t *testing.T) {
 }
 
 func TestDeleteExpiredResetTokens(t *testing.T) {
+	t.Parallel()
+
 	db, user, _ := resetFixture(t)
 	ctx := context.Background()
 
@@ -242,6 +264,8 @@ func TestDeleteExpiredResetTokens(t *testing.T) {
 }
 
 func TestMarkEmailVerified(t *testing.T) {
+	t.Parallel()
+
 	db, user, _ := resetFixture(t)
 	ctx := context.Background()
 
@@ -265,6 +289,8 @@ func TestMarkEmailVerified(t *testing.T) {
 // keeping them apart. A confirmation link must not set a password, and a
 // reset link must not confirm an address.
 func TestLinkTokensAreNotInterchangeable(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	db, user, _ := resetFixture(t)
 

@@ -7,6 +7,8 @@ import (
 )
 
 func TestSlugify(t *testing.T) {
+	t.Parallel()
+
 	tests := map[string]string{
 		"Martin":            "martin",
 		"martin":            "martin",
@@ -46,6 +48,8 @@ func TestSlugify(t *testing.T) {
 // be represented must be reported rather than quietly reduced. --slug exists
 // for exactly these cases.
 func TestSlugifyRejectsLossyNames(t *testing.T) {
+	t.Parallel()
+
 	tests := map[string]string{
 		"empty":            "",
 		"only punctuation": "!!!",
@@ -76,6 +80,8 @@ func TestSlugifyRejectsLossyNames(t *testing.T) {
 }
 
 func TestValidSlug(t *testing.T) {
+	t.Parallel()
+
 	valid := []string{"martin", "anna-karin", "player-2", "a", "x1"}
 	invalid := []string{"", "Martin", "anna karin", "trailing-", "-leading", "double--hyphen", "emoji-🙂", "under_score"}
 
@@ -92,6 +98,8 @@ func TestValidSlug(t *testing.T) {
 }
 
 func TestCreatePlayerDerivesSlug(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -115,6 +123,8 @@ func TestCreatePlayerDerivesSlug(t *testing.T) {
 // members whose names differ by one letter — so a derived slug must not
 // collide silently.
 func TestCreatePlayerSuffixesCollidingSlugs(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -132,6 +142,8 @@ func TestCreatePlayerSuffixesCollidingSlugs(t *testing.T) {
 }
 
 func TestCreatePlayerExplicitSlug(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -152,6 +164,8 @@ func TestCreatePlayerExplicitSlug(t *testing.T) {
 }
 
 func TestCreatePlayerRejectsInvalidSlug(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -162,6 +176,8 @@ func TestCreatePlayerRejectsInvalidSlug(t *testing.T) {
 }
 
 func TestCreatePlayerRejectsUnslugifiableName(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -182,6 +198,8 @@ func TestCreatePlayerRejectsUnslugifiableName(t *testing.T) {
 // The database holds the same rule, so a future write path that forgets to
 // validate cannot introduce a slug that breaks a URL.
 func TestSchemaRejectsInvalidSlug(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 
 	for _, slug := range []string{"", "Martin", "anna karin", "-leading", "trailing-", "double--hyphen", "emoji🙂"} {
@@ -199,6 +217,8 @@ func TestSchemaRejectsInvalidSlug(t *testing.T) {
 // Ownership is an invariant, so the constraint belongs in the schema
 // rather than only in the code path that happens to check it today.
 func TestSchemaRejectsDoubleLink(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	userID := seedUser(t, db, "martin@example.tld", false)
 	first := seedPlayer(t, db, "martin")
@@ -223,6 +243,8 @@ func TestSchemaRejectsDoubleLink(t *testing.T) {
 // defaults an unset bool to false, so the risk is deactivating a player as a
 // side effect of renaming them.
 func TestUpdatePlayerTouchesOnlyProvidedFields(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -252,6 +274,8 @@ func TestUpdatePlayerTouchesOnlyProvidedFields(t *testing.T) {
 // The inverse: an explicit --active=false must be honoured, and is what
 // distinguishes "not provided" from "provided as the zero value".
 func TestUpdatePlayerExplicitFalseIsApplied(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -272,6 +296,8 @@ func TestUpdatePlayerExplicitFalseIsApplied(t *testing.T) {
 }
 
 func TestUpdatePlayerRenameAndSlug(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -292,6 +318,8 @@ func TestUpdatePlayerRenameAndSlug(t *testing.T) {
 }
 
 func TestUpdatePlayerRejectsTakenSlug(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -311,6 +339,8 @@ func TestUpdatePlayerRejectsTakenSlug(t *testing.T) {
 }
 
 func TestUpdatePlayerRejectsEmptyUpdate(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -325,6 +355,8 @@ func TestUpdatePlayerRejectsEmptyUpdate(t *testing.T) {
 }
 
 func TestUpdatePlayerUnknownPlayer(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	_, actor := adminFixture(t, db)
 
@@ -338,6 +370,8 @@ func TestUpdatePlayerUnknownPlayer(t *testing.T) {
 // Retirement and return are membership decisions, so they are logged
 // as themselves rather than buried in a generic update.
 func TestUpdatePlayerLogsRetirementDistinctly(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -374,6 +408,8 @@ func TestUpdatePlayerLogsRetirementDistinctly(t *testing.T) {
 // A no-op update writes nothing, so the log records changes rather than
 // commands that happened to be run.
 func TestUpdatePlayerNoOpIsNotLogged(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -395,6 +431,8 @@ func TestUpdatePlayerNoOpIsNotLogged(t *testing.T) {
 }
 
 func TestLinkAndUnlinkPlayer(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -433,6 +471,8 @@ func TestLinkAndUnlinkPlayer(t *testing.T) {
 // One login per player: ownership is an invariant, so a single account
 // must not be able to self-report as two people.
 func TestLinkPlayerRejectsUserAlreadyLinked(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -460,6 +500,8 @@ func TestLinkPlayerRejectsUserAlreadyLinked(t *testing.T) {
 
 // Relinking the same user to the same player is not a collision with itself.
 func TestLinkPlayerIsIdempotent(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -481,6 +523,8 @@ func TestLinkPlayerIsIdempotent(t *testing.T) {
 }
 
 func TestListPlayers(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)

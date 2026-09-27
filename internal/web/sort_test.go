@@ -26,6 +26,8 @@ func playerOrder(body string) []string {
 }
 
 func TestBoardSortsByEachColumn(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -64,6 +66,8 @@ func TestBoardSortsByEachColumn(t *testing.T) {
 // Rank is's figure. Sorting by another column reorders rows; it must not
 // renumber them, or the board would claim the streak leader is number one.
 func TestSortingDoesNotRenumberRanks(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -100,6 +104,8 @@ func TestSortingDoesNotRenumberRanks(t *testing.T) {
 // The not-ranked group stays below the divider whatever the sort, or a
 // player with four games would climb above one with two hundred.
 func TestSortingKeepsTheNotRankedGroupSeparate(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -126,6 +132,8 @@ func TestSortingKeepsTheNotRankedGroupSeparate(t *testing.T) {
 // A withheld figure is absent, not extreme: it must not float to the top of
 // a descending sort and read as the worst average on the board.
 func TestWithheldFiguresSortLastInBothDirections(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -152,6 +160,8 @@ func TestWithheldFiguresSortLastInBothDirections(t *testing.T) {
 
 // Clicking the active column flips it; the header says which way.
 func TestHeaderLinksToggleDirection(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -178,6 +188,8 @@ func TestHeaderLinksToggleDirection(t *testing.T) {
 
 // Sorting must not discard the filters, and vice versa.
 func TestSortAndFiltersCoexist(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -199,6 +211,8 @@ func TestSortAndFiltersCoexist(t *testing.T) {
 
 // The default ordering leaves no sort parameters in the URL.
 func TestDefaultSortHasACleanURL(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -211,6 +225,8 @@ func TestDefaultSortHasACleanURL(t *testing.T) {
 }
 
 func TestUnknownSortFallsBackToTheDefault(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)

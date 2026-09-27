@@ -8,6 +8,8 @@ import (
 func intPtr(n int) *int { return &n }
 
 func TestClearDemoDataDeletesPlayersAndCascades(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -71,6 +73,8 @@ func TestClearDemoDataDeletesPlayersAndCascades(t *testing.T) {
 // requirement on the whole feature: a verb that deletes players must never
 // be able to take an administrator, or their history in the log, with it.
 func TestClearDemoDataLeavesUsersAndActivityUntouched(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	adminID, actor := adminFixture(t, db)
@@ -125,6 +129,8 @@ func TestClearDemoDataLeavesUsersAndActivityUntouched(t *testing.T) {
 // Without that fix this test fails with a foreign key constraint error
 // instead of a reported, non-fatal Blocked entry.
 func TestClearDemoDataReportsBlockedInvitation(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -179,6 +185,8 @@ func TestClearDemoDataReportsBlockedInvitation(t *testing.T) {
 }
 
 func TestClearDemoDataDryRunWritesNothing(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)

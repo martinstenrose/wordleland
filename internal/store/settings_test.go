@@ -8,6 +8,8 @@ import (
 )
 
 func TestGenerateSlug(t *testing.T) {
+	t.Parallel()
+
 	seen := make(map[string]bool)
 	for i := 0; i < 200; i++ {
 		slug, err := GenerateSlug()
@@ -33,6 +35,8 @@ func TestGenerateSlug(t *testing.T) {
 }
 
 func TestShareSlugBeforeBootstrap(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 
 	// Only the app creates the row, so the CLI seeing this means the app
@@ -44,6 +48,8 @@ func TestShareSlugBeforeBootstrap(t *testing.T) {
 }
 
 func TestEnsureShareSlugCreatesOnce(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 
@@ -75,6 +81,8 @@ func TestEnsureShareSlugCreatesOnce(t *testing.T) {
 // The first slug should have the same visible provenance as every later
 // rotation rather than appearing from nowhere.
 func TestEnsureShareSlugIsLogged(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 
@@ -110,6 +118,8 @@ func TestEnsureShareSlugIsLogged(t *testing.T) {
 }
 
 func TestRotateShareSlug(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -139,6 +149,8 @@ func TestRotateShareSlug(t *testing.T) {
 // A link that stops working should be traceable to the rotation that retired
 // it; the activity log is admin-only and the recorded slug is already spent.
 func TestRotateShareSlugRecordsPrevious(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 	_, actor := adminFixture(t, db)
@@ -162,6 +174,8 @@ func TestRotateShareSlugRecordsPrevious(t *testing.T) {
 }
 
 func TestRotateShareSlugBeforeBootstrap(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	_, actor := adminFixture(t, db)
 

@@ -13,6 +13,8 @@ import (
 // often agree (seedBoard's "harda" is also named "Harda"), but an admin
 // searching a slug typed into a URL should still find the right person.
 func TestSearchFindsPlayersByNameOrSlug(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -42,6 +44,8 @@ func TestSearchFindsPlayersByNameOrSlug(t *testing.T) {
 // The views every reader has, Settings, and — for an admin only — the four
 // admin screens are all searchable by their own displayed label.
 func TestSearchFindsPagesByLabelAndAdminOnlyForAdmins(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, adminCookie := adminSession(t, srv)
@@ -76,6 +80,8 @@ func TestSearchFindsPagesByLabelAndAdminOnlyForAdmins(t *testing.T) {
 // "?partial=1" renders only the results block, with none of the page
 // around it, for the exact same query the full page would have answered.
 func TestSearchPartialRendersOnlyTheResultsBlock(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -101,6 +107,8 @@ func TestSearchPartialRendersOnlyTheResultsBlock(t *testing.T) {
 // A query nobody typed into yet, or one that matches nothing, both need
 // their own copy rather than an empty page that looks broken.
 func TestSearchEmptyQueryAndNoResults(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -120,6 +128,8 @@ func TestSearchEmptyQueryAndNoResults(t *testing.T) {
 // must be there for anyone signed in, and absent exactly where the route
 // itself would refuse them — signed out, and on the read-only share view.
 func TestTopbarSearchLinkMatchesWhoCanUseTheRoute(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -157,6 +167,8 @@ func TestTopbarSearchLinkMatchesWhoCanUseTheRoute(t *testing.T) {
 // must live on a :not([hidden]) rule, and the bare selector must not
 // declare display at all.
 func TestSearchOverlayDisplayYieldsToTheHiddenAttribute(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
 
@@ -185,6 +197,8 @@ func TestSearchOverlayDisplayYieldsToTheHiddenAttribute(t *testing.T) {
 // the share prefix, see TestSharedSearchWorksUnderThePrefix — dropping a
 // reply still in flight when the next keystroke comes.
 func TestSearchOverlayScriptIsWiredUpAndScoped(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -228,6 +242,8 @@ func TestSearchOverlayScriptIsWiredUpAndScoped(t *testing.T) {
 // reader, and the bare labels ("players", "settings") could otherwise
 // coincidentally match a player named after one.
 func TestSharedSearchWorksUnderThePrefix(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -269,6 +285,8 @@ func TestSharedSearchWorksUnderThePrefix(t *testing.T) {
 // say something: a player's row draws the person icon, not whichever one a
 // nearby page or admin row happens to use.
 func TestSearchHitsCarryTheirKindsIcon(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -306,6 +324,8 @@ func TestSearchHitsCarryTheirKindsIcon(t *testing.T) {
 // query's — so typing "oda" finds "T<mark>oda</mark>y", not a re-cased
 // "T<mark>ODA</mark>y" or "T<mark>Toda</mark>y".
 func TestSearchHitsMarkTheMatchedText(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)

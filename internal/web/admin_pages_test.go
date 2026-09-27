@@ -30,6 +30,8 @@ func holdPending(t *testing.T, srv *Server, externalID, hint string, puzzle, gue
 
 // Both new pages are admin-only, like the players page they are linked from.
 func TestAdminActivityAndPendingAreAdminOnly(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	user := seedLogin(t, srv, "member@example.tld", false)
@@ -48,6 +50,8 @@ func TestAdminActivityAndPendingAreAdminOnly(t *testing.T) {
 // The players page is where an admin starts, so it has to lead to the
 // other two rather than leaving them to be typed in.
 func TestAdminPagesLinkToEachOther(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -65,6 +69,8 @@ func TestAdminPagesLinkToEachOther(t *testing.T) {
 // The log is the record of who changed what. An edit made through the UI
 // has to show up in it, in the admin's name.
 func TestActivityLogShowsAnEdit(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, session := adminSession(t, srv)
@@ -92,6 +98,8 @@ func TestActivityLogShowsAnEdit(t *testing.T) {
 // Filtering narrows the log rather than emptying it: the categories exist
 // so a busy log can be read at all.
 func TestActivityFilterNarrowsTheLog(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -112,6 +120,8 @@ func TestActivityFilterNarrowsTheLog(t *testing.T) {
 // Assigning a held sender to a player replays what was held, which is the
 // whole point: the scores were filed, just not attributable yet.
 func TestPendingAssignReplaysHeldResults(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, session := adminSession(t, srv)
@@ -156,6 +166,8 @@ func TestPendingAssignReplaysHeldResults(t *testing.T) {
 }
 
 func TestPendingShowsSenderIdentityInFull(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -172,6 +184,8 @@ func TestPendingShowsSenderIdentityInFull(t *testing.T) {
 
 // Discarding drops the held results and leaves no scores behind.
 func TestPendingDiscardDropsHeldResults(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -193,6 +207,8 @@ func TestPendingDiscardDropsHeldResults(t *testing.T) {
 // A suggestion is offered only on an exact name match. Guessing would
 // attribute one player's scores to another, which is worse than no help.
 func TestPendingSuggestsOnlyOnAnExactMatch(t *testing.T) {
+	t.Parallel()
+
 	players := []store.Player{{ID: 1, Name: "Martin"}, {ID: 2, Name: "Alex"}}
 
 	if p, ok := suggestPlayer("martin", players); !ok || p.ID != 1 {
@@ -209,6 +225,8 @@ func TestPendingSuggestsOnlyOnAnExactMatch(t *testing.T) {
 // may be a float64 or a string, and the copy's verb is %d — a mismatch
 // renders as "#%!d(string=1895)" rather than failing.
 func TestActivityLogFormatsEveryLine(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -257,6 +275,8 @@ func TestActivityLogFormatsEveryLine(t *testing.T) {
 // on the next, so it needs a label saying what the column is. And a header
 // that does not line up with its cells is worse than none.
 func TestActivityLogHasAlignedHeaders(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -296,6 +316,8 @@ func TestActivityLogHasAlignedHeaders(t *testing.T) {
 // A row about an account names it. It used to print the bare user id, so
 // "Two-factor set up · #1" told an admin nothing about whose it was.
 func TestActivityLogNamesUserSubjects(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, session := adminSession(t, srv)
@@ -326,6 +348,8 @@ func TestActivityLogNamesUserSubjects(t *testing.T) {
 // A row opens what it actually changed. The scoreline is the point for a
 // result: "Score corrected" without the score says nothing.
 func TestActivityDetailShowsAResultChange(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	srv := testServer(t)
 	seedBoard(t, srv)
@@ -380,6 +404,8 @@ func TestActivityDetailShowsAResultChange(t *testing.T) {
 
 // A rename shows both names, which is the whole reason to open the row.
 func TestActivityDetailShowsARename(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -404,6 +430,8 @@ func TestActivityDetailShowsARename(t *testing.T) {
 // The detail is admin-only and bounded to what the log surfaces, or it
 // becomes a way to read rows the list deliberately filters out.
 func TestActivityDetailIsGuarded(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	member := seedLogin(t, srv, "member@example.tld", false)
@@ -426,6 +454,8 @@ func TestActivityDetailIsGuarded(t *testing.T) {
 // "matched automatically", which answers how the score was attributed
 // rather than who entered it.
 func TestActivityNamesTheTokenThatWrote(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	srv := testServer(t)
 	seedBoard(t, srv)
@@ -464,6 +494,8 @@ func TestActivityNamesTheTokenThatWrote(t *testing.T) {
 // itself, so without this the column reads "system" — the same word the
 // share slug gets, on a log that is mostly bridge writes.
 func TestActivityNamesTheBridge(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	srv := testServer(t)
 	seedBoard(t, srv)
@@ -493,6 +525,8 @@ func TestActivityNamesTheBridge(t *testing.T) {
 // A system row with no source keeps the generic name: minting the share
 // slug is the application acting, not the bridge.
 func TestActivityLeavesOtherSystemRowsGeneric(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -511,6 +545,8 @@ func TestActivityLeavesOtherSystemRowsGeneric(t *testing.T) {
 // A configuration signal-cli says cannot work is shown as broken, with the
 // reason, rather than leaving an admin to read "connected" and believe it.
 func TestDiagnosticsShowsAFailedVerification(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -544,6 +580,8 @@ func TestDiagnosticsShowsAFailedVerification(t *testing.T) {
 
 // A verified configuration says so, so "connected" means something.
 func TestDiagnosticsShowsAConfirmedConfiguration(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -580,6 +618,8 @@ func TestDiagnosticsShowsAConfirmedConfiguration(t *testing.T) {
 // outage and it read as ambiguous: never since boot, or never at all? The
 // two states answer different questions, so they carry different hints.
 func TestDiagnosticsExplainsLastMessageSeen(t *testing.T) {
+	t.Parallel()
+
 	for _, tt := range []struct {
 		name    string
 		last    time.Time
@@ -631,6 +671,8 @@ func TestDiagnosticsExplainsLastMessageSeen(t *testing.T) {
 // comparison against the environment file harder — and that comparison is
 // the whole purpose of these rows.
 func TestDiagnosticsShowsAccountAndGroupInFull(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -671,6 +713,8 @@ func TestDiagnosticsShowsAccountAndGroupInFull(t *testing.T) {
 // when signal-cli actually confirmed it. Claiming a name from configuration
 // alone would assert exactly the thing the row exists to establish.
 func TestDiagnosticsNamesTheGroupOnlyWhenVerified(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -697,6 +741,8 @@ func TestDiagnosticsNamesTheGroupOnlyWhenVerified(t *testing.T) {
 // and answering it by hand cost real time: an image was deployed, the page
 // was read, and the container turned out to predate the change.
 func TestDiagnosticsReportsTheRunningVersion(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -717,6 +763,8 @@ func TestDiagnosticsReportsTheRunningVersion(t *testing.T) {
 // not one this handler issues would let a link somebody else wrote choose
 // which entry of the catalogue appears on an admin page.
 func TestPendingProblemIsNotAFreeChoiceOfCatalogueKey(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)

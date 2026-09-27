@@ -14,6 +14,8 @@ import (
 // Every page carries the theme and locale, because they live on <html>.
 // A page that forgot them would render untranslated and unthemed.
 func TestEveryPageCarriesThemeAndLocale(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -77,6 +79,8 @@ func TestEveryPageCarriesThemeAndLocale(t *testing.T) {
 // joining it is what keeps a full-height panel from staying open behind a
 // menu.
 func TestTopbarMenusAreMutuallyExclusive(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -99,6 +103,8 @@ func TestTopbarMenusAreMutuallyExclusive(t *testing.T) {
 // as the pickers — otherwise opening it while a picker is open leaves both
 // showing.
 func TestAccountMenuJoinsTheTopbarMenuGroup(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
@@ -110,6 +116,8 @@ func TestAccountMenuJoinsTheTopbarMenuGroup(t *testing.T) {
 }
 
 func TestThemeChoiceIsRememberedAndApplied(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -141,6 +149,8 @@ func TestThemeChoiceIsRememberedAndApplied(t *testing.T) {
 }
 
 func TestLanguageSwitcherChangesTheCopy(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -166,6 +176,8 @@ func TestLanguageSwitcherChangesTheCopy(t *testing.T) {
 // Switching one setting must not discard the other, or the board's filters.
 // The account menu is for people with accounts.
 func TestAccountMenuOnlyForSignedInUsers(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -211,6 +223,8 @@ func TestAccountMenuOnlyForSignedInUsers(t *testing.T) {
 // either — app.js uses delegated listeners, never
 // through anything written on an element itself.
 func TestAccountMenuNeedsNoScript(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
@@ -230,6 +244,8 @@ func TestAccountMenuNeedsNoScript(t *testing.T) {
 // needs from the server is both labels, since the stylesheet shows whichever
 // the width in force calls for.
 func TestTheCollapseControlWorksWithoutScript(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -271,6 +287,8 @@ func TestTheCollapseControlWorksWithoutScript(t *testing.T) {
 // cookie keeps it, and <html> says which one is in force. Nothing about it
 // depends on a script having run.
 func TestSidebarWidthIsRememberedAndApplied(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -305,6 +323,8 @@ func TestSidebarWidthIsRememberedAndApplied(t *testing.T) {
 // display:none would save the same width and leave every row an icon with no
 // accessible name, which is the kind of saving that costs somebody the page.
 func TestACollapsedRailKeepsItsLabels(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -335,6 +355,8 @@ func TestACollapsedRailKeepsItsLabels(t *testing.T) {
 // own call to the bar, and an error page that was handed the shell it is
 // meant to go without.
 func TestTheShellIsDrawnOncePerPage(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -365,6 +387,8 @@ func TestTheShellIsDrawnOncePerPage(t *testing.T) {
 // it is a <details>, the browser owns the open state, and nothing here binds
 // a handler to it.
 func TestTheDrawerNeedsNoScript(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -395,6 +419,8 @@ func TestTheDrawerNeedsNoScript(t *testing.T) {
 // is scoped to name="popup" rather
 // than the topbar menus, which anchor themselves in CSS instead.
 func TestPopupPositioningScriptIsWiredUpAndScoped(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -426,6 +452,8 @@ func TestPopupPositioningScriptIsWiredUpAndScoped(t *testing.T) {
 // no rail. So this is really a test that every page renders through one of
 // those — signed out, signed in, admin, and the read-only share view alike.
 func TestEveryPageReachesPrivacyAndTheSource(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -458,6 +486,8 @@ func TestEveryPageReachesPrivacyAndTheSource(t *testing.T) {
 // footer, so it has to be on every page inside the shell and to open without a
 // script — the same <details> the drawer and the menus are.
 func TestTheAboutPanelIsOnEveryShellPageAndNeedsNoScript(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -504,6 +534,8 @@ func TestTheAboutPanelIsOnEveryShellPageAndNeedsNoScript(t *testing.T) {
 }
 
 func TestInitialsFor(t *testing.T) {
+	t.Parallel()
+
 	for _, tt := range []struct{ email, want string }{
 		{"martin@example.tld", "M"},
 		{"martin.stenrose@example.tld", "MS"},
@@ -523,6 +555,8 @@ func TestInitialsFor(t *testing.T) {
 // happily and only shows up as a broken layout in a browser. These are the
 // container elements the templates always close explicitly.
 func TestRenderedPagesHaveBalancedContainers(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -582,6 +616,8 @@ func hrefOfClass(t *testing.T, body, class string) string {
 // each of them applies it. They are icon links, so the label a reader gets is
 // the accessible name rather than text in the page.
 func TestThemeControlOffersAllThree(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -623,6 +659,8 @@ func TestThemeControlOffersAllThree(t *testing.T) {
 
 // Switching one setting keeps the rest of the query, filters included.
 func TestPickersPreserveTheRestOfTheQuery(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -655,6 +693,8 @@ func TestPickersPreserveTheRestOfTheQuery(t *testing.T) {
 // it changes for a signed-in reader is their account, not just this
 // browser — see TestSettingsLanguagePersistsToTheAccount.
 func TestLanguagePickerIsAvailableEverywhere(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -694,6 +734,8 @@ func TestLanguagePickerIsAvailableEverywhere(t *testing.T) {
 // The shared bar carries what the design gives it: the read-only badge, the
 // note, and a sign-in button rather than a bare link.
 func TestSharedBarOffersSignIn(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -722,6 +764,8 @@ func TestSharedBarOffersSignIn(t *testing.T) {
 // control takes the page's ground rather than the bar's — which is what makes
 // it read as a field cut into the bar instead of a button sitting on it.
 func TestTheSearchControlSitsOnThePagesGround(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
@@ -776,6 +820,8 @@ func cssRule(t *testing.T, css, prefix string) string {
 // breakpoint — aria-label is what carries the accessible name once the
 // visible text is display:none.
 func TestSignInButtonDropsItsLabelOnMobile(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -799,6 +845,8 @@ func TestSignInButtonDropsItsLabelOnMobile(t *testing.T) {
 // same information at full strength. aria-label backs it up regardless,
 // since the label hides outright on a narrow screen.
 func TestSearchButtonLabelIsPresentButFaded(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
@@ -832,6 +880,8 @@ func TestSearchButtonLabelIsPresentButFaded(t *testing.T) {
 // with nothing in it, which reads as an app that has lost its own rather
 // than as a way in.
 func TestTheSignInFamilyHasItsOwnFrame(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 
@@ -874,6 +924,8 @@ func TestTheSignInFamilyHasItsOwnFrame(t *testing.T) {
 // throws away: it spanned the card edge to edge while the heading beneath it
 // sat 22px in.
 func TestAFailureIsDrawnAsOneAndSitsOnTheGutter(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
 
@@ -909,6 +961,8 @@ func TestAFailureIsDrawnAsOneAndSitsOnTheGutter(t *testing.T) {
 // fetched from a third party — where somebody was reading is not GitHub's to
 // know.
 func TestTheOneExternalLinkSaysThatItLeaves(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -959,6 +1013,8 @@ func TestTheOneExternalLinkSaysThatItLeaves(t *testing.T) {
 // sentence under it — invisible in English, which is the language everybody
 // who wrote them was reading in.
 func TestTheErrorsSpeakTheReadersLanguage(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 

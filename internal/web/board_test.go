@@ -77,6 +77,8 @@ func fetch(t *testing.T, srv *Server, path string) *httptest.ResponseRecorder {
 // The share board is the same board, which is what people are sent the link
 // for — but every link on it must stay under the share prefix.
 func TestShareBoardMirrorsTheAuthenticatedOne(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 
@@ -112,6 +114,8 @@ func TestShareBoardMirrorsTheAuthenticatedOne(t *testing.T) {
 }
 
 func TestSwedishBoardLocalisesDisplayedNumbers(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -155,6 +159,8 @@ func rowFor(t *testing.T, body, slug string) string {
 // trend are withheld — a figure over three games invites exactly the
 // comparison that separating them out exists to prevent.
 func TestUnrankedPlayersHaveTheirFiguresWithheld(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 
@@ -186,6 +192,8 @@ func TestUnrankedPlayersHaveTheirFiguresWithheld(t *testing.T) {
 
 // Ineligible players are listed separately with their reason, not ranked.
 func TestUnrankedPlayersAreSeparatedWithAReason(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 
@@ -206,6 +214,8 @@ func TestUnrankedPlayersAreSeparatedWithAReason(t *testing.T) {
 // popup uses (see TestTraitExplanationIsReachableWithoutHover) — there is
 // no hover on a phone.
 func TestReasonChipExplanationIsReachableWithoutHover(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 
@@ -229,6 +239,8 @@ func TestReasonChipExplanationIsReachableWithoutHover(t *testing.T) {
 // Last five shows the last five calendar days, including today: a day the
 // player didn't reach is a gap, not a score.
 func TestLastFiveShowsGapsForUnplayedDays(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 
@@ -256,6 +268,8 @@ func TestLastFiveShowsGapsForUnplayedDays(t *testing.T) {
 // tap rather than a hover, which never worked on a phone. Same treatment as
 // the grid and the player page's own recent strip.
 func TestLastFiveCellsOpenAPopupInsteadOfHovering(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 
@@ -288,6 +302,8 @@ func TestLastFiveCellsOpenAPopupInsteadOfHovering(t *testing.T) {
 // days, so a lapsed player still shows their real last game rather than
 // nothing.
 func TestLastGameShowsTheRealLastPuzzleEvenWhenLapsed(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 
@@ -317,6 +333,8 @@ func TestLastGameShowsTheRealLastPuzzleEvenWhenLapsed(t *testing.T) {
 
 // The controls have to change the board, not just the URL.
 func TestHardModeFilterChangesTheBoard(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -343,6 +361,8 @@ func TestHardModeFilterChangesTheBoard(t *testing.T) {
 }
 
 func TestTogglesAreReflectedInTheBoard(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -368,6 +388,8 @@ func TestTogglesAreReflectedInTheBoard(t *testing.T) {
 // first. A reader watching a lapsed friend disappear from the board had no
 // way to learn why from the page itself.
 func TestFooterExplainsBothRankingThresholds(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -390,6 +412,8 @@ func TestFooterExplainsBothRankingThresholds(t *testing.T) {
 // from whether they turned up. "A failure does not count against you, but not
 // playing does" is a rule somebody can want, and it was not expressible.
 func TestCountMissedWorksWithoutCountFailed(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -414,6 +438,8 @@ func TestCountMissedWorksWithoutCountFailed(t *testing.T) {
 // A missing key must be visible rather than blank, or a translation gap
 // looks like a data problem and gets debugged as one.
 func TestMissingTranslationKeyRendersTheKey(t *testing.T) {
+	t.Parallel()
+
 	tr := translator{locale: "en", strings: catalogue{}, fallback: catalogue{}}
 	if got := tr.T("board.title"); got != "board.title" {
 		t.Errorf("T() = %q for a missing key, want the key itself", got)
@@ -421,6 +447,8 @@ func TestMissingTranslationKeyRendersTheKey(t *testing.T) {
 }
 
 func TestTranslatorFallsBackToEnglish(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	tr := translator{
 		locale:   "sv",
@@ -434,6 +462,8 @@ func TestTranslatorFallsBackToEnglish(t *testing.T) {
 
 // An empty board must explain itself rather than render an empty table.
 func TestEmptyBoardExplainsItself(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	slug, _, err := store.EnsureShareSlug(context.Background(), srv.db)
 	if err != nil {
@@ -447,6 +477,8 @@ func TestEmptyBoardExplainsItself(t *testing.T) {
 }
 
 func TestPluralFormsAreSelected(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	tr := translator{locale: "en", strings: srv.catalogues["en"], fallback: srv.catalogues["en"]}
 
@@ -461,6 +493,8 @@ func TestPluralFormsAreSelected(t *testing.T) {
 // "GET /share/{slug}/" matches its whole subtree, so an unknown path under
 // the prefix must be refused rather than quietly answered with the board.
 func TestUnknownPathsUnderTheSharePrefixAre404(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -549,6 +583,8 @@ func hrefForName(t *testing.T, body, name string) string {
 // test: the previous version asserted against URLs it built itself and so
 // never touched the broken ones.
 func TestControlsWorkOnBothBoards(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -624,6 +660,8 @@ func seedResult(t *testing.T, srv *Server, playerID int64, puzzle, guesses int, 
 // this replaced put the minus on the good news, which is the half readers
 // took the wrong way round.
 func TestFormDeltaPointsTheWayTheScoreMoves(t *testing.T) {
+	t.Parallel()
+
 	tr := translator{locale: "en", strings: catalogue{}, fallback: catalogue{}}
 	of := func(v float64) *float64 { return &v }
 
@@ -653,6 +691,8 @@ func TestFormDeltaPointsTheWayTheScoreMoves(t *testing.T) {
 // and pasted links, and a page that answered one with a bare fragment would
 // hand a reader markup with no page around it.
 func TestPartialIsOnlyForTheCardsAScriptBorrows(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
@@ -686,6 +726,8 @@ func TestPartialIsOnlyForTheCardsAScriptBorrows(t *testing.T) {
 // page renders — otherwise setting a secret up in the dialog and setting one
 // up by following the link are two different screens with one name.
 func TestEnrolmentHandsOverItsCardForTheDialog(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedLogin(t, srv, "admin@example.tld", true)
 	_, cookies := login(t, srv, "admin@example.tld", testPassword)
@@ -738,6 +780,8 @@ func TestEnrolmentHandsOverItsCardForTheDialog(t *testing.T) {
 var linkWithPartial = regexp.MustCompile(`href="[^"]*partial=`)
 
 func TestPartialNeverSurvivesIntoALink(t *testing.T) {
+	t.Parallel()
+
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)

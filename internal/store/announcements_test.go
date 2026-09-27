@@ -7,6 +7,8 @@ import (
 )
 
 func TestMonthAnnouncedIsFalseUntilRecorded(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 
@@ -34,6 +36,8 @@ func TestMonthAnnouncedIsFalseUntilRecorded(t *testing.T) {
 // A neighbouring month, or the same month a year apart, must not read as
 // announced: the key is the pair, not either half of it.
 func TestMonthAnnouncedIsScopedToYearAndMonth(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 
@@ -65,6 +69,8 @@ func TestMonthAnnouncedIsScopedToYearAndMonth(t *testing.T) {
 // nothing had happened before it, or a caller relying on it to detect "have
 // I already sent this" would have no way to tell the two apart.
 func TestRecordMonthAnnouncementTwiceFails(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 
@@ -77,6 +83,8 @@ func TestRecordMonthAnnouncementTwiceFails(t *testing.T) {
 }
 
 func TestDayAnnouncedIsFalseUntilRecorded(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 
@@ -104,6 +112,8 @@ func TestDayAnnouncedIsFalseUntilRecorded(t *testing.T) {
 // The neighbouring puzzles are exactly the ones the daily check looks at, so
 // a row leaking one either way would announce the wrong day or skip a day.
 func TestDayAnnouncedIsScopedToItsPuzzle(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 
@@ -126,6 +136,8 @@ func TestDayAnnouncedIsScopedToItsPuzzle(t *testing.T) {
 // has, and simply has nothing for this particular day" is what decides
 // whether the days already in the database are a backlog or history.
 func TestAnyDayAnnouncedSeesTheWholeTable(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 
@@ -158,6 +170,8 @@ func TestAnyDayAnnouncedSeesTheWholeTable(t *testing.T) {
 // Same reasoning as the monthly case: recording a day twice must fail rather
 // than pass silently, because that write is the whole duplicate guard.
 func TestRecordDayAnnouncementTwiceFails(t *testing.T) {
+	t.Parallel()
+
 	db := migratedDB(t)
 	ctx := context.Background()
 
