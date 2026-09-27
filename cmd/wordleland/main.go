@@ -71,6 +71,7 @@ Nouns:
   backfill  import history from the spreadsheet
   slug      show, rotate
   activity  list, show
+  questions list — what the Signal bot could not answer, kept 30 days
   demo      seed, tick, clear — synthetic data for a staging instance (DEMO_MODE=true)
 
 Global flags:
@@ -164,6 +165,8 @@ func run(args []string, out io.Writer) error {
 		return runSlug(e, verbArgs)
 	case "activity":
 		return runActivity(e, verbArgs)
+	case "questions":
+		return runQuestions(e, verbArgs)
 	case "demo":
 		return runDemo(e, verbArgs)
 	case "help", "-h", "--help":

@@ -1627,6 +1627,27 @@ because their words are theirs. The mention remains the trigger — a plain
 reply to the recap is conversation, and answering it with the help line
 would make the bot a heckler.
 
+**A question the bot could not place is kept for thirty days — the one
+place the group's words are stored.** Everywhere else the rule holds: a
+message body never lands in a log or the database. The exception exists
+because those questions are the to-do list for new kinds — the group asks
+what it asks, and guessing at it from the log's `kind=unknown` is how
+"vem är bäst?" went unanswered for a day. What is kept is the text and the
+time; not who asked, so nothing ties a person to their words. It is swept
+after thirty days because it is a list to act on, not a record, and read
+with `wordleland questions list`. The privacy notice says so. A question
+the model failed on altogether is kept too: whatever it was, the bot did
+not answer it. "Unknown" also covers a greeting or a remark that asks
+nothing, so the list has some chatter in it; it is short-lived and read by
+one person, which is cheaper than a third kind for the model to confuse.
+
+**Asking what the bot can do is a kind, and a misread is one line.** "Vad
+kan du?" used to be `unknown` and got the list only by fallback, counted
+among the questions the bot could not place. It is `help` now. And a
+question the bot cannot place gets one short line pointing at "what can
+you do?" rather than the whole list: this is a chat, and a bot that
+answers every misread with a paragraph is a bot people stop asking.
+
 **Rule explanations are catalogue text, not model text.** "What counts as a
 miss?" is answered by a `rules` request with a topic from a fixed list, and
 the topic's explanation is written by hand in every language to say what

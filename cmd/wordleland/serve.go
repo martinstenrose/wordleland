@@ -35,6 +35,11 @@ const shutdownTimeout = 10 * time.Second
 // rate limiter's own window.
 const janitorInterval = auth.DefaultWindow
 
+// unansweredRetention is how long a question the bot could not answer is
+// kept. Fixed rather than configured: it is a to-do list for the owner, and
+// a month is long enough to see what the group keeps asking.
+const unansweredRetention = 30 * 24 * time.Hour
+
 // runJanitor periodically purges state that nothing else reaps on its own:
 // expired rate-limit buckets, expired sessions, spent or expired password
 // reset tokens, and — when PENDING_RETENTION is set — held results past
@@ -65,6 +70,11 @@ func runJanitor(ctx context.Context, db *sql.DB, limiter *auth.Limiter, retentio
 				logger.Error("purge expired pending results", "error", err)
 			} else if n > 0 {
 				logger.Info("purged expired pending results", "count", n)
+			}
+			if n, err := store.DeleteExpiredUnansweredQuestions(ctx, db, unansweredRetention); err != nil {
+				logger.Error("purge unanswered questions", "error", err)
+			} else if n > 0 {
+				logger.Info("purged unanswered questions", "count", n)
 			}
 		}
 	}
