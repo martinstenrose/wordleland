@@ -14,6 +14,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/store"
@@ -821,5 +822,16 @@ func TestNoRepairWithoutTimeForIt(t *testing.T) {
 	}
 	if len(f.chats) != 2 {
 		t.Errorf("%d chat calls, want 2: no time for a repair", len(f.chats))
+	}
+}
+
+// A sentence can end in an ellipsis, three bytes of UTF-8; the cut keeps
+// all of it.
+func TestTidyCutsWholeCharacters(t *testing.T) {
+	t.Parallel()
+	long := strings.Repeat("Alma leads… ", 45)
+	got := tidy(long)
+	if !utf8.ValidString(got) || !strings.HasSuffix(got, "leads…") {
+		t.Errorf("cut to %q", got[len(got)-12:])
 	}
 }

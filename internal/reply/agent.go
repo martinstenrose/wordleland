@@ -697,8 +697,11 @@ func tidy(text string) string {
 	cut := string(r[:maxAnswerRunes])
 	// A sentence ends at a mark followed by a space or a line break, or at
 	// the cut itself: the point in "3.45" ends nothing.
+	// Cut at the end of the match, not a byte after its start: "…" is
+	// three bytes, and half of it is not a character. The space the match
+	// ends with is trimmed.
 	if loc := sentenceEnds.FindAllStringIndex(cut+" ", -1); len(loc) > 0 {
-		return strings.TrimSpace(cut[:loc[len(loc)-1][0]+1])
+		return strings.TrimSpace((cut + " ")[:loc[len(loc)-1][1]])
 	}
 	if i := strings.LastIndex(cut, " "); i > 0 {
 		cut = cut[:i]
