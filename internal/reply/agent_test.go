@@ -181,25 +181,40 @@ func TestAnUngroundedAnswerIsReplacedByTheLookups(t *testing.T) {
 	}
 }
 
-// Whatever the model says without looking anything up is not the bot's to
-// say: the group gets the unknown line, and the question is kept.
-func TestAnAnswerFromNothingIsNotPosted(t *testing.T) {
+// Without a lookup the model knows nothing about the group, so what it
+// says may go out only when it is about something else: no player, no
+// number. Anything else gets the unknown line, and the question is kept
+// either way.
+func TestAnAnswerFromNothingIsPostedOnlyOffTopic(t *testing.T) {
 	t.Parallel()
-	db := replyDB(t)
-	f := &fakeOllama{models: []string{"qwen2.5:7b"}, content: "The capital of France is Paris."}
-	answer, c := agentAnswerer(t, db, testAgent(t, f))
+	tests := []struct {
+		said string
+		want string
+	}{
+		{"Stockholm, obviously.", "Stockholm, obviously."},
+		{"Bo is leading, naturally.", "No idea what that was."},
+		{"bo is leading, naturally.", "No idea what that was."},
+		{"The leader averages 3.4.", "No idea what that was."},
+		{"Gustav Vasa was born in 1496.", "No idea what that was."},
+		{"", "No idea what that was."},
+	}
+	for _, tc := range tests {
+		db := replyDB(t)
+		f := &fakeOllama{models: []string{"qwen2.5:7b"}, content: tc.said}
+		answer, c := agentAnswerer(t, db, testAgent(t, f))
 
-	if err := answer(context.Background(), senderUUID, "what is the capital of France?", "", nil); err != nil {
-		t.Fatalf("answer: %v", err)
-	}
-	if got := c.last(t); !strings.HasPrefix(got, "No idea what that was.") {
-		t.Errorf("got %q", got)
-	}
-	var kept int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM unanswered_questions`).Scan(&kept); err != nil {
-		t.Fatalf("count kept: %v", err)
-	}
-	if kept != 1 {
-		t.Errorf("%d questions kept, want 1", kept)
+		if err := answer(context.Background(), senderUUID, "a question", "", nil); err != nil {
+			t.Fatalf("%q: answer: %v", tc.said, err)
+		}
+		if got := c.last(t); !strings.HasPrefix(got, tc.want) {
+			t.Errorf("model said %q; posted %q, want %q", tc.said, got, tc.want)
+		}
+		var kept int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM unanswered_questions`).Scan(&kept); err != nil {
+			t.Fatalf("count kept: %v", err)
+		}
+		if kept != 1 {
+			t.Errorf("%q: %d questions kept, want 1", tc.said, kept)
+		}
 	}
 }

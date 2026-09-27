@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/store"
@@ -59,9 +60,10 @@ const (
 	agentSendReserve = 15 * time.Second
 )
 
-// errNoLookup is a model that answered without looking anything up:
-// a greeting, or a question about something that is not this group's
-// Wordle. The bot does not take those, whatever the model had to say.
+// errNoLookup is a model that answered without looking anything up: a
+// greeting, or a question about something other than this group's Wordle.
+// Run returns what it said with it, and offTopic decides whether that may
+// be posted.
 var errNoLookup = errors.New("the model looked nothing up")
 
 // chatMessage is one message of an Ollama chat, in both directions.
@@ -262,8 +264,8 @@ func callArguments(raw json.RawMessage) json.RawMessage {
 
 // Run lets the model look things up until it answers, and reports the
 // answer with every lookup's text, which is what the answer is checked
-// against and what replaces it when the check fails. errNoLookup when the
-// model answered from nothing.
+// against and what replaces it when the check fails. errNoLookup, with
+// what the model said, when it answered without looking anything up.
 func (a *Agent) Run(ctx context.Context, p Prompt,
 	look func(name string, args json.RawMessage) (string, error)) (string, []string, error) {
 
@@ -282,7 +284,7 @@ func (a *Agent) Run(ctx context.Context, p Prompt,
 		}
 		if len(reply.ToolCalls) == 0 {
 			if len(looked) == 0 {
-				return "", nil, errNoLookup
+				return strings.TrimSpace(reply.Content), nil, errNoLookup
 			}
 			return strings.TrimSpace(reply.Content), looked, nil
 		}
@@ -350,7 +352,9 @@ func agentPrompt(p Prompt) string {
 	b.WriteString("You are the bot in a Wordle group chat. Answer the question using the tools. ")
 	b.WriteString("Every number, score, date and name-to-result you state must come from a tool result " +
 		"in this conversation; never work out a figure yourself. If the tools cannot answer it, say " +
-		"so in one sentence. Only answer questions about this group's Wordle results.\n")
+		"so in one sentence. A question about this group's players, scores or standings is always " +
+		"answered from the tools, never from memory. Anything else you may answer briefly from what " +
+		"you know, without any numbers; if you are not sure, say you don't know.\n")
 	b.WriteString("Reply in the language the question is asked in, in one to three short sentences " +
 		"of plain text, no markdown.\n")
 	b.WriteString(persona)
@@ -380,6 +384,34 @@ const persona = "Your personality: witty, dry and a little cocky, like a friend 
 	"and brag on behalf of whoever leads. Never tease anyone for not playing, and never " +
 	"about anything outside the game. The facts come first; the attitude is one short aside. " +
 	"Your jokes contain no numbers.\n"
+
+// offTopic reports whether an answer made without a lookup may be posted:
+// it says something, and nothing in it is about the group. Without a
+// lookup the model knows nothing about the group, so a player's name or a
+// number in its answer is made up — "Bo leads", "an average of 3.4" — and
+// a number from general knowledge cannot be told apart from one of those.
+// A name is matched word by word, any part of it, so "Larsson" is Cid
+// Larsson; a name that is also a word ("Bo") blocks that word too, which
+// errs on the side of the unknown line.
+func offTopic(answer string, players []store.Player) bool {
+	if answer == "" || number.MatchString(answer) {
+		return false
+	}
+	words := map[string]bool{}
+	for _, w := range strings.FieldsFunc(strings.ToLower(answer), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	}) {
+		words[w] = true
+	}
+	for _, p := range players {
+		for _, part := range strings.Fields(strings.ToLower(p.Name)) {
+			if words[part] {
+				return false
+			}
+		}
+	}
+	return true
+}
 
 // number is a figure as written: digits, with a decimal part after either
 // separator, since the catalogues write "3,45" where the model may write
@@ -431,6 +463,11 @@ func askAgent(ctx context.Context, t i18n.Translator, agent *Agent, p Prompt, as
 	}
 	text, looked, err := agent.Run(actx, p, look)
 	switch {
+	case errors.Is(err, errNoLookup) && offTopic(text, players):
+		// Still kept: it is a question none of the kinds took.
+		keepUnanswered(ctx, db, logger, p.Question)
+		logger.Info("answering a question in the group", "kind", "agent", "lookups", 0)
+		return send(ctx, text)
 	case errors.Is(err, errNoLookup), errors.Is(err, ErrNotReady):
 		keepUnanswered(ctx, db, logger, p.Question)
 		return send(ctx, t.T("reply.unknown"))

@@ -238,7 +238,9 @@ with the same answers the bot gives, plus a day-by-day list of a player's
 results, and writes the reply itself. Every number in that reply is checked
 against what it looked up; if one does not match, the group gets the
 lookups' own text instead. A question it answers without looking anything
-up (a greeting, the weather) still gets that line. It is slower:
+up — a greeting, "what's the capital of Sweden?" — gets its answer only if
+that answer names no player and has no number in it, since it would be made
+up; otherwise that line. It is slower:
 allow up to a few minutes on a CPU, and the log line for its answers says
 `kind=agent`, with how many lookups it made and whether its sentence passed
 the check.
