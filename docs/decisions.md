@@ -1609,23 +1609,30 @@ addresses, no account state, nothing from the users table. Combined with
 the model producing only a `Request`, this is the guardrail: a question
 about anything but the board cannot be answered wrongly because the answer
 does not exist anywhere the model can reach, and the request it becomes is
-"unknown", which is the help line. `TestTheModelIsToldOnlyNamesAndTheDate`
+"unknown": one short line back, and the question kept for the owner (see
+below). `TestTheModelIsToldOnlyNamesAndTheDate`
 pins the contract; a new field on `Prompt` is a new thing the model is
 told, and that test is where it is decided.
 
-**A reply to a bot post carries the post, and only a bot post.** Signal
-sends a reply with the quoted message's author and text. When the author
-is the bot's own account, the text goes into the prompt as context, so a
+**A reply to a bot post carries the post, and only a bot post — the
+bot's own copy of it.** Signal sends a reply with the quoted message's id,
+author and text, all written by the replying client: a claim, which a
+modified client could make about any text. So the bridge keeps what it
+sent, by the id signal-cli reports for each post, and a reply carries a
+post only when its quoted id is one of those — and then the bridge's own
+stored text, never the reply's. That is what makes "words this app wrote"
+a property rather than a hope. With the post in the prompt as context, a
 question under a recap — "what does this mean?", "what did Bo get that
 day?" — can be read; the day the post is about is worked out from its
 "Wordle <number>" here, since a puzzle number is a date by arithmetic and
 the model would only guess. This is the one deliberate widening of what
-the model is told, and it is bounded by authorship: the words are ones
-this app wrote from its catalogues and posted to the group. A reply to
-another member's message brings nothing along, however it is phrased,
-because their words are theirs. The mention remains the trigger — a plain
-reply to the recap is conversation, and answering it with the help line
-would make the bot a heckler.
+the model is told. A reply to another member's message brings nothing
+along, however it is phrased, because their words are theirs; nor does a
+reply to a post from before the process started, which it no longer
+remembers — the memory is in the process, the last few hundred posts,
+because a table of the bot's own chatter is more than the case is worth.
+The mention remains the trigger — a plain reply to the recap is
+conversation, and answering it at all would make the bot a heckler.
 
 **A question the bot could not place is kept for thirty days — the one
 place the group's words are stored.** Everywhere else the rule holds: a

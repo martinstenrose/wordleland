@@ -69,6 +69,7 @@ func New(cfg config.Bridge, deliver Deliverer, announce Announcer, respond Respo
 			return nil, fmt.Errorf("signal client: %w", err)
 		}
 		f.presence = client
+		f.posts = client
 	}
 	return &Bridge{
 		health:   h,

@@ -105,10 +105,14 @@ type dataMessage struct {
 	// carries that post along, so "what does this mean?" has a this. The
 	// author is compared against the bridge's account and never kept, and
 	// anybody else's quoted words are dropped unread.
+	//
+	// Everything in it is the replying client's claim, text included, so
+	// only the id is kept: the filer matches it against the posts this
+	// process actually sent, and uses its own copy of the text.
 	Quote *struct {
+		ID           int64  `json:"id"`
 		Author       string `json:"author"`
 		AuthorNumber string `json:"authorNumber"`
-		Text         string `json:"text"`
 	} `json:"quote"`
 }
 
@@ -139,8 +143,14 @@ type Message struct {
 	// Never set on the account's own sent messages, so the bot cannot be
 	// made to answer itself.
 	MentionsBot bool
+	// QuoteID is Signal's id of the message this one replies to, when the
+	// reply claims that message is the bot's; 0 otherwise. A claim, not a
+	// fact: the filer checks it against the posts this process sent.
+	QuoteID int64
 	// Quoted is the text of the bot's own post this message replies to,
-	// empty when it is not a reply or replies to somebody else.
+	// filled in by the filer from what it sent — never from the reply —
+	// and empty when the reply is to nothing of the bot's, or to a post
+	// from before the process started.
 	Quoted string
 	// Mentions is every mention in the body, in the order their
 	// placeholders appear: the account UUID of who was tapped in, or ""
@@ -159,7 +169,7 @@ type Message struct {
 func (e envelope) message(account string, logger *slog.Logger) (Message, bool) {
 	body := e.Envelope.DataMessage
 	mentionsBot := false
-	quoted := ""
+	var quoteID int64
 	var mentions []string
 	if body != nil {
 		sorted := append(body.Mentions[:0:0], body.Mentions...)
@@ -173,7 +183,7 @@ func (e envelope) message(account string, logger *slog.Logger) (Message, bool) {
 			mentions = append(mentions, m.UUID)
 		}
 		if q := body.Quote; q != nil && account != "" && (q.AuthorNumber == account || q.Author == account) {
-			quoted = q.Text
+			quoteID = q.ID
 		}
 	}
 	if body == nil && e.Envelope.SyncMessage != nil {
@@ -208,7 +218,7 @@ func (e envelope) message(account string, logger *slog.Logger) (Message, bool) {
 		PostedAt:    e.postedAt(),
 		ID:          e.Envelope.Timestamp,
 		MentionsBot: mentionsBot,
-		Quoted:      quoted,
+		QuoteID:     quoteID,
 		Mentions:    mentions,
 	}, true
 }

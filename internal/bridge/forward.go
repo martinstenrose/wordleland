@@ -82,6 +82,13 @@ type Presence interface {
 	Typing(ctx context.Context, on bool) error
 }
 
+// SentPosts is what the bot itself has posted, by message id, so a reply
+// quoting one of its posts can be given that post's real text. Nil means
+// no reply ever carries a post.
+type SentPosts interface {
+	Sent(id int64) (string, bool)
+}
+
 // typingRefresh is how often the typing indicator is started again while
 // an answer is still being worked out. Signal's clients stop showing it
 // about fifteen seconds after the last start.
@@ -141,6 +148,9 @@ type filer struct {
 	// presence shows a question has been seen while respond works. Nil
 	// when replies are off, or in tests that do not care.
 	presence Presence
+	// posts is what the bot sent, for a reply that quotes one of its
+	// posts. Nil when replies are off.
+	posts SentPosts
 	// typingRefresh is swapped in tests so a refresh can be observed
 	// without waiting ten seconds.
 	typingRefresh time.Duration
@@ -188,6 +198,15 @@ const maxQuestionsInHand = 3
 // question that finds the line full is dropped with a log line rather than
 // answered a minute late.
 func (f *filer) ask(ctx context.Context, m Message) {
+	// A reply quoting one of the bot's posts carries the post: the words
+	// this process actually sent, looked up by the message id, never the
+	// text the replying client says was there. A post from before the
+	// process started is not remembered and carries nothing.
+	if m.QuoteID != 0 && f.posts != nil {
+		if text, ok := f.posts.Sent(m.QuoteID); ok {
+			m.Quoted = text
+		}
+	}
 	select {
 	case f.asking <- struct{}{}:
 	default:
