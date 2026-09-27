@@ -137,6 +137,8 @@ func TestTheAnswerRunsUnderTheFilersDeadline(t *testing.T) {
 // process, and the next question is still answered.
 func TestAPanickingAnswerIsContained(t *testing.T) {
 	f, cap := testFiler(t)
+	p := &fakePresence{}
+	f.presence = p
 	var calls atomic.Int32
 	f.respond = func(context.Context, Message) error {
 		if calls.Add(1) == 1 {
@@ -153,5 +155,9 @@ func TestAPanickingAnswerIsContained(t *testing.T) {
 	}
 	if !strings.Contains(cap.log(), "answering a question panicked") {
 		t.Errorf("the panic was not logged:\n%s", cap.log())
+	}
+	// Both answers took the typing indicator down, the panicked one too.
+	if seq := strings.Join(p.sequence(), ","); strings.Count(seq, "stopped") != 2 {
+		t.Errorf("typing was not stopped after each answer: %s", seq)
 	}
 }

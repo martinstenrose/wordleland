@@ -360,9 +360,11 @@ func (f *filer) maybeAnnounce(ctx context.Context) {
 func (f *filer) maybeRespond(ctx context.Context, m Message) {
 	rctx, cancel := context.WithTimeout(ctx, f.respondTimeout)
 	defer cancel()
-	stop := f.showPresence(rctx, m)
+	// Deferred, so a panic in respond — recovered further up — takes the
+	// typing indicator down with it rather than leaving it running to the
+	// deadline.
+	defer f.showPresence(rctx, m)()
 	err := f.respond(rctx, m)
-	stop()
 	if err != nil {
 		// The question itself is never logged, for the same reason a
 		// message body never is: only that one went unanswered.
