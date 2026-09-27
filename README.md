@@ -240,7 +240,12 @@ against what it looked up; if one does not match, the group gets the
 lookups' own text instead. A question it answers without looking anything
 up — a greeting, "what's the capital of Sweden?" — gets its answer only if
 that answer names no player, since anything it says about a player would be
-made up; otherwise that line. It is slower:
+made up; otherwise that line. An off-topic answer comes with a line
+steering back to the game, and after two off-topic questions in a row the
+bot turns the next one away until somebody asks about Wordle. The agent
+also remembers the last few questions from the past fifteen minutes, in
+memory only, so a follow-up like "and last week?" works without replying
+to the bot's post. It is slower:
 allow up to a few minutes on a CPU, and the log line for its answers says
 `kind=agent`, with how many lookups it made and whether its sentence passed
 the check.

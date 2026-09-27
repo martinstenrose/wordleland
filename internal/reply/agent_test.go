@@ -177,13 +177,17 @@ func toolCallReply(name string, args map[string]any) map[string]any {
 
 func agentAnswerer(t *testing.T, db *sql.DB, a *Agent) (func(context.Context, string, string, string, []string) error, *collector) {
 	t.Helper()
+	return newAgentAnswerer(t, db, canned{req: Request{Kind: KindUnknown}}, a)
+}
+
+func newAgentAnswerer(t *testing.T, db *sql.DB, interp Interpreter, a *Agent) (func(context.Context, string, string, string, []string) error, *collector) {
+	t.Helper()
 	cats, err := i18n.Load()
 	if err != nil {
 		t.Fatalf("i18n.Load: %v", err)
 	}
 	var c collector
-	return New(db, cats, "en", canned{req: Request{Kind: KindUnknown}}, a, c.send,
-		slog.New(slog.NewTextHandler(io.Discard, nil))), &c
+	return New(db, cats, "en", interp, a, c.send, slog.New(slog.NewTextHandler(io.Discard, nil))), &c
 }
 
 // The model looks the streak up, is handed the bot's answer, and phrases

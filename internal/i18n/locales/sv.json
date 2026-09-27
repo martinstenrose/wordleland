@@ -815,5 +815,12 @@
   "reply.habits.last": "Stänger den oftast: %s, %d.",
   "reply.habits.none": "Ingen postordning registrerad än.",
   "reply.thanks": "Jag vet. 😎",
+  "reply.segue": "Nog om det. Fråga mig något om Wordle — där glänser jag.",
+  "reply.segue.leader": "Nog om det, nu till det viktiga: %s leder %s med %s i snitt.",
+  "reply.segue.streak": "Nog om det, nu till det viktiga: %s har klarat %d dagar i rad. Vem ska stoppa det?",
+  "reply.segue.today": "Nog om det, nu till det viktiga: %d av %d har spelat dagens Wordle.",
+  "reply.offtopic.0": "Nu räcker det med småprat. Jag är en Wordle-bot, inte en pubquiz.",
+  "reply.offtopic.1": "Nej. En fråga till utanför ämnet och jag börjar posta allas snitt helt oprovocerat.",
+  "reply.offtopic.2": "Fin tanke, fel bot. Wordle, tack.",
   "reply.unknown": "Ingen aning vad det där var. Fråga mig om Wordle — där har jag åsikter."
 }

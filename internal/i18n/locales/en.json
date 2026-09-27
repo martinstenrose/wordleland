@@ -815,5 +815,12 @@
   "reply.habits.last": "Closes it most often: %s, %d.",
   "reply.habits.none": "No posting order on record yet.",
   "reply.thanks": "I know. 😎",
+  "reply.segue": "Anyway. Ask me something about Wordle — that's where I shine.",
+  "reply.segue.leader": "Anyway, back to what matters: %s leads %s at %s.",
+  "reply.segue.streak": "Anyway, back to what matters: %s has solved %d days in a row. Who's stopping that?",
+  "reply.segue.today": "Anyway, back to what matters: %d of %d have played today's Wordle.",
+  "reply.offtopic.0": "That's enough small talk. I'm a Wordle bot, not a pub quiz.",
+  "reply.offtopic.1": "Nope. One more off-topic question and I start posting everyone's averages unprompted.",
+  "reply.offtopic.2": "Lovely thought, wrong bot. Wordle, please.",
   "reply.unknown": "No idea what that was. Ask me about Wordle — there I have opinions."
 }

@@ -1602,6 +1602,39 @@ expected to choose tools well, so the agent is a separate, larger model
 is expected to take tens of seconds per round, so the bridge's deadline for
 an answer is four minutes with the agent on.
 
+**Off-topic gets an answer, then the way back, then a no.** A group chat
+drifts, and a bot that answers "what's the capital of Sweden?" with a
+stock line is a menu, not a member. But a bot that answers everything is
+a chatbot in the group's chat, and the group is there for Wordle. So an
+off-topic question is answered briefly — the model is told to leave the
+game out of it — and the bot adds one line steering back: who leads the
+month, the longest running streak, or how many have played today, in
+turn, built from stats like every answer. Only one person's streak or
+lead makes a line, since "Alma and Bo leads" is a tie that reads wrong,
+and today counts who played rather than naming who has not, as the recaps
+do. Two off-topic questions in a row are answered; the third is turned
+away with one of three lines and the same steer, and so is every one after
+it until a question about the game. Two rather than one, because "hej!"
+is off-topic too and should not cost the question after it its answer. A
+quarter of an hour of quiet starts a new conversation, and the count with
+it. Thanks, help and the unknown line are neither on nor off: they do not
+end a run and do not add to one.
+
+**The bot remembers the last few minutes, in memory only.** The last four
+questions and answers from the past quarter of an hour are shown to the
+agent, each question with who asked it, so "and last week?" and "what
+about Bo?" mean something. Nothing else sees them: the placing model has
+the replied-to post for that already, and a history in its prompt would
+slow every question for the few that need it. They are never logged or
+stored, the rule for question text everywhere else; a restart forgets them,
+which costs a follow-up at most. The answers in it count as sources for
+the number check, since each was checked, or came from the catalogues,
+when it was posted.
+
+**Every question the agent takes is kept for thirty days**, not only the
+ones it could not answer. Each is a question none of the kinds took, and
+that list is what says which kind to add next.
+
 **The bot has attitude, within the recaps' limits.** Witty, dry, a little
 cocky: the fixed replies in the catalogues are written that way, and the
 agent is told to be, with one short aside after the facts. The limits are

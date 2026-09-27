@@ -305,10 +305,13 @@ func (a *Agent) Run(ctx context.Context, p Prompt,
 	if !a.Ready() {
 		return "", nil, ErrNotReady
 	}
-	messages := []chatMessage{
-		{Role: "system", Content: agentPrompt(p)},
-		{Role: "user", Content: p.Question},
+	messages := []chatMessage{{Role: "system", Content: agentPrompt(p)}}
+	for _, h := range p.History {
+		messages = append(messages,
+			chatMessage{Role: "user", Content: saidBy(h.Asker, h.Question)},
+			chatMessage{Role: "assistant", Content: h.Answer})
 	}
+	messages = append(messages, chatMessage{Role: "user", Content: saidBy(p.Asker, p.Question)})
 	var looked []lookedUp
 	for range maxAgentRounds {
 		reply, err := a.chat(ctx, messages)
@@ -342,6 +345,15 @@ func (a *Agent) Run(ctx context.Context, p Prompt,
 		return "", nil, errNoLookup
 	}
 	return "", looked, nil
+}
+
+// saidBy is a question as the agent is shown it: prefixed with who asked,
+// since the conversation it is shown has several people in it.
+func saidBy(asker, question string) string {
+	if asker == "" {
+		return question
+	}
+	return asker + ": " + question
 }
 
 // chat is one round: the conversation so far, the tools, and the model's
@@ -386,8 +398,14 @@ func agentPrompt(p Prompt) string {
 	b.WriteString("Every number, score, date and name-to-result you state must come from a tool result " +
 		"in this conversation; never work out a figure yourself. If the tools cannot answer it, say " +
 		"so in one sentence. A question about this group's players, scores or standings is always " +
-		"answered from the tools, never from memory. Anything else you may answer briefly from what " +
-		"you know; if you are not sure, say you don't know.\n")
+		"answered from the tools, never from memory. Anything else you may answer from what you know, " +
+		"in one or two sentences, and leave the game out of that answer: the bot adds a line about " +
+		"Wordle after it. If you are not sure, say you don't know.\n")
+	if len(p.History) > 0 {
+		b.WriteString("The messages before the last are the recent conversation, each question " +
+			"prefixed with who asked. Use them to read a follow-up (\"and last week?\", \"what about " +
+			"Bo?\"), but answer only the last message, and look its figures up again.\n")
+	}
 	b.WriteString("Reply in the language the question is asked in, in one to three short sentences " +
 		"of plain text, no markdown.\n")
 	b.WriteString(persona)
@@ -514,17 +532,40 @@ func fallback(looked []lookedUp) string {
 	return strings.Join(out, "\n\n")
 }
 
-// askAgent answers a question the Interpreter could not place. It posts
-// the model's answer when it is grounded, the lookups when it is not, and
-// the unknown line when the model looked nothing up — which also keeps the
-// question, as an unplaced one always is.
-func askAgent(ctx context.Context, t i18n.Translator, agent *Agent, p Prompt, asker *store.Player,
-	players []store.Player, results []store.BoardResult,
+// asked is one question and what it is answered from.
+type asked struct {
+	t       i18n.Translator
+	prompt  Prompt
+	asker   *store.Player
+	players []store.Player
+	results []store.BoardResult
+	now     time.Time
+}
+
+// askAgent answers a question the Interpreter could not place, and
+// remembers the turn. It posts:
+//
+//   - the model's answer when it looked something up and every number in it
+//     is from a lookup, and the lookups when not;
+//   - an answer made without a lookup, with a line steering back to the
+//     game, when it names no player and the conversation has not already
+//     been off-topic maxOffTopicInARow times — past that, a line turning
+//     the question away, with the same steer;
+//   - the unknown line when the model named a player without looking
+//     anything up.
+//
+// Every question it takes is kept with the unplaced ones, as each is a
+// question none of the kinds took.
+func askAgent(ctx context.Context, q asked, agent *Agent, conv *conversation,
 	send func(context.Context, string) error, db *sql.DB, logger *slog.Logger) error {
 
-	now := time.Now()
+	t, p := q.t, q.prompt
+	keepUnanswered(ctx, db, logger, p.Question)
+	remember := func(text string, tp topic) {
+		conv.add(turn{at: q.now, asker: p.Asker, question: p.Question, answer: text, topic: tp})
+	}
 	look := func(name string, args json.RawMessage) (string, error) {
-		return lookup(t, name, args, asker, players, results, now)
+		return lookup(t, name, args, q.asker, q.players, q.results, q.now)
 	}
 	// The model stops short of the answer's deadline, so that what it
 	// looked up can still be posted when it runs out of time.
@@ -536,20 +577,25 @@ func askAgent(ctx context.Context, t i18n.Translator, agent *Agent, p Prompt, as
 	}
 	text, looked, err := agent.Run(actx, p, look)
 	switch {
-	case errors.Is(err, errNoLookup) && offTopic(text, players):
-		// Still kept: it is a question none of the kinds took.
-		keepUnanswered(ctx, db, logger, p.Question)
-		logger.Info("answering a question in the group", "kind", "agent", "lookups", 0)
+	case errors.Is(err, errNoLookup) && offTopic(text, q.players):
+		steer := segue(t, conv.nextSegue(), q.players, q.results, q.now)
+		if run := conv.offTopicRun(q.now); run >= maxOffTopicInARow {
+			text = deflection(t, run-maxOffTopicInARow)
+			logger.Info("answering a question in the group", "kind", "agent", "off_topic", "turned away")
+		} else {
+			logger.Info("answering a question in the group", "kind", "agent", "off_topic", "answered")
+		}
+		text += "\n" + steer
+		remember(text, topicOff)
 		return send(ctx, text)
 	case errors.Is(err, errNoLookup), errors.Is(err, ErrNotReady):
-		keepUnanswered(ctx, db, logger, p.Question)
-		return send(ctx, t.T("reply.unknown"))
+		text = t.T("reply.unknown")
+		remember(text, topicNeutral)
+		return send(ctx, text)
 	case err != nil && len(looked) == 0:
 		_ = send(ctx, t.T("reply.failed"))
-		keepUnanswered(ctx, db, logger, p.Question)
 		return fmt.Errorf("agent: %w", err)
-	}
-	if err != nil {
+	case err != nil:
 		// Out of time with lookups in hand: those are posted below, and
 		// the model's failure is only worth a line in the log.
 		logger.Warn("the agent stopped before answering; posting its lookups", "error", err)
@@ -557,6 +603,9 @@ func askAgent(ctx context.Context, t i18n.Translator, agent *Agent, p Prompt, as
 	sources := []string{p.Question, agentPrompt(p)}
 	for _, l := range looked {
 		sources = append(sources, l.text)
+	}
+	for _, h := range p.History {
+		sources = append(sources, h.Question, h.Answer)
 	}
 	isGrounded := err == nil && text != "" && grounded(text, sources...)
 	logger.Info("answering a question in the group", "kind", "agent",
@@ -566,5 +615,6 @@ func askAgent(ctx context.Context, t i18n.Translator, agent *Agent, p Prompt, as
 		// looked up is still a true answer to what was asked.
 		text = fallback(looked)
 	}
+	remember(text, topicWordle)
 	return send(ctx, text)
 }

@@ -164,6 +164,19 @@ type Prompt struct {
 	// the post names a puzzle. Worked out here, not by the model: a puzzle
 	// number is a date by arithmetic, and the model would only guess.
 	ContextDate string
+
+	// History is the last few questions put to the bot and what it
+	// answered, oldest first, for a follow-up that means nothing alone.
+	// Only the agent is shown it; see conversation.
+	History []Exchange
+}
+
+// Exchange is an earlier question and the answer the group saw.
+type Exchange struct {
+	// Asker is who asked, empty for somebody who is not a player.
+	Asker    string
+	Question string
+	Answer   string
 }
 
 // keepUnanswered records a question the bot could not place, so a kind
@@ -212,6 +225,7 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter, ag
 	send func(ctx context.Context, text string) error, logger *slog.Logger) func(context.Context, string, string, string, []string) error {
 
 	t := i18n.NewTranslator(cats, locale)
+	conv := &conversation{}
 
 	return func(ctx context.Context, senderUUID, question, quoted string, mentioned []string) error {
 		// Each mention is a placeholder in the text standing for an
@@ -260,9 +274,13 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter, ag
 		for _, p := range players {
 			names = append(names, p.Name)
 		}
-		prompt := Prompt{Question: question, Players: names, Today: time.Now()}
+		now := time.Now()
+		prompt := Prompt{Question: question, Players: names, Today: now}
 		if asker != nil {
 			prompt.Asker = asker.Name
+		}
+		for _, tn := range conv.recent(now) {
+			prompt.History = append(prompt.History, Exchange{Asker: tn.asker, Question: tn.question, Answer: tn.answer})
 		}
 		if quoted = strings.TrimSpace(quoted); quoted != "" {
 			prompt.Context = quoted
@@ -290,13 +308,21 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter, ag
 		}
 		logger.Info("answering a question in the group",
 			"kind", req.Kind, "span", req.Span, "days", req.Days, "named_player", req.Player != "")
+		if req.Kind == KindUnknown && agent != nil && agent.Ready() {
+			q := asked{t: t, prompt: prompt, asker: asker, players: players, results: results, now: now}
+			return askAgent(ctx, q, agent, conv, send, db, logger)
+		}
 		if req.Kind == KindUnknown {
-			if agent != nil && agent.Ready() {
-				return askAgent(ctx, t, agent, prompt, asker, players, results, send, db, logger)
-			}
 			keepUnanswered(ctx, db, logger, question)
 		}
 
-		return send(ctx, answer(t, req, asker, players, results, time.Now()))
+		text := answer(t, req, asker, players, results, now)
+		tp := topicWordle
+		switch req.Kind {
+		case KindThanks, KindHelp, KindUnknown:
+			tp = topicNeutral
+		}
+		conv.add(turn{at: now, asker: prompt.Asker, question: question, answer: text, topic: tp})
+		return send(ctx, text)
 	}
 }
