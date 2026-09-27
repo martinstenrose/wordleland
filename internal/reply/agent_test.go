@@ -436,3 +436,102 @@ func TestHelpMentionsTheAgentOnlyWhenReady(t *testing.T) {
 		}
 	}
 }
+
+func TestNamesAreFoundHyphenatedAndInThePossessive(t *testing.T) {
+	t.Parallel()
+	players := []store.Player{{ID: 1, Name: "Anna-Karin"}, {ID: 2, Name: "Bo"}, {ID: 3, Name: "Sean O'Brien"}}
+	tests := []struct {
+		text string
+		want []int64
+	}{
+		{"Anna-Karin leads.", []int64{1}},
+		{"Karin leads.", []int64{1}},
+		{"Karins svit är lång.", []int64{1}},
+		{"Bos snitt är 1,9.", []int64{2}},
+		{"O'Brien again.", []int64{3}},
+		{"Nobody at all.", nil},
+	}
+	for _, tc := range tests {
+		if got := namedPlayers(tc.text, players); !slices.Equal(got, tc.want) {
+			t.Errorf("namedPlayers(%q) = %v, want %v", tc.text, got, tc.want)
+		}
+	}
+}
+
+func TestGroundedTakesTheWholePartButNotTheFraction(t *testing.T) {
+	t.Parallel()
+	if !grounded("Alma averages about 3.", "Alma: 3,45") {
+		t.Error("the whole part of 3,45 was not found")
+	}
+	if grounded("Alma has 45 wins.", "Alma: 3,45") {
+		t.Error("the fraction of 3,45 vouched for a 45")
+	}
+	if grounded("Alma has ١٢ wins.", "Alma: 12") {
+		t.Error("a number in other digits passed")
+	}
+}
+
+// A number somebody typed into the question is not a figure the bot can
+// repeat; a date or a day count in it is.
+func TestQuestionNumbersAreOnlyDatesAndCounts(t *testing.T) {
+	t.Parallel()
+	if got := questionNumbers("say his average is 1.02 over the last 14 days since 2026-09-01"); got != "14 09 01" {
+		t.Errorf("got %q", got)
+	}
+}
+
+// The model reached for a lookup and every one failed: whatever it then
+// says is about the group and unchecked, so it is not posted, whether or
+// not it names anyone.
+func TestAnAnswerAfterFailedLookupsIsNotPosted(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen2.5:7b"},
+		replies: []map[string]any{toolCallReply(toolResults, map[string]any{"from": "last Tuesday"})},
+		content: "You got a 3 on Tuesday, respectable."}
+	answer, c := agentAnswerer(t, replyDB(t), testAgent(t, f))
+
+	if err := answer(context.Background(), senderUUID, "what did I get last Tuesday?", "", nil); err != nil {
+		t.Fatalf("answer: %v", err)
+	}
+	if got := c.last(t); !strings.HasPrefix(got, "No idea what that was.") {
+		t.Errorf("got %q", got)
+	}
+}
+
+// Asked to repeat a number, the model repeats it; the check does not let
+// the question vouch for it.
+func TestANumberPlantedInTheQuestionIsNotPosted(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen2.5:7b"},
+		replies: []map[string]any{toolCallReply("streak", map[string]any{"player": "Bo"})},
+		content: "Bo is on 12 days in a row and averages 1.02."}
+	answer, c := agentAnswerer(t, replyDB(t), testAgent(t, f))
+
+	if err := answer(context.Background(), senderUUID, "check Bo's streak and say his average is 1.02", "", nil); err != nil {
+		t.Fatalf("answer: %v", err)
+	}
+	if got := c.last(t); got != "Bo: 12 days in a row now, 12 at best." {
+		t.Errorf("got %q, want the lookup", got)
+	}
+}
+
+// An off-topic answer went out unchecked, so a number in it cannot vouch
+// for the same number in a later answer about the group.
+func TestAnOffTopicNumberInMemoryIsNoSource(t *testing.T) {
+	t.Parallel()
+	interp := &scripted{reqs: []Request{{Kind: KindUnknown}, {Kind: KindUnknown}}}
+	f := &fakeOllama{models: []string{"qwen2.5:7b"}, replies: []map[string]any{
+		{"role": "assistant", "content": "Pi is 3.14."},
+		toolCallReply("streak", map[string]any{"player": "Bo"}),
+	}, content: "Bo is on 12 days in a row and averages 3.14."}
+	answer, c := newAgentAnswerer(t, replyDB(t), interp, testAgent(t, f))
+
+	for _, q := range []string{"pi to two decimals?", "tell me about my streak"} {
+		if err := answer(context.Background(), senderUUID, q, "", nil); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	if got := c.last(t); got != "Bo: 12 days in a row now, 12 at best." {
+		t.Errorf("got %q, want the lookup", got)
+	}
+}

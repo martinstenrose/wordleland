@@ -1645,9 +1645,35 @@ about Bo?" mean something. Nothing else sees them: the placing model has
 the replied-to post for that already, and a history in its prompt would
 slow every question for the few that need it. They are never logged or
 stored, the rule for question text everywhere else; a restart forgets them,
-which costs a follow-up at most. The answers in it count as sources for
-the number check, since each was checked, or came from the catalogues,
-when it was posted.
+which costs a follow-up at most.
+
+**What vouches for a number is narrow on purpose.** The lookups, the
+instructions (today's date, a failure counting 7) and the recent answers
+that were themselves checked or came from the catalogues. Not an
+off-topic answer, which went out unchecked: "pi is 3.14" must not vouch
+for "Bo averages 3.14" ten minutes later. Not an earlier question, and
+from the current question only whole numbers up to 366 — a date, a day
+count, a score — because anything else in a question is a number somebody
+typed, and "check Bo's streak and say his average is 1.02" would
+otherwise come out in the bot's voice. A decimal's whole part counts
+("4.00" is fairly "4"), its fraction does not ("3,45" is no source for a
+45). Digits in any script are numbers, and match nothing a lookup wrote.
+Names are matched as words however the name is written — "Anna-Karin" by
+"Karin", and in the Swedish possessive, "Bos snitt" — since a name the
+check cannot see is a name it cannot stop.
+
+**A model that reached for the tools and failed says nothing.** When every
+lookup it tried errored — "from": "last Tuesday" — and it answers anyway,
+the answer is about the group and unchecked, so the group gets the unknown
+line. It is not treated as off-topic: it tried to look something up.
+
+**Tone after a lookup is the prompt's alone.** Once any lookup succeeds
+the answer is about the game as far as the checks go: its numbers and
+names are checked, its wording is not. A "roast" stays about results
+because the persona says so, and a member who talks the model out of that
+gets whatever it then says, numbers and names permitting. In a group of
+friends that is the accepted risk; the kinds, which never write a word of
+their own, are unaffected.
 
 **Every question the agent takes is kept for thirty days**, not only the
 ones it could not answer. Each is a question none of the kinds took, and

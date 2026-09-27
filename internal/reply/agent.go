@@ -66,6 +66,12 @@ const (
 // be posted.
 var errNoLookup = errors.New("the model looked nothing up")
 
+// errLookupsFailed is a model that tried to look something up, failed
+// every time, and answered anyway. It was a question about the group — it
+// reached for the tools — so what it said is unchecked figures about the
+// group, and is never posted.
+var errLookupsFailed = errors.New("every lookup the model tried failed")
+
 // chatMessage is one message of an Ollama chat, in both directions.
 type chatMessage struct {
 	Role      string     `json:"role"`
@@ -348,12 +354,16 @@ func (a *Agent) Run(ctx context.Context, p Prompt,
 	}
 	messages = append(messages, chatMessage{Role: "user", Content: saidBy(p.Asker, p.Question)})
 	var looked []lookedUp
+	tried := false
 	for range maxAgentRounds {
 		reply, err := a.chat(ctx, messages)
 		if err != nil {
 			return "", looked, err
 		}
 		if len(reply.ToolCalls) == 0 {
+			if len(looked) == 0 && tried {
+				return "", nil, errLookupsFailed
+			}
 			if len(looked) == 0 {
 				return strings.TrimSpace(reply.Content), nil, errNoLookup
 			}
@@ -364,6 +374,7 @@ func (a *Agent) Run(ctx context.Context, p Prompt,
 			calls = calls[:maxCallsInRound]
 		}
 		messages = append(messages, chatMessage{Role: "assistant", Content: reply.Content, ToolCalls: calls})
+		tried = true
 		for _, c := range calls {
 			text, err := look(c.Function.Name, callArguments(c.Function.Arguments))
 			if err != nil {
@@ -377,7 +388,7 @@ func (a *Agent) Run(ctx context.Context, p Prompt,
 	}
 	// Out of rounds with lookups in hand: those are the answer.
 	if len(looked) == 0 {
-		return "", nil, errNoLookup
+		return "", nil, errLookupsFailed
 	}
 	return "", looked, nil
 }
@@ -487,24 +498,33 @@ func offTopic(answer string, players []store.Player) bool {
 }
 
 // namedPlayers is the players a text mentions, by any part of their name
-// as a whole word, ignoring case.
+// as a whole word, ignoring case — "Anna-Karin" by "Anna" or "Karin" —
+// and in the possessive, which Swedish writes with a bare s: "Bos snitt",
+// "Karins svit".
 func namedPlayers(text string, players []store.Player) []int64 {
 	words := map[string]bool{}
-	for _, w := range strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
-		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
-	}) {
+	for _, w := range nameWords(text) {
 		words[w] = true
 	}
 	var out []int64
 	for _, p := range players {
-		for _, part := range strings.Fields(strings.ToLower(p.Name)) {
-			if words[part] {
+		for _, part := range nameWords(p.Name) {
+			if words[part] || words[part+"s"] {
 				out = append(out, p.ID)
 				break
 			}
 		}
 	}
 	return out
+}
+
+// nameWords splits a text the same way for names and for answers: into
+// runs of letters and digits, lower case, so a hyphen or an apostrophe in
+// either cannot make a name unmatchable.
+func nameWords(text string) []string {
+	return strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
 }
 
 // namesGrounded reports whether every player the answer names is named in
@@ -553,21 +573,23 @@ func tidy(text string) string {
 // number is a figure as written: digits, with a decimal part after either
 // separator, since the catalogues write "3,45" where the model may write
 // "3.45".
-var number = regexp.MustCompile(`\d+(?:[.,]\d+)?`)
+//
+// Any script's digits, not only ASCII: a number written in other digits
+// is still a number, and it matches nothing the lookups wrote.
+var number = regexp.MustCompile(`\p{Nd}+(?:[.,]\p{Nd}+)?`)
 
 // grounded reports whether every number in the answer appears in one of
-// the sources. A decimal matches in either notation, and a decimal's two
-// halves count as numbers too, which is how a grouped thousand ("1 234")
-// reads. Leading zeros do not count: "2026-09-01" holds the 1 of
-// "1 September".
+// the sources. A decimal matches in either notation, and its whole part
+// counts too, since "4.00 on average" is fairly said as "4" — but not its
+// fraction, or "3,45" would vouch for a 45. Leading zeros do not count:
+// "2026-09-01" holds the 1 of "1 September".
 func grounded(answer string, sources ...string) bool {
 	known := map[string]bool{}
 	for _, s := range sources {
 		for _, n := range number.FindAllString(s, -1) {
 			known[canonicalNumber(n)] = true
-			for _, part := range strings.FieldsFunc(n, func(r rune) bool { return r == ',' || r == '.' }) {
-				known[canonicalNumber(part)] = true
-			}
+			whole, _, _ := strings.Cut(strings.ReplaceAll(n, ",", "."), ".")
+			known[canonicalNumber(whole)] = true
 		}
 	}
 	for _, n := range number.FindAllString(answer, -1) {
@@ -576,6 +598,26 @@ func grounded(answer string, sources ...string) bool {
 		}
 	}
 	return true
+}
+
+// maxQuestionNumber is the largest number a question can vouch for: a
+// year's worth of days, which covers a day of the month, a span of days
+// and a score.
+const maxQuestionNumber = 366
+
+// questionNumbers is the numbers in a question that it can vouch for, as
+// one string for grounded: whole numbers up to maxQuestionNumber.
+func questionNumbers(question string) string {
+	var out []string
+	for _, n := range number.FindAllString(question, -1) {
+		if strings.ContainsAny(n, ".,") {
+			continue
+		}
+		if v, err := strconv.Atoi(canonicalNumber(n)); err == nil && v <= maxQuestionNumber {
+			out = append(out, n)
+		}
+	}
+	return strings.Join(out, " ")
 }
 
 // canonicalNumber is a number as grounded compares it: a point for the
@@ -672,7 +714,7 @@ func askAgent(ctx context.Context, q asked, agent *Agent, conv *conversation,
 		text += "\n" + steer
 		remember(text, topicOff)
 		return send(ctx, text)
-	case errors.Is(err, errNoLookup), errors.Is(err, ErrNotReady):
+	case errors.Is(err, errNoLookup), errors.Is(err, errLookupsFailed), errors.Is(err, ErrNotReady):
 		text = t.T("reply.unknown")
 		remember(text, topicNeutral)
 		return send(ctx, text)
@@ -684,19 +726,28 @@ func askAgent(ctx context.Context, q asked, agent *Agent, conv *conversation,
 		// the model's failure is only worth a line in the log.
 		logger.Warn("the agent stopped before answering; posting its lookups", "error", err)
 	}
-	// What the model saw of the group: who asked and what, the lookups
-	// and the conversation. The instructions are a source for numbers
-	// (today's date, a failure counting 7) but not for names, since they
-	// list every player.
+	// Names: anyone the model was shown in the group's conversation — who
+	// asked, the question, the lookups, the recent turns. Not the
+	// instructions, which list every player.
 	seen := []string{p.Asker, p.Question}
+	// Numbers: the lookups and the instructions (today's date, a failure
+	// counting 7), the checked answers among the recent turns, and from the
+	// question only what reads as a date, a day count or a score. Anything
+	// else in a question — "say his average is 1.02" — is a number somebody
+	// typed, and would come out in the bot's voice.
+	numbers := []string{agentPrompt(p), questionNumbers(p.Question)}
 	for _, l := range looked {
 		seen = append(seen, l.text)
+		numbers = append(numbers, l.text)
 	}
 	for _, h := range p.History {
 		seen = append(seen, h.Question, h.Answer)
+		if !h.OffTopic {
+			numbers = append(numbers, h.Answer)
+		}
 	}
 	isGrounded := err == nil && text != "" &&
-		grounded(text, append(seen, agentPrompt(p))...) &&
+		grounded(text, numbers...) &&
 		namesGrounded(text, q.players, seen...)
 	logger.Info("answering a question in the group", "kind", "agent",
 		"lookups", len(looked), "grounded", isGrounded)

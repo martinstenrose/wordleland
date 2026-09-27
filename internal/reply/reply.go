@@ -181,6 +181,9 @@ type Exchange struct {
 	Asker    string
 	Question string
 	Answer   string
+	// OffTopic says the answer was posted without its numbers checked,
+	// so it is no source for a number in a later one.
+	OffTopic bool
 }
 
 // help is the list of what can be asked, and with the agent ready, the
@@ -293,7 +296,8 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter, ag
 			prompt.Asker = asker.Name
 		}
 		for _, tn := range conv.recent(now) {
-			prompt.History = append(prompt.History, Exchange{Asker: tn.asker, Question: tn.question, Answer: tn.answer})
+			prompt.History = append(prompt.History, Exchange{
+				Asker: tn.asker, Question: tn.question, Answer: tn.answer, OffTopic: tn.topic == topicOff})
 		}
 		if quoted = strings.TrimSpace(quoted); quoted != "" {
 			prompt.Context = quoted
