@@ -254,7 +254,9 @@ answering half of them.
   question, and every player it names must have been mentioned in the
   conversation or a lookup. A number written as a word is not checked;
   the model is told to write digits. An answer that fails
-  either gets the lookups' own text posted instead. Markdown is stripped
+  either is sent back once, with what failed, to be rewritten; if the
+  rewrite fails too, or there is no time for it, the lookups' own text is
+  posted instead. Markdown is stripped
   and a rambling answer is cut after its last whole sentence.
 - **Off-topic:** a question it answers without looking anything up — a
   greeting, "what's the capital of Sweden?" — gets its answer only if the

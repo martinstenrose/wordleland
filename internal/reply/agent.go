@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"regexp"
 	"slices"
@@ -371,10 +372,10 @@ type lookedUp struct {
 // against and what replaces it when the check fails. errNoLookup, with
 // what the model said, when it answered without looking anything up.
 func (a *Agent) Run(ctx context.Context, p Prompt,
-	look func(name string, args json.RawMessage) (string, error)) (string, []lookedUp, error) {
+	look func(name string, args json.RawMessage) (string, error)) (runResult, error) {
 
 	if !a.Ready() {
-		return "", nil, ErrNotReady
+		return runResult{}, ErrNotReady
 	}
 	messages := []chatMessage{{Role: "system", Content: agentPrompt(p)}}
 	for _, h := range p.History {
@@ -388,16 +389,17 @@ func (a *Agent) Run(ctx context.Context, p Prompt,
 	for range maxAgentRounds {
 		reply, err := a.chat(ctx, messages)
 		if err != nil {
-			return "", looked, err
+			return runResult{looked: looked}, err
 		}
 		if len(reply.ToolCalls) == 0 {
 			if len(looked) == 0 && tried {
-				return "", nil, errLookupsFailed
+				return runResult{}, errLookupsFailed
 			}
+			out := runResult{text: strings.TrimSpace(reply.Content), looked: looked, transcript: messages}
 			if len(looked) == 0 {
-				return strings.TrimSpace(reply.Content), nil, errNoLookup
+				return out, errNoLookup
 			}
-			return strings.TrimSpace(reply.Content), looked, nil
+			return out, nil
 		}
 		calls := reply.ToolCalls
 		if len(calls) > maxCallsInRound {
@@ -422,9 +424,54 @@ func (a *Agent) Run(ctx context.Context, p Prompt,
 	}
 	// Out of rounds with lookups in hand: those are the answer.
 	if len(looked) == 0 {
-		return "", nil, errLookupsFailed
+		return runResult{}, errLookupsFailed
 	}
-	return "", looked, nil
+	return runResult{looked: looked}, nil
+}
+
+// runResult is what Run ends with: the model's answer, what it looked
+// up, and the conversation that led to the answer, which a repair
+// continues.
+type runResult struct {
+	text       string
+	looked     []lookedUp
+	transcript []chatMessage
+}
+
+// repairMinLeft is the time a repair needs before the answer's deadline:
+// one more round of the model. With less, the lookups are posted.
+const repairMinLeft = 45 * time.Second
+
+// repair gives the model one chance to rewrite an answer that failed the
+// checks, told exactly what failed. It may not look anything else up: a
+// repair is a rewrite of what it already has.
+func (a *Agent) repair(ctx context.Context, transcript []chatMessage, draft, problem string) (string, error) {
+	messages := append(slices.Clone(transcript),
+		chatMessage{Role: "assistant", Content: draft},
+		chatMessage{Role: "user", Content: problem})
+	reply, err := a.chat(ctx, messages)
+	if err != nil {
+		return "", err
+	}
+	if len(reply.ToolCalls) > 0 {
+		return "", errors.New("the model looked something up instead of rewriting")
+	}
+	return strings.TrimSpace(reply.Content), nil
+}
+
+// repairRequest tells the model what in its answer no lookup backed.
+// English, as all its instructions are; the figures and names are its own.
+func repairRequest(numbers, names []string) string {
+	var what []string
+	if len(numbers) > 0 {
+		what = append(what, "the numbers "+strings.Join(numbers, ", "))
+	}
+	if len(names) > 0 {
+		what = append(what, "the players "+strings.Join(names, ", "))
+	}
+	return "Your answer mentions " + strings.Join(what, " and ") + ", which nothing you looked up " +
+		"says. Rewrite it using only what the lookups said, in the same voice and as short, " +
+		"in the language of the question. Answer with the rewritten message only."
 }
 
 // saidBy is a question as the agent is shown it: prefixed with who asked,
@@ -577,13 +624,20 @@ func nameWords(text string) []string {
 // two players the lookups both mention; it does catch a player brought in
 // from nowhere, which is how a model filling in a sentence goes wrong.
 func namesGrounded(answer string, players []store.Player, sources ...string) bool {
+	return len(ungroundedNames(answer, players, sources...)) == 0
+}
+
+// ungroundedNames is the players the answer names that no source does.
+func ungroundedNames(answer string, players []store.Player, sources ...string) []string {
 	known := namedPlayers(strings.Join(sources, "\n"), players)
+	var out []string
 	for _, id := range namedPlayers(answer, players) {
 		if !slices.Contains(known, id) {
-			return false
+			i := slices.IndexFunc(players, func(p store.Player) bool { return p.ID == id })
+			out = append(out, players[i].Name)
 		}
 	}
-	return true
+	return out
 }
 
 // maxAnswerRunes is the longest answer posted as the model wrote it: about
@@ -633,6 +687,12 @@ var number = regexp.MustCompile(`\p{Nd}+(?:[.,]\p{Nd}+)?`)
 // fraction, or "3,45" would vouch for a 45. Leading zeros do not count:
 // "2026-09-01" holds the 1 of "1 September".
 func grounded(answer string, sources ...string) bool {
+	return len(ungroundedNumbers(answer, sources...)) == 0
+}
+
+// ungroundedNumbers is the numbers in the answer no source vouches for,
+// each once, as the answer wrote them.
+func ungroundedNumbers(answer string, sources ...string) []string {
 	known := map[string]bool{}
 	for _, s := range sources {
 		for _, n := range number.FindAllString(s, -1) {
@@ -641,12 +701,13 @@ func grounded(answer string, sources ...string) bool {
 			known[canonicalNumber(whole)] = true
 		}
 	}
+	var out []string
 	for _, n := range number.FindAllString(answer, -1) {
-		if !known[canonicalNumber(n)] {
-			return false
+		if !known[canonicalNumber(n)] && !slices.Contains(out, n) {
+			out = append(out, n)
 		}
 	}
-	return true
+	return out
 }
 
 // canonicalNumber is a number as grounded compares it: a point for the
@@ -703,6 +764,29 @@ type asked struct {
 	now     time.Time
 }
 
+// timeLeft is how long until ctx's deadline, or forever without one.
+func timeLeft(ctx context.Context) time.Duration {
+	if d, ok := ctx.Deadline(); ok {
+		return time.Until(d)
+	}
+	return time.Duration(math.MaxInt64)
+}
+
+// failedCheck names the checks an answer failed, for the log: which one
+// fails, and how often, says whether the prompt or the model needs work.
+// Never the answer or the figures themselves.
+func failedCheck(nums, names []string) string {
+	switch {
+	case len(nums) > 0 && len(names) > 0:
+		return "numbers+names"
+	case len(nums) > 0:
+		return "numbers"
+	case len(names) > 0:
+		return "names"
+	}
+	return ""
+}
+
 // fallbackDays is how much of a day-by-day list is posted as a fallback:
 // the week the question was most likely about.
 const fallbackDays = 7
@@ -749,8 +833,8 @@ func askAgent(ctx context.Context, q asked, agent *Agent, conv *conversation,
 		actx, cancel = context.WithDeadline(ctx, deadline.Add(-agentSendReserve))
 		defer cancel()
 	}
-	text, looked, err := agent.Run(actx, p, look)
-	text = tidy(text)
+	res, err := agent.Run(actx, p, look)
+	text, looked := tidy(res.text), res.looked
 	switch {
 	case errors.Is(err, errNoLookup) && offTopic(text, q.players):
 		steer := segue(t, conv.nextSegue(), q.players, q.results, q.now)
@@ -799,11 +883,26 @@ func askAgent(ctx context.Context, q asked, agent *Agent, conv *conversation,
 			numbers = append(numbers, h.Answer)
 		}
 	}
-	isGrounded := err == nil && text != "" &&
-		grounded(text, numbers...) &&
-		namesGrounded(text, q.players, seen...)
+	check := func(text string) (nums, names []string) {
+		return ungroundedNumbers(text, numbers...), ungroundedNames(text, q.players, seen...)
+	}
+	nums, names := check(text)
+	isGrounded := err == nil && text != "" && len(nums) == 0 && len(names) == 0
+	failed := failedCheck(nums, names)
+	repaired := false
+	if !isGrounded && err == nil && text != "" && timeLeft(actx) > repairMinLeft {
+		// One rewrite, told what failed, before giving up on the model's
+		// sentence: the lookups alone are true but read as a data dump,
+		// which "roast Alma" should not get.
+		if again, rerr := agent.repair(actx, res.transcript, text, repairRequest(nums, names)); rerr == nil {
+			again = tidy(again)
+			if n, m := check(again); again != "" && len(n) == 0 && len(m) == 0 {
+				text, isGrounded, repaired = again, true, true
+			}
+		}
+	}
 	logger.Info("answering a question in the group", "kind", "agent",
-		"lookups", len(looked), "grounded", isGrounded)
+		"lookups", len(looked), "grounded", isGrounded, "failed_check", failed, "repaired", repaired)
 	if !isGrounded {
 		// Out of time, out of rounds, or a number from nowhere: what was
 		// looked up is still a true answer to what was asked.

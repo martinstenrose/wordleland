@@ -1673,6 +1673,17 @@ digits, and that is all that stands in its way. Names are matched as words howev
 "Karin", and in the Swedish possessive, "Bos snitt" — since a name the
 check cannot see is a name it cannot stop.
 
+**A failed answer gets one rewrite before the lookups stand in.** The
+lookups are always true, but posted raw they read as a data dump, which
+"roast Alma" should not get. So an answer that fails a check goes back to
+the model once, with exactly what failed ("the numbers 40 and the players
+Alma, which nothing you looked up says"), to rewrite from what it already
+has. The rewrite is checked the same way; it may not look anything more
+up, and with less than 45 seconds left before the deadline there is no
+rewrite at all. The log says which check failed and whether the rewrite
+passed — never the text — since how often each happens is what says
+whether the prompt or the model needs work.
+
 **A lookup that finds nobody is not a lookup.** Its text is who it could
 have been — the whole roster — and counting it would put every name among
 those the model has seen. It goes back to the model as an error instead.

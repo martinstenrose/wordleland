@@ -739,3 +739,81 @@ func TestALookupWithNullArgumentsIsALookup(t *testing.T) {
 		t.Errorf("lookup: %v", err)
 	}
 }
+
+// An answer that fails the checks gets one rewrite, told what failed, and
+// the rewrite is posted when it passes.
+func TestAFailedAnswerIsRepairedOnce(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen2.5:7b"},
+		replies: []map[string]any{
+			toolCallReply("streak", map[string]any{"player": "Bo"}),
+			{"role": "assistant", "content": "Bo is on 40 days in a row, and Alma weeps."},
+		},
+		content: "Bo is on 12 days in a row. Somebody stop him."}
+	answer, c := agentAnswerer(t, replyDB(t), testAgent(t, f))
+
+	if err := answer(context.Background(), senderUUID, "how's my streak?", "", nil); err != nil {
+		t.Fatalf("answer: %v", err)
+	}
+	if got := c.last(t); got != "Bo is on 12 days in a row. Somebody stop him." {
+		t.Errorf("got %q, want the rewrite", got)
+	}
+	if len(f.chats) != 3 {
+		t.Fatalf("%d chat calls, want 3", len(f.chats))
+	}
+	msgs := f.chats[2]["messages"].([]any)
+	ask := msgs[len(msgs)-1].(map[string]any)["content"].(string)
+	for _, want := range []string{"40", "Alma", "Rewrite"} {
+		if !strings.Contains(ask, want) {
+			t.Errorf("the repair request lacks %q: %q", want, ask)
+		}
+	}
+	if draft := msgs[len(msgs)-2].(map[string]any)["content"]; draft != "Bo is on 40 days in a row, and Alma weeps." {
+		t.Errorf("the draft was not handed back: %v", draft)
+	}
+}
+
+// A rewrite that looks something up instead, or fails again, is not
+// trusted: the lookups are posted.
+func TestARepairThatFailsGivesTheLookups(t *testing.T) {
+	t.Parallel()
+	for name, after := range map[string]map[string]any{
+		"fails again": {"role": "assistant", "content": "Bo is on 41 days."},
+		// A rewrite that would pass, but reached for a lookup to get there.
+		"looks up": {"role": "assistant", "content": "Bo is on 12 days in a row.", "tool_calls": []map[string]any{
+			{"function": map[string]any{"name": "today", "arguments": map[string]any{}}}}},
+	} {
+		f := &fakeOllama{models: []string{"qwen2.5:7b"},
+			replies: []map[string]any{
+				toolCallReply("streak", map[string]any{"player": "Bo"}),
+				{"role": "assistant", "content": "Bo is on 40 days in a row."},
+				after,
+			}}
+		answer, c := agentAnswerer(t, replyDB(t), testAgent(t, f))
+		if err := answer(context.Background(), senderUUID, "how's my streak?", "", nil); err != nil {
+			t.Fatalf("%s: answer: %v", name, err)
+		}
+		if got := c.last(t); got != "Bo: 12 days in a row now, 12 at best." {
+			t.Errorf("%s: got %q, want the lookup", name, got)
+		}
+	}
+}
+
+// With too little time left for another round, there is no repair.
+func TestNoRepairWithoutTimeForIt(t *testing.T) {
+	t.Parallel()
+	ask, c, f := deadlineAnswerer(t, &fakeOllama{models: []string{"qwen2.5:7b"},
+		replies: []map[string]any{
+			toolCallReply("streak", map[string]any{"player": "Bo"}),
+			{"role": "assistant", "content": "Bo is on 40 days in a row."},
+		}, content: "Bo is on 12 days in a row."})
+	if err := ask("how's my streak?"); err != nil {
+		t.Fatal(err)
+	}
+	if got := c.last(t); got != "Bo: 12 days in a row now, 12 at best." {
+		t.Errorf("got %q, want the lookup", got)
+	}
+	if len(f.chats) != 2 {
+		t.Errorf("%d chat calls, want 2: no time for a repair", len(f.chats))
+	}
+}
