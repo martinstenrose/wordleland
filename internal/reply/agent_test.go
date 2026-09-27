@@ -182,8 +182,7 @@ func TestAnUngroundedAnswerIsReplacedByTheLookups(t *testing.T) {
 }
 
 // Without a lookup the model knows nothing about the group, so what it
-// says may go out only when it is about something else: no player, no
-// number. Anything else gets the unknown line, and the question is kept
+// says may go out only when it names no player. Anything else gets the unknown line, and the question is kept
 // either way.
 func TestAnAnswerFromNothingIsPostedOnlyOffTopic(t *testing.T) {
 	t.Parallel()
@@ -194,8 +193,8 @@ func TestAnAnswerFromNothingIsPostedOnlyOffTopic(t *testing.T) {
 		{"Stockholm, obviously.", "Stockholm, obviously."},
 		{"Bo is leading, naturally.", "No idea what that was."},
 		{"bo is leading, naturally.", "No idea what that was."},
-		{"The leader averages 3.4.", "No idea what that was."},
-		{"Gustav Vasa was born in 1496.", "No idea what that was."},
+		{"Gustav Vasa was born in 1496.", "Gustav Vasa was born in 1496."},
+		{"Alma? Never heard of her.", "No idea what that was."},
 		{"", "No idea what that was."},
 	}
 	for _, tc := range tests {

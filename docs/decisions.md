@@ -1580,14 +1580,12 @@ produce: every number in its answer must appear in a lookup, the question,
 or its instructions, and an answer that fails is replaced by the lookups
 themselves, which are the bot's own words. An answer made without any lookup
 is about something other than the group — a greeting, "what is the capital
-of Sweden?" — and is posted only when it names no player and has no number
-in it. Without a lookup the model knows nothing about the group, so either
-would be made up ("Bo leads", "an average of 3.4"), and a number from
-general knowledge cannot be told from one of those; a year in a history
-answer is the price. Anything else gets the unknown line. What remains is
-an answer about the group that names nobody and counts nothing — "you're
-leading" from memory — which the prompt tells the model to look up and
-nothing checks. The
+of Sweden?" — and is posted only when it names no player. Without a lookup
+the model knows nothing about the group, so a name would be made up ("Bo
+leads"). Numbers are let through, since a year or a distance is often the
+answer to a general question. What that leaves open is an answer about the
+group that names nobody — "you're leading", "the leader averages 3.4" from
+memory — which the prompt tells the model to look up and nothing checks. The
 check is on numbers, not names: a model that pins one player's score on
 another passes it. That is the residual risk, and the reason the agent is
 a fallback behind the kinds rather than a replacement for them.

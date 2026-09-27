@@ -354,7 +354,7 @@ func agentPrompt(p Prompt) string {
 		"in this conversation; never work out a figure yourself. If the tools cannot answer it, say " +
 		"so in one sentence. A question about this group's players, scores or standings is always " +
 		"answered from the tools, never from memory. Anything else you may answer briefly from what " +
-		"you know, without any numbers; if you are not sure, say you don't know.\n")
+		"you know; if you are not sure, say you don't know.\n")
 	b.WriteString("Reply in the language the question is asked in, in one to three short sentences " +
 		"of plain text, no markdown.\n")
 	b.WriteString(persona)
@@ -386,15 +386,15 @@ const persona = "Your personality: witty, dry and a little cocky, like a friend 
 	"Your jokes contain no numbers.\n"
 
 // offTopic reports whether an answer made without a lookup may be posted:
-// it says something, and nothing in it is about the group. Without a
-// lookup the model knows nothing about the group, so a player's name or a
-// number in its answer is made up — "Bo leads", "an average of 3.4" — and
-// a number from general knowledge cannot be told apart from one of those.
-// A name is matched word by word, any part of it, so "Larsson" is Cid
+// it says something, and names no player. Without a lookup the model knows
+// nothing about the group, so a player in its answer is made up — "Bo
+// leads". Numbers are let through: a year or a distance in a general
+// answer is the point of answering, and an invented figure about the group
+// with nobody named in it is the risk taken for that. A name is matched word by word, any part of it, so "Larsson" is Cid
 // Larsson; a name that is also a word ("Bo") blocks that word too, which
 // errs on the side of the unknown line.
 func offTopic(answer string, players []store.Player) bool {
-	if answer == "" || number.MatchString(answer) {
+	if answer == "" {
 		return false
 	}
 	words := map[string]bool{}
