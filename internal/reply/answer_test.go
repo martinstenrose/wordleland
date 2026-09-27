@@ -168,7 +168,7 @@ func TestAnswers(t *testing.T) {
 func TestLeaderWithNoGamesSaysSo(t *testing.T) {
 	got := answer(translator(t, "en"), Request{Kind: KindLeader, Span: SpanDays, Days: 3},
 		nil, []store.Player{alma}, nil, fixtureNow())
-	if got != "The last 3 days: nobody has played yet. Bold strategy." {
+	if got != "The last 3 days: nobody has played yet. The board is wide open." {
 		t.Errorf("got %q", got)
 	}
 }
