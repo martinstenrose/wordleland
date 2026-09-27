@@ -638,6 +638,7 @@ func canonicalNumber(n string) string {
 // fallback is the lookups posted in place of the model's sentence: each
 // once, and without the day-by-day lists when there is anything else, since
 // those are working material for the model and a wall of dates in a chat.
+// When the lists are all there is, each is cut to its last fallbackDays.
 func fallback(looked []lookedUp) string {
 	var out []string
 	lists := 0
@@ -650,8 +651,12 @@ func fallback(looked []lookedUp) string {
 		if l.tool == toolResults && lists < len(looked) {
 			continue
 		}
-		if !slices.Contains(out, l.text) {
-			out = append(out, l.text)
+		text := l.text
+		if l.tool == toolResults {
+			text = lastDays(text, fallbackDays)
+		}
+		if !slices.Contains(out, text) {
+			out = append(out, text)
 		}
 	}
 	return strings.Join(out, "\n\n")
@@ -665,6 +670,19 @@ type asked struct {
 	players []store.Player
 	results []store.BoardResult
 	now     time.Time
+}
+
+// fallbackDays is how much of a day-by-day list is posted as a fallback:
+// the week the question was most likely about.
+const fallbackDays = 7
+
+// lastDays keeps a list's heading and its last n days.
+func lastDays(list string, n int) string {
+	lines := strings.Split(list, "\n")
+	if len(lines) <= n+1 {
+		return list
+	}
+	return strings.Join(append(lines[:1:1], lines[len(lines)-n:]...), "\n")
 }
 
 // askAgent answers a question the Interpreter could not place, and

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http/httptest"
@@ -158,6 +159,14 @@ func TestTheFallbackIsTheLookupsWithoutTheLists(t *testing.T) {
 	}
 	if got := fallback(looked[:1]); got != looked[0].text {
 		t.Errorf("a list alone: got %q", got)
+	}
+	long := "Bo:"
+	for d := 1; d <= 30; d++ {
+		long += fmt.Sprintf("\nday %d: 4", d)
+	}
+	got := fallback([]lookedUp{{toolResults, long}})
+	if lines := strings.Split(got, "\n"); len(lines) != fallbackDays+1 || lines[0] != "Bo:" || lines[len(lines)-1] != "day 30: 4" {
+		t.Errorf("a long list alone: got %q", got)
 	}
 }
 
@@ -533,5 +542,90 @@ func TestAnOffTopicNumberInMemoryIsNoSource(t *testing.T) {
 	}
 	if got := c.last(t); got != "Bo: 12 days in a row now, 12 at best." {
 		t.Errorf("got %q, want the lookup", got)
+	}
+}
+
+// deadlineAnswerer is an answerer whose send refuses a context that has
+// already ended, as the real one does, and the context the answer runs
+// under: agentSendReserve and a little more.
+func deadlineAnswerer(t *testing.T, f *fakeOllama) (func(string) error, *collector, *fakeOllama) {
+	t.Helper()
+	cats, err := i18n.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var c collector
+	send := func(ctx context.Context, text string) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		return c.send(ctx, text)
+	}
+	answer := New(replyDB(t), cats, "en", canned{req: Request{Kind: KindUnknown}}, testAgent(t, f), send,
+		slog.New(slog.NewTextHandler(io.Discard, nil)))
+	return func(q string) error {
+		ctx, cancel := context.WithTimeout(context.Background(), agentSendReserve+300*time.Millisecond)
+		defer cancel()
+		return answer(ctx, senderUUID, q, "", nil)
+	}, &c, f
+}
+
+// A model that runs out of time with nothing looked up: the apology still
+// goes out, inside the deadline, because the model was stopped short of it.
+func TestAnAgentOutOfTimeStillApologises(t *testing.T) {
+	t.Parallel()
+	ask, c, _ := deadlineAnswerer(t, &fakeOllama{models: []string{"qwen2.5:7b"}, blockFrom: 1})
+	if err := ask("who has the most 2s and the longest streak?"); err == nil {
+		t.Error("no error for a model that never answered")
+	}
+	if got := c.last(t); !strings.HasPrefix(got, "That one broke my brain.") {
+		t.Errorf("got %q", got)
+	}
+}
+
+// Out of time with a lookup in hand: the lookup is the answer.
+func TestAnAgentOutOfTimePostsItsLookups(t *testing.T) {
+	t.Parallel()
+	ask, c, _ := deadlineAnswerer(t, &fakeOllama{models: []string{"qwen2.5:7b"}, blockFrom: 2,
+		replies: []map[string]any{toolCallReply("streak", map[string]any{"player": "Bo"})}})
+	if err := ask("how's my streak, and who leads?"); err != nil {
+		t.Errorf("err = %v, want the lookup posted as an answer", err)
+	}
+	if got := c.last(t); got != "Bo: 12 days in a row now, 12 at best." {
+		t.Errorf("got %q", got)
+	}
+}
+
+// A model that never stops calling tools is stopped after maxAgentRounds,
+// at most maxCallsInRound calls a round, and what it looked up is posted.
+func TestAnAgentThatNeverStopsIsStopped(t *testing.T) {
+	t.Parallel()
+	call := map[string]any{"function": map[string]any{"name": "streak", "arguments": map[string]any{"player": "Bo"}}}
+	calls := make([]map[string]any, maxCallsInRound+2)
+	for i := range calls {
+		calls[i] = call
+	}
+	f := &fakeOllama{models: []string{"qwen2.5:7b"},
+		always: map[string]any{"role": "assistant", "content": "", "tool_calls": calls}}
+	answer, c := agentAnswerer(t, replyDB(t), testAgent(t, f))
+
+	if err := answer(context.Background(), senderUUID, "streak?", "", nil); err != nil {
+		t.Fatalf("answer: %v", err)
+	}
+	if got := c.last(t); got != "Bo: 12 days in a row now, 12 at best." {
+		t.Errorf("got %q", got)
+	}
+	if len(f.chats) != maxAgentRounds {
+		t.Errorf("%d rounds, want %d", len(f.chats), maxAgentRounds)
+	}
+	msgs := f.chats[1]["messages"].([]any)
+	tools := 0
+	for _, m := range msgs {
+		if m.(map[string]any)["role"] == "tool" {
+			tools++
+		}
+	}
+	if tools != maxCallsInRound {
+		t.Errorf("%d calls answered in the first round, want %d", tools, maxCallsInRound)
 	}
 }

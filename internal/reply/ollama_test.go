@@ -22,6 +22,13 @@ type fakeOllama struct {
 	pulled  []string
 	chats   []map[string]any
 	content string
+	// blockFrom, when not zero, is the chat call (counting from 1) from
+	// which the server hangs until the request is given up on: a model
+	// that takes longer than the deadline.
+	blockFrom int
+	// always, when set, is the chat's message every time: a model that
+	// never stops calling tools.
+	always map[string]any
 	// warmed is the models loaded ahead of a question.
 	warmed []string
 	// replies, when set, are the chat's messages in turn, for a
@@ -65,11 +72,20 @@ func (f *fakeOllama) handler() http.Handler {
 		json.Unmarshal(body, &req)
 		f.mu.Lock()
 		f.chats = append(f.chats, req)
+		n := len(f.chats)
 		message := map[string]any{"role": "assistant", "content": f.content}
 		if len(f.replies) > 0 {
 			message, f.replies = f.replies[0], f.replies[1:]
 		}
+		if f.always != nil {
+			message = f.always
+		}
+		block := f.blockFrom != 0 && n >= f.blockFrom
 		f.mu.Unlock()
+		if block {
+			<-r.Context().Done()
+			return
+		}
 		json.NewEncoder(w).Encode(map[string]any{"message": message})
 	})
 	return mux
