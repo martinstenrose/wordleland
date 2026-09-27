@@ -32,10 +32,9 @@ jobs:
       - run: go vet ./...
       - run: go build ./...
 
-      # The race detector, because the bridge shares its health state
-      # with the HTTP handlers that report it. A data race there is exactly
-      # the kind of thing that never reproduces on one machine.
-      - run: go test -race ./...
+      # Without the race detector, so a plain failure is reported in about
+      # a minute. The race job below runs the same tests again, slowly.
+      - run: go test ./...
 
       # staticcheck catches what go vet does not. Deliberate exceptions
       # carry a //lint:ignore naming the reason, so a hit here is a real
@@ -48,6 +47,21 @@ jobs:
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@v0.8.1
           "$(go env GOPATH)/bin/staticcheck" ./...
+
+  # The race detector, because the bridge shares its health state with the
+  # HTTP handlers that report it. A data race there is exactly the kind of
+  # thing that never reproduces on one machine. Its own job because it is
+  # several times slower than the plain run, which should not wait on it.
+  race:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - run: go test -race ./...
 
   image:
     runs-on: ubuntu-latest
