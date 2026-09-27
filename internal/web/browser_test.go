@@ -704,7 +704,7 @@ func TestBrowserTheTitleDoesNotMoveBetweenViews(t *testing.T) {
 // were measured, and at 1000px with the rail out it had nothing at all.
 // Nothing that reads the markup can see any of that. Column labels are
 // clipped rather than wrapped, for the same reason, so a label wider than
-// its column is silently cut; every one of the five languages is checked.
+// its column is silently cut; both languages are checked.
 func TestBrowserTodaysTwoListsShareARhythm(t *testing.T) {
 	site := newSite(t)
 	b := newBrowser(t)
@@ -730,7 +730,7 @@ func TestBrowserTodaysTwoListsShareARhythm(t *testing.T) {
 
 	for _, width := range []int{phoneWidth, desktopWidth} {
 		p := site.open(b, width)
-		for _, lang := range []string{"en", "sv", "de", "it", "es"} {
+		for _, lang := range []string{"en", "sv"} {
 			p.Navigate(site.base + "/today?lang=" + lang)
 			var got layout
 			if err := json.Unmarshal([]byte(p.String(probe)), &got); err != nil {

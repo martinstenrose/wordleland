@@ -655,10 +655,10 @@ tables about the same roster put the names in three different places. One
 token holds that width now, and the table with no rank takes it as an indent.
 
 The column labels over Today's two lists are their own strings rather than
-the board's. The board's headings live in a wide table that scrolls; here
-"Durchschnitt" over a 72px column wraps, one list's header grows taller than
-the other's, and every row below it is out of step. The widths are the
-longest label in any of the five languages, measured rather than guessed.
+the board's. The board's headings live in a wide table that scrolls; here a
+long label over a 72px column wraps, one list's header grows taller than the
+other's, and every row below it is out of step. The widths are the longest
+label in either language, measured rather than guessed.
 
 ### The form list spells its last five out
 
@@ -1256,17 +1256,11 @@ uses a comma as the decimal separator and spaces between thousands; English
 keeps the application's previous decimal-point and ungrouped forms. The
 formatter lives beside the shared catalogue so a monthly average cannot read
 one way on the board and another in Signal. Name lists use the same catalogue
-for their final conjunction, `list.and`, which is a word in every language —
-`and`, `och`, `und`, `y`, `e`. English, German, Spanish and Italian used a
-language-neutral `&` first; it read as a logo rather than a sentence in a chat
-message, where "Alice & Bob shared the day's best" is prose and not a label.
-One key for both surfaces, so the board and Signal cannot disagree about it.
-
-Spanish's euphonic `y` → `e` before an `i`- or `hi`- sound ("Ana e Inés") is
-deliberately not implemented: the conjunction is a flat catalogue string, and
-the rule needs the following word. A Spanish reader gets `y` in every case.
-Italian's optional `ed` before a vowel is the same call, and `e` is always
-correct there anyway.
+for their final conjunction, `list.and`, which is a word in each language —
+`and`, `och`. English used a language-neutral `&` first; it read as a logo
+rather than a sentence in a chat message, where "Alice & Bob shared the day's
+best" is prose and not a label. One key for both surfaces, so the board and
+Signal cannot disagree about it.
 
 **Turning it off is a separate switch from configuring the bridge at all**,
 `SIGNAL_ANNOUNCE_MONTHS`, defaulting on. The bridge's own on/off state
@@ -1465,9 +1459,8 @@ a suffix, because where "as usual" sits differs between the languages.
 
 **The day's best has three sentences, not a singular and a plural**, because
 a pair takes a word of its own: "both" is wrong for three people and "all" is
-wrong for two. German, Spanish and Italian make the same distinction
-(`beide`/`alle`, `ambos`/`todos`, `entrambi`/`tutti`), and Swedish restructures
-the sentence for a pair (`Både Alice och Bob …`), which is exactly what a
+wrong for two. Swedish restructures the sentence for a pair (`Både Alice
+och Bob …`), which is exactly what a
 separate key per case is for. Note also that this is not the catalogue's
 `.one`/`.other` plural mechanism and could not be: that splits at one, and
 this splits at two.
@@ -1623,12 +1616,19 @@ screen nobody is reading it for is personal data with no reason to be there.
 
 `internal/i18n` reads whatever is in `locales/`, and the picker puts English
 first and sorts the rest, so adding a language is adding a file. What was not
-free is number formatting: it was a Swedish special case — comma before the
-fraction, space between thousands — and German, Spanish and Italian all want
-a comma too, grouped with a full stop. That is a table of locale to
-separators now. English stays ungrouped, which predates all of this: the
-numbers it mostly formats are puzzle numbers, and `1918` reads better than
-`1,918`.
+free is number formatting, which is a table of locale to separators rather
+than a Swedish special case — comma before the fraction, space between
+thousands — so a new language that writes numbers differently adds a row.
+English stays ungrouped, which predates all of this: the numbers it mostly
+formats are puzzle numbers, and `1918` reads better than `1,918`.
+
+That a language is cheap to add is not a reason to keep one. German, Spanish
+and Italian shipped for a while, for the fun of it, and were taken out again:
+every new sentence was four translations to write and check rather than one,
+and that was not worth it. English and Swedish are the languages the
+board is kept in. A reader whose saved choice was one of the three falls
+back the way any unknown locale does — to the browser's language, then
+English — without a migration.
 
 Two tests in that package earn their place once there is more than one
 translation to keep in step. A key English has and a translation does not
@@ -1646,7 +1646,7 @@ precisely when something had gone wrong. The keys are namespaced per screen
 (`signin.error.credentials`, `totp.error.wrong`, `error.notFound.body`),
 following what `recovery.error.*` already did, rather than one shared bucket:
 the same word is not the same sentence on two screens. A test reads a 404 in
-Swedish and German and a rejected sign-in in Swedish, so a literal cannot
+Swedish and a rejected sign-in in Swedish, so a literal cannot
 come back unnoticed.
 
 ## What only a browser can check

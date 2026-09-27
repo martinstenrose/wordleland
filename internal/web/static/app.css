@@ -1671,7 +1671,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   border-bottom: 1px solid var(--color-text-10);
 }
 .today-list-head .kicker { margin: 0; }
-/* Three figures named in five languages: where the hint and the heading do
+/* Three figures named in two languages: where the hint and the heading do
    not share a line, the hint takes the next one, still at the right edge. */
 .today-list-hint { margin-left: auto; font-size: 11px; color: var(--color-text-35); white-space: nowrap; }
 
@@ -1681,7 +1681,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   letter-spacing: .07em; color: var(--color-text-40);
   /* A label that wraps makes its row taller than the other list's, and the
      two stop lining up. Clipped instead — the columns are sized for the
-     longest label in any of the five languages. */
+     longest label in either language. */
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
@@ -2004,8 +2004,8 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
   /* Fixed columns for the figures, so they can be read down rather than each
      being found first — and so each sits under the label that names it. One
-     width for all four: the longest label in any of the five languages,
-     measured rather than guessed, and the same measure for the 30-day
+     width for all four, wide enough for the longest label in either
+     language, and the same measure for the 30-day
      average as for the others so the three right-hand columns of the form
      list line up with the two of the results. */
   .result-avg { width: 72px; text-align: right; font-size: var(--text-base); }
