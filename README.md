@@ -208,7 +208,8 @@ The model is told only the players' names, the asker's name, the date, and
 results, contact details or account state, and it never writes a sentence
 of its own, so there is nothing a question could get out of it: "what's
 Anna's email?" is a question it cannot place, and gets the short line
-saying so.
+saying so. The optional agent below does see results and does write its own
+sentences; what it can and cannot see is set out there.
 
 The mention is what triggers it, not the name: Signal carries a mention as
 the account behind it, so the bot can be renamed freely. This only works
@@ -232,26 +233,39 @@ be reached for gets an apology in the group and a warning in the log; it is
 not retried, since an answer arriving after the conversation has moved on
 reads as the bot talking to itself.
 
-With `LLM_AGENT_MODEL` set, a question the small model cannot place goes to
-the larger one instead of getting the "no idea what that was" line. It looks things up
-with the same answers the bot gives, plus a day-by-day list of a player's
-results and a whole-player profile, and writes the reply itself: "tell me
-about Bo", "roast Alma", "who leads, and is my streak still going?". With
-it on, the small model passes questions like those on rather than
-answering half of them. Every number in that reply is checked
-against what it looked up; if one does not match, the group gets the
-lookups' own text instead. A question it answers without looking anything
-up — a greeting, "what's the capital of Sweden?" — gets its answer only if
-that answer names no player, since anything it says about a player would be
-made up; otherwise that line. An off-topic answer comes with a line
-steering back to the game, and after two off-topic questions in a row the
-bot turns the next one away until somebody asks about Wordle. The agent
-also remembers the last few questions from the past fifteen minutes, in
-memory only, so a follow-up like "and last week?" works without replying
-to the bot's post. It is slower:
-allow up to a few minutes on a CPU, and the log line for its answers says
-`kind=agent`, with how many lookups it made and whether its sentence passed
-the check.
+**With `LLM_AGENT_MODEL` set, a larger model takes what the small one
+cannot place.** Off by default; `qwen2.5:7b` is a reasonable start. Instead
+of "no idea what that was", the question goes to the agent, which looks
+things up and writes the answer itself: "tell me about Bo", "roast Alma",
+"who leads, and is my streak still going?", "what did Bo get this week?".
+With it on, the small model passes questions like those on rather than
+answering half of them.
+
+- **What it can look up:** the same answers the bot gives to a placed
+  question, a whole-player profile, and a day-by-day list of one player's
+  results. That is players' names and results, nothing else — no contact
+  details, accounts, identities or settings. It has no database access
+  beyond those lookups.
+- **What is checked:** every number in its answer must appear in what it
+  looked up (or the question, or the recent conversation), and every
+  player it names must have been mentioned there. An answer that fails
+  either gets the lookups' own text posted instead. Markdown is stripped
+  and a rambling answer is cut after its last whole sentence.
+- **Off-topic:** a question it answers without looking anything up — a
+  greeting, "what's the capital of Sweden?" — gets its answer only if the
+  answer names no player, followed by a line steering back to the game
+  (who leads the month, the longest streak, how many have played today).
+  After two off-topic questions in a row the next is turned away, with the
+  same line back, until somebody asks about Wordle.
+- **Follow-ups:** it is shown the last four questions and answers from the
+  past fifteen minutes, so "and last week?" works without replying to the
+  bot's post. Held in memory only, never logged or stored; a restart
+  forgets it.
+- **Cost:** a second model held in memory, roughly twice the first, and
+  tens of seconds per answer on a CPU. The bridge allows up to four minutes
+  per answer with the agent on. Its log lines say `kind=agent`, with how
+  many lookups it made and whether its sentence passed the checks — never
+  the question.
 
 ### Set `TRUSTED_PROXIES`
 

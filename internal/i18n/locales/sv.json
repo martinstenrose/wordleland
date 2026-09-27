@@ -731,7 +731,7 @@
   "privacy.title": "Integritet",
   "privacy.intro": "Wordleland är självhostad för en privat grupp. Det här beskriver vad som sparas om de som använder den, och varför.",
   "privacy.stored.heading": "Vad som sparas",
-  "privacy.stored.body": "Din e-postadress, för inloggning och lösenordsåterställning. En Signal-kontoidentifierare och ditt senast sedda visningsnamn, om dina resultat kommer från gruppens Signal-chatt. Dina Wordle-resultat. Om en administratör rättar en rad, en uppgift om vad den sa innan. En fråga som gruppens bot inte kunde svara på, bara texten och utan vem som frågade, i 30 dagar.",
+  "privacy.stored.body": "Din e-postadress, för inloggning och lösenordsåterställning. En Signal-kontoidentifierare och ditt senast sedda visningsnamn, om dina resultat kommer från gruppens Signal-chatt. Dina Wordle-resultat. Om en administratör rättar en rad, en uppgift om vad den sa innan. En fråga som gruppens bot inte kunde svara på med sina fasta svar, bara texten och utan vem som frågade, i 30 dagar. Boten håller också de senaste frågorna i minnet i en kvart, för att kunna följa ett samtal; de skrivs aldrig ner.",
   "privacy.why.heading": "Varför",
   "privacy.why.body": "För att sköta den delade inloggningen, matcha ett Signal-meddelande mot rätt person, och hålla ett spår av rättelser en administratör gör.",
   "privacy.who.heading": "Vem kan se det",
