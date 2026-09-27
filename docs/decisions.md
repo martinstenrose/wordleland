@@ -1602,6 +1602,17 @@ expected to choose tools well, so the agent is a separate, larger model
 is expected to take tens of seconds per round, so the bridge's deadline for
 an answer is four minutes with the agent on.
 
+**With the agent on, the placing model hands on what it could only half
+answer.** Without an agent, "who leads, and is my streak still going?"
+placed as `leader` answers half the question, which beats the unknown
+line. With one, it is better answered whole, so the placing model is told
+— only then — that questions asking two things, comparing players on
+several figures, asking about a player in general or asking about results
+in a way no kind fits are `unknown`. The agent has a `profile` lookup for
+the "tell me about Bo" and "roast Alma" questions: every answer about one
+player in one call, since a small model does better with one call per
+player than with six it has to think of.
+
 **Off-topic gets an answer, then the way back, then a no.** A group chat
 drifts, and a bot that answers "what's the capital of Sweden?" with a
 stock line is a menu, not a member. But a bot that answers everything is

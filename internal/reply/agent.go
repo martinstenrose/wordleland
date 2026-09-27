@@ -115,11 +115,17 @@ var tools = []tool{
 		[]string{"player"}},
 	{string(KindRules), "How the group's scoring works, one topic at a time.",
 		[]string{"topic"}},
+	{toolProfile, "Everything about one player at once: their standing all time and this month, streaks, score distribution, months won and posting habits. For \"tell me about\", \"roast\" or comparing players.",
+		[]string{"player"}},
 	{toolResults, "A player's result on each day from one date to another, at most 62 days: the number of guesses, X for a failure, - for a day not played, * for hard mode.",
 		[]string{"player", "from", "to"}},
 }
 
-const toolResults = "results"
+// The tools that are not a Kind.
+const (
+	toolResults = "results"
+	toolProfile = "profile"
+)
 
 // toolParams describes each parameter a tool can take. The Request's own,
 // as the Interpreter's schema has them, and the results list's two dates.
@@ -174,8 +180,11 @@ func lookup(t i18n.Translator, name string, args json.RawMessage, asker *store.P
 		return "", fmt.Errorf("no such tool %q", name)
 	}
 	lenient(fields)
-	if name == toolResults {
+	switch name {
+	case toolResults:
 		return resultsList(t, fields, asker, players, results, now)
+	case toolProfile:
+		return profile(t, fields, asker, players, results, now), nil
 	}
 	fields["kind"] = name
 	raw, _ := json.Marshal(fields)
@@ -184,6 +193,32 @@ func lookup(t i18n.Translator, name string, args json.RawMessage, asker *store.P
 		return "", err
 	}
 	return answer(t, req, asker, players, results, now), nil
+}
+
+// profile is one player's answers to every kind about a player, in one
+// lookup: a small model asked to "roast Bo" or compare two players does
+// better with one call per player than with six it has to think of.
+func profile(t i18n.Translator, fields map[string]any, asker *store.Player,
+	players []store.Player, results []store.BoardResult, now time.Time) string {
+
+	player, _ := fields["player"].(string)
+	p, ok, text := whom(t, Request{Player: player}, asker, players)
+	if !ok {
+		return text
+	}
+	var lines []string
+	for _, req := range []Request{
+		{Kind: KindStanding, Span: SpanAll},
+		{Kind: KindStanding, Span: SpanMonth},
+		{Kind: KindStreak},
+		{Kind: KindCount},
+		{Kind: KindWins},
+		{Kind: KindHabits},
+	} {
+		req.Player = p.Name
+		lines = append(lines, answer(t, req, asker, players, results, now))
+	}
+	return strings.Join(lines, "\n")
 }
 
 // lenient repairs what small models get wrong about arguments in ways that

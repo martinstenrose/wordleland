@@ -165,6 +165,10 @@ type Prompt struct {
 	// number is a date by arithmetic, and the model would only guess.
 	ContextDate string
 
+	// Agent says an Agent takes the questions the Interpreter cannot place,
+	// which widens what "unknown" should mean: see systemPrompt.
+	Agent bool
+
 	// History is the last few questions put to the bot and what it
 	// answered, oldest first, for a follow-up that means nothing alone.
 	// Only the agent is shown it; see conversation.
@@ -275,7 +279,7 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter, ag
 			names = append(names, p.Name)
 		}
 		now := time.Now()
-		prompt := Prompt{Question: question, Players: names, Today: now}
+		prompt := Prompt{Question: question, Players: names, Today: now, Agent: agent != nil && agent.Ready()}
 		if asker != nil {
 			prompt.Asker = asker.Name
 		}

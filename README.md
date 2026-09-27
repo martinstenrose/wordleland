@@ -235,7 +235,10 @@ reads as the bot talking to itself.
 With `LLM_AGENT_MODEL` set, a question the small model cannot place goes to
 the larger one instead of getting the "no idea what that was" line. It looks things up
 with the same answers the bot gives, plus a day-by-day list of a player's
-results, and writes the reply itself. Every number in that reply is checked
+results and a whole-player profile, and writes the reply itself: "tell me
+about Bo", "roast Alma", "who leads, and is my streak still going?". With
+it on, the small model passes questions like those on rather than
+answering half of them. Every number in that reply is checked
 against what it looked up; if one does not match, the group gets the
 lookups' own text instead. A question it answers without looking anything
 up — a greeting, "what's the capital of Sweden?" — gets its answer only if

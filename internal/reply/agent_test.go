@@ -7,8 +7,10 @@ import (
 	"io"
 	"log/slog"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -273,5 +275,83 @@ func TestAnAnswerFromNothingIsPostedOnlyOffTopic(t *testing.T) {
 		if kept != 1 {
 			t.Errorf("%q: %d questions kept, want 1", tc.said, kept)
 		}
+	}
+}
+
+// A profile is the answers to every kind about one player, so "roast Bo"
+// is one lookup, and a name nobody has is said once, not six times.
+func TestAProfileIsEveryAnswerAboutOnePlayer(t *testing.T) {
+	t.Parallel()
+	tr, bo, players, results := lookupFixture(t)
+	now := time.Now()
+
+	got, err := lookup(tr, toolProfile, json.RawMessage(`{"player":"Alma"}`), bo, players, results, now)
+	if err != nil {
+		t.Fatalf("lookup: %v", err)
+	}
+	lines := strings.Split(got, "\n")
+	streak := answer(tr, Request{Kind: KindStreak, Player: "Alma"}, bo, players, results, now)
+	if !slices.Contains(lines, streak) {
+		t.Errorf("no streak line %q in:\n%s", streak, got)
+	}
+	for _, l := range lines {
+		if strings.HasPrefix(l, "Bo") {
+			t.Errorf("a line about the asker in Alma's profile: %q", l)
+		}
+	}
+
+	got, err = lookup(tr, toolProfile, json.RawMessage(`{"player":"Dag"}`), bo, players, results, now)
+	if err != nil || strings.Count(got, "Dag") != 1 {
+		t.Errorf("an unknown player: got %q, %v", got, err)
+	}
+}
+
+// With an agent behind it, the placing model hands on what it could only
+// half answer; without one, it is not told to.
+func TestThePlacingModelIsToldAboutTheAgent(t *testing.T) {
+	t.Parallel()
+	p := Prompt{Question: "roast Bo", Today: time.Now()}
+	if strings.Contains(systemPrompt(p), "Another part of the bot") {
+		t.Error("told about an agent that is not there")
+	}
+	p.Agent = true
+	if !strings.Contains(systemPrompt(p), `"roast Alma"`) {
+		t.Error("not told which questions the agent takes")
+	}
+}
+
+// recording is an Interpreter that keeps the prompts it was given.
+type recording struct {
+	mu      sync.Mutex
+	prompts []Prompt
+}
+
+func (r *recording) Interpret(_ context.Context, p Prompt) (Request, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.prompts = append(r.prompts, p)
+	return Request{Kind: KindThanks}, nil
+}
+
+func TestTheAgentIsAnnouncedOnlyOnceReady(t *testing.T) {
+	t.Parallel()
+	db := replyDB(t)
+	var rec recording
+	f := &fakeOllama{models: []string{"qwen2.5:7b"}}
+	srv := httptest.NewServer(f.handler())
+	t.Cleanup(srv.Close)
+	a := NewAgent(srv.URL, "qwen2.5:7b")
+	answer, _ := newAgentAnswerer(t, db, &rec, a)
+
+	if err := answer(context.Background(), senderUUID, "tack", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	a.Prepare(context.Background(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err := answer(context.Background(), senderUUID, "tack", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	if rec.prompts[0].Agent || !rec.prompts[1].Agent {
+		t.Errorf("Agent = %v then %v, want false before Prepare and true after",
+			rec.prompts[0].Agent, rec.prompts[1].Agent)
 	}
 }

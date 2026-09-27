@@ -376,6 +376,17 @@ Fields:
   today's date ("yesterday", "last Friday", "July 5" — a month without a year is
   the most recent one that has happened); "" for today or when kind is not "score".
 `)
+	if p.Agent {
+		// Only with the agent: without it "unknown" gets the unknown line,
+		// and half an answer beats that.
+		b.WriteString(`
+Another part of the bot answers the "unknown" questions, so kind is also
+"unknown" for a question that asks two different things at once ("who leads,
+and is my streak still going?"), compares players on more than one figure,
+asks about a player in general ("tell me about Bo", "roast Alma"), or asks
+about results in a way no kind fits ("what did Bo get this week?").
+`)
+	}
 	return b.String()
 }
 
