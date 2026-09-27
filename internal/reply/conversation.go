@@ -54,13 +54,22 @@ type conversation struct {
 	segues int
 	// forget empties turns a window after the last one was added.
 	forget *time.Timer
+	// quiet is memoryWindow, shortened in a test that waits for forget.
+	quiet time.Duration
 }
 
 const (
-	// memoryWindow is how long a turn is remembered. A follow-up comes
-	// within minutes; a question after a quarter of an hour is a new
-	// conversation, and so is an off-topic one.
+	// memoryWindow is the quiet that ends a conversation. A follow-up
+	// comes within minutes; a question after a quarter of an hour of
+	// nothing is a new conversation, and the off-topic count starts again
+	// with it. Measured from the last turn, not each: a conversation that
+	// keeps going is one conversation, so spacing off-topic questions
+	// fourteen minutes apart does not reset the count.
 	memoryWindow = 15 * time.Minute
+	// maxKept is how many turns are held at most: enough to count an
+	// off-topic run and show maxTurns, and a bound on what is held while
+	// a conversation goes on.
+	maxKept = 4 * maxTurns
 	// maxTurns is how many turns the agent is shown. More costs the model
 	// time on every question for context that is rarely used.
 	maxTurns = 4
@@ -76,23 +85,33 @@ func (c *conversation) add(t turn) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.turns = append(c.recentLocked(t.at), t)
+	if len(c.turns) > maxKept {
+		c.turns = c.turns[len(c.turns)-maxKept:]
+	}
 	if c.forget == nil {
-		c.forget = time.AfterFunc(memoryWindow, c.clear)
+		c.forget = time.AfterFunc(c.window(), c.clear)
 	} else {
-		c.forget.Reset(memoryWindow)
+		c.forget.Reset(c.window())
 	}
 }
 
-// clear forgets every turn. By the time it runs the newest is a window
-// old, and so is every other.
+func (c *conversation) window() time.Duration {
+	if c.quiet > 0 {
+		return c.quiet
+	}
+	return memoryWindow
+}
+
+// clear forgets every turn. It runs a window after the newest, which ends
+// the conversation.
 func (c *conversation) clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.turns = nil
 }
 
-// recent is the turns still remembered at now, oldest first, at most
-// maxTurns.
+// recent is the last maxTurns turns of the conversation still going at
+// now, oldest first.
 func (c *conversation) recent(now time.Time) []turn {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -104,21 +123,23 @@ func (c *conversation) recent(now time.Time) []turn {
 	return append([]turn(nil), out...)
 }
 
-// recentLocked filters rather than cutting at the first recent turn:
-// answers are one at a time, so turns arrive in order, but nothing here
-// should depend on the bridge for that.
+// recentLocked is the conversation still going at now: every turn held,
+// or none once the newest is a window old.
 func (c *conversation) recentLocked(now time.Time) []turn {
-	var out []turn
+	var newest time.Time
 	for _, t := range c.turns {
-		if now.Sub(t.at) <= memoryWindow {
-			out = append(out, t)
+		if t.at.After(newest) {
+			newest = t.at
 		}
 	}
-	return out
+	if now.Sub(newest) > c.window() {
+		return nil
+	}
+	return c.turns
 }
 
-// offTopicRun is how many off-topic turns there have been since the last
-// one about the game, within the window.
+// offTopicRun is how many off-topic turns the conversation still going at
+// now has had since the last one about the game.
 func (c *conversation) offTopicRun(now time.Time) int {
 	c.mu.Lock()
 	defer c.mu.Unlock()

@@ -1638,9 +1638,10 @@ quarter of an hour of quiet starts a new conversation, and the count with
 it. Thanks, help and the unknown line are neither on nor off: they do not
 end a run and do not add to one.
 
-**The bot remembers the last few minutes, in memory only.** The last four
-questions and answers from the past quarter of an hour are shown to the
-agent, each question with who asked it, so "and last week?" and "what
+**The bot remembers the conversation, in memory only.** The last four
+questions and answers of the conversation going on — which ends after a
+quarter of an hour with no question, and is then forgotten — are shown to
+the agent, each question with who asked it, so "and last week?" and "what
 about Bo?" mean something. Nothing else sees them: the placing model has
 the replied-to post for that already, and a history in its prompt would
 slow every question for the few that need it. They are never logged or

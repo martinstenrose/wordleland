@@ -36,13 +36,26 @@ func TestTheConversationRemembersTheLastFewTurns(t *testing.T) {
 	for i := range 6 {
 		c.add(turn{at: now.Add(time.Duration(i-6) * time.Minute), question: string(rune('a' + i))})
 	}
-	c.add(turn{at: now.Add(-time.Hour), question: "old"}) // out of order, and aged out
 	got := c.recent(now)
 	if len(got) != maxTurns || got[0].question != "c" || got[len(got)-1].question != "f" {
 		t.Errorf("recent = %+v, want the last %d, oldest first", got, maxTurns)
 	}
-	if got := c.recent(now.Add(memoryWindow + 5*time.Minute)); len(got) != 0 {
-		t.Errorf("remembered %d turns past the window", len(got))
+	if got := c.recent(now.Add(memoryWindow + time.Minute)); len(got) != 0 {
+		t.Errorf("remembered %d turns after a quarter of an hour of quiet", len(got))
+	}
+}
+
+// A conversation that keeps going is one conversation: off-topic questions
+// a few minutes apart are counted together even when the first is more
+// than a window old, so spacing them out does not reset the count.
+func TestTheOffTopicRunLastsAsLongAsTheConversation(t *testing.T) {
+	t.Parallel()
+	start := time.Date(2026, time.September, 27, 19, 0, 0, 0, time.UTC)
+	var c conversation
+	c.add(turn{at: start, topic: topicOff})
+	c.add(turn{at: start.Add(14 * time.Minute), topic: topicOff})
+	if got := c.offTopicRun(start.Add(16 * time.Minute)); got != 2 {
+		t.Errorf("run = %d, want 2", got)
 	}
 }
 
@@ -156,13 +169,14 @@ func TestTheSegueCarriesARealFigure(t *testing.T) {
 	}
 }
 
-// What has aged out is gone from memory, not only from what is read.
+// What has aged out is gone from memory, not only from what is read, and
+// the timer forgets the conversation on its own once it has gone quiet.
 func TestTheConversationForgets(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, time.September, 27, 12, 0, 0, 0, time.UTC)
 	var c conversation
-	c.add(turn{at: now.Add(-time.Hour), question: "old"})
 	c.add(turn{at: now.Add(-2 * time.Hour), question: "older"})
+	c.add(turn{at: now.Add(-time.Hour), question: "old"})
 	c.recent(now)
 	c.mu.Lock()
 	n := len(c.turns)
@@ -171,16 +185,20 @@ func TestTheConversationForgets(t *testing.T) {
 		t.Errorf("%d turns held after a read past the window", n)
 	}
 
-	c.add(turn{at: now, question: "new"})
-	c.clear()
-	if got := c.recent(now); len(got) != 0 {
-		t.Errorf("%d turns remembered after clear", len(got))
-	}
-	c.mu.Lock()
-	armed := c.forget != nil
-	c.mu.Unlock()
-	if !armed {
-		t.Error("no timer set to forget the conversation")
+	c = conversation{quiet: 20 * time.Millisecond}
+	c.add(turn{at: time.Now(), question: "new"})
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		c.mu.Lock()
+		n = len(c.turns)
+		c.mu.Unlock()
+		if n == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the timer never forgot the conversation")
+		}
+		time.Sleep(5 * time.Millisecond)
 	}
 }
 

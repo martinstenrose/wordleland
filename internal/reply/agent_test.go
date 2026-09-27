@@ -366,6 +366,11 @@ func TestTheAgentIsAnnouncedOnlyOnceReady(t *testing.T) {
 		t.Errorf("Agent = %v then %v, want false before Prepare and true after",
 			rec.prompts[0].Agent, rec.prompts[1].Agent)
 	}
+	// The first question came while the agent could not answer, so it was
+	// not held for the agent to read later.
+	if h := rec.prompts[1].History; len(h) != 0 {
+		t.Errorf("remembered %v from before the agent was ready", h)
+	}
 }
 
 // A player the lookups never mentioned is a player the model brought in
@@ -441,7 +446,7 @@ func TestHelpMentionsTheAgentOnlyWhenReady(t *testing.T) {
 			if err := answer(context.Background(), senderUUID, q, "", nil); err != nil {
 				t.Fatal(err)
 			}
-			if got := strings.Contains(c.last(t), "big brain"); got != ready {
+			if got := strings.Contains(c.last(t), "most things you can think of"); got != ready {
 				t.Errorf("round %d, question %q: mentions the agent = %v, want %v", i, q, got, ready)
 			}
 		}

@@ -262,10 +262,11 @@ answering half of them.
   (who leads the month, the longest streak, how many have played today).
   After two off-topic questions in a row the next is turned away, with the
   same line back, until somebody asks about Wordle.
-- **Follow-ups:** it is shown the last four questions and answers from the
-  past fifteen minutes, so "and last week?" works without replying to the
-  bot's post. Held in memory only, never logged or stored; a restart
-  forgets it.
+- **Follow-ups:** it is shown the last four questions and answers of the
+  conversation going on, so "and last week?" works without replying to the
+  bot's post. A conversation ends after fifteen minutes with no question,
+  and is then forgotten. Held in memory only, never logged or stored, and
+  not at all while the agent is off or not ready; a restart forgets it.
 - **Cost:** a second model held in memory, roughly twice the first, and
   tens of seconds per answer on a CPU. The bridge allows up to four minutes
   per answer with the agent on. Its log lines say `kind=agent`, with how
