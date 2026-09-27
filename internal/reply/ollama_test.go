@@ -29,6 +29,9 @@ type fakeOllama struct {
 	// always, when set, is the chat's message every time: a model that
 	// never stops calling tools.
 	always map[string]any
+	// capabilities is what /api/show reports for every model; nil leaves
+	// the field out, as an older server does.
+	capabilities []string
 	// warmed is the models loaded ahead of a question.
 	warmed []string
 	// replies, when set, are the chat's messages in turn, for a
@@ -57,6 +60,15 @@ func (f *fakeOllama) handler() http.Handler {
 		f.models = append(f.models, req.Model)
 		f.mu.Unlock()
 		json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+	})
+	mux.HandleFunc("POST /api/show", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		out := map[string]any{}
+		if f.capabilities != nil {
+			out["capabilities"] = f.capabilities
+		}
+		json.NewEncoder(w).Encode(out)
 	})
 	mux.HandleFunc("POST /api/generate", func(w http.ResponseWriter, r *http.Request) {
 		var req map[string]any
@@ -221,5 +233,45 @@ func TestPrepareLoadsTheModel(t *testing.T) {
 	}
 	if len(f.chats) != 0 {
 		t.Errorf("%d chats while warming, want none", len(f.chats))
+	}
+}
+
+// An agent model the server says cannot call tools is never made ready,
+// and Prepare stops rather than trying again; one that can, or a server
+// that does not say, is.
+func TestTheAgentNeedsAModelThatCallsTools(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		caps  []string
+		ready bool
+	}{
+		{[]string{"completion"}, false},
+		{[]string{"completion", "tools"}, true},
+		{nil, true},
+	} {
+		f := &fakeOllama{models: []string{"gemma:7b"}, capabilities: tc.caps}
+		srv := httptest.NewServer(f.handler())
+		t.Cleanup(srv.Close)
+		a := NewAgent(srv.URL, "gemma:7b")
+		done := make(chan struct{})
+		go func() {
+			a.Prepare(context.Background(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatalf("capabilities %v: Prepare kept trying", tc.caps)
+		}
+		if a.Ready() != tc.ready {
+			t.Errorf("capabilities %v: ready = %v, want %v", tc.caps, a.Ready(), tc.ready)
+		}
+	}
+	// The placing model needs nothing, whatever the server says.
+	f := &fakeOllama{models: []string{"qwen2.5:3b"}, capabilities: []string{"completion"}}
+	o := testOllama(t, f)
+	o.Prepare(context.Background(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if !o.Ready() {
+		t.Error("the placing model was refused for lacking tools")
 	}
 }

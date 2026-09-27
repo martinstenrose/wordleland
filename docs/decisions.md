@@ -1647,6 +1647,12 @@ slow every question for the few that need it. They are never logged or
 stored, the rule for question text everywhere else; a restart forgets them,
 which costs a follow-up at most.
 
+**The agent's model must say it can call tools.** At startup the app
+asks the server what the model can do and refuses one without tools,
+logging an error and leaving the agent off, rather than letting every
+question it takes fail at the server. A server too old to say is taken
+at its word by saying nothing.
+
 **What vouches for a number is narrow on purpose.** The lookups, the
 instructions (today's date, a failure counting 7) and the recent answers
 that were themselves checked or came from the catalogues. Not an

@@ -234,7 +234,10 @@ not retried, since an answer arriving after the conversation has moved on
 reads as the bot talking to itself.
 
 **With `LLM_AGENT_MODEL` set, a larger model takes what the small one
-cannot place.** Off by default; `qwen2.5:7b` is a reasonable start. Instead
+cannot place.** Off by default; `qwen2.5:7b` is a reasonable start, and
+any model Ollama marks as able to call tools will do. One that cannot is
+refused at startup with an error in the log, and the bot carries on as if
+the agent were off. Instead
 of "no idea what that was", the question goes to the agent, which looks
 things up and writes the answer itself: "tell me about Bo", "roast Alma",
 "who leads, and is my streak still going?", "what did Bo get this week?".

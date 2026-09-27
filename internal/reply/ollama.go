@@ -26,7 +26,15 @@ type Ollama struct {
 	// gets ErrNotReady rather than a request to a model that would fail.
 	ready  atomic.Bool
 	client *http.Client
+	// needs is what the model must be able to do, as the server names its
+	// capabilities: the agent's must take tools. Empty for the placing
+	// model, which any chat model can be.
+	needs []string
 }
+
+// errIncapable is a model the server says cannot do what it is needed
+// for. Pulling again will not change that, so Prepare stops trying.
+var errIncapable = errors.New("the model cannot do what it is needed for")
 
 // Timeouts for the two shapes of call. A question is short and its answer
 // shorter, but a 3B model on a CPU takes seconds per token, and the first
@@ -61,6 +69,14 @@ func NewOllama(url, model string) *Ollama {
 func (o *Ollama) Prepare(ctx context.Context, logger *slog.Logger) {
 	for {
 		err := o.ensureModel(ctx, logger)
+		if err == nil {
+			err = o.checkCapable(ctx)
+		}
+		if errors.Is(err, errIncapable) {
+			logger.Error("language model cannot be used; pick another",
+				"model", o.model, "error", err)
+			return
+		}
 		if err == nil {
 			o.ready.Store(true)
 			logger.Info("language model ready", "model", o.model)
@@ -105,6 +121,38 @@ func (o *Ollama) warm(ctx context.Context, logger *slog.Logger) {
 		logger.Info("could not load the language model ahead of the first question",
 			"model", o.model, "error", err, "server_error", out.Error)
 	}
+}
+
+// checkCapable asks the server what the model can do. A server too old to
+// say is taken at its word by saying nothing: the model is used, and a
+// model without tools then fails at the first question, as before.
+func (o *Ollama) checkCapable(ctx context.Context) error {
+	if len(o.needs) == 0 {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, tagsTimeout)
+	defer cancel()
+	body, _ := json.Marshal(map[string]any{"model": o.model})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, o.url+"/api/show", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	var show struct {
+		Capabilities []string `json:"capabilities"`
+	}
+	if err := o.do(req, &show); err != nil {
+		return fmt.Errorf("show model: %w", err)
+	}
+	if show.Capabilities == nil {
+		return nil
+	}
+	for _, need := range o.needs {
+		if !slices.Contains(show.Capabilities, need) {
+			return fmt.Errorf("%w: no %q among %v", errIncapable, need, show.Capabilities)
+		}
+	}
+	return nil
 }
 
 func (o *Ollama) ensureModel(ctx context.Context, logger *slog.Logger) error {

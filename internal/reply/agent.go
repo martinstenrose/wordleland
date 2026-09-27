@@ -41,9 +41,13 @@ type Agent struct {
 }
 
 // NewAgent builds the agent's client. Like NewOllama it does not connect:
-// Prepare does, and pulls the model if it is missing.
+// Prepare does, pulls the model if it is missing, and refuses one the
+// server says cannot call tools — the agent is then never ready, and its
+// questions get the unknown line as they would without it.
 func NewAgent(url, model string) *Agent {
-	return &Agent{Ollama: NewOllama(url, model)}
+	o := NewOllama(url, model)
+	o.needs = []string{"tools"}
+	return &Agent{Ollama: o}
 }
 
 // Bounds on one answer. A question worth a lookup is rarely worth more than
