@@ -20,6 +20,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"log/slog"
 	"regexp"
 	"strconv"
@@ -186,6 +187,23 @@ type Exchange struct {
 	OffTopic bool
 }
 
+// thanksLines is how many ways the bot takes praise: reply.thanks, then
+// reply.thanks.1 and on. The same line every time turns a joke into a
+// catchphrase.
+const thanksLines = 3
+
+// thanks picks one by the praise itself, so the same words get the same
+// answer and different ones usually do not — no randomness to test
+// around.
+func thanks(t i18n.Translator, praise string) string {
+	h := fnv.New32a()
+	h.Write([]byte(praise))
+	if n := h.Sum32() % thanksLines; n > 0 {
+		return t.T("reply.thanks." + strconv.Itoa(int(n)))
+	}
+	return t.T("reply.thanks")
+}
+
 // help is the list of what can be asked, and with the agent ready, the
 // line saying that is not all.
 func help(t i18n.Translator, agent *Agent) string {
@@ -334,8 +352,11 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter, ag
 		}
 
 		text := answer(t, req, asker, players, results, now)
-		if req.Kind == KindHelp {
+		switch req.Kind {
+		case KindHelp:
 			text = help(t, agent)
+		case KindThanks:
+			text = thanks(t, question)
 		}
 		tp := topicWordle
 		switch req.Kind {

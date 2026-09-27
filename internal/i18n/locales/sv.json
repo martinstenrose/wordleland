@@ -816,6 +816,8 @@
   "reply.habits.last": "Stänger den oftast: %s, %d.",
   "reply.habits.none": "Ingen postordning registrerad än.",
   "reply.thanks": "Jag vet. 😎",
+  "reply.thanks.1": "Jag gör bara mitt jobb. Briljant, visserligen.",
+  "reply.thanks.2": "Säg det till de andra. Högt.",
   "reply.segue": "Nog om det. Fråga mig något om Wordle — där glänser jag.",
   "reply.segue.leader": "Nog om det, nu till det viktiga: %s leder %s med %s i snitt.",
   "reply.segue.streak": "Nog om det, nu till det viktiga: %s har klarat %d dagar i rad. Vem ska stoppa det?",

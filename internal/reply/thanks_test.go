@@ -15,6 +15,23 @@ func TestPraiseIsAnsweredInKind(t *testing.T) {
 	}
 }
 
+// Praise gets one of a few answers, the same for the same words.
+func TestPraiseIsAnsweredInMoreThanOneWay(t *testing.T) {
+	t.Parallel()
+	tr := translator(t, "en")
+	seen := map[string]bool{}
+	for _, praise := range []string{"good bot", "thanks!", "nice one", "tack", "duktig bot", "great", "love it"} {
+		got := thanks(tr, praise)
+		if got != thanks(tr, praise) {
+			t.Errorf("%q got two different answers", praise)
+		}
+		seen[got] = true
+	}
+	if len(seen) < 2 {
+		t.Errorf("seven kinds of praise got %d answer: %v", len(seen), seen)
+	}
+}
+
 func TestParseRequestDropsAPlayerWhereNoneCanBeMeant(t *testing.T) {
 	for _, kind := range []Kind{KindThanks, KindUnknown, KindToday, KindRules, KindLeader} {
 		got, err := parseRequest(`{"kind":"` + string(kind) + `","span":"month","days":0,"worst":false,"player":"Bo","topic":"","date":"","month":"","guesses":0}`)
