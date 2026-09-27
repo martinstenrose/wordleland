@@ -87,7 +87,7 @@ type Bridge struct {
 	// LLMAgentModel is the larger model that takes the questions LLMModel
 	// could not place, looking the figures up and phrasing the answer
 	// itself. Empty, the default, is no agent: those questions get the
-	// "didn't get that" line. Served by the same server as LLMModel, and
+	// unknown line. Served by the same server as LLMModel, and
 	// pulled the same way.
 	LLMAgentModel string
 }

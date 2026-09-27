@@ -42,7 +42,7 @@ func TestWorstLeavesOutWhoeverWasAway(t *testing.T) {
 	// With only one regular there is nobody to be behind.
 	got = answer(translator(t, "en"), Request{Kind: KindLeader, Span: SpanDays, Days: 2, Worst: true},
 		nil, []store.Player{alma, cid}, results, now)
-	if got != "The last 2 days: too few have played most of the days to name a last place." {
+	if got != "The last 2 days: too few have played most of the days to name a last place. Everyone's safe. For now." {
 		t.Errorf("got %q", got)
 	}
 }

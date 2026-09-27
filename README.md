@@ -233,12 +233,12 @@ not retried, since an answer arriving after the conversation has moved on
 reads as the bot talking to itself.
 
 With `LLM_AGENT_MODEL` set, a question the small model cannot place goes to
-the larger one instead of getting "I didn't get that". It looks things up
+the larger one instead of getting the "no idea what that was" line. It looks things up
 with the same answers the bot gives, plus a day-by-day list of a player's
 results, and writes the reply itself. Every number in that reply is checked
 against what it looked up; if one does not match, the group gets the
 lookups' own text instead. A question it answers without looking anything
-up (a greeting, the weather) still gets "I didn't get that". It is slower:
+up (a greeting, the weather) still gets that line. It is slower:
 allow up to a few minutes on a CPU, and the log line for its answers says
 `kind=agent`, with how many lookups it made and whether its sentence passed
 the check.

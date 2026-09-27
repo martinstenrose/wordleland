@@ -314,10 +314,12 @@ func (a *Agent) Run(ctx context.Context, p Prompt,
 // answer — since how long a round takes depends on how much it looked up.
 func (a *Agent) chat(ctx context.Context, messages []chatMessage) (chatMessage, error) {
 	body, err := json.Marshal(map[string]any{
-		"model":    a.model,
-		"stream":   false,
-		"tools":    toolDefinitions(),
-		"options":  map[string]any{"temperature": 0},
+		"model":  a.model,
+		"stream": false,
+		"tools":  toolDefinitions(),
+		// Not zero, as the placing model's is: the same question may
+		// get a different quip, and the numbers are checked either way.
+		"options":  map[string]any{"temperature": 0.6},
 		"messages": messages,
 	})
 	if err != nil {
@@ -351,6 +353,7 @@ func agentPrompt(p Prompt) string {
 		"so in one sentence. Only answer questions about this group's Wordle results.\n")
 	b.WriteString("Reply in the language the question is asked in, in one to three short sentences " +
 		"of plain text, no markdown.\n")
+	b.WriteString(persona)
 	b.WriteString("A lower average is better. A failed puzzle counts as 7.\n\n")
 	fmt.Fprintf(&b, "Today is %s (%s).\n", p.Today.Format("Monday 2 January 2006"), p.Today.Format(DateLayout))
 	if p.Asker != "" {
@@ -366,6 +369,17 @@ func agentPrompt(p Prompt) string {
 	}
 	return b.String()
 }
+
+// persona is the bot's voice. The fixed replies in the catalogues are
+// written in it too; a change here is a change there. The limits are the
+// recaps': a result somebody posted is theirs to be teased about, an
+// absence is not, and nothing outside the game is fair game at all. A joke
+// with a number in it fails the check in grounded, so it is told not to.
+const persona = "Your personality: witty, dry and a little cocky, like a friend in the group " +
+	"who keeps score and enjoys it too much. Tease a result someone posted, a failure included, " +
+	"and brag on behalf of whoever leads. Never tease anyone for not playing, and never " +
+	"about anything outside the game. The facts come first; the attitude is one short aside. " +
+	"Your jokes contain no numbers.\n"
 
 // number is a figure as written: digits, with a decimal part after either
 // separator, since the catalogues write "3,45" where the model may write

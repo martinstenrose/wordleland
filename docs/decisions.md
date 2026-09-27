@@ -1571,7 +1571,7 @@ model's fixed set of kinds is what keeps its numbers right, and also what
 makes it a menu: "who has the most 2s, and is their streak still going?" is
 two kinds, and "what did Bo get this week?" is none. With a larger model
 configured, a question that came back `unknown` goes to `reply.Agent`
-instead of the "didn't get that" line. It is offered tools, not data: each
+instead of the unknown line. It is offered tools, not data: each
 kind is a tool, answered by the same `answer` function a placed question is,
 plus a day-by-day list of one player's results. It calls what it needs and
 writes the sentence itself — which is the break with the rule above, so the
@@ -1596,6 +1596,17 @@ expected to choose tools well, so the agent is a separate, larger model
 (7B or up; not yet measured against the group's questions). On a CPU that
 is expected to take tens of seconds per round, so the bridge's deadline for
 an answer is four minutes with the agent on.
+
+**The bot has attitude, within the recaps' limits.** Witty, dry, a little
+cocky: the fixed replies in the catalogues are written that way, and the
+agent is told to be, with one short aside after the facts. The limits are
+the ones the recaps already draw. A result somebody posted can be teased,
+a failure included, since posting it made it the group's banter. Not
+playing is never teased, and nothing outside the game is fair game. The
+agent's jokes are told to carry no numbers, because a number in a joke fails
+the check above and costs the whole sentence. Its temperature is not zero,
+unlike the placing model's, so the same question need not get the same
+quip, and the check holds whatever it writes.
 
 **A mention is the trigger, and only a mention.** Signal carries a mention
 as the mentioned account's identity, not as text, so the bot's profile name

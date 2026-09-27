@@ -29,7 +29,7 @@ func TestScoreOnADay(t *testing.T) {
 		{name: "a day before the history", req: Request{Kind: KindScore, Player: "Alma", Date: "2026-07-05"},
 			want: "Alma has no result for 5 July."},
 		{name: "a day still to come", req: Request{Kind: KindScore, Player: "Alma", Date: "2026-09-20"},
-			want: "20 September hasn't happened yet."},
+			want: "20 September hasn't happened yet. I keep score, I don't tell fortunes."},
 		{name: "nobody to ask about", req: Request{Kind: KindScore},
 			want: "Who do you mean?"},
 	}

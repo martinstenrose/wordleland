@@ -155,6 +155,9 @@ func TestTheAgentAnswersFromWhatItLookedUp(t *testing.T) {
 		t.Errorf("no tools offered: %v", f.chats[0]["tools"])
 	}
 	msgs := f.chats[1]["messages"].([]any)
+	if system := msgs[0].(map[string]any)["content"].(string); !strings.Contains(system, "Never tease anyone for not playing") {
+		t.Errorf("the system prompt lacks the persona's limits:\n%s", system)
+	}
 	tool := msgs[len(msgs)-1].(map[string]any)
 	if tool["role"] != "tool" || tool["content"] != "Bo: 12 days in a row now, 12 at best." {
 		t.Errorf("the lookup was not handed back: %v", tool)
@@ -189,7 +192,7 @@ func TestAnAnswerFromNothingIsNotPosted(t *testing.T) {
 	if err := answer(context.Background(), senderUUID, "what is the capital of France?", "", nil); err != nil {
 		t.Fatalf("answer: %v", err)
 	}
-	if got := c.last(t); !strings.HasPrefix(got, "I didn't get that.") {
+	if got := c.last(t); !strings.HasPrefix(got, "No idea what that was.") {
 		t.Errorf("got %q", got)
 	}
 	var kept int

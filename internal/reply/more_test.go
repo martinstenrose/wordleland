@@ -45,12 +45,12 @@ func TestANamedPastMonth(t *testing.T) {
 		t.Errorf("standing in july: %q", got)
 	}
 	got = answer(translator(t, "en"), Request{Kind: KindLeader, Span: SpanMonth, Month: "2026-06"}, nil, players, results, now)
-	if got != "June: nobody has played yet." {
+	if got != "June: nobody has played yet. Bold strategy." {
 		t.Errorf("an empty month: %q", got)
 	}
 	// Another year is said.
 	got = answer(translator(t, "en"), Request{Kind: KindLeader, Span: SpanMonth, Month: "2025-07"}, nil, players, results, now)
-	if got != "July 2025: nobody has played yet." {
+	if got != "July 2025: nobody has played yet. Bold strategy." {
 		t.Errorf("another year: %q", got)
 	}
 }

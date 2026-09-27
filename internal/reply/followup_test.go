@@ -15,11 +15,11 @@ func TestHelpIsTheListAndUnknownIsOneLine(t *testing.T) {
 	players, results := fixture(t)
 	now := fixtureNow()
 
-	if got := answer(translator(t, "sv"), Request{Kind: KindHelp}, nil, players, results, now); !strings.HasPrefix(got, "Jag kan svara på") {
+	if got := answer(translator(t, "sv"), Request{Kind: KindHelp}, nil, players, results, now); !strings.HasPrefix(got, "Fråga mig vem som leder") {
 		t.Errorf("help: %q", got)
 	}
 	got := answer(translator(t, "sv"), Request{Kind: KindUnknown}, nil, players, results, now)
-	if got != "Det förstod jag inte. Fråga, så berättar jag vad jag kan svara på." {
+	if got != "Ingen aning vad det där var. Fråga mig om Wordle — där har jag åsikter." {
 		t.Errorf("unknown: %q", got)
 	}
 }

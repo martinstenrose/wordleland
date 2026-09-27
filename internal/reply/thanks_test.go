@@ -10,7 +10,7 @@ import (
 func TestPraiseIsAnsweredInKind(t *testing.T) {
 	players, results := fixture(t)
 	got := answer(translator(t, "sv"), Request{Kind: KindThanks}, &bo, players, results, fixtureNow())
-	if got != "Tack! 🙂" {
+	if got != "Jag vet. 😎" {
 		t.Errorf("got %q", got)
 	}
 }

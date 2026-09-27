@@ -112,7 +112,7 @@ func TestAnswers(t *testing.T) {
 		{
 			name: "a name that is nobody's",
 			req:  Request{Kind: KindStanding, Span: SpanMonth, Player: "Dag"},
-			want: "I don't know Dag. I know Alma, Bo and Cid Larsson.",
+			want: "Never heard of Dag. I know Alma, Bo and Cid Larsson.",
 		},
 		{
 			// Nobody named is everybody: the table.
@@ -123,7 +123,7 @@ func TestAnswers(t *testing.T) {
 		{
 			name: "nobody named and the asker unknown, for a day's score",
 			req:  Request{Kind: KindScore},
-			want: "Who do you mean? I know Alma, Bo and Cid Larsson.",
+			want: "Who do you mean? I'm good, not psychic. I know Alma, Bo and Cid Larsson.",
 		},
 		{
 			name: "streaks",
@@ -143,12 +143,12 @@ func TestAnswers(t *testing.T) {
 		{
 			name: "something else",
 			req:  Request{Kind: KindUnknown},
-			want: "I didn't get that.",
+			want: "No idea what that was.",
 		},
 		{
 			name: "what can you do",
 			req:  Request{Kind: KindHelp},
-			want: "I can answer who is leading",
+			want: "Ask me who's leading",
 		},
 	}
 	for _, tc := range tests {
@@ -168,7 +168,7 @@ func TestAnswers(t *testing.T) {
 func TestLeaderWithNoGamesSaysSo(t *testing.T) {
 	got := answer(translator(t, "en"), Request{Kind: KindLeader, Span: SpanDays, Days: 3},
 		nil, []store.Player{alma}, nil, fixtureNow())
-	if got != "The last 3 days: nobody has played yet." {
+	if got != "The last 3 days: nobody has played yet. Bold strategy." {
 		t.Errorf("got %q", got)
 	}
 }

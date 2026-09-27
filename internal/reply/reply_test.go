@@ -135,7 +135,7 @@ func TestABareMentionGetsTheHelpLine(t *testing.T) {
 	if err := answer(context.Background(), senderUUID, "  ", "", nil); err != nil {
 		t.Fatalf("answer: %v", err)
 	}
-	if got := c.last(t); !strings.HasPrefix(got, "I can answer") {
+	if got := c.last(t); !strings.HasPrefix(got, "Ask me who's leading") {
 		t.Errorf("got %q", got)
 	}
 }
@@ -148,7 +148,7 @@ func TestAModelStillLoadingSaysSo(t *testing.T) {
 	if err := answer(context.Background(), senderUUID, "who leads?", "", nil); err != nil {
 		t.Fatalf("answer: %v", err)
 	}
-	if got := c.last(t); !strings.Contains(got, "still getting set up") {
+	if got := c.last(t); !strings.Contains(got, "Still waking up") {
 		t.Errorf("got %q", got)
 	}
 }
@@ -163,7 +163,7 @@ func TestAFailingModelIsReportedAndApologised(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "connection refused") {
 		t.Errorf("err = %v, want the model's failure", err)
 	}
-	if got := c.last(t); !strings.Contains(got, "couldn't work that one out") {
+	if got := c.last(t); !strings.Contains(got, "broke my brain") {
 		t.Errorf("got %q", got)
 	}
 }

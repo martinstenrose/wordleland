@@ -24,7 +24,7 @@ func TestRulesAreExplainedFromTheCatalogue(t *testing.T) {
 		t.Errorf("streak, sv: %q", got)
 	}
 	got = answer(translator(t, "en"), Request{Kind: KindRules}, nil, players, results, fixtureNow())
-	if !strings.HasPrefix(got, "I can explain:") {
+	if !strings.HasPrefix(got, "Pick a rule, any rule:") {
 		t.Errorf("no topic: %q", got)
 	}
 }
