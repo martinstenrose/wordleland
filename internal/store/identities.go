@@ -39,6 +39,8 @@ type PendingResult struct {
 	// PostedAt is carried through the wait so the replayed result keeps
 	// the time it was posted in the group. See Result.PostedAt.
 	PostedAt *time.Time
+	// Grid is carried the same way. See Result.Grid.
+	Grid string
 }
 
 // ResolveIdentity maps a sender to a player, also returning the identity
@@ -90,16 +92,18 @@ func RefreshDisplayHint(ctx context.Context, q Querier, source, externalID, hint
 func HoldPendingResult(ctx context.Context, q Querier, source, externalID, hint string, r PendingResult) error {
 	if _, err := q.ExecContext(ctx, `
 		INSERT INTO pending_results
-			(source, external_id, display_hint, puzzle_no, solved, guesses, hard_mode, posted_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			(source, external_id, display_hint, puzzle_no, solved, guesses, hard_mode, posted_at, grid)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (source, external_id, puzzle_no) DO UPDATE SET
 			solved       = excluded.solved,
 			guesses      = excluded.guesses,
 			hard_mode    = excluded.hard_mode,
+			grid         = excluded.grid,
 			display_hint = excluded.display_hint,
 			received_at  = CURRENT_TIMESTAMP,
 			posted_at    = COALESCE(pending_results.posted_at, excluded.posted_at)`,
 		source, externalID, nullIfEmpty(hint), r.PuzzleNo, r.Solved, r.Guesses, r.HardMode, r.PostedAt,
+		nullIfEmpty(r.Grid),
 	); err != nil {
 		return fmt.Errorf("hold pending result: %w", err)
 	}
@@ -242,6 +246,7 @@ func LinkIdentity(ctx context.Context, db *sql.DB, actor Actor, playerID int64,
 				Solved:   held.Solved,
 				HardMode: held.HardMode,
 				PostedAt: held.PostedAt,
+				Grid:     held.Grid,
 			}
 
 			if dryRun {
@@ -489,7 +494,7 @@ func ReassignIdentity(ctx context.Context, db *sql.DB, actor Actor,
 // pendingResultsFor reads what is held for a sender, and the latest hint.
 func pendingResultsFor(ctx context.Context, q Querier, source, externalID string) ([]PendingResult, string, error) {
 	rows, err := q.QueryContext(ctx, `
-		SELECT puzzle_no, solved, guesses, hard_mode, posted_at, COALESCE(display_hint, '')
+		SELECT puzzle_no, solved, guesses, hard_mode, posted_at, COALESCE(grid, ''), COALESCE(display_hint, '')
 		FROM pending_results
 		WHERE source = ? AND external_id = ?
 		ORDER BY puzzle_no`, source, externalID)
@@ -507,7 +512,7 @@ func pendingResultsFor(ctx context.Context, q Querier, source, externalID string
 			r        PendingResult
 			rowsHint string
 		)
-		if err := rows.Scan(&r.PuzzleNo, &r.Solved, &r.Guesses, &r.HardMode, &r.PostedAt, &rowsHint); err != nil {
+		if err := rows.Scan(&r.PuzzleNo, &r.Solved, &r.Guesses, &r.HardMode, &r.PostedAt, &r.Grid, &rowsHint); err != nil {
 			return nil, "", fmt.Errorf("scan held result: %w", err)
 		}
 		if rowsHint != "" {

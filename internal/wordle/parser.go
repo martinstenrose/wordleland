@@ -14,14 +14,17 @@ type Result struct {
 	// failure to NULL: The "7" convention stays out of storage entirely.
 	Guesses  int
 	HardMode bool
+	// Grid is the share's coloured squares, when the message carried a grid
+	// that agrees with the score, and empty otherwise. See Grid.
+	Grid Grid
 }
 
 // headerPattern matches the one line that carries the score.
 //
-// Only the header is ever matched. Grid lines are ignored by construction
-// rather than by a skip rule, which is why the parser needs no knowledge of
-// which squares Wordle uses: ⬛ and ⬜ both occur depending on theme, and
-// high-contrast mode substitutes different colours again.
+// The header alone decides the score. The grid under it is read afterwards,
+// and only kept when it agrees with that score (see readGrid), so a message
+// whose squares were cropped, edited or mangled on the way still files its
+// result — just without a grid.
 //
 //   - The space after "Wordle" is always a plain U+0020, confirmed by byte
 //     inspection of the real export.
@@ -51,7 +54,8 @@ var separatorReplacer = strings.NewReplacer(
 // It returns ok=false for a message with no result, which is the common case:
 // most traffic in the group is ordinary conversation.
 func Parse(text string) (Result, bool) {
-	for _, line := range strings.Split(text, "\n") {
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
 		// Quoted and forwarded lines are skipped entirely, so quoting
@@ -81,6 +85,7 @@ func Parse(text string) (Result, bool) {
 			result.Solved = true
 			result.Guesses = guesses
 		}
+		result.Grid = readGrid(lines[i+1:], result.Solved, result.Guesses)
 
 		// The first result wins. A message quoting one score above a new one
 		// has already had the quoted line skipped; two unquoted results in one
