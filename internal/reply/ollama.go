@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -26,6 +27,12 @@ type Ollama struct {
 	// gets ErrNotReady rather than a request to a model that would fail.
 	ready  atomic.Bool
 	client *http.Client
+	// thinks is set when the server says the model has a thinking mode
+	// (qwen3 and others), which every chat then turns off: it spends tens
+	// of seconds on a CPU reasoning before a one-line answer, and a chat
+	// reply is not worth the wait. Only for a model that says so, since an
+	// older server may refuse the setting for one that does not.
+	thinks atomic.Bool
 	// needs is what the model must be able to do, as the server names its
 	// capabilities: the agent's must take tools. Empty for the placing
 	// model, which any chat model can be.
@@ -126,10 +133,11 @@ func (o *Ollama) warm(ctx context.Context, logger *slog.Logger) {
 // checkCapable asks the server what the model can do. A server too old to
 // say is taken at its word by saying nothing: the model is used, and a
 // model without tools then fails at the first question, as before.
+//
+// It also notes whether the model thinks. For the placing model, which
+// needs nothing, a server that cannot say is no reason to wait: the model
+// is used as it is.
 func (o *Ollama) checkCapable(ctx context.Context) error {
-	if len(o.needs) == 0 {
-		return nil
-	}
 	ctx, cancel := context.WithTimeout(ctx, tagsTimeout)
 	defer cancel()
 	body, _ := json.Marshal(map[string]any{"model": o.model})
@@ -142,8 +150,12 @@ func (o *Ollama) checkCapable(ctx context.Context) error {
 		Capabilities []string `json:"capabilities"`
 	}
 	if err := o.do(req, &show); err != nil {
+		if len(o.needs) == 0 {
+			return nil
+		}
 		return fmt.Errorf("show model: %w", err)
 	}
+	o.thinks.Store(slices.Contains(show.Capabilities, "thinking"))
 	if show.Capabilities == nil {
 		return nil
 	}
@@ -166,6 +178,23 @@ func (o *Ollama) ensureModel(ctx context.Context, logger *slog.Logger) error {
 	logger.Info("pulling the language model; this takes a few minutes the first time",
 		"model", o.model)
 	return o.pull(ctx)
+}
+
+// noThinking turns a thinking model's thinking off for one chat request.
+func (o *Ollama) noThinking(body map[string]any) map[string]any {
+	if o.thinks.Load() {
+		body["think"] = false
+	}
+	return body
+}
+
+// thinkBlock is reasoning a model wrote into its answer anyway, as some
+// server versions pass it through: never the answer, never posted.
+var thinkBlock = regexp.MustCompile(`(?s)<think>.*?</think>`)
+
+// withoutThinking is a model's answer without any reasoning in it.
+func withoutThinking(content string) string {
+	return strings.TrimSpace(thinkBlock.ReplaceAllString(content, ""))
 }
 
 // hasModel asks the server what it holds. A model named without a tag is
@@ -267,7 +296,7 @@ func (o *Ollama) Interpret(ctx context.Context, p Prompt) (Request, error) {
 	ctx, cancel := context.WithTimeout(ctx, chatTimeout)
 	defer cancel()
 
-	body, err := json.Marshal(map[string]any{
+	body, err := json.Marshal(o.noThinking(map[string]any{
 		"model":  o.model,
 		"stream": false,
 		"format": requestSchema,
@@ -277,7 +306,7 @@ func (o *Ollama) Interpret(ctx context.Context, p Prompt) (Request, error) {
 			{"role": "system", "content": systemPrompt(p)},
 			{"role": "user", "content": p.Question},
 		},
-	})
+	}))
 	if err != nil {
 		return Request{}, fmt.Errorf("encode chat request: %w", err)
 	}
@@ -299,7 +328,7 @@ func (o *Ollama) Interpret(ctx context.Context, p Prompt) (Request, error) {
 	if chat.Error != "" {
 		return Request{}, fmt.Errorf("ask model: %s", chat.Error)
 	}
-	return parseRequest(chat.Message.Content)
+	return parseRequest(withoutThinking(chat.Message.Content))
 }
 
 // maxSpanDays is the longest "last N days" that is still a span rather

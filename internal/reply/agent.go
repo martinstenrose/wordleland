@@ -593,7 +593,7 @@ func saidBy(asker, question string) string {
 // next message. Bounded by ctx alone — the bridge's deadline for the whole
 // answer — since how long a round takes depends on how much it looked up.
 func (a *Agent) chat(ctx context.Context, messages []chatMessage) (chatMessage, error) {
-	body, err := json.Marshal(map[string]any{
+	body, err := json.Marshal(a.noThinking(map[string]any{
 		"model":  a.model,
 		"stream": false,
 		"tools":  toolDefinitions(),
@@ -603,7 +603,7 @@ func (a *Agent) chat(ctx context.Context, messages []chatMessage) (chatMessage, 
 		// sentences are well under it, and tidy cuts what is over.
 		"options":  map[string]any{"temperature": 0.6, "num_predict": 300},
 		"messages": messages,
-	})
+	}))
 	if err != nil {
 		return chatMessage{}, fmt.Errorf("encode chat request: %w", err)
 	}
@@ -622,6 +622,7 @@ func (a *Agent) chat(ctx context.Context, messages []chatMessage) (chatMessage, 
 	if out.Error != "" {
 		return chatMessage{}, fmt.Errorf("ask model: %s", out.Error)
 	}
+	out.Message.Content = withoutThinking(out.Message.Content)
 	return out.Message, nil
 }
 

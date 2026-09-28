@@ -1680,6 +1680,13 @@ slow every question for the few that need it. They are never logged or
 stored, the rule for question text everywhere else; a restart forgets them,
 which costs a follow-up at most.
 
+**A model that thinks is told not to.** Some models (qwen3 among them)
+reason at length before answering, which on a CPU is tens of seconds
+spent before a one-line reply. When the server says a model has a
+thinking mode, every chat turns it off; a model that does not say so is
+sent no such setting, since an older server may refuse it. Any reasoning
+that comes back in the answer anyway is removed before the answer is read.
+
 **The agent's model must say it can call tools.** At startup the app
 asks the server what the model can do and refuses one without tools,
 logging an error and leaving the agent off, rather than letting every

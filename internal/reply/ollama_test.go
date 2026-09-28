@@ -275,3 +275,67 @@ func TestTheAgentNeedsAModelThatCallsTools(t *testing.T) {
 		t.Error("the placing model was refused for lacking tools")
 	}
 }
+
+// A model that says it thinks is told not to, on every chat; one that
+// does not say so is sent no such setting, which an older server may
+// refuse.
+func TestThinkingIsTurnedOffOnlyForAModelThatThinks(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		caps []string
+		off  bool
+	}{
+		{[]string{"completion", "tools", "thinking"}, true},
+		{[]string{"completion", "tools"}, false},
+		{nil, false},
+	} {
+		f := &fakeOllama{models: []string{"qwen3:8b"}, capabilities: tc.caps, content: `{"kind":"today"}`}
+		srv := httptest.NewServer(f.handler())
+		t.Cleanup(srv.Close)
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+		o := NewOllama(srv.URL, "qwen3:8b")
+		o.Prepare(context.Background(), logger)
+		if _, err := o.Interpret(context.Background(), Prompt{Question: "who played today?", Today: time.Now()}); err != nil {
+			t.Fatalf("%v: Interpret: %v", tc.caps, err)
+		}
+		a := NewAgent(srv.URL, "qwen3:8b")
+		a.Prepare(context.Background(), logger)
+		if _, err := a.chat(context.Background(), []chatMessage{{Role: "user", Content: "hej"}}); err != nil {
+			t.Fatalf("%v: chat: %v", tc.caps, err)
+		}
+		for i, chat := range f.chats {
+			think, set := chat["think"]
+			if set != tc.off || (set && think != false) {
+				t.Errorf("%v, chat %d: think = %v (set %v), want off %v", tc.caps, i, think, set, tc.off)
+			}
+		}
+	}
+}
+
+// The placing model needs nothing of the server, so one that cannot say
+// what the model does is no reason to hold it back.
+func TestThePlacingModelIsReadyWithoutCapabilities(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	f := &fakeOllama{models: []string{"qwen2.5:3b"}}
+	mux.Handle("/api/tags", f.handler())
+	mux.Handle("/api/generate", f.handler())
+	srv := httptest.NewServer(mux) // no /api/show: a 404
+	t.Cleanup(srv.Close)
+	o := NewOllama(srv.URL, "qwen2.5:3b")
+	o.Prepare(context.Background(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if !o.Ready() {
+		t.Error("the placing model was held back by a server that cannot show capabilities")
+	}
+}
+
+func TestReasoningIsNeverPartOfTheAnswer(t *testing.T) {
+	t.Parallel()
+	if got := withoutThinking("<think>\nThe user asks…\n</think>\n\nStockholm."); got != "Stockholm." {
+		t.Errorf("got %q", got)
+	}
+	if got := withoutThinking("Just the answer."); got != "Just the answer." {
+		t.Errorf("got %q", got)
+	}
+}
