@@ -2359,6 +2359,9 @@ in both languages, and that the current pill is in view without the page
 having moved. Each was checked red against the behaviour removed before it
 was trusted green. What none of them can see is how the glass looks — the
 blur, the highlight, the dark theme's shadow. That was looked at in headless
-Chrome at a desktop and a phone width, in both themes; it was not looked at
-in Safari, desktop or iPhone, which is what the design was drawn for and the
-one engine whose backdrop-filter and safe-area handling this most depends on.
+Chrome at a desktop and a phone width, in both themes, and by hand in Safari
+on a Mac and an iPhone after the redesign merged — the engine the design was
+drawn for, and whose backdrop-filter and safe-area handling this most depends
+on. By hand only: the suite drives Chrome, so a regression that shows in
+Safari alone, like the focus ring a script-set focus draws there (see *The
+sweep before merging*), is a person's to catch.
