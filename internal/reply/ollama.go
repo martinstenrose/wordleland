@@ -406,7 +406,7 @@ func parseRequest(content string) (Request, error) {
 		r.Days = 0
 	}
 	switch r.Kind {
-	case KindLeader, KindPuzzles, KindForm, KindSteady, KindWeekday, KindCount:
+	case KindLeader, KindPuzzles, KindForm, KindSteady, KindCount:
 	default:
 		r.Worst = false
 	}

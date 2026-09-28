@@ -7,6 +7,17 @@ import (
 	"github.com/martinstenrose/wordleland/internal/store"
 )
 
+// When a puzzle is called hard or easy: the daily recap says so, and the
+// bot does when asked about a day, on the same terms.
+const (
+	// DayDelta is how far a day's mean has to sit from the group's usual
+	// before the day is called hard or easy: three quarters of a guess.
+	DayDelta = 0.75
+	// DayMinFiled is how many results a day needs before its mean says
+	// anything about the puzzle rather than about who happened to play.
+	DayMinFiled = 3
+)
+
 // TodayEntry is one player's result for the current puzzle.
 type TodayEntry struct {
 	store.Player

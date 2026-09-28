@@ -46,6 +46,12 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 		return versus(t, req, asker, players, results, now)
 	case KindDayWins:
 		return dayWins(t, req, asker, players, results, now)
+	case KindDay:
+		return day(t, req, players, results, now)
+	case KindPuzzles:
+		return puzzles(t, req, players, results, now)
+	case KindWeekday:
+		return weekday(t, req, asker, players, results, now)
 	case KindRules:
 		return rules(t, req)
 	case KindThanks:
