@@ -75,6 +75,12 @@ type chrome struct {
 	// views, or sign-in for an anonymous visitor to the privacy page.
 	TodayHref string
 
+	// PrivacyHref is where the footer's and the About panel's privacy link
+	// goes: the share view's own copy under a share prefix, /privacy
+	// everywhere else. A share reader sent to /privacy would have left the
+	// share view for the signed-out one, whose wordmark leads to sign-in.
+	PrivacyHref string
+
 	// Frame is which of the three arrangements this page is drawn in.
 	//
 	// frameApp is the application shell: the glass bar floating over the
@@ -209,12 +215,13 @@ func (c chrome) AdminTabs() []chromeOpt {
 func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view string, readOnly bool) chrome {
 	t := s.translatorFor(w, r)
 	c := chrome{
-		TodayHref: viewPath(prefix, viewToday),
-		T:         t,
-		Lang:      t.locale,
-		Theme:     s.themeFor(w, r),
-		Frame:     frameApp,
-		ReadOnly:  readOnly,
+		TodayHref:   viewPath(prefix, viewToday),
+		PrivacyHref: viewPath(prefix, "privacy"),
+		T:           t,
+		Lang:        t.locale,
+		Theme:       s.themeFor(w, r),
+		Frame:       frameApp,
+		ReadOnly:    readOnly,
 	}
 
 	// Every page in the shell renders one form whoever built the page did

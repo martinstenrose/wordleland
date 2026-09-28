@@ -351,7 +351,13 @@ func TestEveryPageReachesPrivacyAndTheSource(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("%s: no link to the source", p.path)
 		}
-		if !strings.Contains(body, `href="/privacy"`) {
+		// The share view links its own copy, so a reader who came in by the
+		// link is not sent out of it.
+		privacy := `href="/privacy"`
+		if strings.HasPrefix(p.path, "/share/") {
+			privacy = `href="/share/` + slug + `/privacy"`
+		}
+		if !strings.Contains(body, privacy) {
 			t.Errorf("%s: no link to the privacy notice", p.path)
 		}
 	}
