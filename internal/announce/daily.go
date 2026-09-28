@@ -160,12 +160,6 @@ const (
 	// leaderFromDay is the first day of a month on which a change of
 	// leader is news. Before it the lead changes hands with every result.
 	leaderFromDay = 5
-	// dayDelta is how far the day's mean has to sit from the group's usual
-	// before the day is called hard or easy: three quarters of a guess.
-	dayDelta = 0.75
-	// dayMinFiled is how many results a day needs before its mean says
-	// anything about the puzzle rather than about who happened to play.
-	dayMinFiled = 3
 	// beatMargin is how far under their own average a player has to land
 	// for it to be the day's surprise: a 3 from somebody averaging 4.5.
 	beatMargin = 1.5
@@ -312,7 +306,7 @@ func bestLine(t i18n.Translator, d dayContext) string {
 		return "🥇 " + t.T("announce.daily.aceFirst", names)
 	case day.Best.Guesses == 1:
 		return "🥇 " + t.T("announce.daily.ace", names)
-	case day.FiledCount() >= dayMinFiled && day.BestShared == day.FiledCount():
+	case day.FiledCount() >= stats.DayMinFiled && day.BestShared == day.FiledCount():
 		return "🥇 " + t.T("announce.daily.bestAll", day.Best.Guesses)
 	case day.BestShared >= crowdSize:
 		return "🥇 " + t.T("announce.daily.bestCount", day.BestShared, day.FiledCount(), day.Best.Guesses)
@@ -604,7 +598,7 @@ func goodRunThrough(results []store.BoardResult, player int64, through int) int 
 // at all — in a deployment's first week the day would be compared with a
 // mean it dominates.
 func difficultyLine(t i18n.Translator, d dayContext) string {
-	if d.day.FiledCount() < dayMinFiled {
+	if d.day.FiledCount() < stats.DayMinFiled {
 		return ""
 	}
 	usual, n := stats.MeanScore(d.history, d.board.Options)
@@ -614,9 +608,9 @@ func difficultyLine(t i18n.Translator, d dayContext) string {
 	today, _ := stats.MeanScore(d.todays, d.board.Options)
 	delta := today - usual
 	switch {
-	case delta >= dayDelta:
+	case delta >= stats.DayDelta:
 		return "🧱 " + t.T("announce.daily.spice.hard", t.Decimal(today, 1), t.Decimal(usual, 1))
-	case delta <= -dayDelta:
+	case delta <= -stats.DayDelta:
 		return "🪶 " + t.T("announce.daily.spice.easy", t.Decimal(today, 1), t.Decimal(usual, 1))
 	default:
 		return ""
