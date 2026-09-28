@@ -42,6 +42,10 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 		return habits(t, req, asker, players, results, now)
 	case KindWhatIf:
 		return whatIf(t, req, players, results, now)
+	case KindVersus:
+		return versus(t, req, asker, players, results, now)
+	case KindDayWins:
+		return dayWins(t, req, asker, players, results, now)
 	case KindRules:
 		return rules(t, req)
 	case KindThanks:
@@ -161,6 +165,13 @@ func standingOver(t i18n.Translator, req Request, players []store.Player,
 		return t.T("reply.span.days", req.Days), stats.ComputeRecent(players, results, opts, req.Days)
 	case SpanAll:
 		return t.T("reply.span.all"), boardAsStanding(stats.Compute(players, results, opts))
+	case SpanWeek, SpanLastWeek:
+		first, last := spanPuzzles(req, results, now)
+		w := stats.ComputeWeek(players, results, first, opts)
+		return t.T("reply.span." + string(req.Span)), stats.Month{
+			First: w.First, Last: w.Last, Days: last - first + 1, GroupAverage: w.GroupAverage,
+			Ranked: w.Ranked, Thin: w.Thin, Winners: w.Winners, Margin: w.Margin,
+		}
 	default:
 		year, month := namedMonth(req, now)
 		label := t.T("month." + strconv.Itoa(int(month)))
@@ -173,6 +184,33 @@ func standingOver(t i18n.Translator, req Request, players []store.Player,
 			}
 		}
 		return label, stats.Month{Year: year, Month: month}
+	}
+}
+
+// spanPuzzles is the first and last puzzle of the span a request names,
+// the last never past today's: the days a question over the span can be
+// answered from. All time starts at the group's first result.
+func spanPuzzles(req Request, results []store.BoardResult, now time.Time) (int, int) {
+	current := wordle.PuzzleForDate(now)
+	switch req.Span {
+	case SpanDays:
+		return current - req.Days + 1, current
+	case SpanAll:
+		first := current
+		for _, r := range results {
+			first = min(first, r.PuzzleNo)
+		}
+		return first, current
+	case SpanWeek:
+		return stats.WeekOf(current), current
+	case SpanLastWeek:
+		monday := stats.WeekOf(current) - 7
+		return monday, monday + 6
+	default:
+		year, month := namedMonth(req, now)
+		start := time.Date(year, month, 1, 0, 0, 0, 0, now.Location())
+		first := wordle.PuzzleForDate(start)
+		return first, min(wordle.PuzzleForDate(start.AddDate(0, 1, 0))-1, current)
 	}
 }
 
