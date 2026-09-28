@@ -25,6 +25,60 @@ func count(t i18n.Translator, req Request, asker *store.Player,
 	board := stats.Compute(players, results, stats.DefaultOptions(now))
 	all := append(append([]stats.Player(nil), board.Ranked...), board.Unranked...)
 
+	// of is how many of the asked-for score a player has: that score, or
+	// with OrBetter that score and every better one.
+	of := func(p stats.Player) int {
+		if !req.OrBetter {
+			return p.Distribution[req.Guesses-1]
+		}
+		n := 0
+		for _, c := range p.Distribution[:req.Guesses] {
+			n += c
+		}
+		return n
+	}
+	if req.OrBetter {
+		if req.Player == "" {
+			who, n := holders(all, of)
+			if n == 0 {
+				return t.T("reply.count.nobody", t.T("reply.count.orBetter.term", req.Guesses))
+			}
+			return t.T("reply.count.orBetter.most", req.Guesses, joinNames(t, who), n)
+		}
+		p, ok, text := whom(t, req, asker, players)
+		if !ok {
+			return text
+		}
+		bp, _ := boardPlayer(board, p.ID)
+		if bp.Games == 0 {
+			return t.T("reply.profile.none", p.Name)
+		}
+		n := of(bp)
+		return t.T("reply.count.orBetter", p.Name, n, req.Guesses, bp.Games,
+			int(math.Round(100*float64(n)/float64(bp.Games))))
+	}
+
+	if req.Player == "" && req.Guesses > 0 && req.Worst {
+		// The fewest, among the ranked: somebody with three games has
+		// few of everything, which is not what "who has the fewest X's"
+		// asks.
+		if len(board.Ranked) == 0 {
+			return t.T("reply.count.nobody", t.T("reply.guess."+strconv.Itoa(req.Guesses)))
+		}
+		fewest := of(board.Ranked[0])
+		for _, p := range board.Ranked {
+			fewest = min(fewest, of(p))
+		}
+		var who []string
+		for _, p := range board.Ranked {
+			if of(p) == fewest {
+				who = append(who, p.Name)
+			}
+		}
+		sort.Strings(who)
+		return t.T("reply.count.fewest", t.T("reply.guess."+strconv.Itoa(req.Guesses)), joinNames(t, who), fewest)
+	}
+
 	if req.Player == "" && req.Guesses > 0 {
 		// Nobody in particular, whoever is asking: who has the most of
 		// them. "How many 2s do I have" names the asker, by the prompt.
