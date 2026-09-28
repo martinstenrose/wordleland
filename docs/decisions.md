@@ -2175,6 +2175,67 @@ the same Signal client the app posts with: with a client of its own, it
 had sent nothing, and a reply to the bot's post never carried the post
 along.
 
+**The model reads the question; Go writes every word of the answer.** A
+language model writing the answer itself was tried at length — tool
+calling, a persona, checks that every number and name in its sentence came
+from a lookup, a rewrite when they did not — and run in the group with
+qwen3.5 4B and 9B on the production VM's CPU. It did not hold up. With
+thinking off, the 4B copied the persona's example lines into its answers
+word for word; the 9B answered the leader as if he were a chaser, with no
+figures in the answer for the checks to catch; each answer took a minute
+and more. The checks could stop a wrong number, never make a small model
+write well. So the direction is the one this section started with, taken
+further: the model places a question, and for every question the group
+asks there is a kind that Go answers from stats and the catalogue writes.
+The attitude is the catalogue's: short asides written once, by hand, true
+every time.
+
+**What the group asks decided the kinds.** Beyond who leads and how one
+player stands, the questions that came up, or will, are about the race
+("if Martin gets a 6 tomorrow, who wins?"), about two players ("how do I
+stand against Anton?"), about one player in full ("tell me about Bo",
+"roast Alma"), about days and puzzles ("how did everyone do yesterday?",
+"what was the hardest word in August?"), and about the group ("what are
+the records?"). Each became a kind with its own answer:
+
+- *What if* scores a made-up result into the month as that player's next
+  day, by the month's own arithmetic, and leaves everyone else where they
+  stand — and says so. That is the question as asked: what that one result
+  would do, not a forecast of every day until then. Its day is today, or
+  tomorrow once a named player has played today's.
+- *Versus* is both players' places over the span and, on the days both
+  played, who scored better. Two in three won is the answer saying the
+  duel is somebody's.
+- *Day wins* count each day's best score as a win for everyone who had it,
+  on days at least two played and somebody solved: alone, a player beats
+  nobody.
+- *A day* and *the hardest puzzle* use the daily recap's terms for hard and
+  easy — three quarters of a guess from the usual, and at least three
+  results — which moved to `internal/stats` so both read one definition.
+  The hardest puzzle leaves today out, whose average moves with every
+  result.
+- *Form* and *steady* read the board's form window and spread, and a
+  player's form is called up or down on the board's own significance.
+- *Weekday* averages every result by day of the week once each day has ten
+  results behind it (four for one player).
+- *Profile* is everything about one player at once, and it is also the
+  answer to "roast": the tease is the trait the board already gives them,
+  with its reason. *History* is their last six months.
+- *Records* count finished months only — a month three days old has an
+  average nobody has had to hold — and *the fewest* of a score is among
+  the ranked, so a newcomer with three games is not the answer.
+
+**Nothing ranks absence.** No kind names who plays least, misses most or
+has gone quiet, for the reason the recaps never tease a missed day: a
+result somebody posted is theirs to be teased about, not posting is not.
+
+**One list of kinds feeds the schema and the parse.** The schema's enum
+and parseRequest's check were two lists that had to be kept equal; a
+test now also fails when the prompt does not mention a kind or a span.
+The prompt grew from about 900 tokens to 1,500. On a model whose server
+can reuse its work on the fixed part of a prompt, that is read once, not
+per question; the asker and any quoted post stay after it.
+
 ## CI and security scanning
 
 **CodeQL's `go/log-injection` alerts on `internal/web` are false positives,

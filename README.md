@@ -163,16 +163,35 @@ before the app first starts is never posted.
 in whatever words and language the group uses — "who's leading this month?",
 "vem har bäst snitt senaste veckan?", "how am I doing?", "hur går det för
 Bo?", "who's still to post today?", "what did I get on July 5?", "vem har
-vunnit flest månader?", "what counts as a miss?". A language model reads the
-question and turns it into one of a handful of requests: who is leading —
-or last, among those who played most of the days — (this month, the last N
-days, or all time), one player's standing, whether somebody can still win
-the month and what it would take, a past month's result, how many 2s (or
-X's) somebody has, who usually posts first or last and when somebody
-usually posts, streaks,
-today's puzzle, one player's score on one day, monthly wins, or what a word
-in a post means (a miss, points, streaks, how a month is scored, hard mode,
-form, who is ranked). That is all the model does. The figures come from the
+vunnit flest månader?", "om Martin får en 6:a i morgon och Ibrahim en 3:a,
+vem leder då?", "hur står jag mot Anton?", "berätta om Bo", "vilket var det
+svåraste pusslet i augusti?", "what counts as a miss?". A language model
+reads the question and turns it into one of these requests:
+
+- **Standings:** who is leading — or last, among those who played most of
+  the days — this month, a past month, this or last calendar week, the last
+  N days or all time; one player's standing, or the whole table; monthly
+  wins.
+- **The race:** whether somebody can still win the month and what it would
+  take; what a made-up result would do ("if Bo gets a 6 tomorrow…"), scored
+  into the month as that player's next day with everyone else as they
+  stand.
+- **Players:** a player's profile (their trait, places, streak, scores,
+  form and titles — also the answer to "roast Alma"), their months one by
+  one, two players head to head (places, and the days both played won,
+  drawn and lost), who is in form or improving, who is steadiest.
+- **Days and puzzles:** today's puzzle, one player's score on a day (by date
+  or puzzle number), everyone's results on a day and whether it was hard,
+  the hardest or easiest puzzle over a span, the hardest day of the week,
+  who most often has the day's best score.
+- **Counts and the group:** how many 2s, X's or "3 or better" somebody has,
+  who has the most or the fewest; the group's records; the group as a
+  whole; who usually posts first or last.
+- **Words:** what a word in a post means (a miss, points, streaks, how a
+  month is scored, hard mode, form, who is ranked), and what the bot knows:
+  the scores, never the words.
+
+That is all the model does. The figures come from the
 same code the board runs, and every sentence — the rule explanations
 included — from the same catalogues the announcements use, so the model can
 misread a question but cannot get a number or a rule wrong. "What can you

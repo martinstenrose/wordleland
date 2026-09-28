@@ -464,17 +464,36 @@ Fields:
   "streak" for streaks or runs of solved days in a row;
   "today" for today's puzzle, who has posted, who is missing, the best score today;
   "score" for one player's result on one particular day ("my score on July 5",
-  "what did Bo get yesterday");
+  "what did Bo get yesterday", "what did I get on Wordle 1900");
+  "day" for everyone's results on one day, and how hard that puzzle was ("how
+  did everyone do yesterday?", "vad fick alla igår?", "was today's hard?");
   "wins" for who has won the most months, monthly wins, titles;
   "catchup" for whether somebody can still win or catch up this month, how far
   behind they are, what they need to win, whether the leader is safe ("kan Bo
   komma ikapp?", "can I still win?", "is Alma safe?");
+  "whatif" for what would happen if somebody got a particular score: "if Bo
+  gets a 6 tomorrow and Alma a 3, who leads?", "om jag får en 2:a idag?";
   "count" for how many times a player has scored a given number or failed
   ("hur många 2:or har jag?", "how often does Bo fail?", "do I have any 1s?"),
-  or their whole distribution;
+  who has the most or fewest of a score, or a player's whole distribution;
+  "versus" for two players compared, head to head ("how do I stand against
+  Bo?", "vem är bäst av Alma och Bo?", "Alma vs Bo");
+  "daywins" for who most often has the best score of the day, days won;
+  "form" for who is in form, hot, improving, in a slump, playing well lately;
+  "steady" for who is most consistent, steady, reliable, or unpredictable;
+  "puzzles" for the hardest or easiest puzzle or day ("vilket var det svåraste
+  ordet i augusti?");
+  "weekday" for which day of the week is hardest or best, for the group or a player;
+  "profile" for everything about one player: "tell me about Bo", "berätta om
+  mig", "roast Alma", "what do you know about me?";
+  "history" for one player's months, month by month, their best month;
+  "records" for the group's records, all-time bests, "rekorden";
+  "group" for the group as a whole: how many play, how many games, the group's
+  average;
   "habits" for who usually posts first or last, or when somebody usually posts;
   "rules" for what something means or how it is counted — a miss, points, the
-  average, a streak, how the month is scored, hard mode, form, who is ranked;
+  average, a streak, how the month is scored, hard mode, form, who is ranked —
+  or what the bot knows (the words, a starting word);
   "help" for asking what the bot can do, how to use it, or which questions it
   answers ("what can you do?", "vad kan du?", "help", "hjälp");
   "thanks" for thanks, praise or a compliment that asks nothing ("tack",
@@ -488,26 +507,38 @@ Fields:
   ever, overall, and — when no period is given — for who is best, the best
   player, the best average, and for any "standing" question, one player's or
   the whole table ("vem är bäst?", "ställningarna", "how is Bo doing?" are all
-  time: the board); "days" for a number of recent days (a week is 7, two
-  weeks 14).
+  time: the board); "week" for this week, "lastweek" for last week (Monday to
+  Sunday); "days" for a number of recent days (two weeks is 14).
 - days: the number of days when span is "days", otherwise 0.
-- worst: true when a "leader" question asks for the other end of the table —
-  who is last, worst, lowest, struggling, has the worst form; otherwise false.
+- worst: true for the other end — for "leader", who is last, worst, lowest,
+  struggling; for "form", who is in the worst form or slipping; for "puzzles",
+  the easiest rather than the hardest; for "count", the fewest rather than the
+  most. Otherwise false.
 - player: the player the question is about, spelled exactly as in the list —
   the asker's own name when they ask about themselves — otherwise "". Always ""
   when the message asks nothing about anyone.
+- other: when kind is "versus", the second player; "" when the asker compares
+  themselves with the player in "player".
 - topic: when kind is "rules", which rule: "miss" (a missed day), "average" (the
   average, points), "streak", "month" (how a month is scored and won), "hardmode",
-  "form", "ranked" (who is ranked on the board and why not); otherwise "".
-- month: when a "leader" or "standing" question names a particular past month
-  ("vem vann juli?", "last month", "how did I do in August"), that month as
-  YYYY-MM, worked out from today's date (a month without a year is the most
-  recent one that has happened); otherwise "".
+  "form", "ranked" (who is ranked on the board and why not), "data" (what the bot
+  knows: the words, anyone's starting word); otherwise "".
+- month: when a question names a particular past month ("vem vann juli?", "last
+  month", "how did I do in August"), that month as YYYY-MM, worked out from
+  today's date (a month without a year is the most recent one that has
+  happened); otherwise "".
 - guesses: when kind is "count", the score asked about: 1 to 6, 7 for a failure
   (X), 0 for the whole distribution; otherwise 0.
-- date: when kind is "score", the day asked about as YYYY-MM-DD, worked out from
-  today's date ("yesterday", "last Friday", "July 5" — a month without a year is
-  the most recent one that has happened); "" for today or when kind is not "score".
+- orbetter: true when a "count" question asks for that score or better ("3 or
+  better", "3 eller bättre"); otherwise false.
+- date: when kind is "score", "day" or "whatif", the day asked about as
+  YYYY-MM-DD, worked out from today's date ("yesterday", "tomorrow", "last
+  Friday", "July 5" — a month without a year is the most recent one that has
+  happened); "" for the usual day (today) or when the kind takes no date.
+- puzzle: when a "score" or "day" question names a puzzle by its number
+  ("Wordle 1900"), that number; otherwise 0.
+- scores: when kind is "whatif", each made-up result as {"player", "guesses"},
+  guesses 1 to 6 or 7 for an X ("om jag får en 6:a" is the asker, 6); otherwise [].
 `)
 	// Last, and in this order, what changes: today and the players once a
 	// day at most, the asker and the quoted post with every question. The
