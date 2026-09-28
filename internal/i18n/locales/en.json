@@ -815,5 +815,7 @@
   "reply.habits.last": "Closes it most often: %s, %d.",
   "reply.habits.none": "No posting order on record yet.",
   "reply.thanks": "Thanks! 🙂",
-  "reply.unknown": "I didn't get that. Ask, and I'll tell you what I can answer."
+  "reply.unknown": "I didn't get that. Ask, and I'll tell you what I can answer.",
+  "activity.action.invitation.cancelled": "Invitation cancelled",
+  "activity.action.identity.unlinked": "Signal sender unlinked"
 }

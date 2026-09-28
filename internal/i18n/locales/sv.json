@@ -815,5 +815,7 @@
   "reply.habits.last": "Stänger den oftast: %s, %d.",
   "reply.habits.none": "Ingen postordning registrerad än.",
   "reply.thanks": "Tack! 🙂",
-  "reply.unknown": "Det förstod jag inte. Fråga, så berättar jag vad jag kan svara på."
+  "reply.unknown": "Det förstod jag inte. Fråga, så berättar jag vad jag kan svara på.",
+  "activity.action.invitation.cancelled": "Inbjudan avbruten",
+  "activity.action.identity.unlinked": "Signal-avsändare bortkopplad"
 }
