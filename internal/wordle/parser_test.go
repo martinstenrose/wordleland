@@ -219,6 +219,15 @@ func TestParseGrid(t *testing.T) {
 			"Wordle 1,891 2/6\n\n⬛🟨⬛⬛⬛\n🟩🟩🟩🟩🟩\nphew, lucky", "nynnn/ggggg"},
 		{"chat before the header does not matter",
 			"morning all\nWordle 1,891 2/6\n\n⬛🟨⬛⬛⬛\n🟩🟩🟩🟩🟩", "nynnn/ggggg"},
+		// A comment typed on a row's own line, after its five squares, is
+		// chat about the row rather than part of it. Losing the grid to it
+		// cost the squares of a real share.
+		{"a comment on the last row",
+			"Wordle 1,891 2/6\n\n⬛🟨⬛⬛⬛\n🟩🟩🟩🟩🟩 puh 🥲", "nynnn/ggggg"},
+		{"an emoji straight after the last row",
+			"Wordle 1,891 2/6\n\n⬛🟨⬛⬛⬛\n🟩🟩🟩🟩🟩🥲", "nynnn/ggggg"},
+		{"a comment on a middle row",
+			"Wordle 1,891 3/6\n\n⬛⬛⬛⬛⬛\n⬛🟨⬛⬛⬛ nästan\n🟩🟩🟩🟩🟩", "nnnnn/nynnn/ggggg"},
 
 		// Refused: the result files, the grid does not.
 		{"no grid at all", "Wordle 1,891 3/6", ""},
@@ -229,6 +238,9 @@ func TestParseGrid(t *testing.T) {
 		{"a miss that ends green",
 			"Wordle 1,891 X/6\n\n⬛⬛⬛⬛⬛\n⬛⬛⬛⬛⬛\n⬛⬛⬛⬛⬛\n⬛⬛⬛⬛⬛\n⬛⬛⬛⬛⬛\n🟩🟩🟩🟩🟩", ""},
 		{"a row of four", "Wordle 1,891 2/6\n\n⬛🟨⬛⬛\n🟩🟩🟩🟩🟩", ""},
+		{"a row of six", "Wordle 1,891 2/6\n\n⬛🟨⬛⬛⬛⬛\n🟩🟩🟩🟩🟩", ""},
+		{"a sixth square after a space", "Wordle 1,891 2/6\n\n⬛🟨⬛⬛⬛ ⬛\n🟩🟩🟩🟩🟩", ""},
+		{"text in front of a row's squares", "Wordle 1,891 2/6\n\nok ⬛🟨⬛⬛⬛\n🟩🟩🟩🟩🟩", ""},
 		{"text on the grid's first line", "Wordle 1,891 2/6\nnice\n⬛🟨⬛⬛⬛\n🟩🟩🟩🟩🟩", ""},
 		{"a grid split by a blank line", "Wordle 1,891 2/6\n\n⬛🟨⬛⬛⬛\n\n🟩🟩🟩🟩🟩", ""},
 	}

@@ -30,7 +30,12 @@ var squares = map[rune]byte{
 
 // gridRow reads one line of squares, or reports that the line is not one.
 // Spaces and the emoji variation selector some keyboards add between
-// squares are ignored; anything else makes the line not a row.
+// squares are ignored. A row is five squares: anything before them makes
+// the line not a row, and so does a sixth square, but what follows the
+// fifth — "🟩🟩🟩🟩🟩 puh 🥲" — is a comment typed on the row's own line,
+// and the row stands. The header still decides the score, and the rows
+// still have to agree with it (see readGrid), so a comment cannot make a
+// grid out of something that is not one.
 func gridRow(line string) (string, bool) {
 	var row []byte
 	for _, r := range line {
@@ -39,7 +44,12 @@ func gridRow(line string) (string, bool) {
 			continue
 		}
 		c, ok := squares[r]
-		if !ok {
+		switch {
+		case !ok && len(row) == 5:
+			return string(row), true
+		case !ok:
+			return "", false
+		case len(row) == 5:
 			return "", false
 		}
 		row = append(row, c)

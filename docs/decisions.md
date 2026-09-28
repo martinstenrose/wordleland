@@ -311,6 +311,14 @@ because a cropped or edited paste is no reason to lose a score. The API
 takes the same letters as an optional `grid` and refuses one that
 disagrees, since there a caller could send one.
 
+Chat around the grid is not part of it: text before the header, a line of
+comment after the last row, and a comment typed on a row's own line after
+its five squares ("🟩🟩🟩🟩🟩 puh 🥲") are all read past. The last one used
+to cost the grid — the line was not pure squares, so the grid came up a row
+short and no longer agreed with its score. Text *in front of* a row's
+squares, or a sixth square, still makes the line not a row: the leniency is
+for what follows five squares, not for finding squares in a sentence.
+
 A later write replaces the grid when it brings one. When it does not — a
 correction by hand, a score through the API — the stored grid is kept only
 if the score is unchanged: squares drawn for a 4 must not sit beside the 3 a
