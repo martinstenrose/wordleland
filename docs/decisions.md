@@ -1580,12 +1580,24 @@ produce: every number in its answer must appear in a lookup, the question,
 or its instructions, and an answer that fails is replaced by the lookups
 themselves, which are the bot's own words. An answer made without any lookup
 is about something other than the group — a greeting, "what is the capital
-of Sweden?" — and is posted only when it names no player. Without a lookup
-the model knows nothing about the group, so a name would be made up ("Bo
-leads"). Numbers are let through, since a year or a distance is often the
-answer to a general question. What that leaves open is an answer about the
-group that names nobody — "you're leading", "the leader averages 3.4" from
-memory — which the prompt tells the model to look up and nothing checks.
+of Sweden?" — and is posted when it names only people the conversation
+already named (the asker, the question, the recent turns) and gives no
+figure about anyone it names. Without a lookup the model knows nothing
+about the group, so a stranger's name ("Alma leads") or a name with a
+figure ("Bo is on 40") would be made up. Numbers without a name are let
+through, since a year or a distance is often the answer to a general
+question. What that leaves open is an answer about the group with no
+figure — "you're leading", "Bo is on fire" from memory — which the prompt
+tells the model to look up and nothing checks.
+
+That first rule was stricter: no name at all. In use it sent most small
+talk to the stock "no idea" line — a 7B model greets the asker by name
+whatever it is told, and people ask the bot about each other — and the
+group mostly saw the bot refuse. So the asker and the people the question
+names are allowed, and an answer that names anybody else gets one nudge,
+told who, to look them up or answer without them, before a short shrug
+(with the line back to the game) stands in. The log says why each shrug
+was given.
 
 Names get a lighter check than numbers: every player the answer names must
 be named by the asker, the question, a lookup or the recent conversation —
@@ -1630,23 +1642,19 @@ its voice in it (`reply.agent.voice`, one per catalogue): English examples
 were pulling it towards English. Its instructions stay English, which the
 models follow best.
 
-**Off-topic gets an answer, then the way back, then a no.** A group chat
-drifts, and a bot that answers "what's the capital of Sweden?" with a
-stock line is a menu, not a member. But a bot that answers everything is
-a chatbot in the group's chat, and the group is there for Wordle. So an
-off-topic question is answered briefly — the model is told to leave the
-game out of it — and the bot adds one line steering back: who leads the
-month, the longest running streak, or how many have played today, in
-turn, built from stats like every answer. Only one person's streak or
-lead makes a line, since "Alma and Bo leads" is a tie that reads wrong,
-and today counts who played rather than naming who has not, as the recaps
-do. Two off-topic questions in a row are answered; the third is turned
-away with one of three lines and the same steer, and so is every one after
-it until a question about the game. Two rather than one, because "hej!"
-is off-topic too and should not cost the question after it its answer. A
-quarter of an hour of quiet starts a new conversation, and the count with
-it. Thanks, help and the unknown line are neither on nor off: they do not
-end a run and do not add to one.
+**Off-topic gets a short answer and the way back, every time.** A group
+chat drifts, and a bot that answers "what's the capital of Sweden?" with a
+stock line is a menu, not a member. So an off-topic question is answered
+in one short sentence — the model is told so, and the answer is cut at
+about two hundred characters — with the game left out of it, and the bot
+adds one line steering back: who leads the month, the longest running
+streak, or how many have played today, in turn, built from stats like
+every answer. Only one person's streak or lead makes a line, since "Alma
+and Bo leads" is a tie that reads wrong, and today counts who played
+rather than naming who has not, as the recaps do. There is no limit on
+how many in a row: an earlier version turned the third away, and in use
+the group just wanted to talk to it. The steer is what keeps it a Wordle
+bot, and brevity is what keeps it from taking over the chat.
 
 **The bot remembers the conversation, in memory only.** The last four
 questions and answers of the conversation going on — which ends after a

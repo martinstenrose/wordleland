@@ -746,6 +746,9 @@
   "search.pages": "Sidor",
   "search.noResults": "Inga träffar för den sökningen.",
   "reply.agent.voice": "- Sam leder månaden och har börjat gå annorlunda.\n- Ett X i går. Vi tänder ett ljus och går vidare.\n- Sveriges huvudstad är Stockholm. Snart frågar du vilken färg himlen har.",
+  "reply.agent.shrug.0": "Den lämnar jag därhän.",
+  "reply.agent.shrug.1": "Där blev jag svaret skyldig.",
+  "reply.agent.shrug.2": "Pass. Till och med jag har gränser.",
   "reply.help": "Fråga mig vem som leder eller har jumbolampan (den här månaden, en tidigare månad, de senaste N dagarna eller totalt), hur någon ligger till, om någon fortfarande kan vinna månaden, sviter, dagens pussel, någons resultat en viss dag, hur många 2:or någon har, vem som brukar posta först, månadsvinster eller vad ett ord i mina inlägg betyder. Nämn mig och fråga. Väder gör jag inte.",
   "reply.help.agent": "Jag tar också följdfrågor, jämförelser, ”roasta mig” och det mesta ni kan komma på.",
   "reply.notready": "Jag håller på att vakna. Ge mig några minuter — till och med Wordle ger dig sex försök.",
@@ -823,8 +826,5 @@
   "reply.segue.leader": "Nog om det, nu till det viktiga: %s leder %s med %s i snitt.",
   "reply.segue.streak": "Nog om det, nu till det viktiga: %s har klarat %d dagar i rad. Kan någon stoppa hen?",
   "reply.segue.today": "Nog om det, nu till det viktiga: %d av %d har spelat dagens Wordle.",
-  "reply.offtopic.0": "Nu räcker det med småprat. Jag är en Wordle-bot, inte en pubquiz.",
-  "reply.offtopic.1": "Nej. Småprat tar jag i små doser, och det där var dosen.",
-  "reply.offtopic.2": "Fin tanke, fel bot. Wordle, tack.",
   "reply.unknown": "Ingen aning vad det där var. Fråga mig om Wordle — där har jag åsikter."
 }

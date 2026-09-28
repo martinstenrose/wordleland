@@ -12,17 +12,16 @@ import (
 )
 
 // topic is what an answered question turned out to be about, which is what
-// decides whether the next off-topic question gets an answer.
+// decides whether its answer may vouch for a number in a later one.
 type topic int
 
 const (
-	// topicNeutral is neither: thanks, help, the unknown line. It does not
-	// break a run of off-topic answers, and does not extend one.
+	// topicNeutral is neither: thanks, help, a shrug.
 	topicNeutral topic = iota
-	// topicWordle is an answer about the game, which ends a run.
+	// topicWordle is an answer about the game.
 	topicWordle
-	// topicOff is an off-topic question answered, or turned away: both
-	// are the conversation drifting, and both count toward the run.
+	// topicOff is a free answer, posted without its numbers checked; it
+	// is no source for a number in a later answer.
 	topicOff
 )
 
@@ -35,10 +34,8 @@ type turn struct {
 	topic    topic
 }
 
-// conversation is the bot's short memory of what it was just asked, for
-// two things: a follow-up — "and last week?" — that means nothing on its
-// own, and noticing that the group has asked it about anything but Wordle
-// several times in a row.
+// conversation is the bot's short memory of what it was just asked, for a
+// follow-up — "and last week?" — that means nothing on its own.
 //
 // It lives in memory and nowhere else, for memoryWindow: the questions are
 // the group's conversation, which is why the log never carries them and
@@ -77,11 +74,6 @@ const (
 	// maxTurns is how many turns the agent is shown. More costs the model
 	// time on every question for context that is rarely used.
 	maxTurns = 4
-	// maxOffTopicInARow is how many off-topic questions in a row are
-	// answered before the next is turned away. Two, not one, because a
-	// greeting is off-topic too, and "hej!" should not cost the question
-	// after it its answer.
-	maxOffTopicInARow = 2
 )
 
 // add remembers a turn, and forgets what has aged out.
@@ -159,40 +151,12 @@ func (c *conversation) recentLocked(now time.Time) []turn {
 	return c.turns
 }
 
-// offTopicRun is how many off-topic turns the conversation still going at
-// now has had since the last one about the game.
-func (c *conversation) offTopicRun(now time.Time) int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.turns = c.recentLocked(now)
-	turns := c.turns
-	run := 0
-	for i := len(turns) - 1; i >= 0; i-- {
-		switch turns[i].topic {
-		case topicWordle:
-			return run
-		case topicOff:
-			run++
-		}
-	}
-	return run
-}
-
 // nextSegue is a counter for choosing the next steering line.
 func (c *conversation) nextSegue() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.segues++
 	return c.segues - 1
-}
-
-// Deflections are the lines for an off-topic question past the run, one
-// per key, taken in turn.
-const deflections = 3
-
-// deflection is the n-th line turning an off-topic question away.
-func deflection(t i18n.Translator, n int) string {
-	return t.T("reply.offtopic." + strconv.Itoa(n%deflections))
 }
 
 // segue is a line steering the conversation back to the game, with a real

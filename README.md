@@ -258,12 +258,14 @@ answering half of them.
   rewrite fails too, or there is no time for it, the lookups' own text is
   posted instead. Markdown is stripped
   and a rambling answer is cut after its last whole sentence.
-- **Off-topic:** a question it answers without looking anything up — a
-  greeting, "what's the capital of Sweden?" — gets its answer only if the
-  answer names no player, followed by a line steering back to the game
-  (who leads the month, the longest streak, how many have played today).
-  After two off-topic questions in a row the next is turned away, with the
-  same line back, until somebody asks about Wordle.
+- **Off-topic:** small talk and general questions ("hej!", "what's the
+  capital of Sweden?") get a one-sentence answer, followed by a line
+  steering back to the game (who leads the month, the longest streak, how
+  many have played today), however many in a row. Such an answer may name
+  the asker or whoever the question names, but give no figures about them;
+  one that names anybody else is sent back once to look them up or leave
+  them out, and failing that the group gets a short shrug with the same
+  line back. The log line says `shrug=<reason>` when that happens.
 - **Follow-ups:** it is shown the last four questions and answers of the
   conversation going on, so "and last week?" works without replying to the
   bot's post. A conversation ends after fifteen minutes with no question,

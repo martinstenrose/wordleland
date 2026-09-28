@@ -251,22 +251,27 @@ func TestAnUngroundedAnswerIsReplacedByTheLookups(t *testing.T) {
 	}
 }
 
-// Without a lookup the model knows nothing about the group, so what it
-// says may go out only when it names no player. Anything else gets the unknown line, and the question is kept
-// either way.
-func TestAnAnswerFromNothingIsPostedOnlyOffTopic(t *testing.T) {
+// Without a lookup the model knows nothing about the group, so an answer
+// of its own goes out — short, with a line back to the game — only when
+// it names nobody the conversation did not, and gives no figure about
+// anyone it names. Otherwise the group gets a shrug with the same line
+// back. The question is kept either way.
+func TestAFreeAnswerNamesOnlyWhoTheConversationDid(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		said string
 		want string
 	}{
-		{"Stockholm, obviously.", "Stockholm, obviously."},
-		{"**Stockholm**, obviously.", "Stockholm, obviously."},
-		{"Bo is leading, naturally.", "No idea what that was."},
-		{"bo is leading, naturally.", "No idea what that was."},
-		{"Gustav Vasa was born in 1496.", "Gustav Vasa was born in 1496."},
-		{"Alma? Never heard of her.", "No idea what that was."},
-		{"", "No idea what that was."},
+		{"Stockholm, obviously.", "Stockholm, obviously.\nAnyway"},
+		{"**Stockholm**, obviously.", "Stockholm, obviously.\nAnyway"},
+		{"Gustav Vasa was born in 1496.", "Gustav Vasa was born in 1496.\nAnyway"},
+		// The asker, Bo, greeted by name: harmless without a figure.
+		{"Bo, you're a legend.", "Bo, you're a legend.\nAnyway"},
+		// A figure about the asker is a claim about the group.
+		{"Bo is on 40 days in a row.", "I'll let that one go.\nAnyway"},
+		// Alma is named by nobody in the conversation.
+		{"Alma? Never heard of her.", "I'll let that one go.\nAnyway"},
+		{"", "I'll let that one go.\nAnyway"},
 	}
 	for _, tc := range tests {
 		db := replyDB(t)
@@ -277,7 +282,7 @@ func TestAnAnswerFromNothingIsPostedOnlyOffTopic(t *testing.T) {
 			t.Fatalf("%q: answer: %v", tc.said, err)
 		}
 		if got := c.last(t); !strings.HasPrefix(got, tc.want) {
-			t.Errorf("model said %q; posted %q, want %q", tc.said, got, tc.want)
+			t.Errorf("model said %q; posted %q, want %q…", tc.said, got, tc.want)
 		}
 		var kept int
 		if err := db.QueryRow(`SELECT COUNT(*) FROM unanswered_questions`).Scan(&kept); err != nil {
@@ -286,6 +291,47 @@ func TestAnAnswerFromNothingIsPostedOnlyOffTopic(t *testing.T) {
 		if kept != 1 {
 			t.Errorf("%q: %d questions kept, want 1", tc.said, kept)
 		}
+	}
+}
+
+// A free answer that names somebody it should not have gets one more go:
+// told who, it can answer again without them…
+func TestAFreeAnswerNamingAStrangerIsNudged(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen2.5:7b"},
+		replies: []map[string]any{{"role": "assistant", "content": "Alma would know."}},
+		content: "No idea, but it sounds fun."}
+	answer, c := agentAnswerer(t, replyDB(t), testAgent(t, f))
+
+	if err := answer(context.Background(), senderUUID, "is padel fun?", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := c.last(t); !strings.HasPrefix(got, "No idea, but it sounds fun.\nAnyway") {
+		t.Errorf("got %q", got)
+	}
+	msgs := f.chats[1]["messages"].([]any)
+	note := msgs[len(msgs)-1].(map[string]any)["content"].(string)
+	if !strings.Contains(note, "Alma") || !strings.Contains(note, "use the tools") {
+		t.Errorf("the nudge was %q", note)
+	}
+}
+
+// …or look it up, and be checked as any looked-up answer is.
+func TestANudgedAnswerMayLookItUp(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen2.5:7b"},
+		replies: []map[string]any{
+			{"role": "assistant", "content": "Alma is on a roll."},
+			toolCallReply("streak", map[string]any{"player": "Alma"}),
+		},
+		content: "Alma is on 12 days in a row. Somebody stop her."}
+	answer, c := agentAnswerer(t, replyDB(t), testAgent(t, f))
+
+	if err := answer(context.Background(), senderUUID, "who's hot right now?", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := c.last(t); got != "Alma is on 12 days in a row. Somebody stop her." {
+		t.Errorf("got %q", got)
 	}
 }
 
@@ -501,7 +547,7 @@ func TestAnAnswerAfterFailedLookupsIsNotPosted(t *testing.T) {
 	if err := answer(context.Background(), senderUUID, "what did I get last Tuesday?", "", nil); err != nil {
 		t.Fatalf("answer: %v", err)
 	}
-	if got := c.last(t); !strings.HasPrefix(got, "No idea what that was.") {
+	if got := c.last(t); !strings.HasPrefix(got, "I'll let that one go.\nAnyway") {
 		t.Errorf("got %q", got)
 	}
 }
@@ -657,7 +703,7 @@ func TestALookupOfNobodyIsNotALookup(t *testing.T) {
 	if err := answer(context.Background(), senderUUID, "roast Zed", "", nil); err != nil {
 		t.Fatalf("answer: %v", err)
 	}
-	if got := c.last(t); !strings.HasPrefix(got, "No idea what that was.") {
+	if got := c.last(t); !strings.HasPrefix(got, "I'll let that one go.\nAnyway") {
 		t.Errorf("got %q", got)
 	}
 	msgs := f.chats[1]["messages"].([]any)
@@ -866,5 +912,19 @@ func TestTheAgentIsToldTheGroupsLanguage(t *testing.T) {
 	}
 	if strings.Contains(system, "We light a candle") {
 		t.Error("a Swedish group's agent was shown English examples")
+	}
+}
+
+// A free answer is kept short however much the model wrote.
+func TestAFreeAnswerIsShort(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen2.5:7b"}, content: strings.Repeat("Stockholm is lovely in spring. ", 20)}
+	answer, c := agentAnswerer(t, replyDB(t), testAgent(t, f))
+	if err := answer(context.Background(), senderUUID, "tell me about Stockholm", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	first, _, _ := strings.Cut(c.last(t), "\n")
+	if n := len([]rune(first)); n > maxFreeRunes || !strings.HasSuffix(first, "spring.") {
+		t.Errorf("free answer of %d runes: %q", n, first)
 	}
 }

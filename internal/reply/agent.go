@@ -387,6 +387,27 @@ func (a *Agent) Run(ctx context.Context, p Prompt,
 			chatMessage{Role: "assistant", Content: h.Answer})
 	}
 	messages = append(messages, chatMessage{Role: "user", Content: saidBy(p.Asker, p.Question)})
+	return a.loop(ctx, messages, look)
+}
+
+// nudge continues a conversation whose answer, made without a lookup,
+// named someone it had no business naming: the model is told so and may
+// now look it up, or answer without the name. Tools stay available — this
+// is a second chance at the question, not a rewrite of the answer.
+func (a *Agent) nudge(ctx context.Context, res runResult, note string,
+	look func(name string, args json.RawMessage) (string, error)) (runResult, error) {
+
+	messages := append(slices.Clone(res.transcript),
+		chatMessage{Role: "assistant", Content: res.text},
+		chatMessage{Role: "user", Content: note})
+	return a.loop(ctx, messages, look)
+}
+
+// loop lets the model look things up until it answers, from the
+// conversation so far.
+func (a *Agent) loop(ctx context.Context, messages []chatMessage,
+	look func(name string, args json.RawMessage) (string, error)) (runResult, error) {
+
 	var looked []lookedUp
 	tried := false
 	for range maxAgentRounds {
@@ -560,10 +581,11 @@ func agentPrompt(p Prompt) string {
 	b.WriteString("Every number, score, date and name-to-result you state must come from a tool result " +
 		"in this conversation; never work out a figure yourself. If the tools cannot answer it, say " +
 		"so in one sentence. A question about this group's players, scores or standings is always " +
-		"answered from the tools, never from memory. Anything else you may answer from what you know, " +
-		"in one or two sentences, and leave the game out of that answer: the bot adds a line about " +
-		"Wordle after it. In an answer without the tools, call the person asking \"you\" and name " +
-		"no one. If you are not sure, say you don't know.\n")
+		"answered from the tools, never from memory. Anything else — small talk, a joke, a general " +
+		"question — answer freely from what you know in one short sentence of under twenty words, and " +
+		"leave the game out of it: the bot adds a line about Wordle after it. In such an answer you " +
+		"may name the person asking, or anyone the question names, but state no figures about them. " +
+		"If you are not sure, say so with a quip.\n")
 	if len(p.History) > 0 {
 		b.WriteString("The messages before the last are the recent conversation, each question " +
 			"prefixed with who asked. Use them to read a follow-up (\"and last week?\", \"what about " +
@@ -622,21 +644,46 @@ const persona = "Your personality: witty, dry and a little cocky, like a friend 
 	"anyone about anything but their Wordle. The facts come first; the attitude is one short " +
 	"aside. Your jokes contain no numbers, and you write every number as digits.\n"
 
-// offTopic reports whether an answer made without a lookup may be posted:
-// it says something, and names no player. Without a lookup the model knows
-// nothing about the group, so a player in its answer is made up — "Bo
-// leads". Numbers are let through: a year or a distance in a general
-// answer is the point of answering, and an invented figure about the group
-// with nobody named in it is the risk taken for that. A name is matched
-// word by word, any part of it, so "Larsson" is Cid Larsson; a name that
-// is also a word ("Bo") blocks that word too, which errs on the side of the
-// unknown line.
-//
-// The asker is no exception, though "Hej Bo!" to Bo is harmless: "Bo
-// leads" to Bo is not, and the two cannot be told apart. The model is
-// told to say "you" instead, which is the same greeting.
-func offTopic(answer string, players []store.Player) bool {
-	return answer != "" && len(namedPlayers(answer, players)) == 0
+// freeReply reports whether an answer made without a lookup may be posted,
+// and if not, the players it named that it should not have. Without a
+// lookup the model knows nothing about the group, so it may name only the
+// people the conversation already named — the asker ("Hej Martin!"), the
+// question ("what do you think of Bo?"), the recent turns — and then only
+// with no number in the answer, since a name with a figure is a claim
+// about the group ("Bo leads with 3.2"). A number without a name is let
+// through: a year or a distance is often the answer to a general question.
+func freeReply(answer string, players []store.Player, seen ...string) (bool, []string) {
+	if answer == "" {
+		return false, nil
+	}
+	named := namedPlayers(answer, players)
+	if len(named) == 0 {
+		return true, nil
+	}
+	known := namedPlayers(strings.Join(seen, "\n"), players)
+	var stray []string
+	for _, id := range named {
+		if !slices.Contains(known, id) {
+			i := slices.IndexFunc(players, func(p store.Player) bool { return p.ID == id })
+			stray = append(stray, players[i].Name)
+		}
+	}
+	if len(stray) > 0 || number.MatchString(answer) {
+		return false, stray
+	}
+	return true, nil
+}
+
+// nudgeRequest tells the model what was wrong with an answer it made
+// without looking anything up.
+func nudgeRequest(stray []string, lang string) string {
+	about := "a player"
+	if len(stray) > 0 {
+		about = strings.Join(stray, ", ")
+	}
+	return "You mentioned " + about + " without looking anything up. If the question is about the " +
+		"group's Wordle, use the tools. Otherwise answer again in one short sentence without figures " +
+		"about anyone and without naming " + about + ", in " + lang + "."
 }
 
 // namedPlayers is the players a text mentions, by any part of their name
@@ -700,7 +747,14 @@ var sentenceEnds = regexp.MustCompile(`[.!?…]\s|\n`)
 // tidy makes the model's text fit a chat: Signal shows markdown as the
 // characters, so the markers go, and a long answer is cut after the last
 // whole sentence that fits, or at a word with an ellipsis when none does.
-func tidy(text string) string {
+func tidy(text string) string { return tidyTo(text, maxAnswerRunes) }
+
+// maxFreeRunes is the longest free answer — small talk, a general
+// question — posted as written: a sentence or two. The segue follows it.
+const maxFreeRunes = 200
+
+// tidyTo is tidy with a limit of its own.
+func tidyTo(text string, limit int) string {
 	text = strings.NewReplacer("**", "", "__", "", "`", "").Replace(text)
 	var lines []string
 	for _, l := range strings.Split(text, "\n") {
@@ -708,10 +762,10 @@ func tidy(text string) string {
 	}
 	text = strings.TrimSpace(strings.Join(lines, "\n"))
 	r := []rune(text)
-	if len(r) <= maxAnswerRunes {
+	if len(r) <= limit {
 		return text
 	}
-	cut := string(r[:maxAnswerRunes])
+	cut := string(r[:limit])
 	// A sentence ends at a mark followed by a space or a line break, or at
 	// the cut itself: the point in "3.45" ends nothing.
 	// Cut at the end of the match, not a byte after its start: "…" is
@@ -840,6 +894,9 @@ func failedCheck(nums, names []string) string {
 	return ""
 }
 
+// shrugs is how many reply.agent.shrug lines there are.
+const shrugs = 3
+
 // fallbackDays is how much of a day-by-day list is posted as a fallback:
 // the week the question was most likely about.
 const fallbackDays = 7
@@ -856,14 +913,16 @@ func lastDays(list string, n int) string {
 // askAgent answers a question the Interpreter could not place, and
 // remembers the turn. It posts:
 //
-//   - the model's answer when it looked something up and every number in it
-//     is from a lookup, and the lookups when not;
-//   - an answer made without a lookup, with a line steering back to the
-//     game, when it names no player and the conversation has not already
-//     been off-topic maxOffTopicInARow times — past that, a line turning
-//     the question away, with the same steer;
-//   - the unknown line when the model named a player without looking
-//     anything up.
+//   - the model's answer when it looked something up and every number and
+//     name in it is backed, rewritten once if not, and the lookups if the
+//     rewrite fails too;
+//   - an answer made without a lookup — small talk, a general question —
+//     short, with a line steering back to the game, when it names only
+//     people the conversation named and gives no figures about them; one
+//     that names anyone else is nudged once to look it up or leave them
+//     out;
+//   - otherwise a short shrug with the same line back, and the reason in
+//     the log.
 //
 // Every question it takes is kept with the unplaced ones, as each is a
 // question none of the kinds took.
@@ -874,6 +933,18 @@ func askAgent(ctx context.Context, q asked, agent *Agent, conv *conversation,
 	keepUnanswered(ctx, db, logger, p.Question)
 	remember := func(text string, tp topic) {
 		conv.add(turn{at: q.now, asker: p.Asker, question: p.Question, answer: text, topic: tp})
+	}
+	// shrug is the answer when the model's own could not be posted: a
+	// short line, never the same one twice running, and the way back to
+	// the game. The reason goes to the log, which is how "it keeps saying
+	// it doesn't know" gets traced to a check.
+	shrug := func(ctx context.Context, reason string) error {
+		n := conv.nextSegue()
+		text := t.T("reply.agent.shrug."+strconv.Itoa(n%shrugs)) + "\n" +
+			segue(t, n, q.players, q.results, q.now)
+		logger.Info("answering a question in the group", "kind", "agent", "shrug", reason)
+		remember(text, topicNeutral)
+		return send(ctx, text)
 	}
 	look := func(name string, args json.RawMessage) (string, error) {
 		return lookup(t, name, args, q.asker, q.players, q.results, q.now)
@@ -887,23 +958,34 @@ func askAgent(ctx context.Context, q asked, agent *Agent, conv *conversation,
 		defer cancel()
 	}
 	res, err := agent.Run(actx, p, look)
+	// Who the conversation has named, which a free answer may name too.
+	convo := []string{p.Asker, p.Question}
+	for _, h := range p.History {
+		convo = append(convo, h.Question)
+	}
+	if errors.Is(err, errNoLookup) {
+		if ok, stray := freeReply(tidy(res.text), q.players, convo...); !ok && res.text != "" &&
+			timeLeft(actx) > repairMinLeft {
+			// One more go before giving up on it: named someone it should
+			// not have, so it may look them up, or answer without them.
+			res, err = agent.nudge(actx, res, nudgeRequest(stray, language(p)), look)
+			logger.Info("the agent named a player without a lookup; nudged it", "lookups_after", len(res.looked))
+		}
+	}
 	text, looked := tidy(res.text), res.looked
 	switch {
-	case errors.Is(err, errNoLookup) && offTopic(text, q.players):
-		steer := segue(t, conv.nextSegue(), q.players, q.results, q.now)
-		if run := conv.offTopicRun(q.now); run >= maxOffTopicInARow {
-			text = deflection(t, run-maxOffTopicInARow)
-			logger.Info("answering a question in the group", "kind", "agent", "off_topic", "turned away")
-		} else {
-			logger.Info("answering a question in the group", "kind", "agent", "off_topic", "answered")
+	case errors.Is(err, errNoLookup):
+		if ok, _ := freeReply(text, q.players, convo...); ok {
+			text = tidyTo(text, maxFreeRunes) + "\n" + segue(t, conv.nextSegue(), q.players, q.results, q.now)
+			logger.Info("answering a question in the group", "kind", "agent", "free", true)
+			remember(text, topicOff)
+			return send(ctx, text)
 		}
-		text += "\n" + steer
-		remember(text, topicOff)
-		return send(ctx, text)
-	case errors.Is(err, errNoLookup), errors.Is(err, errLookupsFailed), errors.Is(err, ErrNotReady):
-		text = t.T("reply.unknown")
-		remember(text, topicNeutral)
-		return send(ctx, text)
+		return shrug(ctx, "named a player without a lookup")
+	case errors.Is(err, errLookupsFailed):
+		return shrug(ctx, "every lookup failed")
+	case errors.Is(err, ErrNotReady):
+		return shrug(ctx, "the agent was not ready")
 	case err != nil && len(looked) == 0:
 		_ = send(ctx, t.T("reply.failed"))
 		return fmt.Errorf("agent: %w", err)

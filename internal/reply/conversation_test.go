@@ -8,27 +8,6 @@ import (
 	"time"
 )
 
-func TestTheOffTopicRunIsCountedSinceTheLastWordleAnswer(t *testing.T) {
-	t.Parallel()
-	now := time.Date(2026, time.September, 27, 12, 0, 0, 0, time.UTC)
-	var c conversation
-	add := func(ago time.Duration, tp topic) { c.add(turn{at: now.Add(-ago), topic: tp}) }
-
-	add(20*time.Minute, topicOff) // aged out
-	add(10*time.Minute, topicOff)
-	add(9*time.Minute, topicWordle)
-	add(8*time.Minute, topicOff)
-	add(7*time.Minute, topicNeutral) // thanks: neither ends nor extends
-	add(6*time.Minute, topicOff)
-	if got := c.offTopicRun(now); got != 2 {
-		t.Errorf("run = %d, want 2", got)
-	}
-	// A quarter of an hour later the conversation is a new one.
-	if got := c.offTopicRun(now.Add(memoryWindow)); got != 0 {
-		t.Errorf("run after the window = %d, want 0", got)
-	}
-}
-
 func TestTheConversationRemembersTheLastFewTurns(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, time.September, 27, 12, 0, 0, 0, time.UTC)
@@ -45,17 +24,17 @@ func TestTheConversationRemembersTheLastFewTurns(t *testing.T) {
 	}
 }
 
-// A conversation that keeps going is one conversation: off-topic questions
-// a few minutes apart are counted together even when the first is more
-// than a window old, so spacing them out does not reset the count.
-func TestTheOffTopicRunLastsAsLongAsTheConversation(t *testing.T) {
+// A conversation that keeps going is one conversation: turns a few
+// minutes apart are remembered together even when the first is more than
+// a window old.
+func TestTheConversationLastsWhileItGoesOn(t *testing.T) {
 	t.Parallel()
 	start := time.Date(2026, time.September, 27, 19, 0, 0, 0, time.UTC)
 	var c conversation
-	c.add(turn{at: start, topic: topicOff})
-	c.add(turn{at: start.Add(14 * time.Minute), topic: topicOff})
-	if got := c.offTopicRun(start.Add(16 * time.Minute)); got != 2 {
-		t.Errorf("run = %d, want 2", got)
+	c.add(turn{at: start, question: "first"})
+	c.add(turn{at: start.Add(14 * time.Minute), question: "second"})
+	if got := c.recent(start.Add(16 * time.Minute)); len(got) != 2 {
+		t.Errorf("remembered %d turns, want 2", len(got))
 	}
 }
 
@@ -73,14 +52,14 @@ func (s *scripted) Interpret(context.Context, Prompt) (Request, error) {
 	return r, nil
 }
 
-// Off-topic is answered, with a line back to the game, until the group has
-// drifted maxOffTopicInARow times; then it is turned away, still with the
-// line back. A question about the game ends the run.
-func TestOffTopicIsAnsweredTwiceThenTurnedAway(t *testing.T) {
+// Off-topic is answered every time, however many in a row, each with a
+// line back to the game; and a question about the game is answered as it
+// always is.
+func TestOffTopicIsAlwaysAnsweredAndSteeredBack(t *testing.T) {
 	t.Parallel()
 	db := replyDB(t)
 	unknown := Request{Kind: KindUnknown}
-	interp := &scripted{reqs: []Request{unknown, unknown, unknown, {Kind: KindStreak, Player: "Bo"}, unknown}}
+	interp := &scripted{reqs: []Request{unknown, unknown, unknown, unknown, {Kind: KindStreak, Player: "Bo"}}}
 	f := &fakeOllama{models: []string{"qwen2.5:7b"}, content: "Stockholm, obviously."}
 	answer, c := newAgentAnswerer(t, db, interp, testAgent(t, f))
 
@@ -91,22 +70,15 @@ func TestOffTopicIsAnsweredTwiceThenTurnedAway(t *testing.T) {
 		}
 		return c.last(t)
 	}
-	for i, q := range []string{"hej!", "capital of Sweden?"} {
+	for i, q := range []string{"hej!", "capital of Sweden?", "capital of Norway?", "capital of Denmark?"} {
 		got := ask(q)
 		first, steer, ok := strings.Cut(got, "\n")
 		if !ok || first != "Stockholm, obviously." || !strings.HasPrefix(steer, "Anyway") {
 			t.Errorf("off-topic %d: got %q, want the answer and a line back", i+1, got)
 		}
 	}
-	if got := ask("capital of Norway?"); !strings.HasPrefix(got, "That's enough small talk.") ||
-		!strings.Contains(got, "\nAnyway") {
-		t.Errorf("third off-topic: got %q, want it turned away with a line back", got)
-	}
 	if got := ask("how's my streak?"); !strings.HasPrefix(got, "Bo: 12 days in a row") {
 		t.Errorf("the game: got %q", got)
-	}
-	if got := ask("capital of Denmark?"); !strings.HasPrefix(got, "Stockholm, obviously.") {
-		t.Errorf("after the game: got %q, want an answer again", got)
 	}
 }
 
@@ -224,14 +196,17 @@ func TestNothingIsRememberedWithoutTheAgent(t *testing.T) {
 func TestAQuestionBeingAnsweredKeepsTheConversation(t *testing.T) {
 	t.Parallel()
 	c := &conversation{quiet: 100 * time.Millisecond}
-	c.add(turn{at: time.Now(), question: "first", topic: topicOff})
+	c.add(turn{at: time.Now(), question: "first"})
 	time.Sleep(70 * time.Millisecond)
 	asked := time.Now() // the next question arrives, and is read
 	c.recent(asked)
 	time.Sleep(70 * time.Millisecond)
 	// The answer is done past the first window: the conversation is still
-	// there for it, judged as askAgent judges it, at the question's time.
-	if got := c.offTopicRun(asked); got != 1 {
-		t.Errorf("run = %d mid-answer, want 1", got)
+	// held for it.
+	c.mu.Lock()
+	n := len(c.turns)
+	c.mu.Unlock()
+	if n != 1 {
+		t.Errorf("%d turns held mid-answer, want 1", n)
 	}
 }

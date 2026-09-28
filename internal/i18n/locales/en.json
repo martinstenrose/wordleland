@@ -746,6 +746,9 @@
   "search.pages": "Pages",
   "search.noResults": "No matches for that search.",
   "reply.agent.voice": "- Sam leads the month, and has started walking differently.\n- An X yesterday. We light a candle and move on.\n- The capital of Sweden is Stockholm. Next you'll ask me what colour the sky is.",
+  "reply.agent.shrug.0": "I'll let that one go.",
+  "reply.agent.shrug.1": "That one's above my pay grade.",
+  "reply.agent.shrug.2": "Pass. Even I have limits.",
   "reply.help": "Ask me who's leading or propping up the table (this month, a past month, the last N days, or all time), how somebody is doing, whether they can still win the month, streaks, today's puzzle, somebody's score on a day, how many 2s they have, who usually posts first, monthly wins, or what a word in my posts means. Mention me and ask. I don't do weather.",
   "reply.help.agent": "I also take follow-ups, comparisons, “roast me” and most things you can think of.",
   "reply.notready": "Still waking up. Give me a few minutes — even Wordle gives you six tries.",
@@ -823,8 +826,5 @@
   "reply.segue.leader": "Anyway, back to what matters: %s leads %s, averaging %s.",
   "reply.segue.streak": "Anyway, back to what matters: %s has solved %d days in a row. Somebody stop them.",
   "reply.segue.today": "Anyway, back to what matters: %d of %d have played today's Wordle.",
-  "reply.offtopic.0": "That's enough small talk. I'm a Wordle bot, not a pub quiz.",
-  "reply.offtopic.1": "Nope. I do small talk in small doses, and that was the dose.",
-  "reply.offtopic.2": "Lovely thought, wrong bot. Wordle, please.",
   "reply.unknown": "No idea what that was. Ask me about Wordle — there I have opinions."
 }
