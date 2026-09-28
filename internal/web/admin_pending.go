@@ -27,6 +27,23 @@ type pendingRow struct {
 	// name the sender posts under. Empty when nothing matches well enough.
 	Suggestion     string
 	SuggestionSlug string
+	// SuggestionNote says why the suggestion is worth a look when the
+	// player has gone quiet: "who hasn't posted since June".
+	SuggestionNote string
+
+	// Initials, the shortened sender id, and the latest held result — its
+	// tile, and which puzzle and when — as the card's head draws them.
+	Initials string
+	ShortID  string
+	Label    string
+	Tone     int
+	Latest   string
+	// More is the rest of what is held, as a line, empty when there is
+	// only the one.
+	More string
+	// NewName is the name a new player would take from this sender: the
+	// first word of what they post under.
+	NewName string
 }
 
 type pendingPage struct {
@@ -56,6 +73,7 @@ var pendingProblems = map[string]bool{
 	"pending.error.gone":     true,
 	"pending.error.expired":  true,
 	"pending.error.failed":   true,
+	"pending.error.newTaken": true,
 }
 
 // pendingProblem passes through a problem code this handler issues, and
@@ -110,6 +128,7 @@ func (s *Server) handleAdminPending(w http.ResponseWriter, r *http.Request) {
 			s.logger.Error("read held results", "error", err)
 		}
 		row.Snippet = pendingSnippet(page.T, held)
+		pendingHead(page.T, &row, held, now)
 
 		// The display name the sender posts under is the only clue there
 		// is. Offered as a suggestion, never applied: it is deliberate that
@@ -118,22 +137,76 @@ func (s *Server) handleAdminPending(w http.ResponseWriter, r *http.Request) {
 			if match, ok := suggestPlayer(sender.DisplayHint, players); ok {
 				row.Suggestion = match.Name
 				row.SuggestionSlug = match.Slug
+				if !match.Active {
+					row.SuggestionNote = page.T.T("pending.suggest.retired")
+				}
 			}
 		}
 		page.Rows = append(page.Rows, row)
 	}
 
-	// The counts this section is read for, and the one worth seeing before
-	// the menu is opened: senders still waiting to be claimed.
-	page.Section.Hint = page.T.T("pending.counts", page.Open, page.Count)
+	// The counts this section is read for. The one worth seeing from every
+	// admin screen — senders still waiting to be claimed — is on the pill;
+	// adminChrome puts it there.
+	page.Section.Sub = page.T.T("pending.nothing")
 	if page.Open > 0 {
-		page.Section.Badge = page.T.Integer(page.Open)
+		page.Section.Sub = page.T.TN("pending.waiting", page.Open)
 	}
 
 	if !s.issueChromeToken(w, r, &page.chrome) {
 		return
 	}
 	s.render(w, r, http.StatusOK, "admin_pending.html", page)
+}
+
+// pendingHead fills in what the card's head shows: who, and the latest
+// result held for them.
+func pendingHead(t translator, row *pendingRow, held []store.PendingResult, now time.Time) {
+	for _, w := range strings.Fields(row.DisplayHint) {
+		for _, r := range w {
+			row.Initials += strings.ToUpper(string(r))
+			break
+		}
+		if len([]rune(row.Initials)) == 2 {
+			break
+		}
+	}
+	if row.Initials == "" {
+		row.Initials = "?"
+	}
+	if fields := strings.Fields(row.DisplayHint); len(fields) > 0 {
+		row.NewName = fields[0]
+	}
+	id := row.ExternalID
+	if len(id) > 10 {
+		id = id[:4] + "…" + id[len(id)-4:]
+	}
+	row.ShortID = row.Source + " · " + id
+
+	if len(held) == 0 {
+		return
+	}
+	sort.Slice(held, func(i, j int) bool { return held[i].PuzzleNo > held[j].PuzzleNo })
+	latest := held[0]
+	row.Label, row.Tone = "X", 7
+	if latest.Solved && latest.Guesses != nil {
+		row.Label, row.Tone = strconv.Itoa(*latest.Guesses), *latest.Guesses
+	}
+	if latest.HardMode {
+		row.Label += "*"
+	}
+	row.Latest = t.T("player.puzzle", t.Puzzle(latest.PuzzleNo))
+	if latest.PostedAt != nil {
+		at := latest.PostedAt.In(time.Local)
+		when := at.Format("15:04")
+		if y, m, d := now.Date(); at.Year() != y || at.Month() != m || at.Day() != d {
+			when = t.T("weekday.short."+strconv.Itoa(int(at.Weekday()))) + " " + when
+		}
+		row.Latest += " · " + when
+	}
+	if len(held) > 1 {
+		row.More = pendingSnippet(t, held[1:])
+	}
 }
 
 // pendingSnippet renders the held results as a line of text.
@@ -193,14 +266,33 @@ func (s *Server) handleAdminPendingAssign(w http.ResponseWriter, r *http.Request
 	}
 
 	slug := strings.TrimSpace(r.PostFormValue("player"))
-	player, err := store.PlayerBySlug(r.Context(), s.db, slug)
-	if err != nil {
-		s.pendingRedirect(w, r, "", "pending.error.noPlayer")
-		return
+	var player store.Player
+	var summary store.ReplaySummary
+	var err error
+	if slug == "new" {
+		// A sender nobody plays as yet: a player made from the name they
+		// post under, and the sender claimed for them in one transaction,
+		// so a claim that fails leaves no player behind.
+		name := strings.TrimSpace(r.PostFormValue("new_name"))
+		if name == "" {
+			s.pendingRedirect(w, r, "", "pending.error.noPlayer")
+			return
+		}
+		player, summary, err = store.CreatePlayerForSenders(r.Context(), s.db, store.AdminActor(admin.ID),
+			name, "", []store.Sender{{Source: source, ExternalID: externalID}})
+		if errors.Is(err, store.ErrSlugTaken) {
+			s.pendingRedirect(w, r, "", "pending.error.newTaken")
+			return
+		}
+	} else {
+		player, err = store.PlayerBySlug(r.Context(), s.db, slug)
+		if err != nil {
+			s.pendingRedirect(w, r, "", "pending.error.noPlayer")
+			return
+		}
+		summary, err = store.LinkIdentity(r.Context(), s.db, store.AdminActor(admin.ID),
+			player.ID, source, externalID, store.ActionIdentityClaimed, false)
 	}
-
-	summary, err := store.LinkIdentity(r.Context(), s.db, store.AdminActor(admin.ID),
-		player.ID, source, externalID, store.ActionIdentityClaimed, false)
 	switch {
 	case errors.Is(err, store.ErrIdentityTaken):
 		s.pendingRedirect(w, r, "", "pending.error.taken")

@@ -84,6 +84,12 @@ type Player struct {
 	CurrentStreak int
 	LongestStreak int
 
+	// PlayStreak and LongestPlayStreak count days in a row with a result,
+	// a failure included: turning up, where CurrentStreak is solving. The
+	// board's Streak column is this one. Unfiltered, for the same reason.
+	PlayStreak        int
+	LongestPlayStreak int
+
 	// Distribution counts guesses 1..6 at indices 0..5, with failures at
 	// index 6.
 	Distribution [7]int
@@ -195,7 +201,8 @@ func Compute(players []store.Player, results []store.BoardResult, opts Options) 
 		}
 
 		// Streaks read the unfiltered history on purpose.
-		p.CurrentStreak, p.LongestStreak = computeStreaks(history, current)
+		p.CurrentStreak, p.LongestStreak = computeStreaks(history, current, true)
+		p.PlayStreak, p.LongestPlayStreak = computeStreaks(history, current, false)
 
 		if len(history) > 0 {
 			last := history[len(history)-1]
@@ -262,7 +269,10 @@ func eligibility(history []store.BoardResult, windowStart int) string {
 // ordinary games read as days they did not play, breaking the streak nine
 // times for games they actually turned up for. Averages and distributions
 // are a question about a population and filter correctly; this is not.
-func computeStreaks(history []store.BoardResult, current int) (currentStreak, longest int) {
+//
+// solving says what the streak is of: solved days, which a failure breaks,
+// or played days, which only a day without a result does.
+func computeStreaks(history []store.BoardResult, current int, solving bool) (currentStreak, longest int) {
 	if len(history) == 0 {
 		return 0, 0
 	}
@@ -282,8 +292,8 @@ func computeStreaks(history []store.BoardResult, current int) (currentStreak, lo
 		}
 
 		ok, played := solved[puzzle]
-		// A failure and a missed day both break it.
-		if played && ok {
+		// A missed day breaks either kind; a failure only a solving one.
+		if played && (ok || !solving) {
 			run++
 			if run > longest {
 				longest = run

@@ -48,3 +48,16 @@ func String() string {
 // is not a fault — it is what a local build is — but it is worth showing
 // differently from one that can name its commit.
 func Set() bool { return strings.TrimSpace(Commit) != "" }
+
+// Short is the build in a word, for where there is room for one: the short
+// commit when the build was stamped, the version otherwise.
+func Short() string {
+	commit := strings.TrimSpace(Commit)
+	if commit == "" {
+		return Version
+	}
+	if len(commit) > shortCommit {
+		commit = commit[:shortCommit]
+	}
+	return commit
+}

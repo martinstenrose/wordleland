@@ -11,7 +11,9 @@ func TestSwedishNumbersUseCommaAndSpace(t *testing.T) {
 		{"integer", Integer("sv", 1234567), "1 234 567"},
 		{"negative integer", Integer("sv", -1234), "-1 234"},
 		{"decimal", Decimal("sv", 1234.5, 2), "1 234,50"},
-		{"English remains unchanged", Decimal("en", 1234.5, 2), "1234.50"},
+		{"English groups with a comma", Decimal("en", 1234.5, 2), "1,234.50"},
+		{"English integer", Integer("en", 2153), "2,153"},
+		{"English catalogue arguments", Sprintf("en", "%d puzzles · %.2f", 1892, 3.5), "1,892 puzzles · 3.50"},
 		{"catalogue arguments", Sprintf("sv", "%d pussel · %.2f", 1892, 3.5), "1 892 pussel · 3,50"},
 	}
 	for _, tt := range tests {

@@ -13,23 +13,22 @@ import (
 	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
-// The chart note, calendar legend, and recent-strip legend all use .hint
-// inside a .panel; that rule should match the Leaderboard's footer-note
-// styling so explanatory copy reads consistently across pages.
+// A card's hint on a player's page — the strip's legend, the heatmap's, the
+// reason a chart is missing — reads like the notes at the foot of the
+// leaderboard: the same size, the same muted colour.
 func TestPlayerPanelHintMatchesLeaderboardFootNote(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	at := strings.Index(css, ".panel .hint")
-	if at < 0 {
-		t.Fatal("nothing styles the player panel's hint text")
-	}
-	rule := css[at:]
-	rule = rule[:strings.Index(rule, "}")]
-	for _, want := range []string{"font-size: 10.5px", "color: var(--color-text-35)"} {
-		if !strings.Contains(rule, want) {
-			t.Errorf("the panel hint rule does not set %q", want)
+	hint := cssRule(t, css, ".panel-card .hint {")
+	notes := cssRule(t, css, ".board-card.card > .b-notes {")
+	for _, want := range []string{"font-size: 12px", "color: var(--color-muted)"} {
+		if !strings.Contains(hint, want) {
+			t.Errorf("the panel hint does not set %q: %s", want, hint)
+		}
+		if !strings.Contains(notes, want) {
+			t.Errorf("the board's notes do not set %q: %s", want, notes)
 		}
 	}
 }
@@ -134,9 +133,8 @@ func TestThinPlayerGetsScoresRatherThanCharts(t *testing.T) {
 	}
 }
 
-// Each played day in the strip opens its own popup naming the puzzle and
-// its date — the two things the box itself cannot show. The guess count and
-// hard mode are already the box's label, so the popup does not repeat them.
+// Each played day in the strip opens its own popup: the puzzle, the day and
+// what it took, how the group did, and the way to the day's page.
 func TestRecentStripCellsOpenAPopupWithThePuzzleDetail(t *testing.T) {
 	t.Parallel()
 
@@ -166,9 +164,13 @@ func TestRecentStripCellsOpenAPopupWithThePuzzleDetail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DateForPuzzle(%d): %v", current, err)
 	}
-	want := fmt.Sprintf(">#%d (%s)<", current, date.Format("2006-01-02"))
+	// Which puzzle, the day, and what it took; then the day's own page.
+	want := fmt.Sprintf(">#%d · %s %d %s · 3 guesses *<", current, date.Weekday().String()[:3], date.Day(), date.Format("Jan"))
 	if !strings.Contains(page, want) {
 		t.Errorf("the popup does not show %q", want)
+	}
+	if !strings.Contains(page, fmt.Sprintf(`<a class="day-popup-open" href="/share/%s/puzzle/%d">Open puzzle ›</a>`, slug, current)) {
+		t.Error("the popup does not open the day's puzzle")
 	}
 }
 
@@ -183,7 +185,7 @@ func TestCalendarSquaresOpenAPopupWithTheResult(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	page := fetch(t, srv, "/share/"+slug+"/players/harda").Body.String()
-	calendar, ok := sectionOf(page, `<ol class="calendar">`, "</ol>")
+	calendar, ok := sectionOf(page, `<ol class="heat">`, "</ol>")
 	if !ok {
 		t.Fatal("the calendar is missing")
 	}
@@ -210,7 +212,7 @@ func TestCalendarSquaresOpenAPopupWithTheResult(t *testing.T) {
 	}
 	// harda solves everything in three, so the detail names the puzzle, the
 	// day, and what it took.
-	want := fmt.Sprintf("#%d (%s) · 3 guesses", current, date.Format("2006-01-02"))
+	want := fmt.Sprintf("#%d · %s %d %s · 3 guesses", current, date.Weekday().String()[:3], date.Day(), date.Format("Jan"))
 	if !strings.Contains(calendar, want) {
 		t.Errorf("the calendar popup does not show %q", want)
 	}
@@ -276,15 +278,14 @@ func TestAuthenticatedPlayerPageRequiresASession(t *testing.T) {
 	if page.Code != http.StatusOK {
 		t.Fatalf("signed-in GET /players/harda = %d", page.Code)
 	}
-	// The design gives the panel no back-link: the bar above it — the name,
-	// which is also the control that opens the roster — is how you move
-	// between players, and the mark is how you leave. What matters is that
-	// the page is not a dead end.
+	// The design gives the panel no back-link: the pill row above it is how
+	// you move between players, and the mark is how you leave. What matters
+	// is that the page is not a dead end.
 	body := page.Body.String()
-	if !strings.Contains(body, `class="menu-row switcher-row`) {
+	if !strings.Contains(body, `<nav class="pills"`) {
 		t.Error("the player page has no roster to move with")
 	}
-	if !strings.Contains(body, `class="brand"`) {
+	if !strings.Contains(body, `class="bar-home"`) {
 		t.Error("the player page has no way back out")
 	}
 }
@@ -344,10 +345,12 @@ func TestBuildMonthRanksDashesTheSegmentIntoAnUnfinishedMonth(t *testing.T) {
 
 	t.Run("current month still running", func(t *testing.T) {
 		now := time.Date(2026, time.September, 15, 0, 0, 0, 0, time.UTC)
-		_, path, dashedPath := buildMonthRanks(months, playerID, now, tr)
+		_, _, path, dashedPath, _ := buildMonthRanks(months, playerID, now, tr)
 
-		wantPath := "M0.0 64.0 L150.0 32.0"
-		wantDashed := "M150.0 32.0 L300.0 0.0"
+		// In the plot's units, the design's: places 3, 2 and 1 of three
+		// fall at 128, 68 and 8 down, the months at 36, 174 and 312 across.
+		wantPath := "M36.0 128.0 L174.0 68.0"
+		wantDashed := "M174.0 68.0 L312.0 8.0"
 		if path != wantPath {
 			t.Errorf("path = %q, want %q", path, wantPath)
 		}
@@ -358,9 +361,9 @@ func TestBuildMonthRanksDashesTheSegmentIntoAnUnfinishedMonth(t *testing.T) {
 
 	t.Run("current month finished", func(t *testing.T) {
 		now := time.Date(2026, time.October, 1, 0, 0, 0, 0, time.UTC)
-		_, path, dashedPath := buildMonthRanks(months, playerID, now, tr)
+		_, _, path, dashedPath, _ := buildMonthRanks(months, playerID, now, tr)
 
-		wantPath := "M0.0 64.0 L150.0 32.0 L300.0 0.0"
+		wantPath := "M36.0 128.0 L174.0 68.0 L312.0 8.0"
 		if path != wantPath {
 			t.Errorf("path = %q, want %q", path, wantPath)
 		}
@@ -370,17 +373,17 @@ func TestBuildMonthRanksDashesTheSegmentIntoAnUnfinishedMonth(t *testing.T) {
 	})
 }
 
-// withoutRoster cuts the open-the-roster menu out of a player page.
+// withoutRoster cuts the roster's pill row out of a player page.
 //
-// Every player is listed in it with their own rank and average, so a figure
+// Every player is listed in it with their own rank and latest score, so a figure
 // found anywhere on the page is not necessarily a figure about the player the
 // page is about — which is the only thing the tests below are asking.
 func withoutRoster(page string) string {
-	i := strings.Index(page, `<div class="switcher-panel">`)
+	i := strings.Index(page, `<nav class="pills"`)
 	if i < 0 {
 		return page
 	}
-	j := strings.Index(page[i:], "</details>")
+	j := strings.Index(page[i:], "</nav>")
 	if j < 0 {
 		return page
 	}
@@ -397,24 +400,84 @@ func TestTheRosterWithholdsFiguresBelowTheThreshold(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	page := fetch(t, srv, "/share/"+slug+"/players/harda").Body.String()
-	i := strings.Index(page, `<div class="switcher-panel">`)
+	i := strings.Index(page, `<nav class="pills"`)
 	if i < 0 {
 		t.Fatal("the player page has no roster")
 	}
-	menu := page[i : i+strings.Index(page[i:], "</details>")]
+	menu := page[i : i+strings.Index(page[i:], "</nav>")]
 
 	row := menu[strings.Index(menu, "/players/thin"):]
 	row = row[:strings.Index(row, "</a>")]
-	if !strings.Contains(row, `<span class="switcher-avg num">—</span>`) {
-		t.Errorf("the roster gives a player below the threshold an average: %s", row)
-	}
-	if !strings.Contains(row, `<span class="switcher-rank">—</span>`) {
+	if !strings.Contains(row, `<span class="pill-rank num">—</span>`) {
 		t.Errorf("the roster gives an unranked player a rank: %s", row)
 	}
-	// And a ranked one still has both, or the dash above means nothing.
+	// And a ranked one still has a rank, or the dash above means nothing.
 	ranked := menu[strings.Index(menu, "/players/harda"):]
 	ranked = ranked[:strings.Index(ranked, "</a>")]
 	if strings.Contains(ranked, "—") {
 		t.Errorf("a ranked player's figures are withheld too: %s", ranked)
+	}
+}
+
+// With nobody on the board, the players view says so where it stands. It used
+// to redirect to its own address, and the browser gave up after twenty.
+func TestThePlayersViewWithNobodyIsAPlaceholder(t *testing.T) {
+	t.Parallel()
+
+	srv := testServer(t)
+	admin, err := store.CreateUser(context.Background(), srv.db, store.SystemActor(), "admin@example.tld", "hash", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+	for _, tt := range []struct {
+		path   string
+		cookie *http.Cookie
+	}{
+		{"/players", signIn(t, srv, admin.ID)},
+		{"/share/" + slug + "/players", nil},
+	} {
+		rec := fetchAs(t, srv, tt.path, tt.cookie)
+		if rec.Code != http.StatusOK {
+			t.Errorf("%s = %d, want the placeholder at 200 (Location %q)", tt.path, rec.Code, rec.Header().Get("Location"))
+			continue
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, `<h1 class="page-title">Players</h1>`) || !strings.Contains(body, "No players yet.") {
+			t.Errorf("%s does not say there is nobody to show", tt.path)
+		}
+		if strings.Contains(body, `<nav class="pills"`) {
+			t.Errorf("%s draws an empty row of pills", tt.path)
+		}
+	}
+}
+
+// The eyebrow says when a player last played the way the design does, so it
+// stays one line on a phone: today, yesterday, or the day and month — with
+// the year only when it is not this one.
+func TestLastPlayedIsShortAndRelative(t *testing.T) {
+	t.Parallel()
+
+	tr := translator{strings: catalogue{
+		"player.lastPlayedToday":     "last played today",
+		"player.lastPlayedYesterday": "last played yesterday",
+		"player.lastPlayedOn":        "last played %s",
+		"month.9":                    "September",
+		"month.12":                   "December",
+	}}
+	now := time.Date(2026, 9, 28, 12, 0, 0, 0, time.Local)
+	day := func(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0, 0, 0, time.UTC) }
+	for _, tt := range []struct {
+		date time.Time
+		want string
+	}{
+		{day(2026, 9, 28), "last played today"},
+		{day(2026, 9, 27), "last played yesterday"},
+		{day(2026, 9, 20), "last played 20 Sep"},
+		{day(2025, 12, 31), "last played 31 Dec 2025"},
+	} {
+		if got := lastPlayed(tr, tt.date, now); got != tt.want {
+			t.Errorf("lastPlayed(%s) = %q, want %q", tt.date.Format(time.DateOnly), got, tt.want)
+		}
 	}
 }

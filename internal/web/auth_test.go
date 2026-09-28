@@ -654,3 +654,30 @@ func TestInvalidSessionCookieIsCleared(t *testing.T) {
 		t.Error("the invalid session cookie was not cleared")
 	}
 }
+
+// The panel beside the sign-in form draws the group's guesses as six bars —
+// aggregates only, like every other figure there — and nothing at all
+// before anything has been played, rather than six empty bars.
+func TestTheSignInPageDrawsTheGroupsGuesses(t *testing.T) {
+	t.Parallel()
+
+	srv := testServer(t)
+	if body := fetchAs(t, srv, "/", nil).Body.String(); strings.Contains(body, `class="signin-dist"`) {
+		t.Error("an empty board draws a distribution")
+	}
+
+	seedBoard(t, srv)
+	body := fetchAs(t, srv, "/", nil).Body.String()
+	dist, ok := sectionOf(body, `<ol class="signin-dist"`, "</ol>")
+	if !ok {
+		t.Fatal("the sign-in page draws no distribution")
+	}
+	if n := strings.Count(dist, `<span class="signin-dist-bar t`); n != 6 {
+		t.Errorf("%d bars, want one for each of six guesses", n)
+	}
+	for i := 1; i <= 6; i++ {
+		if !strings.Contains(dist, fmt.Sprintf(`<span class="signin-dist-n">%d</span>`, i)) {
+			t.Errorf("no bar labelled %d", i)
+		}
+	}
+}

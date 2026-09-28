@@ -16,6 +16,7 @@ type privacyPage struct {
 func (s *Server) handlePrivacy(w http.ResponseWriter, r *http.Request) {
 	_, signedIn := authenticated(r)
 	ch := s.newChrome(w, r, "", "", !signedIn)
+	ch.Page = chromeOpt{Code: "privacy", Label: ch.T.T("footer.privacy"), On: true}
 	if !signedIn {
 		// newChrome always builds the views; with no prefix they point at
 		// "/today" and friends, which redirect a stranger straight to login.

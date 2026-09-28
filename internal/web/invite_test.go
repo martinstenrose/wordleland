@@ -262,11 +262,11 @@ func TestAdminPanelShowsAPendingInvitation(t *testing.T) {
 	inviteToken(t, srv, sent, session, "harda", "harda@example.tld")
 
 	body := fetchAs(t, srv, "/admin/players/harda", session).Body.String()
-	if !strings.Contains(body, "Invited harda@example.tld") {
+	if !strings.Contains(body, `<span class="editor-box-title">harda@example.tld</span>`) || !strings.Contains(body, "Waiting for them to set a password") {
 		t.Error("the panel does not show the outstanding invitation")
 	}
-	if !strings.Contains(body, "Send another invitation") {
-		t.Error("the panel does not offer to re-send")
+	if !strings.Contains(body, ">Resend<") || !strings.Contains(body, `action="/admin/players/harda/invite/cancel"`) {
+		t.Error("the panel does not offer to re-send or cancel")
 	}
 }
 

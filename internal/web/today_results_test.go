@@ -15,7 +15,7 @@ func resultRows(t *testing.T, body string) [][4]string {
 	row := regexp.MustCompile(`(?s)<li class="result-row">\s*` +
 		`<span class="result-pos num">([^<]*)</span>\s*` +
 		`<span class="cell t\d tiny result-score">([^<]*)</span>\s*` +
-		`<a class="player result-name" href="[^"]+">([^<]+)</a>.*?` +
+		`<span class="result-id">\s*<a class="player result-name" href="[^"]+">([^<]+)</a>.*?` +
 		`<span class="result-delta delta [a-z]+">([^<]*)</span>`)
 	var out [][4]string
 	for _, m := range row.FindAllStringSubmatch(body, -1) {
@@ -76,10 +76,10 @@ func TestAnUnrankedPlayerTakesNoPositionFromAnyoneElse(t *testing.T) {
 		if row[0] != "—" {
 			t.Errorf("an unranked player holds position %q", row[0])
 		}
-		// Their figure is withheld here as it is everywhere else; what they
-		// get instead is why.
-		if !strings.Contains(body, `<span class="result-avg num">4 puzzles</span>`) {
-			t.Error("the unranked row does not say how few puzzles they have")
+		// Their figure is withheld here as it is everywhere else: a dash,
+		// which opens why. A count in the column wrapped to two lines.
+		if !strings.Contains(body, `<summary class="num" aria-label="Not ranked yet: 4 puzzles played. The board ranks from 10.">—</summary>`) {
+			t.Error("the unranked row is not a dash that says why")
 		}
 		return
 	}
@@ -135,9 +135,9 @@ func TestAMissSaysSoRatherThanInventingADistance(t *testing.T) {
 	}
 }
 
-// How far through the day the group is, at the top of the page. The names of
+// How far through the day the group is, under the day's result. The names of
 // whoever is left are worth a count all day and worth reading only when
-// somebody asks, so they are behind a disclosure — but in the markup either
+// somebody asks, so the count opens them — but they are in the markup either
 // way, which is one round trip and one script fewer than fetching them.
 func TestTheDaysProgressIsAFigureAndTheNamesAreADisclosure(t *testing.T) {
 	t.Parallel()
@@ -155,14 +155,12 @@ func TestTheDaysProgressIsAFigureAndTheNamesAreADisclosure(t *testing.T) {
 	if !strings.Contains(body, `--pct: 83`) {
 		t.Error("the progress track is not filled to the share that has filed")
 	}
-	if !strings.Contains(body, `<span class="today-count num">5/6</span>`) {
-		t.Error("the count is not printed beside the track")
+	out, ok := sectionOf(body, `<details class="today-out">`, "</details>")
+	if !ok {
+		t.Fatal("the count does not open who is still out")
 	}
-
-	out := body[strings.Index(body, `<details class="today-out">`):]
-	out = out[:strings.Index(out, "</details>")]
-	if !strings.Contains(out, "1 still to submit") {
-		t.Error("the disclosure does not say how many are left")
+	if !strings.Contains(out, `<summary><span class="num">5 of 6 in</span>`) {
+		t.Error("the count is not printed beside the track")
 	}
 	if !strings.Contains(out, ">Lapsed<") {
 		t.Error("the name is not inside the disclosure")
@@ -172,10 +170,10 @@ func TestTheDaysProgressIsAFigureAndTheNamesAreADisclosure(t *testing.T) {
 	}
 }
 
-// Before today's first result lands, the results table used to disappear
-// outright — {{if .Results}} left nothing behind it, so a wide screen showed
-// a blank column beside the form table and a phone skipped straight from the
-// header to the callouts. A placeholder takes its place instead.
+// Before today's first result lands there is no day to show: no winner, no
+// spread, no list of scores. The page says so in one card, where the day will
+// be, rather than drawing each of those empty — and the form list, which is
+// about the last thirty days and not today, stays.
 func TestTheResultsTableHasAPlaceholderBeforeAnyoneFiles(t *testing.T) {
 	t.Parallel()
 
@@ -201,19 +199,40 @@ func TestTheResultsTableHasAPlaceholderBeforeAnyoneFiles(t *testing.T) {
 
 	body := fetchAs(t, srv, "/today", signIn(t, srv, admin.ID)).Body.String()
 
-	if !strings.Contains(body, `<p class="empty results-empty">Results appear here as they come in.</p>`) {
-		t.Error("the results table has no placeholder before anyone has filed today")
+	if !strings.Contains(body, `<h2 class="page-empty-title">Nobody has played yet today.</h2>`) {
+		t.Error("the day does not say it is empty")
 	}
-	if strings.Contains(body, `class="today-results"`) || strings.Contains(body, `class="result-row">`) {
-		t.Error("an empty results table still rendered its list markup")
+	if !strings.Contains(body, `<p class="page-sub">Nobody has played yet.</p>`) {
+		t.Error("the page head does not say nobody has played")
 	}
-	// The rest of the day's emptiness is unaffected: nobody has filed, so the
-	// headline says so and both players are still named as missing.
-	if !strings.Contains(body, "No results in yet today.") {
-		t.Error("the headline does not say the day is empty")
+	for _, gone := range []string{`class="card today-hero"`, `today-results"`, `class="today-out"`, `class="today-tabs"`} {
+		if strings.Contains(body, gone) {
+			t.Errorf("an empty day still draws %s", gone)
+		}
 	}
-	if !strings.Contains(body, ">Morning<") || !strings.Contains(body, ">Evening<") {
-		t.Error("the still-to-submit list does not name both players")
+	if !strings.Contains(body, `today-form"`) {
+		t.Error("the form list went with the day's results")
+	}
+}
+
+// With nobody on the board at all, Today is the empty card and nothing else:
+// no lists to leave empty and no callouts to show.
+func TestTodayOnAnEmptyBoardIsOneEmptyCard(t *testing.T) {
+	t.Parallel()
+
+	srv := testServer(t)
+	admin, err := store.CreateUser(context.Background(), srv.db, store.SystemActor(), "admin@example.tld", "hash", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := fetchAs(t, srv, "/today", signIn(t, srv, admin.ID)).Body.String()
+	if !strings.Contains(body, `<h2 class="page-empty-title">Nobody has played yet today.</h2>`) {
+		t.Error("the empty day does not say so")
+	}
+	for _, gone := range []string{`today-results"`, `today-form"`, `class="today-callouts"`, `class="card today-standing"`} {
+		if strings.Contains(body, gone) {
+			t.Errorf("an empty board still draws %s", gone)
+		}
 	}
 }
 

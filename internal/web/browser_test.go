@@ -22,7 +22,7 @@ package web
 // already has.
 //
 // The harness is written to outlive the current front end. The assertions
-// read pages off the rail and the switcher rather than from a list, and they
+// read pages off the bar and the pill row rather than from a list, and they
 // assert what a reader would notice — "no reload", "same place", "still
 // here" — rather than how the script achieves it. Swap the script for
 // another and these are the parity net.
@@ -506,47 +506,48 @@ func (s *site) open(b *browser, width int) *page {
 	return p
 }
 
-// railHrefs is every view the rail offers on the page that is open — the
-// pages a reader can reach from anywhere. Read from the page, not listed here,
-// so a view added later is tested without anyone remembering to add it.
+// barHrefs is every view the bar offers on the page that is open — the pages
+// a reader can reach from anywhere. Read from the page, not listed here, so a
+// view added later is tested without anyone remembering to add it.
 //
-// A view is an address. The rail also carries links that are this page with
-// one parameter changed — collapsing itself, the About panel's privacy link —
-// and those are controls, not places; anything with a query string or under
-// /privacy is left out.
-func railHrefs(p *page) []string {
+// The capsule of pages is hidden on a phone, where the page menu carries the
+// same list; the links are in the markup at either width, so one read covers
+// both.
+func barHrefs(p *page) []string {
 	p.t.Helper()
-	// The rail and the drawer carry the same rows; one copy is enough.
-	return p.Strings(`[...new Set([...document.querySelectorAll(".sidebar a[href]")]
-		.map(a => a.getAttribute("href"))
-		.filter(h => h.startsWith("/") && !h.includes("?") && !h.startsWith("/privacy")))]`)
+	return p.Strings(`[...document.querySelectorAll(".bar-pages a.bar-page[href]")].map(a => a.getAttribute("href"))`)
 }
 
-// follow presses the rail row for a view and waits until the page is there,
-// opening the drawer first where the rail is hidden. The way a reader moves
-// between views on a phone.
+// follow presses the bar's link to a view and waits until the page is there:
+// the page in the capsule on a wide window, or the row in the page menu,
+// opened first, on a phone. The way a reader moves between views at each
+// width.
 func follow(p *page, href string) {
 	p.t.Helper()
-	// Opening the drawer and pressing the row happen in one evaluation, and
+	// Opening the menu and pressing the row happen in one evaluation, and
 	// the <main> that was on screen is marked before the press: the switch
 	// is done when that node is gone, not when the address matches. The
-	// address is no witness on its own — a row for the page already open
+	// address is no witness on its own — a link to the page already open
 	// matches before its fetch has landed, and the next press would then
-	// find the drawer it just opened swapped away. What ends a switch is
-	// the old content leaving, whichever script does the swapping.
+	// find the menu it just opened swapped away. What ends a switch is the
+	// old content leaving, whichever script does the swapping.
 	ok := p.Eval(fmt.Sprintf(`(() => {
-		[...document.querySelectorAll("details.drawer")].forEach(d => d.open = true);
-		const row = [...document.querySelectorAll(".sidebar a[href], .drawer a[href]")]
-			.find(a => a.getAttribute("href") === %q && a.getClientRects().length);
-		if (!row) return false;
+		const visible = a => a.getAttribute("href") === %q && a.getClientRects().length;
+		let link = [...document.querySelectorAll(".bar-pages a[href]")].find(visible);
+		if (!link) {
+			const menu = document.querySelector("details.bar-menu");
+			if (menu) menu.open = true;
+			link = [...document.querySelectorAll(".bar-menu-panel a[href]")].find(visible);
+		}
+		if (!link) return false;
 		const main = document.querySelector("main");
 		if (main) main.__stale = true;
-		row.click(); return true; })()`, href))
+		link.click(); return true; })()`, href))
 	if ok != true {
-		p.t.Fatalf("follow: no visible rail row for %s", href)
+		p.t.Fatalf("follow: no visible link in the bar for %s", href)
 	}
 	// /players opens on the leader, so the address it lands on is a page
-	// under it rather than the row's own.
+	// under it rather than the link's own.
 	p.WaitFor(fmt.Sprintf(`!(document.querySelector("main") || {}).__stale
 		&& (location.pathname === %q || location.pathname.startsWith(%q + "/"))`, href, href))
 }
@@ -564,7 +565,7 @@ func TestBrowserFollowingALinkNeverReloads(t *testing.T) {
 	p.Navigate(site.base + "/today")
 	p.Eval(`window.__alive = 1; true`)
 
-	for _, href := range railHrefs(p) {
+	for _, href := range barHrefs(p) {
 		follow(p, href)
 		if alive := p.Number(`window.__alive || 0`); alive != 1 {
 			t.Errorf("%s: the document was reloaded (window.__alive = %v)", href, alive)
@@ -573,7 +574,7 @@ func TestBrowserFollowingALinkNeverReloads(t *testing.T) {
 	// A link inside a page, not only the rail: the first player on the board.
 	p.Navigate(site.base + "/leaderboard")
 	p.Eval(`window.__alive = 1; true`)
-	p.Click(".board a.player")
+	p.Click(".board-card a.player")
 	p.WaitFor(`location.pathname.startsWith("/players/")`)
 	if alive := p.Number(`window.__alive || 0`); alive != 1 {
 		t.Errorf("a player link reloaded the document")
@@ -591,7 +592,7 @@ func TestBrowserBackRestoresURLAndScroll(t *testing.T) {
 
 	// Somewhere long enough to scroll. Found rather than named.
 	var from string
-	for _, href := range railHrefs(p) {
+	for _, href := range barHrefs(p) {
 		follow(p, href)
 		if p.Number(`document.documentElement.scrollHeight - window.innerHeight`) > 300 {
 			from = p.Path()
@@ -608,7 +609,7 @@ func TestBrowserBackRestoresURLAndScroll(t *testing.T) {
 
 	// Away, to any other view.
 	var to string
-	for _, href := range railHrefs(p) {
+	for _, href := range barHrefs(p) {
 		if !strings.HasPrefix(from, href) {
 			to = href
 			break
@@ -634,7 +635,7 @@ func TestBrowserASwitchedInPageStartsAtTheTop(t *testing.T) {
 	p := site.open(newBrowser(t), phoneWidth)
 	p.Navigate(site.base + "/today")
 
-	for _, href := range railHrefs(p) {
+	for _, href := range barHrefs(p) {
 		follow(p, href)
 		if got := p.ScrollY(); got != 0 {
 			t.Errorf("%s: opened at scrollY %v, want 0", href, got)
@@ -646,7 +647,7 @@ func TestBrowserASwitchedInPageStartsAtTheTop(t *testing.T) {
 }
 
 // The title and its subtitle are in the same place, at the same size, on
-// every view — a title that is a menu included.
+// every view — a player's name, whose page has a pill row, included.
 //
 // Two bugs lived here. A glyph in front of a menu title pushed it 45px in.
 // Then a line-height of 1.2 on the same title, against the default on the
@@ -656,40 +657,50 @@ func TestBrowserTheTitleDoesNotMoveBetweenViews(t *testing.T) {
 	site := newSite(t)
 	b := newBrowser(t)
 
+	// Where the title sits in the head it belongs to, and how it is set.
+	// Every view names itself in a page head on the canvas; the board, still
+	// being reworked, in its card's head.
 	const probe = `(() => {
-		const card = document.querySelector("main section.card");
-		const box = el => { if (!el) return "none";
-			const r = el.getBoundingClientRect(), c = card.getBoundingClientRect(), s = getComputedStyle(el);
-			return [Math.round(r.left - c.left), Math.round(r.top - c.top), s.fontSize, s.fontWeight, s.lineHeight, s.letterSpacing].join(" "); };
-		return box(document.querySelector("main h1")) + " | " + box(document.querySelector("main .kicker"));
+		const h = document.querySelector("main h1");
+		if (!h) return "{}";
+		const head = h.closest(".page-head, .card");
+		const r = h.getBoundingClientRect(), c = head.getBoundingClientRect(), s = getComputedStyle(h);
+		return JSON.stringify({
+			kind: head.classList.contains("page-head") ? "page" : "card",
+			at: Math.round(r.left - c.left) + " " + Math.round(r.top - c.top),
+			set: [s.fontSize, s.fontWeight, s.lineHeight, s.letterSpacing].join(" "),
+		});
 	})()`
+	type title struct{ Kind, At, Set string }
 
 	for _, width := range []int{phoneWidth, desktopWidth} {
 		p := site.open(b, width)
 		p.Navigate(site.base + "/leaderboard")
 
-		got := map[string]string{}
-		for _, href := range railHrefs(p) {
-			// Today is the one view that does not name itself: it leads with
-			// the date and sets the day's result larger than a page name,
-			// because it is not one. Recorded in docs/decisions.md.
-			if href == "/today" || href == "/" {
-				continue
-			}
+		got := map[string]title{}
+		for _, href := range barHrefs(p) {
 			follow(p, href)
-			got[p.Path()] = p.String(probe)
+			var t2 title
+			_ = json.Unmarshal([]byte(p.String(probe)), &t2)
+			got[p.Path()] = t2
 		}
 		if len(got) < 3 {
 			t.Fatalf("width %d: only %d views measured", width, len(got))
 		}
-		var want, wantPath string
+		// Within a kind of head, the title is the same thing in the same
+		// place. The two kinds are compared apart: a page head sits on the
+		// canvas and a card's inside its card, by design.
+		first := map[string]string{}
 		for path, g := range got {
-			if want == "" {
-				want, wantPath = g, path
+			if g.Kind == "" {
+				t.Errorf("width %d: %s has no title", width, path)
 				continue
 			}
-			if g != want {
-				t.Errorf("width %d: %s is laid out\n  %s\nbut %s is\n  %s", width, path, g, wantPath, want)
+			key := g.Kind + " " + g.At + " " + g.Set
+			if want, ok := first[g.Kind]; !ok {
+				first[g.Kind] = key
+			} else if key != want {
+				t.Errorf("width %d: %s is laid out %q, but another %s head is %q", width, path, key, g.Kind, want)
 			}
 		}
 	}
@@ -701,10 +712,10 @@ func TestBrowserTheTitleDoesNotMoveBetweenViews(t *testing.T) {
 // The form row carries five score chips and two figures either side of the
 // name, all at fixed widths, so the name is what gives when the row is
 // short of room — on a phone it was down to one letter before the widths
-// were measured, and at 1000px with the rail out it had nothing at all.
-// Nothing that reads the markup can see any of that. Column labels are
-// clipped rather than wrapped, for the same reason, so a label wider than
-// its column is silently cut; both languages are checked.
+// were measured. On a wide window the lists stand side by side, level row
+// for row; on a phone they are two tabs, one list at a time, and the form
+// list is measured once its tab is chosen. Nothing that reads the markup
+// can see any of that; both languages are checked.
 func TestBrowserTodaysTwoListsShareARhythm(t *testing.T) {
 	site := newSite(t)
 	b := newBrowser(t)
@@ -712,41 +723,53 @@ func TestBrowserTodaysTwoListsShareARhythm(t *testing.T) {
 	const probe = `(() => {
 		const q = s => document.querySelector(s);
 		const box = e => e.getBoundingClientRect();
-		const clipped = [...document.querySelectorAll(".result-row.head > *, .form-row.head > *")]
-			.filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent.trim());
+		const shown = s => box(q(s)).height > 0;
 		return JSON.stringify({
-			name: Math.round(box(q(".form-row:not(.head) .form-name")).width),
-			result: Math.round(box(q(".result-row:not(.head)")).height),
-			form: Math.round(box(q(".form-row:not(.head)")).height),
+			name: Math.round(box(q(".form-row .form-name")).width),
+			result: Math.round(box(q(".result-row")).height),
+			form: Math.round(box(q(".form-row")).height),
+			results: shown(".today-results"),
+			forms: shown(".today-form"),
 			sideBySide: box(q(".today-results")).top === box(q(".today-form")).top,
-			clipped,
 		});
 	})()`
 	type layout struct {
 		Name, Result, Form int
+		Results, Forms     bool
 		SideBySide         bool
-		Clipped            []string
+	}
+	measure := func(p *page, width int, lang string) layout {
+		var got layout
+		if err := json.Unmarshal([]byte(p.String(probe)), &got); err != nil {
+			t.Fatalf("width %d %s: %v", width, lang, err)
+		}
+		return got
 	}
 
 	for _, width := range []int{phoneWidth, desktopWidth} {
 		p := site.open(b, width)
 		for _, lang := range []string{"en", "sv"} {
 			p.Navigate(site.base + "/today?lang=" + lang)
-			var got layout
-			if err := json.Unmarshal([]byte(p.String(probe)), &got); err != nil {
-				t.Fatalf("width %d %s: %v", width, lang, err)
+			got := measure(p, width, lang)
+			if width == desktopWidth {
+				if !got.SideBySide || !got.Results || !got.Forms {
+					t.Errorf("width %d %s: the lists are not side by side: %+v", width, lang, got)
+				}
+				if got.Result != got.Form {
+					t.Errorf("width %d %s: a results row is %dpx tall and a form row %dpx", width, lang, got.Result, got.Form)
+				}
+			} else {
+				if !got.Results || got.Forms {
+					t.Errorf("width %d %s: the phone does not open on the results alone: %+v", width, lang, got)
+				}
+				p.Click(`label[for="today-tab-form"]`)
+				got = measure(p, width, lang)
+				if got.Results || !got.Forms {
+					t.Errorf("width %d %s: the Form tab does not show the form alone: %+v", width, lang, got)
+				}
 			}
 			if got.Name < 56 {
 				t.Errorf("width %d %s: the form row leaves the name %dpx", width, lang, got.Name)
-			}
-			if got.Result != got.Form {
-				t.Errorf("width %d %s: a results row is %dpx tall and a form row %dpx", width, lang, got.Result, got.Form)
-			}
-			if got.SideBySide != (width == desktopWidth) {
-				t.Errorf("width %d %s: side by side = %v", width, lang, got.SideBySide)
-			}
-			if len(got.Clipped) > 0 {
-				t.Errorf("width %d %s: column labels wider than their column: %v", width, lang, got.Clipped)
 			}
 		}
 	}
@@ -755,16 +778,16 @@ func TestBrowserTodaysTwoListsShareARhythm(t *testing.T) {
 // Opening the list of who has not filed leaves the day's headline where it
 // was.
 //
-// On a wide screen the header's two groups stand side by side. Aligned to
-// the bottom, the left one slid down when the right one grew: the reader
-// pressed a small control on the right and the headline on the left moved.
-// Nothing that reads the markup can see which edge a row is aligned on.
+// The list opens from the progress count under the headline. Were the hero
+// to centre its contents, or the list to open in the flow above the count,
+// the reader would press a small control and the headline would move.
+// Nothing that reads the markup can see that.
 func TestBrowserOpeningTheMissingListLeavesTheHeadlineStill(t *testing.T) {
 	site := newSite(t)
 	p := site.open(newBrowser(t), desktopWidth)
 	p.Navigate(site.base + "/today")
 
-	const top = `document.querySelector(".today-headline h1").getBoundingClientRect().top`
+	const top = `document.querySelector(".today-lead").getBoundingClientRect().top`
 	before := p.Number(top)
 	p.Click(".today-out > summary")
 	p.WaitFor(`document.querySelector(".today-out").open`)
@@ -775,23 +798,35 @@ func TestBrowserOpeningTheMissingListLeavesTheHeadlineStill(t *testing.T) {
 
 // The About panel covers what is under it.
 //
-// It is drawn from inside the rail, and the rail is sticky, which makes it
-// a stacking layer of its own: anything positioned in the page — the form
-// table's rank cells — painted over the panel, so the text of the page
-// showed through the text of the panel. What is on top at a point is the
-// one thing a selector cannot say.
+// It is drawn from inside the account menu, which floats over the page as
+// glass. A backdrop-filter on the menu would have made it the box the
+// fixed panel is placed in, and the panel would have opened inside the menu;
+// and anything positioned in the page could paint over a panel drawn from a
+// layer below it. What is on top at a point is the one thing a selector
+// cannot say.
 func TestBrowserTheAboutPanelCoversThePage(t *testing.T) {
 	site := newSite(t)
 	p := site.open(newBrowser(t), desktopWidth)
 	p.Navigate(site.base + "/today")
 
-	p.Click(".sidebar details.about > summary")
-	p.WaitFor(`document.querySelector(".sidebar details.about").open`)
+	p.Click("details.account > summary")
+	p.WaitFor(`document.querySelector("details.account").open`)
+	p.Click(".account-menu details.about > summary")
+	p.WaitFor(`document.querySelector(".account-menu details.about").open`)
+
+	// Centred on the window, not on the menu it opened from. The window's
+	// visible width, clientWidth: innerWidth counts a classic scrollbar,
+	// which CI's Chrome draws and a Mac's does not, and a fixed panel is
+	// centred on what is left beside it.
+	if off := p.Number(`(() => { const r = document.querySelector(".account-menu .about-panel").getBoundingClientRect();
+		return Math.abs((r.left + r.right) / 2 - document.documentElement.clientWidth / 2); })()`); off > 2 {
+		t.Errorf("the About panel is %vpx off the middle of the window", off)
+	}
 
 	// Every element of the page whose centre lies under the panel, and
 	// whether the panel is what is hit there.
 	showing := p.Strings(`(() => {
-		const panel = document.querySelector(".sidebar .about-panel");
+		const panel = document.querySelector(".account-menu .about-panel");
 		const box = panel.getBoundingClientRect();
 		const out = [];
 		for (const el of document.querySelectorAll("main *")) {
@@ -820,71 +855,27 @@ func TestBrowserEscClosesPopupsInnermostFirst(t *testing.T) {
 	p := site.open(newBrowser(t), phoneWidth)
 	p.Navigate(site.base + "/leaderboard")
 
-	const drawerOpen = `document.querySelector("details.drawer").open`
-	const helpOpen = `document.querySelector(".drawer details.about").open`
-	p.Click("details.drawer > summary")
-	p.WaitFor(drawerOpen)
-	p.Click(".drawer details.about > summary")
+	const menuOpen = `document.querySelector("details.account").open`
+	const helpOpen = `document.querySelector(".account-menu details.about").open`
+	p.Click("details.account > summary")
+	p.WaitFor(menuOpen)
+	p.Click(".account-menu details.about > summary")
 	p.WaitFor(helpOpen)
-	p.Eval(`document.querySelector(".drawer .about-link").focus(); true`)
+	p.Eval(`document.querySelector(".account-menu .about-link").focus(); true`)
 
 	p.Press("Escape", "Escape", 0)
 	p.WaitFor(`!` + helpOpen)
-	if p.Eval(drawerOpen) != true {
-		t.Errorf("Esc closed the drawer along with the Help panel inside it")
+	if p.Eval(menuOpen) != true {
+		t.Errorf("Esc closed the account menu along with the Help panel inside it")
 	}
-	if p.Eval(`document.activeElement === document.querySelector(".drawer details.about > summary")`) != true {
+	if p.Eval(`document.activeElement === document.querySelector(".account-menu details.about > summary")`) != true {
 		t.Errorf("closing Help did not put focus back on its summary")
 	}
 
 	p.Press("Escape", "Escape", 0)
-	p.WaitFor(`!` + drawerOpen)
+	p.WaitFor(`!` + menuOpen)
 	if path := p.Path(); path != "/leaderboard" {
 		t.Errorf("Esc navigated to %s", path)
-	}
-}
-
-// The enrolment dialog opens over the settings screen, holds focus, and
-// closes without going anywhere.
-//
-// Setting a secret up is a step in what the reader is doing on that screen,
-// not a place to go; a dialog that let Tab wander out of it into the page
-// behind would be worse than the page it replaced.
-func TestBrowserTheEnrolmentDialogStaysOnThePage(t *testing.T) {
-	site := newSite(t)
-	p := site.open(newBrowser(t), desktopWidth)
-	p.Navigate(site.base + "/settings/security")
-	p.Eval(`window.__alive = 1; true`)
-	start := p.Path()
-
-	p.Click("a[data-modal]")
-	p.WaitFor(`!!document.querySelector(".modal-card")`)
-	if got := p.Path(); got != start {
-		t.Fatalf("opening the dialog navigated to %s", got)
-	}
-	if p.Eval(`document.querySelector(".modal-card").contains(document.activeElement)`) != true {
-		t.Error("focus did not move into the dialog")
-	}
-
-	// Tab from the last control wraps to the first, and Shift+Tab back.
-	p.Eval(`(() => { const f = [...document.querySelector(".modal-card").querySelectorAll('a[href], button, input')]
-		.filter(e => e.getClientRects().length); f[f.length - 1].focus(); return true; })()`)
-	p.Eval(`document.dispatchEvent(new KeyboardEvent("keydown", {key: "Tab", bubbles: true})); true`)
-	if p.Eval(`(() => { const f = [...document.querySelector(".modal-card").querySelectorAll('a[href], button, input')]
-		.filter(e => e.getClientRects().length); return document.activeElement === f[0]; })()`) != true {
-		t.Error("Tab from the last control did not wrap to the first: focus can leave the dialog")
-	}
-
-	p.Click(".modal-card a.btn.secondary") // Cancel
-	p.WaitFor(`!document.querySelector(".modal-card")`)
-	if got := p.Path(); got != start {
-		t.Errorf("closing the dialog navigated to %s", got)
-	}
-	if alive := p.Number(`window.__alive || 0`); alive != 1 {
-		t.Error("the dialog's round trip reloaded the document")
-	}
-	if p.Eval(`document.documentElement.style.overflow`) != "" {
-		t.Error("the page behind is still scroll-locked after the dialog closed")
 	}
 }
 
@@ -911,12 +902,12 @@ func TestBrowserNoConsoleErrorsOnAnyView(t *testing.T) {
 			p.errMu.Unlock()
 		}
 	}
-	for _, href := range railHrefs(p) {
+	for _, href := range barHrefs(p) {
 		visit(href)
 	}
 	// Inside the admin area, every section the bar lists.
 	p.Navigate(site.base + "/admin/settings")
-	for _, href := range p.Strings(`[...document.querySelectorAll(".switcher-panel a")].map(a => a.getAttribute("href"))`) {
+	for _, href := range p.Strings(`[...document.querySelectorAll(".pills a")].map(a => a.getAttribute("href"))`) {
 		visit(href)
 	}
 	// And one player, by way of the roster.
@@ -933,7 +924,7 @@ func TestBrowserNoConsoleErrorsOnAnyView(t *testing.T) {
 // nothing at this address". No page carries such a link on purpose, so one
 // is put there; following it is what a reader with a stale link from the
 // group chat does.
-func TestBrowserAMissingPageKeepsTheRailOff(t *testing.T) {
+func TestBrowserAMissingPageKeepsTheBarOff(t *testing.T) {
 	site := newSite(t)
 	p := site.open(newBrowser(t), desktopWidth)
 	p.Navigate(site.base + "/leaderboard")
@@ -950,59 +941,53 @@ func TestBrowserAMissingPageKeepsTheRailOff(t *testing.T) {
 	if alive := p.Number(`window.__alive || 0`); alive != 1 {
 		t.Fatalf("the document was reloaded on the way to the error page")
 	}
-	if n := p.Number(`document.querySelectorAll(".sidebar, .drawer, .topbar").length`); n != 0 {
-		t.Errorf("the error page carries %v pieces of the application's frame", n)
+	if n := p.Number(`document.querySelectorAll(".topbar").length`); n != 0 {
+		t.Errorf("the error page carries the application's bar")
 	}
 	if h := p.String(`(document.querySelector("h1") || {}).textContent || ""`); h == "" {
 		t.Errorf("the error page has no heading")
 	}
 
 	p.Eval(`history.back(); true`)
-	p.WaitFor(`location.pathname === "/leaderboard" && !!document.querySelector(".sidebar")`)
+	p.WaitFor(`location.pathname === "/leaderboard" && !!document.querySelector(".topbar")`)
 	if alive := p.Number(`window.__alive || 0`); alive != 1 {
 		t.Errorf("going back from the error page reloaded the document")
 	}
 }
 
-// On a phone the drawer opens over the page, closes on its own backdrop,
-// and gives way to another menu.
+// On a phone the page menu opens from the capsule, closes on a press
+// anywhere outside it, and gives way to another menu.
 //
-// The backdrop is the summary itself, stretched over the page, so a press
-// on the dim is a press on the control that opened it — no script, no
-// listener. That is also the one arrangement here a selector cannot vouch
-// for: what is at a point on the screen is what a finger would hit, so a
-// press at a point is what closes it.
-func TestBrowserTheDrawerClosesOnItsBackdrop(t *testing.T) {
+// A press outside is app.js's — a <details> closes on its own summary and
+// nothing else — so it is pressed at a point on the page, well clear of the
+// menu, the way a finger would.
+func TestBrowserThePageMenuClosesOnAPressOutsideIt(t *testing.T) {
 	site := newSite(t)
 	p := site.open(newBrowser(t), phoneWidth)
 	p.Navigate(site.base + "/leaderboard")
 
-	const isOpen = `document.querySelector("details.drawer").open`
-	p.Click("details.drawer > summary")
+	const isOpen = `document.querySelector("details.bar-menu").open`
+	p.Click("details.bar-menu > summary")
 	p.WaitFor(isOpen)
-	if n := p.Number(`[...document.querySelectorAll(".drawer a[href]")].filter(a => a.getClientRects().length).length`); n == 0 {
-		t.Fatalf("the open drawer shows no rows")
-	}
-	if ov := p.String(`getComputedStyle(document.body).overflow`); ov != "hidden" {
-		t.Errorf("the page behind the open drawer still scrolls (overflow %q)", ov)
+	if n := p.Number(`[...document.querySelectorAll(".bar-menu-panel a[href]")].filter(a => a.getClientRects().length).length`); n != 5 {
+		t.Fatalf("the open page menu shows %v pages, want 5", n)
 	}
 
-	// The bottom-right corner: the panel is on the left and the bar along
-	// the top, so this is the dim and nothing else.
+	// The bottom-right corner: the menu hangs from the top left.
 	w, h := int(p.Number(`innerWidth`)), int(p.Number(`innerHeight`))
 	p.ClickAt(w-8, h-8)
 	p.WaitFor(`!` + isOpen)
-	if ov := p.String(`getComputedStyle(document.body).overflow`); ov == "hidden" {
-		t.Errorf("the page is still held still after the drawer closed")
+	if path := p.Path(); path != "/leaderboard" {
+		t.Errorf("the press outside the menu went to %s", path)
 	}
 
 	// Opening another menu closes it: they share a name.
-	p.Click("details.drawer > summary")
+	p.Click("details.bar-menu > summary")
 	p.WaitFor(isOpen)
 	p.Click("details.account > summary")
 	p.WaitFor(`document.querySelector("details.account").open`)
 	if p.Eval(isOpen) == true {
-		t.Errorf("the drawer stayed open behind the account menu")
+		t.Errorf("the page menu stayed open behind the account menu")
 	}
 }
 
@@ -1018,7 +1003,7 @@ func TestBrowserTheSearchOverlayAnswersTheKeyboard(t *testing.T) {
 	p := site.open(newBrowser(t), desktopWidth)
 	p.Navigate(site.base + "/leaderboard")
 	p.Eval(`window.__alive = 1; true`)
-	name := p.String(`document.querySelector(".board a.player").textContent.trim()`)
+	name := p.String(`document.querySelector(".board-card a.player").textContent.trim()`)
 
 	const shown = `!document.getElementById("search-overlay").hidden`
 	const hits = `document.querySelectorAll("#search-overlay .search-hit").length > 0`
@@ -1033,7 +1018,7 @@ func TestBrowserTheSearchOverlayAnswersTheKeyboard(t *testing.T) {
 
 	p.Press("Escape", "Escape", 0)
 	p.WaitFor(`!` + shown)
-	if p.Eval(`document.activeElement === document.querySelector(".search-btn")`) != true {
+	if p.Eval(`document.activeElement === document.querySelector(".bar-search")`) != true {
 		t.Errorf("closing the overlay did not put focus back on the search button")
 	}
 	if path := p.Path(); path != "/leaderboard" {
@@ -1065,14 +1050,14 @@ func TestBrowserAThemeLinkChangesTheThemeInPlace(t *testing.T) {
 	p.Eval(`window.__alive = 1; document.getElementById("main").__old = true; true`)
 
 	before := p.String(`document.documentElement.dataset.theme || ""`)
-	href := p.String(`document.querySelector(".theme-track a.theme-opt:not(.on)").getAttribute("href")`)
-	p.Click(`.theme-track a.theme-opt:not(.on)`)
+	href := p.String(`document.querySelector(".seg a.seg-opt:not(.on)").getAttribute("href")`)
+	p.Click(`.seg a.seg-opt:not(.on)`)
 	p.WaitFor(fmt.Sprintf(`(document.documentElement.dataset.theme || "") !== %q`, before))
 	p.WaitFor(`document.getElementById("main").__old !== true`)
 	if alive := p.Number(`window.__alive || 0`); alive != 1 {
 		t.Errorf("the theme link reloaded the document")
 	}
-	if on := p.String(`document.querySelector(".theme-track a.theme-opt.on").getAttribute("href")`); on != href {
+	if on := p.String(`document.querySelector(".seg a.seg-opt.on").getAttribute("href")`); on != href {
 		t.Errorf("the theme picker marks %s, not the %s just chosen", on, href)
 	}
 }
@@ -1082,10 +1067,10 @@ func TestBrowserAThemeLinkChangesTheThemeInPlace(t *testing.T) {
 // The element that was pressed is gone with the body it was in, and focus
 // left on a departing node falls to the body — a keyboard back at the top
 // of the page with nothing to say it moved. Three controls are a place in
-// the page rather than a step out of it and keep focus there: a rail row
-// focuses the same row in the new rail, a ranking row reopens the menu on
-// that row, the section bar keeps the focus and stays shut. Everything
-// else lands on the main region. None of this is in the markup.
+// the page rather than a step out of it and keep focus there: a page in the
+// bar focuses the same page in the new bar, a ranking row reopens the menu
+// on that row, and a pill focuses the pill for the page that arrived.
+// Everything else lands on the main region. None of this is in the markup.
 func TestBrowserFocusLandsSomewhereUsefulAfterASwitch(t *testing.T) {
 	site := newSite(t)
 	p := site.open(newBrowser(t), desktopWidth)
@@ -1095,7 +1080,7 @@ func TestBrowserFocusLandsSomewhereUsefulAfterASwitch(t *testing.T) {
 	const active = `(() => { const a = document.activeElement; if (!a) return "nothing";
 		return a.getAttribute("href") || a.id || a.tagName.toLowerCase(); })()`
 
-	for _, href := range railHrefs(p) {
+	for _, href := range barHrefs(p) {
 		follow(p, href)
 		p.WaitFor(fmt.Sprintf(`%s === %q`, active, href))
 	}
@@ -1103,7 +1088,7 @@ func TestBrowserFocusLandsSomewhereUsefulAfterASwitch(t *testing.T) {
 	// A link inside the page: the main region.
 	p.Navigate(site.base + "/leaderboard")
 	p.Eval(`document.querySelector("main").__stale = true; true`)
-	p.Click(".board a.player")
+	p.Click(".board-card a.player")
 	p.WaitFor(`location.pathname.startsWith("/players/") && !(document.querySelector("main") || {}).__stale`)
 	p.WaitFor(active + ` === "main"`)
 
@@ -1115,123 +1100,161 @@ func TestBrowserFocusLandsSomewhereUsefulAfterASwitch(t *testing.T) {
 	p.WaitFor(`!(document.querySelector("main") || {}).__stale`)
 	p.WaitFor(`document.querySelector("details.ranking").open && document.querySelector(".ranking-panel").contains(document.activeElement)`)
 
-	// The section bar: the reader asked for a page, not the list again, so
-	// the menu stays shut and the bar keeps the focus.
+	// A pill: the pill for the page that arrived, so the next Tab moves on
+	// along the row from where the reader is.
+	p.Navigate(site.base + "/players/harda")
+	p.Eval(`document.querySelector("main").__stale = true; true`)
+	p.Click(".pills a.pill:not(.on)")
+	p.WaitFor(`!(document.querySelector("main") || {}).__stale`)
+	p.WaitFor(`document.activeElement === document.querySelector(".pills a.pill.on")`)
+
+	// An admin tab, the same way.
 	p.Navigate(site.base + "/admin/settings")
 	p.Eval(`document.querySelector("main").__stale = true; true`)
-	p.Click(".switcher-panel a:not(.on)")
+	p.Click(".admin-tabs a.admin-tab:not(.on)")
 	p.WaitFor(`!(document.querySelector("main") || {}).__stale`)
-	p.WaitFor(`document.activeElement === document.querySelector("details.switcher > summary") && !document.querySelector("details.switcher").open`)
+	p.WaitFor(`document.activeElement === document.querySelector(".admin-tabs a.admin-tab.on")`)
 }
 
-// Collapsing the rail does not reload the page, and the width is remembered.
+// The bar is glass that frosts the page under it, and nothing is named for
+// the view transition.
 //
-// The control is a link to this page at the other width, and following it
-// with no script is the whole feature. With script it must still not cost
-// a reload — and the server must still be told, because the next page load
-// reads the cookie and nothing else.
-func TestBrowserCollapsingTheRailIsRememberedWithoutAReload(t *testing.T) {
+// The two are one test because the second is what breaks the first. An
+// element with a view-transition-name is a backdrop root: a backdrop-filter
+// inside it sees only what is inside it, so a named bar frosts its own empty
+// box and the page shows through it sharp — which is how it first shipped.
+// A tidy-up that names the bar again, to hold it still, would pass every
+// test that reads the stylesheet. So this asks the browser what it made of
+// both.
+func TestBrowserTheBarIsGlassAndNothingIsNamed(t *testing.T) {
 	site := newSite(t)
 	p := site.open(newBrowser(t), desktopWidth)
 	p.Navigate(site.base + "/today")
-	p.Eval(`window.__alive = 1; true`)
 
-	before := p.String(`document.documentElement.dataset.sidebar || ""`)
-	p.Click(".nav-collapse")
-	p.WaitFor(fmt.Sprintf(`(document.documentElement.dataset.sidebar || "") !== %q`, before))
-	after := p.String(`document.documentElement.dataset.sidebar || ""`)
-	if alive := p.Number(`window.__alive || 0`); alive != 1 {
-		t.Errorf("collapsing the rail reloaded the document")
+	// <html> is "root" by the browser's own stylesheet: the whole window,
+	// which is the one thing meant to fade.
+	named := p.Strings(`[...document.querySelectorAll("body *")]
+		.filter(el => { const n = getComputedStyle(el).viewTransitionName; return n && n !== "none"; })
+		.map(el => el.tagName.toLowerCase() + "." + el.className)`)
+	if len(named) > 0 {
+		t.Errorf("named for the view transition, which stops the glass inside them frosting: %v", named)
 	}
+	for _, sel := range []string{".bar-pages", ".bar-search", "details.account > summary"} {
+		filter := p.String(fmt.Sprintf(`(() => { const s = getComputedStyle(document.querySelector(%q), "::before");
+			return s.backdropFilter || s.webkitBackdropFilter || ""; })()`, sel))
+		if !strings.Contains(filter, "blur(16px)") {
+			t.Errorf("%s is not frosted: backdrop-filter %q", sel, filter)
+		}
+	}
+	// And the bar is its pieces: nothing behind them across the window.
+	if bg := p.String(`getComputedStyle(document.querySelector(".topbar")).backgroundColor`); bg != "rgba(0, 0, 0, 0)" {
+		t.Errorf("the bar has a ground of its own, %s, where the page should show through", bg)
+	}
+}
 
-	// A fresh load comes back at the width just chosen. Polled, because the
-	// request that tells the server may still be in flight.
-	deadline := time.Now().Add(4 * time.Second)
-	for {
+// The page scrolls under the bar rather than stopping at an edge below it:
+// there is no strip reserved for it. Scrolled, what is under the gap between
+// the capsule and the search field is the page.
+func TestBrowserThePageScrollsUnderTheBar(t *testing.T) {
+	site := newSite(t)
+	for _, width := range []int{phoneWidth, desktopWidth} {
+		p := site.open(newBrowser(t), width)
+		// Short enough that the board scrolls.
+		p.Viewport(width, 360, width < 500)
 		p.Navigate(site.base + "/leaderboard")
-		if got := p.String(`document.documentElement.dataset.sidebar || ""`); got == after {
-			break
+		p.Eval(`window.scrollTo(0, 120); true`)
+		p.WaitFor(`window.scrollY >= 100`)
+		hit := p.String(`(() => {
+			const bar = document.querySelector(".topbar").getBoundingClientRect();
+			const lead = [...document.querySelectorAll(".bar-pages, .bar-menu")].find(e => e.getClientRects().length).getBoundingClientRect();
+			const el = document.elementFromPoint(lead.right + 4, bar.top + bar.height / 2);
+			return el ? (el.closest("main") ? "main" : el.closest(".topbar") ? "bar" : el.tagName.toLowerCase()) : "nothing";
+		})()`)
+		if hit != "main" {
+			t.Errorf("width %d: beside the capsule, scrolled, the press lands on %q, want the page", width, hit)
 		}
-		if time.Now().After(deadline) {
-			t.Fatalf("a fresh load still shows the rail %q after choosing %q", before, after)
-		}
-		time.Sleep(100 * time.Millisecond)
 	}
 }
 
-// The rail takes its new width the moment the collapse control is pressed,
-// before the server has answered.
-//
-// The width is an attribute on <html>, and the page that comes back carries
-// it — that alone is correct, and on a local network quick, but the rail's
-// width transition runs on the node the swap is about to replace, so the
-// motion went with the round trip. app.js sets the attribute at the press,
-// off the parameter the link already carries, and the reply confirms it.
-// Every reply is held here for long enough to look through the gap: the
-// attribute and the width have to have moved while the request is still
-// out, and to still be there once it is back.
-func TestBrowserTheRailTakesItsNewWidthBeforeTheServerAnswers(t *testing.T) {
+// Nothing sits at the bottom of a phone's window: that is where Safari keeps
+// its address bar and toolbar, and a control there would be under them.
+// Only what is drawn counts: About's sheet rises from the bottom once it is
+// opened, as the design has it, and lies in a closed <details> until then.
+// A toast hangs under the bar instead of floating over the foot, as the
+// design would have it.
+func TestBrowserTheBottomOfAPhoneIsEmpty(t *testing.T) {
 	site := newSite(t)
-	p := site.open(newBrowser(t), desktopWidth)
-	p.Navigate(site.base + "/today")
-	p.Eval(`window.__alive = 1; document.getElementById("main").__old = true; true`)
-	p.Eval(`(() => {
-		const send = XMLHttpRequest.prototype.send;
-		XMLHttpRequest.prototype.send = function () {
-			const args = arguments;
-			setTimeout(() => send.apply(this, args), 600);
-		};
-		return true;
+	p := site.open(newBrowser(t), phoneWidth)
+	for _, path := range []string{"/today", "/leaderboard", "/players", "/admin/pending", "/leaderboard?changed=hard&undo=&mode=hard"} {
+		p.Navigate(site.base + path)
+		pinned := p.Strings(`[...document.querySelectorAll("body *")].filter(el => {
+			const s = getComputedStyle(el);
+			if (s.position !== "fixed" && s.position !== "sticky") return false;
+			if (!el.checkVisibility()) return false;
+			const r = el.getBoundingClientRect();
+			return r.width && r.height && r.bottom > innerHeight - 120 && r.top < innerHeight;
+		}).map(el => el.tagName.toLowerCase() + "." + el.className)`)
+		if len(pinned) > 0 {
+			t.Errorf("%s pins %v to the bottom of a phone", path, pinned)
+		}
+	}
+}
+
+// The bar fits its window in every language: the capsule of pages and the
+// search control never meet, and the account stays on screen. The labels
+// are the page names in both languages, and "Topplista" is not
+// "Leaderboard".
+func TestBrowserTheBarFitsInEveryLanguage(t *testing.T) {
+	site := newSite(t)
+	b := newBrowser(t)
+	// The two tightest widths are just above each breakpoint: 1181px is the
+	// narrowest with the search field at full width, 861px the narrowest with
+	// every view in the capsule.
+	for _, width := range []int{desktopWidth, 1181, 861} {
+		p := site.open(b, width)
+		for _, lang := range []string{"en", "sv"} {
+			p.Navigate(site.base + "/leaderboard?lang=" + lang)
+			got := p.String(`(() => {
+				const r = s => document.querySelector(s).getBoundingClientRect();
+				const pages = r(".bar-pages"), search = r(".bar-search"), account = r("details.account > summary");
+				return [Math.round(search.left - pages.right), Math.round(innerWidth - account.right)].join(" ");
+			})()`)
+			var gap, edge int
+			fmt.Sscan(got, &gap, &edge)
+			if gap < 12 {
+				t.Errorf("width %d %s: the capsule and search are %dpx apart", width, lang, gap)
+			}
+			if edge < 0 {
+				t.Errorf("width %d %s: the account is %dpx off the window", width, lang, -edge)
+			}
+		}
+	}
+}
+
+// The pill for the page that is open is in view when the page arrives.
+//
+// A row of names wider than a phone arrives scrolled to its start, which
+// can leave the player asked for off the right edge of the row that is
+// meant to say where you are. app.js scrolls the row — the row, and not the
+// page, which scrollIntoView would have moved too.
+func TestBrowserTheCurrentPillIsInView(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), 320)
+	// The last of the roster, so the row has somewhere to scroll to.
+	p.Navigate(site.base + "/players")
+	last := p.String(`[...document.querySelectorAll(".pills a.pill")].pop().getAttribute("href")`)
+	p.Navigate(site.base + last)
+	p.WaitFor(`!!document.querySelector(".pills a.pill.on")`)
+	if wide := p.Eval(`(() => { const r = document.querySelector(".pills"); return r.scrollWidth > r.clientWidth; })()`); wide != true {
+		t.Skip("the roster fits a 320px row; nothing to scroll")
+	}
+	got := p.String(`(() => {
+		const row = document.querySelector(".pills").getBoundingClientRect();
+		const pill = document.querySelector(".pills a.pill.on").getBoundingClientRect();
+		return (pill.left >= row.left - 1 && pill.right <= row.right + 1 ? "in view" : "out of view") + " " + window.scrollY;
 	})()`)
-
-	before := p.String(`document.documentElement.dataset.sidebar || ""`)
-	width := p.Number(`document.querySelector(".sidebar").getBoundingClientRect().width`)
-	p.Click(".nav-collapse")
-
-	p.WaitFor(fmt.Sprintf(`(document.documentElement.dataset.sidebar || "") !== %q`, before))
-	p.WaitFor(fmt.Sprintf(`document.querySelector(".sidebar").getBoundingClientRect().width < %v`, width))
-	if old := p.Eval(`document.getElementById("main").__old === true`); old != true {
-		t.Fatalf("the reply landed before the rail moved; nothing was checked ahead of it")
-	}
-	after := p.String(`document.documentElement.dataset.sidebar || ""`)
-
-	// The reply confirms rather than reverses it.
-	p.WaitFor(`document.getElementById("main").__old !== true`)
-	if got := p.String(`document.documentElement.dataset.sidebar || ""`); got != after {
-		t.Errorf("the rail was %q ahead of the reply and %q after it", after, got)
-	}
-	if alive := p.Number(`window.__alive || 0`); alive != 1 {
-		t.Errorf("collapsing the rail reloaded the document")
-	}
-}
-
-// The bar and the rail are named for the view transition, and so is the
-// content — but only inside the shell.
-//
-// A switch cross-fades the content while the bar and the rail hold still;
-// which element is which is three names in the stylesheet, and a tidy-up
-// that dropped one would put the whole window back into the cross-fade
-// that read as a reload. The sign-in card's <main> is deliberately not
-// named: naming it would morph the page well into the card on sign-out.
-func TestBrowserTheBarAndTheRailAreNamedAndTheContentIsToo(t *testing.T) {
-	site := newSite(t)
-	p := site.open(newBrowser(t), desktopWidth)
-	p.Navigate(site.base + "/today")
-
-	name := func(selector string) string {
-		return p.String(fmt.Sprintf(`getComputedStyle(document.querySelector(%q)).viewTransitionName || ""`, selector))
-	}
-	for selector, want := range map[string]string{".topbar": "topbar", ".sidebar": "rail", "#main": "content"} {
-		if got := name(selector); got != want {
-			t.Errorf("%s is named %q for the view transition, want %q", selector, got, want)
-		}
-	}
-
-	p.Eval(`document.querySelector("details.account").open = true; true`)
-	p.Click("details.account form button")
-	p.WaitFor(`!!document.querySelector(".auth-frame")`)
-	if got := name("#main"); got != "none" && got != "" {
-		t.Errorf("the sign-in frame's main region is named %q; it should cross-fade as part of the page", got)
+	if got != "in view 0" {
+		t.Errorf("the current pill is %s (want in view, with the page not scrolled)", got)
 	}
 }
 
@@ -1261,7 +1284,7 @@ func TestBrowserReducedMotionSkipsTheTransition(t *testing.T) {
 		return true;
 	})()`)
 
-	p.Click(`.sidebar a.nav-row[href="/leaderboard"]`)
+	p.Click(`.bar-pages a.bar-page[href="/leaderboard"]`)
 	p.WaitFor(`document.getElementById("main").__old !== true && location.pathname === "/leaderboard"`)
 	if n := p.Number(`window.__transitions`); n != 0 {
 		t.Errorf("a switch under reduced motion started %v view transitions", n)
@@ -1286,8 +1309,8 @@ func TestBrowserSubmittingAFormDoesNotReload(t *testing.T) {
 	if alive := p.Number(`window.__alive || 0`); alive != 1 {
 		t.Errorf("signing out reloaded the document")
 	}
-	if n := p.Number(`document.querySelectorAll(".sidebar, .topbar").length`); n != 0 {
-		t.Errorf("the sign-in card arrived with %v pieces of the application's frame", n)
+	if n := p.Number(`document.querySelectorAll(".topbar").length`); n != 0 {
+		t.Errorf("the sign-in card arrived with the application's bar")
 	}
 }
 
@@ -1368,17 +1391,17 @@ func TestBrowserVisitingTodayAgainKeepsOneStream(t *testing.T) {
 	}
 }
 
-// The line under a player's name fits the bar on a phone, and a wider screen
-// still carries the last-played date.
+// The eyebrow over a player's name fits a phone, and carries the rank and
+// the last-played date.
 //
-// Rank and last-played together ran past a phone's bar and were cropped
-// mid-word; a phone drops the date rather than cut the line.
+// Rank and last-played together once ran past a phone's bar and were
+// cropped mid-word; the eyebrow is short enough now to keep both.
 func TestBrowserThePlayerSubtitleFitsOnAPhone(t *testing.T) {
 	site := newSite(t)
 	b := newBrowser(t)
 
 	const probe = `(() => {
-		const h = document.querySelector(".switcher-hint");
+		const h = document.querySelector(".page-eyebrow");
 		if (!h) return "none";
 		return (h.scrollWidth > h.clientWidth ? "cropped" : "fits") + " | " + h.innerText.trim();
 	})()`
@@ -1387,15 +1410,167 @@ func TestBrowserThePlayerSubtitleFitsOnAPhone(t *testing.T) {
 	p.Navigate(site.base + "/players")
 	got := p.String(probe)
 	if !strings.HasPrefix(got, "fits | ") {
-		t.Errorf("phone: the subtitle is %q", got)
+		t.Errorf("phone: the eyebrow is %q", got)
 	}
-	if strings.Contains(got, "·") {
-		t.Errorf("phone: the subtitle still carries the last-played date: %q", got)
+	if !strings.Contains(got, "·") {
+		t.Errorf("phone: the eyebrow lost the last-played date: %q", got)
 	}
 
 	q := site.open(b, desktopWidth)
 	q.Navigate(site.base + "/players")
 	if got := q.String(probe); !strings.Contains(got, "·") {
-		t.Errorf("desktop: the subtitle lost the last-played date: %q", got)
+		t.Errorf("desktop: the eyebrow lost the last-played date: %q", got)
+	}
+}
+
+// On a phone the sign-in page is the form and nothing else: the group's
+// figures and the note about the group chat stay on a wide screen, where
+// there is room beside the form, and the way out of a forgotten password
+// moves under the button. What is shown at a width is not in the markup.
+func TestBrowserThePhoneSignInIsTheFormAlone(t *testing.T) {
+	site := newSite(t)
+	b := newBrowser(t)
+	shown := func(p *page, sel string) bool {
+		return p.Eval(fmt.Sprintf(`(() => { const el = document.querySelector(%q); return !!el && el.getClientRects().length > 0; })()`, sel)) == true
+	}
+	for _, width := range []int{phoneWidth, desktopWidth} {
+		p := b.newPage()
+		p.Viewport(width, 900, width < 500)
+		p.Navigate(site.base + "/")
+		phone := width == phoneWidth
+		for sel, want := range map[string]bool{
+			".signin-aside":       !phone,
+			".signin-note":        !phone,
+			".signin-help-wide":   !phone,
+			".signin-help-narrow": phone,
+			".signin-form":        true,
+		} {
+			if got := shown(p, sel); got != want {
+				t.Errorf("width %d: %s shown = %v, want %v", width, sel, got, want)
+			}
+		}
+	}
+}
+
+// Pressing a name on the grid picks out that player's column and dims the
+// rest; pressing it again lets it go. It is radio buttons and a stylesheet,
+// no script — and which cells end up dimmed is the one thing no reading of
+// the markup can tell.
+func TestBrowserTheGridPicksOutAColumn(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), desktopWidth)
+	p.Navigate(site.base + "/grid")
+
+	const opacities = `(() => {
+		const col = i => [...document.querySelectorAll(".grid tbody td.gc-" + i + " .grid-tile")].map(e => getComputedStyle(e).opacity);
+		return JSON.stringify({first: [...new Set(col(0))], second: [...new Set(col(1))]});
+	})()`
+	type seen struct{ First, Second []string }
+	read := func() seen {
+		var s seen
+		// The opacity eases over .15s; wait for it to land.
+		time.Sleep(300 * time.Millisecond)
+		if err := json.Unmarshal([]byte(p.String(opacities)), &s); err != nil {
+			t.Fatalf("reading opacities: %v", err)
+		}
+		return s
+	}
+
+	if got := read(); len(got.First) != 1 || got.First[0] != "1" || len(got.Second) != 1 || got.Second[0] != "1" {
+		t.Fatalf("before a press the columns are %+v, want every tile at full strength", got)
+	}
+	p.Click(`th.gc-0 label.hi-on`)
+	if got := read(); len(got.First) != 1 || got.First[0] != "1" || len(got.Second) != 1 || got.Second[0] == "1" {
+		t.Errorf("with the first column picked the columns are %+v, want it full and the second dimmed", got)
+	}
+	p.Click(`th.gc-0 label.hi-off`)
+	if got := read(); len(got.Second) != 1 || got.Second[0] != "1" {
+		t.Errorf("pressing the name again left the columns at %+v, want them all back", got)
+	}
+}
+
+// A link that stays on the page swaps it and leaves the reader where they
+// were: another player, a pair to compare, the range, a ranking rule, a month
+// from the season. htmx would scroll a boosted swap to the top, which is
+// right for a step to another page — and that still happens, from the same
+// table, for a player's name.
+func TestBrowserALinkToTheSamePageKeepsTheScroll(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), phoneWidth)
+
+	press := func(path, selector string) (before, after float64) {
+		t.Helper()
+		p.Navigate(site.base + path)
+		p.Eval(`window.__alive = 1; window.scrollTo(0, Math.min(600, document.documentElement.scrollHeight - innerHeight)); true`)
+		before = p.ScrollY()
+		ok := p.Eval(fmt.Sprintf(`(() => {
+			const link = document.querySelector(%q);
+			if (!link) return false;
+			document.querySelector("main").__stale = true;
+			link.click(); return true; })()`, selector))
+		if ok != true {
+			t.Fatalf("%s: nothing matches %s", path, selector)
+		}
+		p.WaitFor(`!(document.querySelector("main") || {}).__stale`)
+		if alive := p.Number(`window.__alive || 0`); alive != 1 {
+			t.Errorf("%s %s: the document was reloaded", path, selector)
+		}
+		return before, p.ScrollY()
+	}
+
+	for _, tt := range []struct{ path, selector string }{
+		{"/players/harda", ".pills a.pill:not(.on)"},
+		{"/leaderboard", "a.b-cmp"},
+		{"/leaderboard", ".head-seg a:not(.on)"},
+		// Counting missed days rather than hard mode only, which would leave
+		// the seeded board too short to have scrolled at all.
+		{"/leaderboard", `.ranking-panel a[href*="missed"]`},
+		{"/grid", ".head-seg a:not(.on)"},
+		{"/months", "a.season-tile:not(.on)"},
+	} {
+		before, after := press(tt.path, tt.selector)
+		if before < 100 {
+			t.Errorf("%s: not far enough down to tell (scrollY %v)", tt.path, before)
+			continue
+		}
+		if after < before/2 {
+			t.Errorf("%s %s: scrolled from %v to %v; want it to stay put", tt.path, tt.selector, before, after)
+		}
+	}
+
+	if _, after := press("/months", ".season-name a.player"); after != 0 {
+		t.Errorf("a player's name from the season opened at scrollY %v, want the top", after)
+	}
+}
+
+// Focus placed after a swap is for the keyboard, and so is its ring. A pill
+// pressed with the mouse keeps the focus for the next Tab but is not left
+// circled — Safari draws a ring for any focus a script sets — while the same
+// pill reached from the keyboard shows where the reader is.
+func TestBrowserAPressedPillIsNotLeftCircled(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), desktopWidth)
+	const ring = `getComputedStyle(document.activeElement).outlineStyle`
+	const onPill = `document.activeElement === document.querySelector(".pills a.pill.on")`
+
+	p.Navigate(site.base + "/players/harda")
+	x := int(p.Number(`(() => { const r = document.querySelector(".pills a.pill:not(.on)").getBoundingClientRect(); return r.left + r.width / 2; })()`))
+	y := int(p.Number(`(() => { const r = document.querySelector(".pills a.pill:not(.on)").getBoundingClientRect(); return r.top + r.height / 2; })()`))
+	p.Eval(`document.querySelector("main").__stale = true; true`)
+	p.ClickAt(x, y)
+	p.WaitFor(`!(document.querySelector("main") || {}).__stale`)
+	p.WaitFor(onPill)
+	if got := p.Eval(ring); got != "none" {
+		t.Errorf("a pill pressed with the mouse is left with a %v outline", got)
+	}
+
+	p.Navigate(site.base + "/players/harda")
+	p.Eval(`document.querySelector(".pills a.pill:not(.on)").focus(); document.querySelector("main").__stale = true; true`)
+	p.call("Input.dispatchKeyEvent", map[string]any{"type": "keyDown", "key": "Enter", "code": "Enter", "text": "\r", "windowsVirtualKeyCode": 13})
+	p.call("Input.dispatchKeyEvent", map[string]any{"type": "keyUp", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13})
+	p.WaitFor(`!(document.querySelector("main") || {}).__stale`)
+	p.WaitFor(onPill)
+	if got := p.Eval(ring); got == "none" {
+		t.Error("a pill reached from the keyboard shows no ring")
 	}
 }

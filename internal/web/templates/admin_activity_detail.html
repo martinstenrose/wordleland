@@ -1,11 +1,11 @@
 {{define "title"}}{{.T.T "activity.detail.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<section class="card card-bar">
-  {{/* The only admin screen with a subject of its own below the section.
-       The bar names where you are, as everywhere else, and the event keeps
-       its own heading one level down — two titles, in the order you arrived
-       at them. */}}
-  {{template "switcher" .Section}}
+{{/* The only admin screen with a subject of its own below the section.
+     The pill row names where you are, as everywhere else, and the event
+     keeps its own heading one level down in the card under it — two titles,
+     in the order you arrived at them. */}}
+{{template "admin-head" .Section}}
+<section class="card">
 
   <div class="card-head">
     <h2>{{.Row.Text}}</h2>

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"strconv"
 	"time"
 
 	"errors"
@@ -31,6 +32,10 @@ type signInStats struct {
 	Games int
 	Days  int
 	Rows  []playerStat
+
+	// Distribution is the group's solved results by guesses, one bar each,
+	// as a share of the largest so the tallest bar fills its column.
+	Distribution []distributionBar
 }
 
 // signInSummary reads the group totals, returning a zero value on error.
@@ -50,6 +55,19 @@ func (s *Server) signInSummary(r *http.Request) signInStats {
 
 	t := s.translatorFor(nil, r)
 	out := signInStats{Games: summary.Games, Days: summary.Days}
+	most := 0
+	for _, n := range summary.Distribution {
+		most = max(most, n)
+	}
+	if most > 0 {
+		for i, n := range summary.Distribution {
+			out.Distribution = append(out.Distribution, distributionBar{
+				Label:   strconv.Itoa(i + 1),
+				Count:   n,
+				Percent: percent(n, most),
+			})
+		}
+	}
 	out.Rows = append(out.Rows,
 		playerStat{Label: t.T("signin.stat.players"), Value: t.Integer(summary.Players)},
 		playerStat{Label: t.T("signin.stat.solved"), Value: t.Integer(summary.SolvedPercent) + "%"},
@@ -270,9 +288,14 @@ func (s *Server) handleGridPage(w http.ResponseWriter, r *http.Request) {
 	s.handleGrid(w, r, "", viewPath("", viewGrid), false)
 }
 
+// handlePuzzlePage serves one day's results.
+func (s *Server) handlePuzzlePage(w http.ResponseWriter, r *http.Request) {
+	s.handlePuzzle(w, r, r.PathValue("no"), "", false)
+}
+
 // handlePlayersPage serves the authenticated players view.
 func (s *Server) handlePlayersPage(w http.ResponseWriter, r *http.Request) {
-	s.handlePlayers(w, r, "", viewPath("", viewPlayers), false)
+	s.handlePlayers(w, r, "", false)
 }
 
 // handlePlayerPage serves the authenticated player detail page.

@@ -2,7 +2,9 @@ package web
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -71,7 +73,7 @@ func TestSearchFindsPagesByLabelAndAdminOnlyForAdmins(t *testing.T) {
 	if strings.Contains(nonAdminBody, `href="/admin/diagnostics"`) {
 		t.Error("a non-admin's search found an admin-only screen")
 	}
-	if !strings.Contains(nonAdminBody, "No matches for that search.") {
+	if !strings.Contains(nonAdminBody, "Nothing matches") {
 		t.Error("a non-admin's search for an admin-only page shows no no-results message")
 	}
 }
@@ -119,7 +121,7 @@ func TestSearchEmptyQueryAndNoResults(t *testing.T) {
 	}
 
 	none := fetchAs(t, srv, "/search?q=zzzznothingmatchesthis", session).Body.String()
-	if !strings.Contains(none, "No matches for that search.") {
+	if !strings.Contains(none, "Nothing matches") {
 		t.Error("a query with no matches did not show the no-results copy")
 	}
 }
@@ -275,7 +277,7 @@ func TestSharedSearchWorksUnderThePrefix(t *testing.T) {
 
 	for _, query := range []string{"settings", "diagnostics", "activity", "pending"} {
 		body := fetchAs(t, srv, "/share/"+slug+"/search?q="+query, nil).Body.String()
-		if !strings.Contains(body, "No matches for that search.") {
+		if !strings.Contains(body, "Nothing matches") {
 			t.Errorf("shared search q=%s found something an anonymous reader cannot use", query)
 		}
 	}
@@ -295,22 +297,25 @@ func TestSearchHitsCarryTheirKindsIcon(t *testing.T) {
 	// <mark>Harda</mark> to search for — q=hard would split it across a
 	// tag boundary (see TestSearchHitsMarkTheMatchedText).
 	body := fetchAs(t, srv, "/search?q=harda", session).Body.String()
-	if i := strings.Index(body, "<mark>Harda</mark>"); i < 0 || !strings.Contains(body[:i], `<circle cx="12" cy="8" r="3.6"/>`) {
-		t.Error("a player row does not draw the person icon before its label")
+	if i := strings.Index(body, "<mark>Harda</mark>"); i < 0 || !strings.Contains(body[:i], `search-tile`) {
+		t.Error("a player row does not lead with their tile today")
+	}
+	if !strings.Contains(body, `<span class="search-meta num">#`) {
+		t.Error("a ranked player row does not carry its rank")
 	}
 
 	months := fetchAs(t, srv, "/search?q=month", session).Body.String()
-	if !strings.Contains(months, `<path d="M6.5 3.5h8l3 3v14h-11z"/>`) {
-		t.Error("a page row does not draw the page icon")
+	if !strings.Contains(months, symbolPaths["calendar_month"][0]) {
+		t.Error("a page row does not draw its view's own icon")
 	}
 
 	settings := fetchAs(t, srv, "/search?q=settings", session).Body.String()
-	if !strings.Contains(settings, `<circle cx="7.5" cy="7" r="2"/>`) {
-		t.Error("the Settings row does not draw the sliders icon")
+	if !strings.Contains(settings, symbolPaths["settings"][0]) {
+		t.Error("the Settings row does not draw the gear icon")
 	}
 
 	admin := fetchAs(t, srv, "/search?q=diagnostics", session).Body.String()
-	if !strings.Contains(admin, `M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6l7-3z`) {
+	if !strings.Contains(admin, symbolPaths["admin_panel_settings"][0]) {
 		t.Error("an admin row does not draw the shield icon")
 	}
 
@@ -346,5 +351,37 @@ func TestSearchHitsMarkTheMatchedText(t *testing.T) {
 	empty := fetchAs(t, srv, "/search", session).Body.String()
 	if strings.Contains(empty, "<mark>") {
 		t.Error("an empty query marked something anyway")
+	}
+}
+
+// A number is a puzzle: typed with or without its #, it finds that puzzle's
+// page with how long ago it was, and nothing typed yet offers today's.
+// A number past today is no puzzle at all.
+func TestSearchFindsAPuzzleByNumber(t *testing.T) {
+	t.Parallel()
+
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+	current := currentPuzzle()
+
+	for _, q := range []string{strconv.Itoa(current - 3), "%23" + strconv.Itoa(current-3)} {
+		body := fetchAs(t, srv, "/search?q="+q, session).Body.String()
+		if !strings.Contains(body, fmt.Sprintf(`href="/puzzle/%d"`, current-3)) {
+			t.Errorf("q=%s did not find puzzle %d", q, current-3)
+		}
+		if !strings.Contains(body, "3 days ago") {
+			t.Errorf("q=%s did not say how long ago the puzzle was", q)
+		}
+	}
+
+	empty := fetchAs(t, srv, "/search", session).Body.String()
+	if !strings.Contains(empty, fmt.Sprintf(`href="/puzzle/%d"`, current)) {
+		t.Error("an empty query does not offer today's puzzle")
+	}
+
+	future := fetchAs(t, srv, "/search?q="+strconv.Itoa(current+1), session).Body.String()
+	if strings.Contains(future, "/puzzle/") {
+		t.Error("a puzzle that has not been played yet was found")
 	}
 }

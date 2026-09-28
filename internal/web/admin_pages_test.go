@@ -28,7 +28,8 @@ func holdPending(t *testing.T, srv *Server, externalID, hint string, puzzle, gue
 	}
 }
 
-// Both new pages are admin-only, like the players page they are linked from.
+// The section list and the pages it leads to are admin-only, like the
+// players page.
 func TestAdminActivityAndPendingAreAdminOnly(t *testing.T) {
 	t.Parallel()
 
@@ -37,7 +38,7 @@ func TestAdminActivityAndPendingAreAdminOnly(t *testing.T) {
 	user := seedLogin(t, srv, "member@example.tld", false)
 	session := signIn(t, srv, user.ID)
 
-	for _, path := range []string{"/admin/activity", "/admin/pending"} {
+	for _, path := range []string{"/admin", "/admin/activity", "/admin/pending"} {
 		if got := fetchAs(t, srv, path, session).Code; got != http.StatusNotFound {
 			t.Errorf("GET %s as a member = %d, want 404", path, got)
 		}
@@ -83,11 +84,13 @@ func TestActivityLogShowsAnEdit(t *testing.T) {
 	body := fetchAs(t, srv, "/admin/activity", session).Body.String()
 	// The slug, not the display name: it is what an admin acts on, it is
 	// unique where a display name is not, and it survives the rename this
-	// very row is recording.
-	if !strings.Contains(body, "harda") {
-		t.Error("the log does not name the edited player by slug")
+	// very row is recording. The row's own line, that is — opened, it shows
+	// the stored detail, which records the new name as it was written.
+	row, ok := sectionOf(body, `<span class="activity-detail">`, "</span>")
+	if !ok || !strings.Contains(row, "harda") {
+		t.Errorf("the log does not name the edited player by slug: %q", row)
 	}
-	if strings.Contains(body, "Renamed") {
+	if strings.Contains(row, "Renamed") {
 		t.Error("the log shows the display name rather than the slug")
 	}
 	if !strings.Contains(body, admin.Email) {
@@ -175,7 +178,10 @@ func TestPendingShowsSenderIdentityInFull(t *testing.T) {
 	holdPending(t, srv, externalID, "Martin in Signal", 1400, 4)
 
 	body := fetchAs(t, srv, "/admin/pending", session).Body.String()
-	for _, want := range []string{"Seen as", "Martin in Signal", "External ID", externalID} {
+	// The name they post under, and the id shortened as the design draws
+	// it — with the whole id a hover away, since two senders can share an
+	// abbreviation and the full one is what an admin compares.
+	for _, want := range []string{"Martin in Signal", "signal · 68f7…cbe9", `title="` + externalID + `"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the pending page does not show %q", want)
 		}
@@ -271,10 +277,9 @@ func TestActivityLogFormatsEveryLine(t *testing.T) {
 	}
 }
 
-// The actor column holds an email on one row and "matched automatically"
-// on the next, so it needs a label saying what the column is. And a header
-// that does not line up with its cells is worse than none.
-func TestActivityLogHasAlignedHeaders(t *testing.T) {
+// Every row of the log has the same parts — what kind of change, what, who,
+// when — and opens in place to what was recorded, no script needed.
+func TestActivityRowsOpenInPlace(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
@@ -282,34 +287,20 @@ func TestActivityLogHasAlignedHeaders(t *testing.T) {
 	_, session := adminSession(t, srv)
 
 	body := fetchAs(t, srv, "/admin/activity", session).Body.String()
-	list := body[strings.Index(body, `<ul class="activity">`):]
-	list = list[:strings.Index(list, "</ul>")]
-
-	if !strings.Contains(list, "activity-head") {
-		t.Fatal("the log has no header row")
+	rows := strings.Split(body, `<details class="activity-row">`)[1:]
+	if len(rows) < 2 {
+		t.Fatal("the log has no rows")
 	}
-	for _, col := range []string{"Type", "Event", "Changed by", "When"} {
-		if !strings.Contains(list, ">"+col+"<") {
-			t.Errorf("the header is missing %q", col)
+	for i, row := range rows {
+		row = row[:strings.Index(row, "</details>")]
+		for _, part := range []string{`class="activity-icon"`, `class="activity-title"`, `class="activity-by"`, `class="activity-clock num"`, `class="activity-fields"`} {
+			if !strings.Contains(row, part) {
+				t.Errorf("row %d has no %s", i, part)
+			}
 		}
 	}
-
-	// Count the grid's direct children, whatever element they are: the
-	// text cell is a link rather than a span, and the point is that the
-	// cells and the header agree, not what tag they use.
-	cells := regexp.MustCompile(`<(?:span|a)[^>]*(?:class="(?:chip|activity-text|muted|right)|>)`)
-	rows := strings.Split(list, "<li")
-	if len(rows) < 3 {
-		t.Fatal("no rows under the header to compare against")
-	}
-	want := len(cells.FindAllString(rows[1], -1))
-	if want != 4 {
-		t.Errorf("the header has %d cells, want 4", want)
-	}
-	for i, row := range rows[2:] {
-		if got := len(cells.FindAllString(row, -1)); got != want {
-			t.Errorf("row %d lays out %d cells against a %d-column header", i, got, want)
-		}
+	if !strings.Contains(body, `<p class="activity-day">Today · `) {
+		t.Error("the rows are not under the day they happened")
 	}
 }
 
@@ -754,8 +745,8 @@ func TestDiagnosticsReportsTheRunningVersion(t *testing.T) {
 	if !strings.Contains(body, version.String()) {
 		t.Errorf("the page does not show %q", version.String())
 	}
-	if !strings.Contains(body, "<code>"+version.String()+"</code>") {
-		t.Error("the running version is not formatted as code")
+	if !strings.Contains(body, `<p class="diag-stat-value num">`+version.Short()+`</p>`) {
+		t.Error("the running version is not the Version card's figure")
 	}
 }
 
@@ -780,5 +771,90 @@ func TestPendingProblemIsNotAFreeChoiceOfCatalogueKey(t *testing.T) {
 	body = fetchAs(t, srv, "/admin/pending?problem=pending.error.taken", session).Body.String()
 	if !strings.Contains(body, "already attached to a player") {
 		t.Error("a problem this handler issues was dropped")
+	}
+}
+
+// On a phone the admin area opens on a list of its sections, as the design
+// has it, each with a line of state: senders waiting counted on Pending.
+func TestTheAdminAreaListsItsSections(t *testing.T) {
+	t.Parallel()
+
+	srv := testServer(t)
+	seedBoard(t, srv)
+	holdPending(t, srv, "5c1e0000-aaaa-bbbb-cccc-00000000a9f2", "Nora", currentPuzzle(), 4)
+	_, session := adminSession(t, srv)
+
+	body := fetchAs(t, srv, "/admin", session).Body.String()
+	if !strings.Contains(body, "Nora waiting") {
+		t.Error("Pending does not say who is waiting")
+	}
+	for _, href := range []string{"/admin/pending", "/admin/players", "/admin/activity", "/admin/diagnostics", "/admin/settings"} {
+		if !strings.Contains(body, `href="`+href+`"`) {
+			t.Errorf("/admin does not list %s", href)
+		}
+	}
+}
+
+// Add player opens the design's New player card beside the roster, and
+// creating one can take a waiting sender's results onto the board with it.
+func TestAddPlayerCreatesOneAndCanTakeAWaitingSender(t *testing.T) {
+	t.Parallel()
+
+	srv := testServer(t)
+	seedBoard(t, srv)
+	sender := "5c1e0000-aaaa-bbbb-cccc-00000000a9f2"
+	holdPending(t, srv, sender, "Karin Berg", currentPuzzle(), 4)
+	_, session := adminSession(t, srv)
+
+	list := fetchAs(t, srv, "/admin/players", session).Body.String()
+	if !strings.Contains(list, `href="/admin/players?new=1"`) {
+		t.Fatal("the roster has no way to add a player")
+	}
+	card := fetchAs(t, srv, "/admin/players?new=1", session).Body.String()
+	for _, want := range []string{`action="/admin/players"`, `value="signal:` + sender + `"`, "Seen as “Karin Berg”"} {
+		if !strings.Contains(card, want) {
+			t.Errorf("the New player card is missing %s", want)
+		}
+	}
+
+	rec := postAdmin(t, srv, "/admin/players", url.Values{"name": {"Karin"}, "sender": {"signal:" + sender}}, session)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("POST /admin/players = %d", rec.Code)
+	}
+	if loc := rec.Header().Get("Location"); loc != "/admin/players/karin?moved=1&notice=created" {
+		t.Errorf("created, then sent to %q", loc)
+	}
+	done := fetchAs(t, srv, "/admin/players/karin?moved=1&notice=created", session).Body.String()
+	if !strings.Contains(done, "Created Karin (karin). 1 waiting result moved to the board.") {
+		t.Error("the toast does not say what was created and moved")
+	}
+	if pending, _ := store.ListPendingSenders(context.Background(), srv.db); len(pending) != 0 {
+		t.Errorf("the sender is still waiting: %v", pending)
+	}
+}
+
+// An address somebody has is refused by name, and the form comes back as
+// it was typed.
+func TestAddPlayerRefusesAnAddressInUse(t *testing.T) {
+	t.Parallel()
+
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	rec := postAdmin(t, srv, "/admin/players", url.Values{"name": {"Another Harda"}, "slug": {"harda"}}, session)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("POST with a taken slug = %d, want 422", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Already used by Harda.") {
+		t.Error("the clash does not name who has the address")
+	}
+	if !strings.Contains(body, `value="Another Harda"`) {
+		t.Error("the name typed was lost")
+	}
+	bad := postAdmin(t, srv, "/admin/players", url.Values{"name": {"X"}, "slug": {"Not Valid"}}, session).Body.String()
+	if !strings.Contains(bad, "Only lowercase letters, digits and hyphens.") {
+		t.Error("an invalid address is not explained")
 	}
 }

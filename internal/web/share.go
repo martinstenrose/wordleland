@@ -62,7 +62,11 @@ func (s *Server) handleShare(w http.ResponseWriter, r *http.Request) {
 	case rest == "grid":
 		s.handleGrid(w, r, prefix, viewPath(prefix, viewGrid), true)
 	case rest == "players":
-		s.handlePlayers(w, r, prefix, viewPath(prefix, viewPlayers), true)
+		s.handlePlayers(w, r, prefix, true)
+	case rest == "puzzle":
+		s.handlePuzzle(w, r, "", prefix, true)
+	case strings.HasPrefix(rest, "puzzle/"):
+		s.handlePuzzle(w, r, strings.TrimPrefix(rest, "puzzle/"), prefix, true)
 	case strings.HasPrefix(rest, "players/") && store.ValidSlug(strings.TrimPrefix(rest, "players/")):
 		s.handlePlayer(w, r, strings.TrimPrefix(rest, "players/"), prefix, viewPath(prefix, viewPlayers), true)
 	// The path a player's page used to have under a share link. Somebody

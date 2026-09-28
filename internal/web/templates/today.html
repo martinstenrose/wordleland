@@ -1,178 +1,228 @@
 {{define "title"}}{{.T.T "today.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-{{/* One card, four blocks: what the day is, what happened, what it means, and
-     who is in form. Rules between them rather than gaps, because they are one
-     thing.
+{{/* The day, as the design lays it out: the page head, then the day in a
+     card of its own — who took it, how the group spread, how far through the
+     day it is — the month's race in a strip under it, the callouts, and the
+     two lists.
 
-     The order in this file is the order a phone reads them in — today's
-     scores, then the callouts, then form. On a wide screen the stylesheet
-     lays the same four blocks out as a grid instead, putting the callouts
-     under the header as one strip and standing the results and the form side
-     by side. Same markup, so there is one page to keep correct. */}}
-<section class="card today">
-  <div class="today-head">
-    {{/* Two groups, so a wide screen can stand them beside each other: what
-         day it is on the left, how far through it the group is on the
-         right. */}}
-    <div class="today-headline">
-      {{/* The one page that does not name itself. Every other title answers
-           "where am I"; this one is the front page, and what it has to say
-           is what happened today — so the day is the kicker and the day's
-           result is the heading. Naming it "Today" above them would be a
-           title telling a reader something the rail already has highlighted. */}}
-      <p class="kicker">
-        <span class="accent">{{.T.T "player.puzzle" (.T.Puzzle .PuzzleNo)}}</span>
-        <span class="muted">{{.DateLong}}</span>
-      </p>
-      <h1>{{.T.T .HeadlineKey .HeadlineArgs}}</h1>
+     The order in this file is the order a phone reads them in. On a wide
+     screen the two lists stand side by side; on a phone they are two tabs of
+     one place, a segmented control over them, because two long lists one
+     after the other push the second a screen away. The tabs are two radio
+     buttons and a stylesheet rule, so they switch with no script. */}}
+<div class="today">
+  <header class="page-head">
+    <div class="page-head-id">
+      <p class="page-eyebrow"><span class="accent">{{.T.T "player.puzzle" (.T.Puzzle .PuzzleNo)}}</span> · {{.DateLong}}</p>
+      <h1 class="page-title">{{.T.T "nav.view.today"}}</h1>
+      <p class="page-sub">{{if .Results}}{{.T.T "today.played" .FiledCount .Expected}}{{else}}{{.T.T "today.nobodyYet"}}{{end}}</p>
     </div>
-
-    <div class="today-status">
-      {{/* The bar is the figure; the label beside it is the same figure for
-           anyone who would rather read it, and the aria-label is the
-           sentence, since "8/9" is not one. */}}
-      <div class="today-progress">
-        <span class="today-track" role="img" aria-label="{{.T.T "today.progress" .FiledCount .Expected}}">
-          {{template "progress-bar" (dict "Percent" .FiledPercent)}}
-        </span>
-        <span class="today-count num">{{.T.Integer .FiledCount}}/{{.T.Integer .Expected}}</span>
-      </div>
-
-      {{if .Missing}}
-        {{/* Who has not filed is worth a count all day and worth names only
-             when somebody asks. No name= : this is content on the page, not
-             one of the topbar menus, and joining their group would make
-             opening it close the drawer. */}}
-        <details class="today-out">
-          <summary>
-            <span>{{.T.TN "today.stillToSubmit" (len .Missing)}}</span>
-            {{template "chevron-down" .}}
-          </summary>
-          <ul class="chips">{{range .Missing}}<li>{{template "chip" (dict "Label" . "Dashed" true)}}</li>{{end}}</ul>
-        </details>
-      {{end}}
-    </div>
-  </div>
+  </header>
 
   {{if .Results}}
-    <div class="today-results">
-      {{/* Two headings, one per width. The hint names the right-hand figures
-           on a phone, where there is no room for a row of column labels; the
-           labels themselves take over on a wide screen, where the two lists
-           stand side by side and both read as the tables they are. */}}
-      <div class="today-list-head">
-        <p class="kicker">{{.T.T "today.results"}}</p>
-        <span class="today-list-hint">{{.T.T "today.hint.avgVsAvg"}}</span>
-      </div>
-      <div class="result-row head">
-        <span class="result-pos">{{.T.T "board.column.rank"}}</span>
-        {{/* The score column is a chip; no word fits over it in either
-             language, and the chip beside a name needs none. The cell
-             stays so the columns under it still line up. */}}
-        <span class="result-score"></span>
-        <span class="result-name">{{.T.T "board.column.player"}}</span>
-        <span class="result-avg">{{.T.T "today.column.avg"}}</span>
-        <span class="result-delta">{{.T.T "today.column.vsAvg"}}</span>
+    <section class="card today-hero">
+      <div class="today-hero-main">
+        {{/* The day's result. Not the page's heading — the page is Today — but
+             the first thing on it to read. */}}
+        <h2 class="today-lead">{{.T.T .HeadlineKey .HeadlineArgs}}</h2>
+        {{if .Winners}}
+          <ul class="today-winners">
+            {{range .Winners}}<li><span class="cell t{{.Tone}} today-winner-tile">{{.Label}}</span><a class="player" href="{{.Href}}">{{.Name}}</a></li>{{end}}
+          </ul>
+        {{end}}
+        {{/* The bar is the figure; the count beside it is the same figure for
+             anyone who would rather read it, and the aria-label is the
+             sentence. The count opens who is still out, when anybody is:
+             worth a number all day and names only when somebody asks. The
+             list opens under the bar and grows the card downward. */}}
+        <div class="today-progress">
+          <span class="today-track" role="img" aria-label="{{.T.T "today.progress" .FiledCount .Expected}}">
+            {{template "progress-bar" (dict "Percent" .FiledPercent)}}
+          </span>
+          {{if .Missing}}
+            <details class="today-out">
+              <summary><span class="num">{{.T.T "today.inCount" .FiledCount .Expected}}</span>{{template "chevron-down" .}}</summary>
+              <ul class="chips">{{range .Missing}}<li>{{template "chip" (dict "Label" . "Dashed" true)}}</li>{{end}}</ul>
+            </details>
+          {{else}}
+            <span class="today-count num">{{.T.T "today.allIn" .FiledCount}}</span>
+          {{end}}
+        </div>
       </div>
 
-      {{/* The average sits before the delta it explains — the same order the
-           form list prints its own pair in, so the two right-hand columns
-           read the same way in both tables. The chip is the same 20px one
-           the form list spells its last five out with. */}}
-      <ol class="result-rows">
-        {{range .Results}}
-          <li class="result-row">
-            <span class="result-pos num">{{.Pos}}</span>
-            <span class="cell t{{.Tone}} tiny result-score">{{.Label}}</span>
-            <a class="player result-name" href="{{.Href}}">{{.Name}}</a>
-            <span class="result-avg num">{{.AvgText}}</span>
-            <span class="result-delta delta {{.DeltaDirection}}">{{.DeltaText}}</span>
-          </li>
+      {{/* How the group spread across the guesses today, a miss on the end in
+           the danger hue, and the group's average against its usual. Drawn
+           from the same tiles' colours, so a bar of 4s is the 4s' green. */}}
+      <div class="today-spread">
+        <p class="today-spread-label">{{.T.T "today.spread"}}</p>
+        <ol class="spread-bars" aria-hidden="true">
+          {{range .Spread}}
+            <li>
+              <span class="spread-n num">{{if .Count}}{{$.T.Integer .Count}}{{end}}</span>
+              <span class="spread-bar{{if .Count}} t{{.Tone}}{{end}}" style="height: {{.Height}}px"></span>
+              <span class="spread-k">{{.Label}}</span>
+            </li>
+          {{end}}
+        </ol>
+        <p class="today-group">{{.T.T "today.groupAverage"}} <b class="num">{{.GroupToday}}</b> · {{.T.T "today.usually" .GroupUsual}}</p>
+      </div>
+    </section>
+  {{else}}
+    {{template "page-empty" (dict "Icon" "today" "Title" (.T.T "today.empty.title") "Body" (.T.T "today.empty.body"))}}
+  {{end}}
+
+  {{with .Standing}}
+    {{/* The month's race, in one line and three names: the page for it is
+         Months, and this is what makes the front page say there is one. */}}
+    <section class="card today-standing">
+      <div class="standing-id">
+        <span class="standing-icon filled">{{symbol "trophy" 18}}</span>
+        <span class="standing-text">
+          <span class="standing-label">{{.Label}}</span>
+          <span class="standing-line">{{.Line}}</span>
+        </span>
+        <a class="standing-go" href="{{.Href}}" aria-label="{{$.T.T "nav.view.months"}}">{{symbol "chevron_right" 22}}</a>
+      </div>
+      <ol class="standing-pills">
+        {{range .Pills}}
+          <li><a class="standing-pill{{if .Top}} top{{end}}" href="{{.Href}}"><span class="pill-rank num{{if .Top}} top{{end}}">{{.Rank}}</span><span class="standing-name">{{.Name}}</span><span class="standing-avg num">{{.Average}}</span></a></li>
         {{end}}
       </ol>
-    </div>
-  {{else}}
-    {{/* Nobody has filed yet, which used to make the whole block vanish —
-         on a wide screen the results column sat blank beside the form
-         table, and on a phone the day skipped straight to the callouts
-         with no sign the table was coming. results-empty carries its own
-         grid-area rule (see app.css) so it takes the results column rather
-         than the .today > .empty default, which is the form table's. */}}
-    <p class="empty results-empty">{{.T.T "today.results.empty"}}</p>
+      <a class="standing-more" href="{{.Href}}">{{$.T.T "nav.view.months"}}{{symbol "chevron_right" 18}}</a>
+    </section>
   {{end}}
 
   {{if .Callouts}}
-    <div class="callouts">
-      {{$t := .T}}
-      {{range .Callouts}}
-        <div class="callout">
-          <p class="kicker accent">{{$t.T (printf "callout.kicker.%s" .Kind)}}</p>
-          <p class="callout-text">{{$t.T .Key .Args}}</p>
-          {{if .Meta}}<p class="callout-meta">{{.Meta}}</p>{{end}}
-        </div>
-      {{end}}
+    {{/* Each observation a card of its own, led by a glyph for what kind of
+         thing it is. A row of four on a wide screen; on a phone a strip that
+         scrolls sideways and snaps a card to the gutter. */}}
+    <section class="today-callouts" aria-label="{{.T.T "today.worthMentioning"}}">
+      <div class="callouts">
+        {{$t := .T}}
+        {{range .Callouts}}
+          <div class="card callout">
+            <p class="callout-kicker">
+              <span class="callout-icon">{{symbol .Icon 17}}</span>
+              <span>{{$t.T (printf "callout.kicker.%s" .Kind)}}</span>
+            </p>
+            <p class="callout-text">{{$t.T .Key .Args}}</p>
+            {{if .Meta}}<p class="callout-meta">{{.Meta}}</p>{{end}}
+          </div>
+        {{end}}
+      </div>
+    </section>
+  {{end}}
+
+  {{if and .Results .Form}}
+    {{/* A phone's two tabs: radio buttons for the state, labels for the
+         segments, and app.css showing one list or the other off which is
+         checked. No script; the results are the tab a page arrives on. */}}
+    <div class="today-tabs">
+      <input class="today-tab-input" type="radio" name="today-tab" id="today-tab-results" checked>
+      <label class="today-tab" for="today-tab-results">{{.T.T "today.results"}}</label>
+      <input class="today-tab-input" type="radio" name="today-tab" id="today-tab-form">
+      <label class="today-tab" for="today-tab-form">{{.T.T "today.form"}}</label>
     </div>
   {{end}}
 
-  {{if .Form}}
-    <div class="today-form">
-      <div class="today-list-head">
-        <p class="kicker">{{.T.T "today.formTable"}}</p>
-        <span class="today-list-hint">{{.T.T "today.hint.lastFiveAvgVsAvg"}}</span>
-      </div>
-      <div class="form-row head">
-        <span class="form-rank">{{.T.T "board.column.rank"}}</span>
-        <span class="form-name">{{.T.T "board.column.player"}}</span>
-        <span class="form-last-five">{{.T.T "today.column.lastFive"}}</span>
-        <span class="form-avg">{{.T.T "today.column.formAvg"}}</span>
-        <span class="form-delta">{{.T.T "today.column.vsAvg"}}</span>
-      </div>
+  {{if .Results}}
+  <section class="card today-list today-results">
+    <div class="today-list-head">
+      <h2 class="today-list-title">{{.T.T "today.results"}}</h2>
+      <span class="today-list-hint">{{.T.T "today.hint.avgVsAvg"}}</span>
+    </div>
+    {{/* The average sits before the delta it explains — the same order the
+         form list prints its own pair in, so the right-hand figures read
+         the same way in both lists. */}}
+    <ol class="result-rows">
+      {{range .Results}}
+        <li class="result-row">
+          <span class="result-pos num">{{.Pos}}</span>
+          <span class="cell t{{.Tone}} tiny result-score">{{.Label}}</span>
+          <span class="result-id">
+            <a class="player result-name" href="{{.Href}}">{{.Name}}</a>
+            {{template "pattern" (dict "Grid" .Grid "Size" "sm")}}
+          </span>
+          {{if .AvgWhy}}
+            <details class="result-avg avg-pop" name="popup">
+              <summary class="num" aria-label="{{.AvgWhy}}">{{.AvgText}}</summary>
+              <span class="popup-panel avg-why">{{.AvgWhy}}</span>
+            </details>
+          {{else}}
+            <span class="result-avg num">{{.AvgText}}</span>
+          {{end}}
+          <span class="result-delta delta {{.DeltaDirection}}">{{.DeltaText}}</span>
+        </li>
+      {{end}}
+    </ol>
+    {{/* Where the grids begin, and the day's own page, which has them
+         large and everyone's in one place. */}}
+    <div class="today-list-foot">
+      <span class="today-list-note">{{with .GridsFrom}}{{$.T.T "today.gridsFrom" ($.T.Puzzle .)}}{{end}}</span>
+      <a class="today-list-more" href="{{.PuzzleHref}}">{{.T.T "today.puzzleLink" (.T.Puzzle .PuzzleNo)}}{{symbol "chevron_right" 18}}</a>
+    </div>
+  </section>
+  {{end}}
 
-      {{/* The last five spelled out rather than drawn: a sparkline showed the
-           shape of a month and none of its scores, and five chips show a 2
-           and an X as themselves. They are the board's recent strip, newest
-           on the right, so the popup behind each chip comes with them. */}}
-      <ol class="form-rows">
-        {{range .Form}}
-          <li class="form-row">
-            {{template "rank-pop" (dict "Row" . "Class" "form-rank" "T" $.T)}}
-            <a class="player form-name" href="{{.Href}}">{{.Name}}</a>
-            <span class="form-last-five">{{template "last-five" .LastFive}}</span>
+  {{if or .Form .Benched}}
+  <section class="card today-list today-form">
+    <div class="today-list-head">
+      <h2 class="today-list-title">{{.T.T "today.form"}}</h2>
+      <span class="today-list-hint">{{.T.T "today.formHint"}}</span>
+    </div>
+    {{/* The last five spelled out rather than drawn: a sparkline showed the
+         shape of a month and none of its scores, and five tiles show a 2 and
+         an X as themselves. Newest on the right, so the popup behind each
+         tile comes with them. */}}
+    {{if .Form}}
+    <ol class="form-rows">
+      {{range .Form}}
+        <li class="form-row">
+          {{template "rank-pop" (dict "Row" . "Class" "form-rank" "T" $.T)}}
+          <a class="player form-name" href="{{.Href}}">{{.Name}}</a>
+          <span class="form-last-five">{{template "last-five" .LastFive}}</span>
+          <span class="form-figures">
             <span class="form-avg num">{{.FormText}}</span>
             <span class="form-delta delta {{.DeltaDirection}}">{{.DeltaText}}</span>
-          </li>
-        {{end}}
-      </ol>
-
-      {{if .Benched}}
-        <details class="today-bench">
-          <summary>
-            <span>{{.T.TN "today.benched" .BenchedCount}}</span>
-            {{template "chevron-down" .}}
-          </summary>
-          <ol class="form-rows bench-rows">
-            {{$t := .T}}
-            {{range .Benched}}
-              <li class="form-row">
-                <span class="form-rank num">—</span>
-                <a class="player form-name" href="{{.Href}}">{{.Name}}</a>
-                {{if .ReasonKey}}{{template "reason" (dict "Label" ($t.T .ReasonKey) "Why" .Why)}}{{end}}
-                <span class="form-avg num">{{$t.TN "today.benchedGames" .Games}}</span>
-              </li>
-            {{end}}
-          </ol>
-        </details>
+          </span>
+        </li>
       {{end}}
+    </ol>
+    {{else}}
+      {{/* People have played, and none of them has enough recent results to
+           be ranked. */}}
+      {{template "empty-state" (dict "Icon" "leaderboard" "Title" (.T.T "today.form.unrankedTitle") "Body" (.T.T "today.form.unrankedBody"))}}
+    {{end}}
 
-      <footer class="card-foot">
+    {{if .Benched}}
+      <details class="today-bench">
+        <summary>
+          <span>{{.T.TN "today.benched" .BenchedCount}}</span>
+          {{template "chevron-down" .}}
+        </summary>
+        <ol class="form-rows bench-rows">
+          {{$t := .T}}
+          {{range .Benched}}
+            <li class="form-row">
+              <span class="form-rank num">—</span>
+              <a class="player form-name" href="{{.Href}}">{{.Name}}</a>
+              {{if .ReasonKey}}{{template "reason" (dict "Label" ($t.T .ReasonKey) "Why" .Why)}}{{end}}
+              <span class="form-avg num">{{$t.TN "today.benchedGames" .Games}}</span>
+            </li>
+          {{end}}
+        </ol>
+      </details>
+    {{end}}
+
+    {{if .Form}}
+      <footer class="card-foot today-notes">
         <span>{{.T.T "today.chipNote"}}</span>
         <span>{{.T.T "today.formNote"}}</span>
       </footer>
-    </div>
-  {{else}}
-    <p class="empty">{{.T.T "board.empty"}}</p>
+    {{end}}
+  </section>
   {{end}}
-</section>
+</div>
 {{end}}
 
 {{/* Form rank, with overall rank in parentheses: two number columns side

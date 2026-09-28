@@ -24,9 +24,9 @@ func TestThePlayedPuzzleCountIsHeldBetweenPages(t *testing.T) {
 	subtitle := func() string {
 		t.Helper()
 		body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-		s, ok := sectionOf(body, `<span class="brand-sub">`, "</span>")
+		s, ok := sectionOf(body, `<span class="footer-days">`, "</span>")
 		if !ok {
-			t.Fatal("the page has no subtitle under the wordmark")
+			t.Fatal("the page's footer does not say how many days")
 		}
 		return s
 	}

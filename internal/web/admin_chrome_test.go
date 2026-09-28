@@ -13,8 +13,8 @@ var (
 	csrfValue = regexp.MustCompile(`name="csrf_token" value="[^"]*"`)
 )
 
-// The admin screens are one area and have to look like it: the same card, the
-// same tab row in the same place, the same header. Their subtitles are the
+// The admin screens are one area and have to look like it: the same header
+// card, the same pill row in the same place. Their subtitles are the
 // exception — Players and Pending count what they hold, and Activity and
 // Diagnostics have nothing to count — so the comparison stops at the head.
 func TestAdminScreensShareTheirChrome(t *testing.T) {
@@ -29,12 +29,12 @@ func TestAdminScreensShareTheirChrome(t *testing.T) {
 
 	for _, path := range []string{"/admin/players", "/admin/pending", "/admin/activity"} {
 		body := fetchAs(t, srv, path, session).Body.String()
-		start := strings.Index(body, `<section class="card`)
+		start := strings.Index(body, `<header class="page-head">`)
 		if start < 0 {
-			t.Fatalf("%s has no card section", path)
+			t.Fatalf("%s has no page head", path)
 		}
 		head := body[start:]
-		if cut := strings.Index(head, "<h1"); cut > 0 {
+		if cut := strings.Index(head, "</nav>"); cut > 0 {
 			head = head[:cut]
 		}
 		var seq []string
@@ -106,9 +106,10 @@ func TestRosterSwitchHintIsNotUppercased(t *testing.T) {
 	if !strings.Contains(rule, "text-transform: none") {
 		t.Error("the switch hint does not reset text-transform")
 	}
-	// The caption itself is left alone: it is a field label like the rest.
-	if strings.Contains(css, ".form label.switch {") {
-		t.Error("the switch caption overrides .form label; it should not")
+	// The switch is a row with a name of its own, not a field's caption:
+	// the label's bold goes, and the name carries it.
+	if rule := cssRule(t, css, ".form label.switch {"); !strings.Contains(rule, "font-weight: 400") {
+		t.Errorf("the switch row keeps the field caption's weight: %s", rule)
 	}
 
 	// And the copy itself is written in sentence case, so the reset is the
@@ -118,7 +119,7 @@ func TestRosterSwitchHintIsNotUppercased(t *testing.T) {
 	body := fetchAs(t, srv, "/admin/players/harda", session).Body.String()
 	for _, want := range []string{
 		"Still in the group",
-		"Clearing it retires the player and keeps their history.",
+		"Turning it off retires the player and keeps their history.",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page does not carry %q", want)
@@ -129,15 +130,13 @@ func TestRosterSwitchHintIsNotUppercased(t *testing.T) {
 	}
 }
 
-// The pickers sit in the chrome, in one fixed place on every page. They used
-// to flow after the links at the foot of the auth card, and those links differ
-// per page — sign-in has two, the two-factor step two others, the reset page
-// one — so the pickers sat at a different height on each and jumped when
-// moving between pages. Then they moved to a row of their own at the top of
-// each card, which fixed the jumping and left every auth page carrying its own
-// copy of the chrome. The chrome carries it now, and the cards carry none —
-// the top bar inside the application, its own much shorter row at the door.
-func TestAuthPickersAreInTheChromeOnly(t *testing.T) {
+// The door has no bar. There is nothing yet to navigate and no account to
+// open, so the sign-in family is the card on its field of tiles and nothing
+// above it; the language — the one preference worth choosing before signing
+// in — is in the footer, in one fixed place on every page of the family,
+// beside the two links every page ends with. It used to sit at the foot of
+// each card, whose links differ per page, and jumped between them.
+func TestTheDoorHasNoBarAndItsLanguageInTheFooter(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
@@ -145,35 +144,39 @@ func TestAuthPickersAreInTheChromeOnly(t *testing.T) {
 	for _, path := range []string{"/", "/forgot-password", "/reset-password?token=x", "/invite?token=x"} {
 		body := fetchAs(t, srv, path, nil).Body.String()
 
-		bar := strings.Index(body, `<header class="auth-chrome">`)
-		if bar < 0 {
-			t.Errorf("%s has no chrome row", path)
+		if strings.Contains(body, `<header class="topbar">`) {
+			t.Errorf("%s draws the application's bar", path)
+		}
+		footer, ok := sectionOf(body, `<footer class="auth-footer">`, "</footer>")
+		if !ok {
+			t.Errorf("%s has no footer", path)
 			continue
 		}
-		// And no application shell around it: a rail emptied to the wordmark
-		// is a navigation with nothing in it.
-		if strings.Contains(body, `class="sidebar"`) {
-			t.Errorf("%s draws the application rail", path)
+		if n := strings.Count(body, `<details class="auth-lang menu" name="menu-group">`); n != 1 {
+			t.Errorf("%s renders the language picker %d times, want 1", path, n)
 		}
-		for _, control := range []string{`class="theme-track"`, `<details class="menu" name="menu-group">`} {
-			if n := strings.Count(body, control); n != 1 {
-				t.Errorf("%s renders %s %d times, want 1", path, control, n)
+		if !strings.Contains(footer, `class="auth-lang menu"`) {
+			t.Errorf("%s renders the language picker outside the footer", path)
+		}
+		for _, link := range []string{`href="/privacy"`, `href="https://github.com/martinstenrose/wordleland"`} {
+			if !strings.Contains(footer, link) {
+				t.Errorf("%s: the footer has no %s", path, link)
 			}
-			if strings.Index(body, control) < bar {
-				t.Errorf("%s renders %s outside the top bar", path, control)
-			}
+		}
+		// No theme control: the door follows the device, or whatever was
+		// chosen inside.
+		if strings.Contains(body, `class="seg"`) {
+			t.Errorf("%s offers a theme control", path)
 		}
 	}
 }
 
 // The chrome is one thing, built in one place. It used to be assembled per
-// page, so the subtitle beside the wordmark appeared on the five board
-// views and vanished on Settings and in the admin area.
+// page, so the "N days" beside the wordmark appeared on the five board views
+// and vanished on Settings and in the admin area.
 //
-// The drawer is cut out before comparing: it carries the rail's rows, and
-// those are meant to differ — inside the admin area the four admin screens
-// hang under the admin row. That the drawer and the rail agree is
-// TestTheDrawerCarriesTheSameRowsAsTheRail's job.
+// The phone's capsule is cut out before comparing: it names the page you are
+// on, which is the one part of the bar meant to differ.
 func TestTheChromeIsIdenticalOnEveryPage(t *testing.T) {
 	t.Parallel()
 
@@ -191,17 +194,19 @@ func TestTheChromeIsIdenticalOnEveryPage(t *testing.T) {
 	} {
 		body := fetchAs(t, srv, path, session).Body.String()
 
-		bar := body[strings.Index(body, `class="topbar`):]
-		bar = bar[:strings.Index(bar, "</header>")]
-		if open := strings.Index(bar, `<details class="drawer"`); open >= 0 {
-			bar = bar[:open] + bar[strings.Index(bar, "</details>")+len("</details>"):]
+		bar, ok := sectionOf(body, `<header class="topbar">`, "</header>")
+		if !ok {
+			t.Fatalf("%s has no bar", path)
 		}
-		// The wordmark and its subtitle live in the rail now, and they are
-		// the part of it that must not vary.
-		brand := body[strings.Index(body, `<nav class="sidebar"`):]
-		brand = brand[:strings.Index(brand, "</a>")]
+		if open := strings.Index(bar, `<details class="bar-menu menu"`); open >= 0 {
+			bar = bar[:open] + bar[open+strings.Index(bar[open:], "</details>")+len("</details>"):]
+		}
+		footer, ok := sectionOf(body, `<footer class="site-footer">`, "</footer>")
+		if !ok {
+			t.Fatalf("%s has no footer", path)
+		}
 
-		combined := bar + brand
+		combined := bar + footer
 		// Three things are meant to differ: which view is marked current,
 		// the theme and language links, which point back at the page you
 		// are on so switching keeps you there, and the sign-out form's
@@ -214,8 +219,8 @@ func TestTheChromeIsIdenticalOnEveryPage(t *testing.T) {
 	}
 
 	want := chromes["/today"]
-	if !strings.Contains(want, "brand-sub") {
-		t.Fatal("the wordmark has no subtitle to compare")
+	if !strings.Contains(want, "footer-days") {
+		t.Fatal("the footer has no count of days to compare")
 	}
 	for path, got := range chromes {
 		if got != want {
@@ -224,34 +229,31 @@ func TestTheChromeIsIdenticalOnEveryPage(t *testing.T) {
 	}
 }
 
-// How much history exists is said once, beside the wordmark, and repeated in
-// figures by the card's own panel.
-//
-// This test used to assert the opposite: that a visitor who has not signed in
-// is not told the size of the board. The panel beside the sign-in form already
-// says "398 puzzles logged over 45 days", so that was never true in practice,
-// and on a phone — where the panel does not fit — the wordmark is the only
-// place it is said at all.
-func TestTheSignInPageSaysHowBigTheGroupIs(t *testing.T) {
+// How much history exists is said on the sign-in page, in figures, by the
+// panel beside the form — and nowhere on an error page, which is chrome for
+// a stranger with no reason to be told anything about this installation.
+func TestAnErrorPageDoesNotSayHowBigTheGroupIs(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
 	seedBoard(t, srv)
 
-	body := fetchAs(t, srv, "/", nil).Body.String()
-	if !strings.Contains(body, "brand-sub") {
+	if body := fetchAs(t, srv, "/", nil).Body.String(); !strings.Contains(body, "signin-figure") {
 		t.Error("the sign-in page does not say how much history there is")
 	}
-	// And a 404 still says nothing: that page is chrome for a stranger with
-	// no reason to be told anything about this installation.
-	if strings.Contains(fetchAs(t, srv, "/no/such/page", nil).Body.String(), "brand-sub") {
+	body := fetchAs(t, srv, "/no/such/page", nil).Body.String()
+	if !strings.Contains(body, `<footer class="site-footer">`) {
+		t.Fatal("an error page has no footer")
+	}
+	if strings.Contains(body, "footer-days") {
 		t.Error("an error page reports the size of the board")
 	}
 }
 
-// The views live in the rail; the wordmark lives in the bar above it, where
-// it holds one place at every width — the rail is only ever navigation.
-func TestTheRailCarriesEveryViewAndTheBarTheWordmark(t *testing.T) {
+// The bar's capsule carries the mark, which is the way back to Today, and
+// every view after it. The phone's capsule lists the same views from the same
+// list, so neither can go stale without the other.
+func TestTheBarCarriesEveryViewAfterTheMark(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
@@ -259,36 +261,36 @@ func TestTheRailCarriesEveryViewAndTheBarTheWordmark(t *testing.T) {
 	_, session := adminSession(t, srv)
 
 	body := fetchAs(t, srv, "/leaderboard", session).Body.String()
-	rail := body[strings.Index(body, `<nav class="sidebar"`):]
-	rail = rail[:strings.Index(rail, "</nav>")]
-
+	pages, ok := sectionOf(body, `<nav class="bar-pages glass"`, "</nav>")
+	if !ok {
+		t.Fatal("the bar has no capsule of pages")
+	}
+	menu, ok := sectionOf(body, `<details class="bar-menu menu"`, "</details>")
+	if !ok {
+		t.Fatal("the bar has no page menu for a phone")
+	}
 	for _, view := range []string{"Today", "Leaderboard", "Months", "Grid", "Players"} {
-		if !strings.Contains(rail, ">"+view+"<") {
-			t.Errorf("the rail is missing %q", view)
+		if !strings.Contains(pages, "<span>"+view+"</span>") {
+			t.Errorf("the capsule is missing %q", view)
+		}
+		if !strings.Contains(menu, `<span class="menu-row-label">`+view+"</span>") {
+			t.Errorf("the phone's page menu is missing %q", view)
 		}
 	}
-	if strings.Contains(rail, `class="brand"`) {
-		t.Error("the rail carries the wordmark, which belongs in the bar")
+	if !strings.HasPrefix(strings.TrimSpace(pages[strings.Index(pages, ">")+1:]), `<a class="bar-home" href="/today"`) {
+		t.Error("the capsule does not lead with the mark, linking to Today")
 	}
-
-	bar := body[strings.Index(body, `<header class="topbar">`):]
-	bar = bar[:strings.Index(bar, "</header>")]
-	if !strings.Contains(bar, `<a class="brand" href="/today">`) {
-		t.Error("the bar's wordmark does not link to Today")
-	}
-
-	// And the bar is above the shell rather than inside it, which is what
-	// lets it span the rail as well as the page.
-	if strings.Index(body, `<header class="topbar">`) > strings.Index(body, `<div class="shell">`) {
-		t.Error("the bar is rendered inside the shell rather than above it")
+	// The phone's capsule names the page you are on.
+	if !strings.Contains(menu, `<span class="bar-capsule-label">Leaderboard</span>`) {
+		t.Error("the phone's capsule does not name the page it is on")
 	}
 }
 
-// The rail says where in the application you are; which screen inside the
-// admin area you are on is the strip at the top of that screen's job. One row
-// for the area, not five — and the four screens listed in both places would
-// be two lists of the same destinations to keep in step.
-func TestTheRailCarriesOneAdminRow(t *testing.T) {
+// The account menu carries one row for the admin area, for an admin and
+// nobody else; which screen inside the area you are on is the pill row at the
+// top of that screen's job. The four screens listed in both places would be
+// two lists of the same destinations to keep in step.
+func TestTheAccountMenuCarriesOneAdminRow(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
@@ -296,35 +298,39 @@ func TestTheRailCarriesOneAdminRow(t *testing.T) {
 	_, session := adminSession(t, srv)
 
 	body := fetchAs(t, srv, "/admin/pending", session).Body.String()
-	rail := body[strings.Index(body, `<nav class="sidebar"`):]
-	rail = rail[:strings.Index(rail, "</nav>")]
-
-	if !strings.Contains(rail, ">Admin area<") {
-		t.Error("the rail does not offer the admin area")
+	menu, ok := sectionOf(body, `<div class="menu-panel glass account-menu">`, "</form>")
+	if !ok {
+		t.Fatal("no account menu")
+	}
+	if !strings.Contains(menu, `<span class="menu-row-label">Admin area</span>`) {
+		t.Error("the account menu does not offer the admin area")
 	}
 	for _, screen := range []string{"Pending results", "Activity log", "Diagnostics"} {
-		if strings.Contains(rail, ">"+screen+"<") {
-			t.Errorf("the rail lists %q, which the page's own bar carries", screen)
+		if strings.Contains(menu, ">"+screen+"<") {
+			t.Errorf("the account menu lists %q, which the page's own row carries", screen)
 		}
 	}
-
-	// And that bar is on the page — the heading, which is also the control
-	// that changes which section the card is.
-	if !strings.Contains(body, `<details class="switcher menu" name="menu-group">`) {
-		t.Error("the admin screen has no section bar")
+	if strings.Contains(fetchAs(t, srv, "/today", signIn(t, srv, seedLogin(t, srv, "member@example.tld", false).ID)).Body.String(), ">Admin area<") {
+		t.Error("a member who is not an admin is offered the admin area")
 	}
-	if !strings.Contains(body, `<h1 class="switcher-label">Pending results</h1>`) {
-		t.Error("the bar does not carry the section's name as the page's heading")
+
+	// And that row is on the page, under the heading that names the
+	// section.
+	if !strings.Contains(body, `<nav class="admin-tabs" aria-label="Admin area">`) {
+		t.Error("the admin screen has no tab bar")
+	}
+	if !strings.Contains(body, `<h1 class="page-title">Pending results</h1>`) {
+		t.Error("the row's head does not carry the section's name as the page's heading")
 	}
 }
 
-// Every admin screen carries the bar, including the one that is not a section
-// of its own.
+// Every admin screen carries the tab bar, including the one that is not a
+// section of its own.
 //
 // The activity detail is the sixth admin screen and the easy one to forget:
 // it is a row of the activity log opened up, so it has a subject of its own
 // and does not appear in the list the other five are built from. Losing the
-// bar there would leave one screen with no way back out of it except the
+// row there would leave one screen with no way back out of it except the
 // browser's own, which is the failure this pins.
 func TestEveryAdminScreenCarriesTheSectionBar(t *testing.T) {
 	t.Parallel()
@@ -351,11 +357,14 @@ func TestEveryAdminScreenCarriesTheSectionBar(t *testing.T) {
 
 	for path, section := range screens {
 		body := fetchAs(t, srv, path, session).Body.String()
-		if n := strings.Count(body, `<details class="switcher menu"`); n != 1 {
-			t.Errorf("%s renders %d section bars, want exactly one", path, n)
+		if n := strings.Count(body, `<nav class="admin-tabs"`); n != 1 {
+			t.Errorf("%s renders %d tab bars, want exactly one", path, n)
 			continue
 		}
-		if !strings.Contains(body, `<h1 class="switcher-label">`+section+`</h1>`) {
+		if !strings.Contains(body, `<a class="admin-tab on" href="`) {
+			t.Errorf("%s: no tab is marked current", path)
+		}
+		if !strings.Contains(body, `<span class="admin-tab-label">`+section+`</span>`) {
 			t.Errorf("%s: the bar does not say you are in %q", path, section)
 		}
 	}

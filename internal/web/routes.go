@@ -30,6 +30,11 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /months", s.requireAuth(s.handleMonthsPage))
 	mux.HandleFunc("GET /grid", s.requireAuth(s.handleGridPage))
 	mux.HandleFunc("GET /players", s.requireAuth(s.handlePlayersPage))
+	// One day's results and grids. Not a view in the bar: it is reached
+	// from a day — Today's results, a date on the grid, a day on a
+	// player's calendar — and from the day either side of it.
+	mux.HandleFunc("GET /puzzle", s.requireAuth(s.handlePuzzlePage))
+	mux.HandleFunc("GET /puzzle/{no}", s.requireAuth(s.handlePuzzlePage))
 
 	// The live stream Today and the board listen to — see live.go. Behind
 	// the same session check as the pages; the share view has its own
@@ -62,12 +67,20 @@ func (s *Server) routes() http.Handler {
 	// pulled forward because correcting a name or a link is the change the
 	// roster actually needs, and reaching for docker compose exec to rename
 	// somebody is the wrong shape of chore.
+	mux.HandleFunc("GET /admin", s.requireAdmin(s.handleAdminHome))
 	mux.HandleFunc("GET /admin/settings", s.requireAdmin(s.handleAdminSettings))
 	mux.HandleFunc("POST /admin/settings/slug", s.requireAdmin(s.handleAdminSlugRotate))
 	mux.HandleFunc("GET /admin/players", s.requireAdmin(s.handleAdminPlayers))
 	mux.HandleFunc("GET /admin/players/{slug}", s.requireAdmin(s.handleAdminPlayers))
+	mux.HandleFunc("POST /admin/players", s.requireAdmin(s.handleAdminPlayerCreate))
 	mux.HandleFunc("POST /admin/players/{slug}", s.requireAdmin(s.handleAdminPlayerSubmit))
 	mux.HandleFunc("POST /admin/players/{slug}/invite", s.requireAdmin(s.handleAdminInvite))
+	mux.HandleFunc("POST /admin/players/{slug}/invite/cancel", s.requireAdmin(s.handleAdminCancelInvite))
+	mux.HandleFunc("POST /admin/players/{slug}/sender/unlink", s.requireAdmin(s.handleAdminUnlinkSender))
+	mux.HandleFunc("POST /admin/players/{slug}/login/reset", s.requireAdmin(s.handleAdminResetPassword))
+	mux.HandleFunc("POST /admin/players/{slug}/login/unlink", s.requireAdmin(s.handleAdminUnlinkLogin))
+	mux.HandleFunc("POST /admin/players/{slug}/login/disable", s.requireAdmin(s.handleAdminDisableLogin))
+	mux.HandleFunc("POST /admin/players/{slug}/login/attach", s.requireAdmin(s.handleAdminAttachLogin))
 
 	mux.HandleFunc("GET /admin/activity", s.requireAdmin(s.handleAdminActivity))
 	mux.HandleFunc("GET /admin/diagnostics", s.requireAdmin(s.handleAdminDiagnostics))

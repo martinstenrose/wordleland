@@ -1,0 +1,7 @@
+{{/* The squares a result was shared with, drawn small beside the score: one
+     row per guess, green for a letter in place, yellow for one elsewhere,
+     grey for one not in the word. Decoration beside a score that is already
+     written out, so it is hidden from assistive technology rather than
+     read as thirty squares. Nothing is drawn for a result with no grid.
+     Data: {Grid string (see wordle.Grid), Size "sm" | "lg"}. */}}
+{{define "pattern"}}{{with gridRows .Grid}}<span class="pattern pattern-{{$.Size}}" aria-hidden="true">{{range .}}<span class="pattern-row">{{range .}}<span class="sq {{.}}"></span>{{end}}</span>{{end}}</span>{{end}}{{end}}

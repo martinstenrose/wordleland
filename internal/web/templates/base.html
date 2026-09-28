@@ -1,8 +1,12 @@
 {{define "base"}}<!doctype html>
-<html lang="{{.Lang}}" data-theme="{{.Theme}}" data-sidebar="{{.Sidebar}}">
+<html lang="{{.Lang}}" data-theme="{{.Theme}}">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+{{/* viewport-fit=cover lets the page run under the notch and the home
+     indicator, which is what a bar floating over it wants; everything that
+     must not sit under either keeps clear with env(safe-area-inset-*) in
+     app.css. */}}
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{{block "title" .}}Wordleland{{end}}</title>
 <link rel="icon" type="image/svg+xml" href="{{asset "/static/icon.svg"}}">
 <link rel="icon" type="image/png" sizes="180x180" href="{{asset "/static/icon-180.png"}}">
@@ -15,8 +19,8 @@
      style, no scripts run out of swapped content, and a 4xx or 5xx page
      swapped like any other, so the error frame arrives in place the way
      a full navigation would show it. Every swap is a view transition
-     where the browser has them — the bar and the rail are named in
-     app.css so they hold still and the content cross-fades — and the two
+     where the browser has them — the bar is named in app.css so it holds
+     still and the content cross-fades — and the two
      swaps that are not a navigation say transition:false where they are
      rendered; app.js cancels the transition for a reader who asked for
      reduced motion. No settle delay: htmx holds the transition open with
@@ -35,7 +39,7 @@
 </head>
 {{/* Every link and form is boosted: following one fetches the page and puts
      its body in place of this one — the whole body, so an error page arrives
-     without the rail and a theme link arrives with the theme. With the
+     without the bar and a theme link arrives with the theme. With the
      scripts absent, disabled or failing to load, every one is still a link
      or a form. The two controls app.js takes over itself — the search
      button, the enrolment link — say hx-boost="false" where they are
@@ -43,77 +47,102 @@
      handed to htmx, so nothing inside it is boosted. */}}
 <body hx-boost="true" hx-indicator="html">
 {{if eq .Frame "app"}}
-  {{/* The application shell: a bar across the top carrying the wordmark and
-       the controls, and under it the rail beside the page. Every page inside
-       it renders only its own content — the furniture is assembled once,
-       here, rather than each page remembering to call for it.
-
-       The bar spans the whole width rather than sitting inside the page
-       column, so the wordmark stays put at every width and the rail below it
-       is only ever navigation.
-
-       The skip link earns its place now that six navigation rows come before
-       the content on every page. */}}
+  {{/* The application shell: the glass bar floating over the top of the
+       page, the page scrolling under it, and the footer at the end of it.
+       There is no strip reserved for the bar — the page starts at the top
+       of the window and its first card is padded clear of the bar, so what
+       scrolls up goes under the glass rather than disappearing at an edge.
+       Every page inside it renders only its own content; the furniture is
+       assembled once, here. */}}
   <a class="skip-link" href="#main">{{.T.T "nav.skip"}}</a>
   {{template "topbar" .}}
-  <div class="shell">
-    {{template "sidebar" .}}
-    <div class="shell-main">
-      {{/* A page that redraws itself when a result lands says so here: it
-           listens to the stream, and on each event fetches its own URL
-           again and swaps its content in place — the content only, so the
-           listener outlives what it replaces. Without script the page is
-           correct on load and stays as it was, like any other page.
+  <div class="page">
+    {{/* A page that redraws itself when a result lands says so here: it
+         listens to the stream, and on each event fetches its own URL
+         again and swaps its content in place — the content only, so the
+         listener outlives what it replaces. Without script the page is
+         correct on load and stays as it was, like any other page.
 
-           hx-disinherit, because htmx passes these attributes down to every
-           boosted link inside the region: without it a player's link would
-           have swapped the player's page into this region, at this address,
-           and a link to nowhere would have put the error page inside the
-           frame. What the region says about its own redraw is its own.
+         hx-disinherit, because htmx passes these attributes down to every
+         boosted link inside the region: without it a player's link would
+         have swapped the player's page into this region, at this address,
+         and a link to nowhere would have put the error page inside the
+         frame. What the region says about its own redraw is its own.
 
-           transition:false: a result landing is not a navigation. The
-           reader did not press anything, and a cross-fade that pauses the
-           page for it would be motion for an event they did not cause. */}}
-      <main id="main"{{with .Live}} hx-ext="sse" sse-connect="{{.Stream}}" hx-trigger="sse:result" hx-get="{{.Page}}" hx-select="#main > *" hx-target="this" hx-swap="innerHTML transition:false" hx-push-url="false" hx-disinherit="hx-select hx-target hx-swap hx-push-url hx-indicator" hx-indicator="this"{{end}}>{{block "content" .}}{{end}}</main>
-    </div>
+         transition:false: a result landing is not a navigation. The
+         reader did not press anything, and a cross-fade that pauses the
+         page for it would be motion for an event they did not cause. */}}
+    <main id="main"{{with .Live}} hx-ext="sse" sse-connect="{{.Stream}}" hx-trigger="sse:result" hx-get="{{.Page}}" hx-select="#main > *" hx-target="this" hx-swap="innerHTML transition:false" hx-push-url="false" hx-disinherit="hx-select hx-target hx-swap hx-push-url hx-indicator" hx-indicator="this"{{end}}>{{block "content" .}}{{end}}</main>
+    {{template "site-footer" .}}
   </div>
 {{else if eq .Frame "auth"}}
-  {{/* The sign-in family: a card in the middle of the canvas, the wordmark in
-       one corner and the pickers in the other. No navigation — there is
-       nothing yet to navigate — and so no rail to carry the About panel,
-       which is why the footer comes back here as well. */}}
+  {{/* The sign-in family: no bar at all — there is nothing yet to navigate
+       and no account to open — and the card in the middle of a field of
+       score tiles, the same graded greens the results are drawn in. The
+       field is decoration and hidden from assistive tech. The language is
+       chosen in the footer, beside the two links every page ends with; the
+       theme is whatever the device has, or whatever was chosen inside. */}}
   <div class="auth-frame">
-    {{template "auth-chrome" .}}
+    <div class="auth-field" aria-hidden="true">{{range .Tiles}}<span class="auth-tile t{{.}}"></span>{{end}}</div>
     <main id="main">{{block "content" .}}{{end}}</main>
-    {{template "site-footer" .}}
+    <footer class="auth-footer">
+      <details class="auth-lang menu" name="menu-group">
+        <summary class="auth-lang-btn" aria-label="{{.LangLabel}}">
+          {{symbol "language" 17}}
+          <span>{{range .Languages}}{{if .On}}{{.Label}}{{end}}{{end}}</span>
+          {{symbol "expand_more" 18}}
+        </summary>
+        <div class="menu-panel glass auth-lang-panel">
+          {{range .Languages}}
+            <a class="lang-opt{{if .On}} on{{end}}" href="{{.Href}}" lang="{{.Code}}"{{if .On}} aria-current="true"{{end}}>
+              <span class="menu-row-label">{{.Label}}</span>
+              <span class="menu-check" aria-hidden="true">{{symbol "check" 18}}</span>
+            </a>
+          {{end}}
+        </div>
+      </details>
+      {{template "footer-links" .}}
+    </footer>
   </div>
 {{else}}
   {{/* No frame at all: an error page, which is chrome for a stranger. See the
-       Frame field's comment in chrome.go.
-
-       Every page inside the shell carries the privacy notice and the source
-       in the About panel at the foot of the rail. This one has no rail, and
-       leaving a stranger on a 404 with no way to either is not a saving
-       worth making, so the footer stands in — as it does for the sign-in
-       family above, for the same reason. */}}
+       Frame field's comment in chrome.go. The footer stands in for the bar:
+       leaving a stranger on a 404 with no way to the privacy notice or the
+       source is not a saving worth making. */}}
   <main id="main">{{template "content" .}}</main>
   {{template "site-footer" .}}
 {{end}}
 </body>
 </html>{{end}}
 
+{{/* The end of every page: the mark and how long the group has been at it,
+     then the privacy notice and the source. An error page drops the count —
+     how much history exists is not for a stranger who typed a wrong address,
+     and the bare frame is the only one a stranger reaches. */}}
 {{define "site-footer"}}
 <footer class="site-footer">
+  <a class="footer-brand" href="{{.TodayHref}}">
+    {{template "mark" .}}
+    <span class="footer-name">{{.T.T "app.name"}}</span>
+    {{if ne .Frame "bare"}}{{with .Subtitle}}<span class="footer-days">· {{.}}</span>{{end}}{{end}}
+  </a>
+  {{template "footer-links" .}}
+</footer>
+{{end}}
+
+{{define "footer-links"}}
+<span class="footer-links">
   <a class="footer-link" href="/privacy">{{.T.T "footer.privacy"}}</a>
+  {{if eq .Frame "app"}}{{template "about" (dict "C" . "Link" true)}}{{end}}
   {{/* Away from the site, so a new tab — see the About panel's copy of this
-       link in sidebar.html for why. The arrow leaving its box is the visible
+       link in topbar.html for why. The arrow leaving its box is the visible
        half of that; the parenthesis after it is the half a screen reader
        gets. */}}
-  <a class="footer-gh" href="https://github.com/martinstenrose/wordleland"
+  <a class="footer-link" href="https://github.com/martinstenrose/wordleland"
      target="_blank" rel="noopener noreferrer">
     {{.T.T "footer.github"}}
     <span class="visually-hidden">({{.T.T "footer.newTab"}})</span>
-    {{template "external-icon" .}}
+    <span class="external-icon">{{symbol "open_in_new" 14}}</span>
   </a>
-</footer>
+</span>
 {{end}}

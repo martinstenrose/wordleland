@@ -1,7 +1,12 @@
 {{define "title"}}{{.T.T "search.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
+<header class="page-head">
+  <div class="page-head-id">
+    <h1 class="page-title">{{.T.T "search.title"}}</h1>
+    <p class="page-sub">{{.T.T "search.placeholder"}}</p>
+  </div>
+</header>
 <section class="card narrow search-page">
-  <h1>{{.T.T "search.title"}}</h1>
   {{/* A plain GET form: typing a query and pressing enter (or the browser's
        own search-field affordances) works with no script at all. app.js
        reuses this exact route for the ⌘K overlay instead of inventing a
@@ -25,18 +30,32 @@
      same markup the full page would have shown for it. */}}
 {{define "search-results"}}
 <div class="search-results">
-  {{if .Results.Players}}
-    <p class="kicker">{{.T.T "search.players"}}</p>
-    <ul class="search-hits">
-      {{range .Results.Players}}<li><a class="search-hit" href="{{.Href}}">{{template "search-hit-icon" .Kind}}<span>{{template "search-hit-label" .}}</span></a></li>{{end}}
-    </ul>
+  {{with .Results.Players}}
+    <p class="kicker">{{$.T.T "search.players"}}</p>
+    <ul class="search-hits">{{range .}}{{template "search-hit" .}}{{end}}</ul>
   {{end}}
-  {{if .Results.Pages}}
-    <p class="kicker">{{.T.T "search.pages"}}</p>
-    <ul class="search-hits">
-      {{range .Results.Pages}}<li><a class="search-hit" href="{{.Href}}">{{template "search-hit-icon" .Kind}}<span>{{template "search-hit-label" .}}</span></a></li>{{end}}
-    </ul>
+  {{with .Results.Pages}}
+    <p class="kicker">{{$.T.T "search.pages"}}</p>
+    <ul class="search-hits">{{range .}}{{template "search-hit" .}}{{end}}</ul>
   {{end}}
-  {{if .Results.Empty}}<p class="muted">{{.T.T "search.noResults"}}</p>{{end}}
+  {{with .Results.Puzzles}}
+    <p class="kicker">{{$.T.T "search.puzzles"}}</p>
+    <ul class="search-hits">{{range .}}{{template "search-hit" .}}{{end}}</ul>
+  {{end}}
+  {{if .Results.Empty}}<p class="search-none">{{.T.T "search.none" .Query .Results.Example}}</p>{{end}}
 </div>
+{{end}}
+
+{{/* One row: a player's result today as a tile, or a glyph; the label; the
+     quiet meta at the end. */}}
+{{define "search-hit"}}
+<li><a class="search-hit" href="{{.Href}}">
+  {{with .Tile}}
+    {{if .Played}}<span class="cell t{{.Tone}} search-tile">{{.Label}}</span>{{else}}<span class="cell gap search-tile">-</span>{{end}}
+  {{else}}
+    <span class="search-glyph">{{symbol .Icon 17}}</span>
+  {{end}}
+  <span class="search-label">{{template "search-hit-label" .}}</span>
+  {{with .Meta}}<span class="search-meta num">{{.}}</span>{{end}}
+</a></li>
 {{end}}

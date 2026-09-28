@@ -465,11 +465,11 @@ func TestStylesheetIsWhole(t *testing.T) {
 	// parse and still serve; only a check for the rules themselves catches
 	// it.
 	for _, selector := range []string{
-		".topbar", ".card", ".board", ".panels", ".panel-head",
-		".month-chip", ".grid", ".signin", ".auth-card", ".menu-panel",
-		".shell", ".sidebar", ".drawer", ".nav-row",
-		".trait", ".season", ".calendar", ".dist", ".strip",
-		".pill-nav", ".activity", ".pending-row",
+		".topbar", ".card", ".board-card", ".page-head", ".page-empty", ".panel-card",
+		".month-row", ".season-row", ".grid", ".grid-card", ".signin", ".auth-card", ".menu-panel",
+		".glass", ".bar-pages", ".bar-menu", ".bar-search", ".pill-card", ".pills",
+		".trait", ".heat", ".dist", ".strip", ".today-hero", ".privacy-row", ".about-panel",
+		".pill-nav", ".activity-row", ".pending-card", ".admin-tabs", ".toast", ".settings-card", ".env-card",
 		".recovery-codes",
 		".account-menu", ".callout", ".result-row", ".form-row",
 	} {
@@ -558,7 +558,7 @@ func TestTheTypefaceIsServed(t *testing.T) {
 	srv := testServer(t)
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	const src = "/static/fonts/manrope-variable.ttf"
+	const src = "/static/fonts/inter-variable.woff2"
 	if !strings.Contains(css, src) {
 		t.Fatalf("the stylesheet does not reference %s", src)
 	}
@@ -567,10 +567,15 @@ func TestTheTypefaceIsServed(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("%s = %d", src, rec.Code)
 	}
-	// An sfnt file starts with a version tag; 0x00010000 is TrueType outlines,
-	// which is what format("truetype-variations") promises the browser.
-	if got := rec.Body.Bytes(); len(got) < 4 || !bytes.Equal(got[:4], []byte{0x00, 0x01, 0x00, 0x00}) {
-		t.Errorf("%s is not a TrueType file (%d bytes, starts %x)", src, len(got), got[:min(4, len(got))])
+	// A WOFF2 file starts with its signature, which is what format("woff2")
+	// promises the browser.
+	if got := rec.Body.Bytes(); len(got) < 4 || !bytes.Equal(got[:4], []byte("wOF2")) {
+		t.Errorf("%s is not a WOFF2 file (%d bytes, starts %x)", src, len(got), got[:min(4, len(got))])
+	}
+	// Named, not sniffed: Go's type table has no .woff2, and a container
+	// image with no mime.types would otherwise send whatever it guessed.
+	if got := rec.Header().Get("Content-Type"); got != "font/woff2" {
+		t.Errorf("%s is served as %q, want font/woff2", src, got)
 	}
 }
 
@@ -694,7 +699,7 @@ func TestEveryLinkIsBoostedExceptTheOnesScriptTakes(t *testing.T) {
 	if !strings.Contains(body, `<body hx-boost="true"`) {
 		t.Fatal("the body is not boosted, so every link reloads the page")
 	}
-	for _, control := range []string{`class="menu-btn search-btn"`, `data-modal`} {
+	for _, control := range []string{`class="bar-search glass"`} {
 		at := strings.Index(body, control)
 		if at < 0 {
 			t.Fatalf("no %s on the security screen", control)
@@ -713,7 +718,7 @@ func TestEveryLinkIsBoostedExceptTheOnesScriptTakes(t *testing.T) {
 	if !strings.Contains(script, "onPageChange.rerun()") || !strings.Contains(script, "htmx:afterSettle") {
 		t.Error("nothing runs the re-init registry after htmx has swapped the body")
 	}
-	for _, enhancement := range []string{"search-overlay", "mountCopy", "[data-raise]"} {
+	for _, enhancement := range []string{"search-overlay", "data-copy-text"} {
 		if !strings.Contains(script, enhancement) {
 			t.Errorf("%s is gone from app.js", enhancement)
 		}
@@ -785,8 +790,11 @@ func TestEveryControlIsOneOfTheFour(t *testing.T) {
 				t.Errorf("%s: a button is styled as prose: %q", path, m[1])
 			}
 			// Everything but the account menu's own row and the icon-only
-			// controls the script builds is a .btn.
-			if slices.Contains(classes, "btn") || slices.Contains(classes, "danger") {
+			// controls — the ones the script builds, About's close, a glyph
+			// in the corner of its sheet, and the search overlay's clear and
+			// esc/Cancel, the design's own — is a .btn.
+			if slices.Contains(classes, "btn") || slices.Contains(classes, "danger") || slices.Contains(classes, "about-close") ||
+				slices.Contains(classes, "search-clear") || slices.Contains(classes, "search-overlay-close") {
 				continue
 			}
 			t.Errorf("%s: a button carries no control class: %q", path, m[1])
@@ -798,7 +806,7 @@ func TestEveryControlIsOneOfTheFour(t *testing.T) {
 	// One box for anchors and buttons alike, which is what stops two of them
 	// standing side by side at different heights.
 	box := cssRule(t, css, ".btn {")
-	for _, want := range []string{"height: 36px", "font-size: var(--text-sm)", "border-radius: var(--radius-md)"} {
+	for _, want := range []string{"height: 40px", "font-size: 14px", "border-radius: var(--radius-pill)"} {
 		if !strings.Contains(box, want) {
 			t.Errorf("the control box is missing %q", want)
 		}
@@ -847,7 +855,7 @@ func TestADestructiveActAsksBeforeItActs(t *testing.T) {
 	// The openers.
 	for _, tt := range []struct{ page, opens string }{
 		{"/admin/settings", "/admin/settings?confirm=slug"},
-		{"/settings/security", "/enroll-totp"},
+		{"/settings/security", "/settings?confirm=rotate"},
 	} {
 		rec, _ := getWith(t, srv, tt.page, cookies)
 		body := rec.Body.String()
@@ -856,9 +864,11 @@ func TestADestructiveActAsksBeforeItActs(t *testing.T) {
 			t.Errorf("%s does not offer %s at all", tt.page, tt.opens)
 			continue
 		}
+		// An outlined danger, or the design's red text link, which is the
+		// same tone in a line of text rather than a row of buttons.
 		opener := body[strings.LastIndex(body[:at], "<a "):at]
-		if !strings.Contains(opener, "btn secondary danger") {
-			t.Errorf("%s: the control opening %s is not an outlined danger: %s", tt.page, tt.opens, opener)
+		if !strings.Contains(opener, "btn secondary danger") && !strings.Contains(opener, "danger-link") {
+			t.Errorf("%s: the control opening %s is not toned as danger: %s", tt.page, tt.opens, opener)
 		}
 	}
 
@@ -867,6 +877,7 @@ func TestADestructiveActAsksBeforeItActs(t *testing.T) {
 	// a form is a control too.
 	for _, tt := range []struct{ page, want string }{
 		{"/admin/settings?confirm=slug", `class="btn danger"`},
+		{"/settings?confirm=rotate", `class="btn danger" href="/settings?setup=totp#two-step"`},
 		{"/enroll-totp", `class="btn danger"`},
 	} {
 		rec, _ := getWith(t, srv, tt.page, cookies)
@@ -887,7 +898,7 @@ func TestADestructiveActAsksBeforeItActs(t *testing.T) {
 	_, plain := login(t, srv, "player@example.tld", testPassword)
 	rec, _ = getWith(t, srv, "/settings/security", plain)
 	body := rec.Body.String()
-	at := strings.Index(body, `href="/enroll-totp"`)
+	at := strings.Index(body, `href="/settings?setup=totp`)
 	if at < 0 {
 		t.Fatal("an account without two-factor is not offered it")
 	}
@@ -932,24 +943,30 @@ func TestSwitchingAPageLeavesItAtTheTop(t *testing.T) {
 			t.Errorf("a focus that scrolls the page: %s", strings.TrimSpace(line))
 		}
 	}
-	// Four: the region, and the three controls the switcher aims at instead
-	// — a ranking row, a section bar, a rail row.
-	if n := strings.Count(switcher, "preventScroll: true"); n != 4 {
-		t.Errorf("%d of the switcher's focus calls prevent scrolling, want 4", n)
+	// Two: the region, and placeFocus, through which the four controls the
+	// switcher aims at instead go — a ranking row, a pill, a page in the
+	// bar, and the phone's capsule.
+	if n := strings.Count(switcher, "preventScroll: true"); n != 2 {
+		t.Errorf("%d of the switcher's focus calls prevent scrolling, want 2", n)
+	}
+	if n := strings.Count(switcher, "placeFocus("); n != 5 {
+		t.Errorf("placeFocus is used %d times, want its definition and the four controls", n)
 	}
 }
 
-// The page's title sits in the same place, at the same size, on every screen.
+// The page's title sits in the same place on every screen.
 //
-// It did not. A card whose title is a menu carried a glyph in front of it — a
-// section icon, a player's initials — which pushed the heading 45px past
-// where a card-head puts one, so moving between the Leaderboard and Players
-// moved the title. Today had the day's headline where every other page has
-// its name, at a different size again, so the title moved on the way in and
-// out of Today as well.
+// It did not. A card whose title was a menu carried a glyph in front of it —
+// a section icon, a player's initials — which pushed the heading 45px past
+// where a card-head puts one, so moving between pages moved the title.
 //
-// Geometry is not something CI can see, so this pins the three rules it comes
-// out of: one heading treatment, one box around it, and a name in it.
+// Now every page but the board names itself the same way: a page head on
+// the canvas, outside any card — an eyebrow, the title, a line under it —
+// with whatever the page has in cards below. The board keeps its card-head
+// while it is being reworked on its own.
+//
+// Geometry is not something CI can see, so this pins the rules it comes out
+// of: one box, nothing in front of the title, and a name in it.
 func TestThePageTitleDoesNotMoveBetweenPages(t *testing.T) {
 	t.Parallel()
 
@@ -960,47 +977,20 @@ func TestThePageTitleDoesNotMoveBetweenPages(t *testing.T) {
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
 
-	// One heading treatment, whatever the title happens to be. Today is not
-	// in this list: it is the front page and leads with the day's result
-	// rather than with its own name, which is a heading of a different kind
-	// and is deliberately set larger.
-	head := cssRule(t, css, ".card-head h1,")
-	for _, rule := range []string{".switcher-label {"} {
-		got := cssRule(t, css, rule)
-		for _, want := range []string{"font-size: var(--text-xl)", "font-weight: 700"} {
-			if !strings.Contains(got, want) || !strings.Contains(head, want) {
-				t.Errorf("%s does not carry %s the way .card-head h1 does: %s", rule, want, got)
-			}
-		}
-		// Line height included, and by leaving it alone rather than by
-		// matching a number. A shorter one moves the glyphs up inside a box
-		// whose top still lines up, and takes the subtitle under them with
-		// it — 1.2 here put the line under a title that is a menu 8px above
-		// the line under a title that is not.
-		if strings.Contains(got, "line-height") {
-			t.Errorf("%s sets a line height .card-head h1 does not: %s", rule, got)
-		}
+	if got := cssRule(t, css, ".page-head {"); !strings.Contains(got, "padding: 8px 4px 6px") {
+		t.Errorf(".page-head does not hold its title at one inset: %s", got)
 	}
-	// And one box around it. The bar and Today's head both take .card-head's
-	// own vertical padding and the card's gutter.
-	for _, rule := range []string{".switcher-bar {", ".today-head {"} {
-		if got := cssRule(t, css, rule); !strings.Contains(got, "16px") {
-			t.Errorf("%s does not take .card-head's vertical padding: %s", rule, got)
-		}
-	}
-	// And one subtitle treatment under it, .kicker's, wherever there is one.
-	if !strings.Contains(fetchAs(t, srv, "/grid", session).Body.String(), `<p class="kicker">`) {
-		t.Error("the grid has no subtitle under its title")
-	}
-	// Nothing in front of the heading inside the bar: that was the 45px.
-	if strings.Contains(css, ".switcher-avatar") || strings.Contains(css, ".switcher-mark") {
-		t.Error("the bar still draws a glyph in front of its heading")
+	// Nothing in front of the heading: that was the 45px.
+	if strings.Contains(css, ".pill-avatar") || strings.Contains(css, ".pill-mark") {
+		t.Error("the head draws a glyph in front of its title")
 	}
 
-	// Every page names itself in an <h1> — except Today, whose <h1> is the
-	// day's result.
+	// Every page names itself in the page head's <h1>, and the head comes
+	// first in the main region, before any card.
 	for _, tt := range []struct{ path, want string }{
-		{"/leaderboard", "The board"},
+		{"/today", "Today"},
+		{"/months", "Months"},
+		{"/grid", "Grid"},
 		{"/players/harda", "Harda"},
 		{"/admin/pending", "Pending results"},
 	} {
@@ -1010,9 +1000,14 @@ func TestThePageTitleDoesNotMoveBetweenPages(t *testing.T) {
 			t.Fatalf("%s has no main region", tt.path)
 		}
 		main := body[at:]
-		open := strings.Index(main, "<h1")
+		head := strings.Index(main, `<header class="page-head">`)
+		if head < 0 || head > strings.Index(main, `class="card`) {
+			t.Errorf("%s does not open on its page head", tt.path)
+			continue
+		}
+		open := strings.Index(main, `<h1 class="page-title">`)
 		if open < 0 {
-			t.Errorf("%s has no title at all", tt.path)
+			t.Errorf("%s has no title in its page head", tt.path)
 			continue
 		}
 		title := main[open:]
@@ -1033,22 +1028,11 @@ func TestTheSectionBarStepsToItsNeighbours(t *testing.T) {
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 	session := signIn(t, srv, admin.ID)
 
-	step := regexp.MustCompile(`<a class="switcher-step" href="([^"]+)" aria-label="([^"]+)"`)
-
-	// Settings is the first of the five, so its "previous" wraps to the last.
-	got := step.FindAllStringSubmatch(fetchAs(t, srv, "/admin/settings", session).Body.String(), -1)
-	if len(got) != 2 {
-		t.Fatalf("got %d step arrows on the first section, want 2", len(got))
-	}
-	if got[0][1] != "/admin/diagnostics" || !strings.Contains(got[0][2], "Diagnostics") {
-		t.Errorf("the first section's previous is %q (%q), want the last one", got[0][1], got[0][2])
-	}
-	if got[1][1] != "/admin/players" || !strings.Contains(got[1][2], "Players") {
-		t.Errorf("the first section's next is %q (%q)", got[1][1], got[1][2])
-	}
+	step := regexp.MustCompile(`<a class="pill-step" href="([^"]+)" aria-label="([^"]+)"`)
 
 	// The roster steps in the board's order, and the arrows name who is there.
-	got = step.FindAllStringSubmatch(fetchAs(t, srv, "/players/harda", session).Body.String(), -1)
+	// (The admin area's five are a tab bar now, every one of them in view.)
+	got := step.FindAllStringSubmatch(fetchAs(t, srv, "/players/harda", session).Body.String(), -1)
 	if len(got) != 2 {
 		t.Fatalf("got %d step arrows on a player, want 2", len(got))
 	}

@@ -1,86 +1,105 @@
 {{define "title"}}{{.T.T "grid.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<section class="card">
-  <div class="card-head">
-    <div>
-      <h1>{{.T.T "grid.title"}}</h1>
-      <p class="kicker">{{.T.T "grid.sub"}}</p>
-    </div>
-    <div class="grid-controls">
-      <span class="legend" aria-label="{{.T.T "grid.legend"}}">
-        <span class="muted small">1</span>
-        {{range .Legend}}<span class="cell t{{.Tone}} tiny">{{.Label}}</span>{{end}}
-        <span class="muted small">X</span>
-      </span>
+{{/* Every score as days by players: the page head with the range and the
+     inactive players' switch opposite, then the grid in a card — its header
+     the players in finishing order with their averages, kept in view as the
+     days scroll under it, and a legend at its foot. A date opens that day's
+     puzzle.
+
+     Pressing a name picks out that player's column and dims the rest;
+     pressing it again, or another name, lets it go. It is a set of radio
+     buttons and a stylesheet, no script: one hidden radio per column plus a
+     "none", each heading a label for its own radio or — while picked — for
+     "none". The rules that tie a radio to its column are written per column
+     below, since a stylesheet cannot count columns on its own. */}}
+<header class="page-head">
+  <div class="page-head-id">
+    <p class="page-eyebrow">{{.Eyebrow}}</p>
+    <h1 class="page-title">{{.T.T "nav.view.grid"}}</h1>
+    <p class="page-sub">{{.T.T "grid.head.sub"}}</p>
+  </div>
+  {{if or .Spans .Hidden .Inactive}}
+    <div class="page-head-tools">
+      {{if .Spans}}
+        <nav class="head-seg" aria-label="{{.T.T "grid.span.label"}}">
+          {{range .Spans}}<a class="{{if .On}}on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
+        </nav>
+      {{end}}
       {{if or .Hidden .Inactive}}
-        <a class="toggle{{if .Inactive}} on{{end}}" href="{{.InactiveHref}}">{{.T.T "grid.inactive" .Hidden}}</a>
+        {{/* On a phone the word goes and the glyph and count stay, so the
+             range and this share one row in every language. */}}
+        <a class="head-toggle{{if .Inactive}} on{{end}}" href="{{.InactiveHref}}"{{if .Inactive}} aria-pressed="true"{{end}} aria-label="{{.T.T "grid.inactiveShort" .Hidden}}" title="{{.T.T "grid.inactiveShort" .Hidden}}">
+          {{if .Inactive}}{{symbol "visibility" 16}}{{else}}{{symbol "visibility_off" 16}}{{end}}
+          <span class="wide-only">{{.T.T "grid.inactiveWord"}}</span><span class="num">({{.T.Integer .Hidden}})</span>
+        </a>
       {{end}}
     </div>
-  </div>
-
-  {{if .Spans}}{{template "pill-nav" (dict "Label" (.T.T "grid.span.label") "Items" .Spans)}}{{end}}
-
-  {{if .Empty}}
-    <p class="empty">{{.T.T "board.empty"}}</p>
-  {{else}}
-  <div class="grid-wrap">
-    <aside class="grid-rail">
-      <p class="kicker">{{.FormLabel}}</p>
-      <ul>
-        {{range .Rail}}
-          <li>
-            <span class="grid-rank muted small num">{{.Rank}}</span>
-            <a class="player" href="{{.Href}}">{{.Name}}</a>
-            <span class="num muted">{{.Form}}</span>
-          </li>
-        {{end}}
-      </ul>
-      <p class="grid-note">{{.T.T "grid.note"}}</p>
-    </aside>
-
-    <div class="grid-scroll">
-      <table class="grid">
-        <colgroup>
-          <col class="date-col">
-          {{range .Columns}}<col class="player-col">{{end}}
-        </colgroup>
-        <thead>
-          <tr>
-            <th class="grid-date">{{.T.T "grid.date"}}</th>
-            {{range .Columns}}<th title="{{.Name}}"><a href="{{.Href}}">{{.Short}}</a></th>{{end}}
-          </tr>
-        </thead>
-        <tbody>
-          {{range .Rows}}
-            <tr>
-              <th class="grid-date" scope="row">
-                <span>{{.Date}}</span>
-                <span class="muted">{{$.T.Puzzle .PuzzleNo}}</span>
-              </th>
-              {{range .Cells}}
-                <td>
-                  {{if .Played}}
-                    {{/* The column heading and the row's own date can both
-                         be scrolled out of view on a wide grid, so the
-                         popup names both — joining the shared name="popup"
-                         group (see base.html). */}}
-                    <span class="cell t{{.Tone}} tiny">
-                      <details class="cell-pop" name="popup">
-                        <summary>{{.Label}}</summary>
-                        <p class="cell-popup popup-panel">{{.Title}}</p>
-                      </details>
-                    </span>
-                  {{else}}
-                    <span class="cell gap tiny"></span>
-                  {{end}}
-                </td>
-              {{end}}
-            </tr>
-          {{end}}
-        </tbody>
-      </table>
-    </div>
-  </div>
   {{end}}
+</header>
+
+{{if .Empty}}
+  {{template "page-empty" (dict "Icon" "grid_view" "Title" (.T.T "grid.empty.title") "Body" (.T.T "grid.empty.body"))}}
+{{else}}
+<section class="card grid-card">
+  <input class="grid-hi" type="radio" name="grid-hi" id="grid-hi-none" checked aria-label="{{.T.T "grid.hi.clear"}}">
+  {{range $i, $c := .Columns}}<input class="grid-hi" type="radio" name="grid-hi" id="grid-hi-{{$i}}" aria-label="{{$.T.T "grid.hi.pick" .Name}}">{{end}}
+  <style>
+    {{range $i, $c := .Columns}}
+    .grid-card:has(#grid-hi-{{$i}}:checked) .gc-{{$i}} .grid-tile { opacity: 1; }
+    .grid-card:has(#grid-hi-{{$i}}:checked) th.gc-{{$i}} { opacity: 1; }
+    .grid-card:has(#grid-hi-{{$i}}:checked) th.gc-{{$i}} .hi-on { display: none; }
+    .grid-card:has(#grid-hi-{{$i}}:checked) th.gc-{{$i}} .hi-off { display: flex; }
+    .grid-card:has(#grid-hi-{{$i}}:focus-visible) th.gc-{{$i}} .grid-head { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
+    {{end}}
+  </style>
+  <div class="grid-scroll">
+    <table class="grid" style="--players: {{len .Columns}}">
+      <thead>
+        <tr>
+          <th class="grid-date">{{.T.T "grid.day"}}</th>
+          {{range $i, $c := .Columns}}
+            <th class="gc-{{$i}}" title="{{.Name}}">
+              <label class="grid-head hi-on" for="grid-hi-{{$i}}"><span class="grid-name-wide">{{.Name}}</span><span class="grid-name-short">{{.Short}}</span><span class="grid-avg num">{{.Form}}</span></label>
+              <label class="grid-head hi-off" for="grid-hi-none"><span class="grid-name-wide">{{.Name}}</span><span class="grid-name-short">{{.Short}}</span><span class="grid-avg num">{{.Form}}</span></label>
+            </th>
+          {{end}}
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Rows}}
+          <tr>
+            <th class="grid-date" scope="row">
+              <a class="grid-date-link num" href="{{.Href}}">{{.Date}}</a>
+              <span class="grid-puzzle muted num">{{$.T.T "player.puzzle" ($.T.Puzzle .PuzzleNo)}}</span>
+            </th>
+            {{range $i, $c := .Cells}}
+              <td class="gc-{{$i}}">
+                {{if .Played}}
+                  {{/* The column heading and the row's own date can both be
+                       scrolled out of view on a wide grid, so the popup names
+                       both — joining the shared name="popup" group (see
+                       base.html). */}}
+                  <span class="cell t{{.Tone}} grid-tile">
+                    <details class="cell-pop" name="popup">
+                      <summary>{{.Label}}</summary>
+                      <p class="cell-popup popup-panel">{{.Title}}</p>
+                    </details>
+                  </span>
+                {{else}}
+                  <span class="cell gap grid-tile"></span>
+                {{end}}
+              </td>
+            {{end}}
+          </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  <ul class="grid-legend">
+    {{range .Legend}}
+      <li><span class="cell{{if .Tone}} t{{.Tone}}{{else}} gap{{end}} grid-legend-tile">{{.Label}}</span>{{.Text}}</li>
+    {{end}}
+  </ul>
 </section>
+{{end}}
 {{end}}

@@ -8,20 +8,21 @@ import (
 )
 
 // numberFormat is how one locale writes a number: what separates the
-// fractional part, and what — if anything — groups the thousands.
+// fractional part, and what groups the thousands.
 //
-// English has no grouping at all. That is deliberate and predates Swedish:
-// the application wrote bare digits before
-// any of this existed, and the puzzle numbers this mostly formats read
-// better as "1918" than as "1,918".
+// English went without grouping for a long time, because the puzzle numbers
+// read better as "1918" than "1,918". Those go through Identifier now, which
+// never groups, so a count can be written the way English writes one:
+// "2,153 puzzles logged".
 type numberFormat struct {
 	decimal string
 	group   string
 }
 
-// Locales that write a number the way English does need no entry. Swedish
-// groups with a space and puts a comma before the fraction.
+// English groups with a comma; Swedish with a space, and puts a comma
+// before the fraction.
 var numberFormats = map[string]numberFormat{
+	"en": {decimal: ".", group: ","},
 	"sv": {decimal: ",", group: " "},
 }
 

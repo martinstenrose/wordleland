@@ -279,7 +279,10 @@ func TestPlayerEditorHidesTheLinkPicker(t *testing.T) {
 	_, session := adminSession(t, srv)
 
 	body := fetchAs(t, srv, "/admin/players/harda", session).Body.String()
-	if strings.Contains(body, `name="user_id"`) {
+	// The editor's own form, that is: a login without a player is attached
+	// from its own row in the list, one button per player it could go to.
+	editor, _ := sectionOf(body, `id="player-form"`, "</form>")
+	if strings.Contains(editor, `name="user_id"`) {
 		t.Error("the editor still offers a login picker")
 	}
 	// The rest of the editor is untouched.
@@ -422,7 +425,7 @@ func TestAdminListAndEditorAreOnePage(t *testing.T) {
 	_, session := adminSession(t, srv)
 
 	list := fetchAs(t, srv, "/admin/players", session).Body.String()
-	if !strings.Contains(list, "admin-split") {
+	if !strings.Contains(list, `class="admin-players"`) {
 		t.Fatal("the roster page has no two-pane layout")
 	}
 	// Nothing chosen yet, so the panel says what to do rather than editing
@@ -430,19 +433,19 @@ func TestAdminListAndEditorAreOnePage(t *testing.T) {
 	if !strings.Contains(list, "Choose a player") {
 		t.Error("the empty panel does not prompt")
 	}
-	if strings.Contains(list, `id="adm-name"`) {
+	if strings.Contains(list, `id="player-form"`) {
 		t.Error("the editor is open with no player chosen")
 	}
 
 	// Following a row opens the panel on that player, list still present.
 	sel := fetchAs(t, srv, "/admin/players/harda", session).Body.String()
-	if !strings.Contains(sel, `id="adm-name"`) {
+	if !strings.Contains(sel, `id="player-form"`) {
 		t.Error("following a row did not open the editor")
 	}
-	if !strings.Contains(sel, "admin-list") {
+	if !strings.Contains(sel, "roster-card") {
 		t.Error("the list disappeared when a player was chosen")
 	}
-	if !strings.Contains(sel, `class="admin-row on"`) {
+	if !strings.Contains(sel, `class="roster-row on"`) {
 		t.Error("the chosen row is not marked")
 	}
 }

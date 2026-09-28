@@ -1,0 +1,25 @@
+{{define "title"}}{{.T.T "nav.admin"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{/* The admin area as a phone opens it: its sections as a list, each saying
+     how it stands. A wide window goes straight into one instead. */}}
+<header class="page-head">
+  <div class="page-head-id">
+    <p class="page-eyebrow">{{.T.T "admin.home.eyebrow"}}</p>
+    <h1 class="page-title">{{.T.T "nav.admin"}}</h1>
+  </div>
+</header>
+<nav class="card admin-list" aria-label="{{.T.T "nav.admin"}}">
+  {{range .Sections}}
+    <a class="admin-list-row" href="{{.Href}}">
+      <span class="admin-list-icon">{{symbol .Icon 19}}</span>
+      <span class="admin-list-id">
+        <span class="admin-list-label">{{.Label}}</span>
+        <span class="admin-list-sub">{{.Sub}}</span>
+      </span>
+      {{if .Badge}}<span class="admin-tab-badge num">{{$.T.Integer .Badge}}</span>{{end}}
+      {{if .OK}}<span class="admin-tab-mark filled">{{symbol "check_circle" 18}}</span>{{end}}
+      <span class="admin-list-chevron">{{symbol "chevron_right" 20}}</span>
+    </a>
+  {{end}}
+</nav>
+{{end}}

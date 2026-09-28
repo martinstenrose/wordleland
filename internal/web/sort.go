@@ -203,7 +203,7 @@ func compareRows(a, b boardRow, column string) int {
 	case sortForm:
 		return compareOptional(a.Form, b.Form)
 	case sortStreak:
-		return compareInt(a.CurrentStreak, b.CurrentStreak)
+		return compareInt(a.PlayStreak, b.PlayStreak)
 	case sortGames:
 		return compareInt(a.Games, b.Games)
 	default:

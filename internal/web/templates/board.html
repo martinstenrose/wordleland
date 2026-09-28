@@ -1,148 +1,134 @@
-{{define "title"}}{{.T.T "board.title"}} — {{.T.T "app.name"}}{{end}}
+{{define "title"}}{{.T.T "nav.view.board"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<section class="card">
-  <div class="card-head">
-    <div>
-      <h1>{{.T.T "board.title"}}</h1>
-      <p class="kicker">{{.T.T "board.rankedBy"}}</p>
-    </div>
+{{/* The board, as the design draws it: the page head with the range and the
+     ranking rules opposite, a head-to-head card while two rows are being
+     compared, then the standings in one card with the notes at its foot.
 
-    {{/* Three chips in a row became one menu. At the width where these
-         matter most they wrapped, which put "count missed as 7" alone on a
-         line away from the toggle it depends on — and the menu gives that
-         dependency somewhere to be stated rather than hidden in a title=
-         that a phone cannot show.
-
-         Every row is a link that flips one rule and keeps the rest of the
-         query, so the whole control works with no script: following a row
-         re-renders the board and the menu closes with the page. It joins
-         the menu-group, so opening it closes whatever else was open. */}}
-    <nav class="controls">
-      <details class="menu ranking" name="menu-group">
-        <summary class="menu-btn ranking-btn">
-          <span class="muted">{{.T.T "board.ranking.label"}}:</span>
-          <span class="ranking-state">{{.Ranking.State}}</span>
-          {{template "chevron-down" .}}
-        </summary>
-        <div class="menu-panel ranking-panel">
-          {{range .Ranking.Groups}}
-            <p class="kicker">{{.Kicker}}</p>
-            {{range .Rows}}
-              <a class="menu-row{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>
-                <span>{{.Label}}</span>
-                <span class="menu-check" aria-hidden="true">{{if .On}}✓{{end}}</span>
-              </a>
-            {{end}}
-          {{end}}
-        </div>
-      </details>
+     Every control is a link — the range, each rule in the ranking menu,
+     the sort on a column head, the ⇄ on a row — so all of it works with
+     no script. One row markup serves both widths: a phone re-flows it into
+     the design's stacked row (see app.css). */}}
+{{with .Toast}}{{template "toast" (dict "Href" .Close "Text" .Text "Undo" .Undo "T" $.T)}}{{end}}
+<header class="page-head">
+  <div class="page-head-id">
+    <p class="page-eyebrow">{{.Eyebrow}}</p>
+    <h1 class="page-title">{{.T.T "nav.view.board"}}</h1>
+    <p class="page-sub">{{.T.T "board.sub"}}</p>
+  </div>
+  <div class="page-head-tools">
+    <nav class="head-seg" aria-label="{{.T.T "board.range.label"}}">
+      {{range .Ranges}}<a class="{{if .On}}on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
     </nav>
-  </div>
-
-  {{if and .Query.HardModeOnly .Board.ExcludedByFilter}}
-    <p class="note">{{.T.TN "board.mode.excluded" .Board.ExcludedByFilter}}</p>
-  {{end}}
-
-  {{if not .Rows}}
-    <div class="empty">
-      <p>{{.T.T "board.empty"}}</p>
-      <p class="muted">{{.T.T "board.emptyHint"}}</p>
-    </div>
-  {{else}}
-  {{/* The board has more columns than a phone is wide. Scrolled
-       rather than squeezed, exactly as the month tables are. */}}
-  <div class="table-scroll">
-  <table class="board">
-    <thead>
-      <tr>
-        {{range .Headers}}
-          <th class="{{if eq .Column "rank"}}rank-col{{else if eq .Column "player"}}left{{else}}right{{end}}{{if .Active}} sorted{{end}}"
-              aria-sort="{{.Aria}}">
-            <a href="{{.Href}}">{{.Label}}<span class="sort-mark" aria-hidden="true">{{if .Active}}{{if .Desc}}▾{{else}}▴{{end}}{{end}}</span></a>
-          </th>
-          {{/* Last 30 days, Last five and Last game are not sortable, so they
-               are emitted here rather than being columns in the list. */}}
-          {{if eq .Column "form"}}
-            <th class="right spark-col">{{$.T.T "board.column.last30"}}</th>
-            <th class="right window-col" title="{{$.T.T "board.column.windowGamesTitle"}}">{{$.T.T "board.column.windowGames"}}</th>
-            <th class="right">{{$.T.T "board.column.lastFive"}}</th>
+    {{/* The rules, as one menu: which games count, and what a result is
+         worth. Every row flips one rule and keeps the rest of the query. */}}
+    <details class="menu ranking" name="menu-group">
+      <summary class="menu-btn ranking-btn{{if .Ranking.Custom}} custom{{end}}" aria-label="{{.T.T "board.ranking.label"}}: {{.Ranking.State}}">
+        {{symbol "tune" 17}}
+        {{/* Dropped on a phone, where the range and this share one row. */}}
+        <span class="muted wide-only">{{.T.T "board.ranking.label"}}:</span>
+        <span class="ranking-state">{{.Ranking.State}}</span>
+        {{symbol "expand_more" 18}}
+      </summary>
+      <div class="menu-panel glass ranking-panel">
+        {{range .Ranking.Groups}}
+          <p class="kicker">{{.Kicker}}</p>
+          {{range .Rows}}
+            <a class="menu-row ranking-row{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>
+              <span class="ranking-text"><span class="ranking-name">{{.Label}}</span><span class="ranking-hint">{{.Hint}}</span></span>
+              <span class="menu-check" aria-hidden="true">{{symbol "check" 19}}</span>
+            </a>
           {{end}}
-          {{if eq .Column "games"}}<th class="right">{{$.T.T "board.column.lastGame"}}</th>{{end}}
         {{end}}
-      </tr>
-    </thead>
-    <tbody>
-      {{$t := .T}}{{$group := .GroupPath}}{{$seen := false}}
-      {{range .Rows}}
-        {{if and (not .Ranked) (not $seen)}}
-          {{$seen = true}}
-          <tr class="divider"><td colspan="10">{{$t.T "board.notRanked"}}</td></tr>
-        {{end}}
-        <tr{{if not .Ranked}} class="unranked"{{end}}>
-          <td class="rank-col num">{{if .Ranked}}{{$.T.Integer .Rank}}{{else}}—{{end}}</td>
-          {{/* The name, and the reason an unranked player is unranked. No
-               trait: a trait is a reading of a whole history and this column
-               is a name, and the board already carries eight columns of the
-               same reading in numbers. It stays on a player's own page, on
-               Today's form cards and in the admin roster. */}}
-          <td class="name"><a class="player" href="{{.Href}}">{{.Name}}</a>
-            {{if .ReasonKey}}{{template "reason" (dict "Label" ($t.T .ReasonKey) "Why" .Why)}}{{end}}
-          </td>
-          <td class="right num strong">{{.AverageText}}</td>
-          <td class="right num">
-            {{.FormText}}
-            {{if .DeltaText}}<span class="delta {{.DeltaDirection}}">{{.DeltaText}}</span>{{end}}
-          </td>
-          <td class="right spark-col">
-            {{if .Ranked}}
-              {{if .HasSpark}}
-              <svg viewBox="0 0 140 30" preserveAspectRatio="none" aria-hidden="true">
-                {{template "spark-grid"}}
-                {{if $group}}<path class="group" d="{{$group}}"/>{{end}}
-                <path class="player" d="{{.SparkPath}}"/>
-              </svg>
-              {{end}}
-            {{else}}
-              <span class="muted small">{{.LastSeenText}}</span>
-            {{end}}
-          </td>
-          <td class="right num window-col">{{if .Ranked}}{{$.T.Integer .FormGames}}{{end}}</td>
-          <td class="right">
-            {{template "last-five" .LastFive}}
-          </td>
-          <td class="right num">{{.StreakText}}</td>
-          <td class="right num">{{$.T.Integer .Games}}</td>
-          <td class="right num">
-            {{if .LastPuzzle}}
-              {{/* Joins the shared name="popup" group (see base.html): a
-                   read-only detail with no fixed spot, exactly like a trait
-                   or a recent-strip cell. No title= — a hover tooltip
-                   saying the same thing as a tap-away popup is one of them
-                   spare, and it is the popup that also works on a phone. */}}
-              <details class="lastgame-pop" name="popup">
-                <summary class="lastgame">{{$.T.Puzzle .LastPuzzle}}</summary>
-                <p class="lastgame-detail popup-panel">{{.LastPuzzleDate}}</p>
-              </details>
-            {{else}}
-              <span class="muted">—</span>
-            {{end}}
-          </td>
-        </tr>
-      {{end}}
-    </tbody>
-  </table>
+        {{with .Ranking.ResetHref}}<a class="btn secondary ranking-reset" href="{{.}}">{{$.T.T "board.ranking.reset"}}</a>{{end}}
+      </div>
+    </details>
   </div>
-  {{end}}
+</header>
 
-  <footer class="card-foot">
-    <span>{{.T.T "board.footer.lines"}}</span>
-    {{if .Query.CountXAsSeven}}
-      <span>{{.T.T "board.footer.averages"}}</span>
+{{if and .Query.HardModeOnly .Board.ExcludedByFilter}}
+  <p class="page-note">{{symbol "info" 18}}<span>{{.T.TN "board.mode.excluded" .Board.ExcludedByFilter}}</span></p>
+{{end}}
+
+{{with .H2H}}
+  <section class="card h2h" aria-live="polite">
+    <span class="h2h-icon">{{symbol "compare_arrows" 19}}</span>
+    {{if .Hint}}
+      <p class="h2h-hint">{{.Hint}}</p>
     {{else}}
-      <span>{{.T.T "board.footer.averagesPlain"}}</span>
+      <div class="h2h-body">
+        <p class="h2h-score num">
+          <span class="h2h-name h2h-a">{{.A}}</span>
+          <span class="h2h-wins h2h-a-wins{{if .AAhead}} ahead{{end}}">{{.AWins}}</span>
+          <span class="h2h-dash">–</span>
+          <span class="h2h-wins h2h-b-wins{{if .BAhead}} ahead{{end}}">{{.BWins}}</span>
+          <span class="h2h-name h2h-b">{{.B}}</span>
+        </p>
+        <p class="h2h-sub">{{.Sub}}</p>
+      </div>
     {{end}}
-    {{if .Query.CountMissed}}<span>{{.T.T "board.footer.missed"}}</span>{{end}}
+    <a class="h2h-close" href="{{.ClearHref}}" aria-label="{{$.T.T "board.h2h.close"}}" title="{{$.T.T "board.h2h.close"}}">{{symbol "close" 18}}</a>
+  </section>
+{{end}}
+
+{{if not .Rows}}
+  {{template "page-empty" (dict "Icon" "leaderboard" "Title" (.T.T "board.empty") "Body" (.T.T "board.emptyHint"))}}
+{{else}}
+<section class="card board-card">
+  <div class="b-row b-head">
+    {{range .Cells}}
+      <span class="{{.Class}}"{{with .Sort}} aria-sort="{{.Aria}}"{{end}}>
+        {{with .Sort}}<a href="{{.Href}}"{{if .Active}} class="sorted"{{end}}>{{.Label}}<span class="sort-mark" aria-hidden="true">{{if .Active}}{{if .Desc}}▾{{else}}▴{{end}}{{end}}</span></a>{{else}}{{.Label}}{{end}}
+      </span>
+    {{end}}
+    <span class="b-cmp"></span>
+  </div>
+  <ol class="b-rows">
+    {{$group := .GroupPath}}{{$seen := false}}
+    {{range .Rows}}
+      {{if and (not .Ranked) (not $seen)}}
+        {{$seen = true}}
+        <li class="b-divider">{{$.T.T "board.notRanked"}}</li>
+      {{end}}
+      <li class="b-row{{if .Compare}} on{{end}}{{if not .Ranked}} unranked{{end}}">
+        <span class="b-rank">
+          <span class="pill-rank num{{if and .Ranked (eq .Rank 1)}} top{{end}}">{{if .Ranked}}{{$.T.Integer .Rank}}{{else}}—{{end}}</span>
+          {{if .Move}}<span class="b-move num {{if .MoveUp}}up{{else}}down{{end}}">{{.Move}}</span>{{end}}
+        </span>
+        <span class="b-id">
+          <span class="b-name-line"><a class="player b-name" href="{{.Href}}">{{.Name}}</a>{{if .ReasonKey}}{{template "reason" (dict "Label" ($.T.T .ReasonKey) "Why" .Why)}}{{end}}</span>
+          <span class="b-gap">{{if .Ranked}}{{.Gap}}{{else}}{{.LastSeenText}}{{end}}</span>
+        </span>
+        <span class="b-avg num">{{.AverageText}}</span>
+        <span class="b-form num"><span class="b-form-label">{{$.T.T "board.formShort"}}</span> {{.FormText}}{{if .DeltaText}} <span class="delta {{.DeltaDirection}}">{{.DeltaText}}</span>{{end}}</span>
+        <span class="b-spark">
+          {{if and .Ranked .HasSpark}}
+            <svg viewBox="0 0 140 30" preserveAspectRatio="none" aria-hidden="true">
+              {{if $group}}<path class="group" d="{{$group}}"/>{{end}}
+              <path class="player" d="{{.SparkPath}}"/>
+            </svg>
+          {{end}}
+        </span>
+        <span class="b-games num">{{$.T.Integer .Games}}</span>
+        <span class="b-five">{{template "last-five" .LastFive}}</span>
+        <span class="b-streak num">{{.StreakText}}</span>
+        {{if .Ranked}}
+          <a class="b-cmp{{if .Compare}} on{{end}}" href="{{.CompareHref}}" aria-pressed="{{if .Compare}}true{{else}}false{{end}}"
+             aria-label="{{$.T.T "board.compare" .Name}}" title="{{$.T.T "board.compare" .Name}}">{{symbol "compare_arrows" 17}}</a>
+        {{else}}
+          <span class="b-cmp"></span>
+        {{end}}
+      </li>
+    {{end}}
+  </ol>
+  <footer class="b-notes">
+    <span>{{.T.T "board.footer.lines"}}</span>
+    <span>{{if .Query.CountXAsSeven}}{{.T.T "board.footer.averages"}}{{else}}{{.T.T "board.footer.averagesPlain"}}{{end}}</span>
+    <span>{{if .Query.CountMissed}}{{.T.T "board.footer.missed"}}{{else}}{{.T.T "board.footer.missedOff"}}{{end}}</span>
     <span>{{.T.T "board.footer.ranked" .MinGames .FormWindow}}</span>
+    <span>{{.T.T "board.footer.arrows"}}</span>
+    <span>{{.T.T "board.footer.streak"}}</span>
+    <span>{{.T.T "board.footer.compare"}}</span>
   </footer>
 </section>
+{{end}}
 {{end}}

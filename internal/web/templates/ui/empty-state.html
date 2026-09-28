@@ -1,0 +1,11 @@
+{{/* A list with nothing in it yet: a glyph in the accent's wash, what is
+     missing, and what will fill it — so an empty card reads as a card
+     waiting rather than a card broken. Data: {Icon string (a symbol name,
+     optional); Title string; Body string (optional)}. */}}
+{{define "empty-state"}}
+<div class="empty-state">
+  {{with .Icon}}<span class="empty-state-icon">{{symbol . 22}}</span>{{end}}
+  <p class="empty-state-title">{{.Title}}</p>
+  {{with .Body}}<p class="empty-state-body">{{.}}</p>{{end}}
+</div>
+{{end}}

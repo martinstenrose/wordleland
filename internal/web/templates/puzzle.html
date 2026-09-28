@@ -1,0 +1,41 @@
+{{define "title"}}{{.Title}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{/* One day, as the design draws it: the date over the puzzle's number, the
+     day in figures under it, and the day before and after as two round
+     buttons opposite. Then everyone who played, best first, each with the
+     squares they posted — or, for a day from before grids were kept, a
+     line that says so and the scores alone. */}}
+<header class="page-head">
+  <div class="page-head-id">
+    <p class="page-eyebrow">{{.Eyebrow}}</p>
+    <h1 class="page-title">{{.Title}}</h1>
+    <p class="page-sub">{{.Sub}}</p>
+  </div>
+  <nav class="page-head-tools head-steps" aria-label="{{.T.T "puzzle.steps"}}">
+    {{if .PrevHref}}<a class="head-step" href="{{.PrevHref}}" aria-label="{{.PrevLabel}}" title="{{.PrevLabel}}">{{symbol "chevron_left" 20}}</a>{{else}}<span class="head-step off" aria-hidden="true">{{symbol "chevron_left" 20}}</span>{{end}}
+    {{if .NextHref}}<a class="head-step" href="{{.NextHref}}" aria-label="{{.NextLabel}}" title="{{.NextLabel}}">{{symbol "chevron_right" 20}}</a>{{else}}<span class="head-step off" aria-hidden="true">{{symbol "chevron_right" 20}}</span>{{end}}
+  </nav>
+</header>
+
+{{with .GridNote}}<p class="page-note">{{symbol "info" 18}}<span>{{.}}</span></p>{{end}}
+
+{{if .Rows}}
+  <section class="card puzzle-card">
+    <ol class="puzzle-rows">
+      {{range .Rows}}
+        <li class="puzzle-row">
+          <span class="puzzle-rank num">{{.Rank}}</span>
+          <span class="cell t{{.Tone}} puzzle-tile">{{.Label}}</span>
+          <span class="puzzle-id">
+            <a class="player puzzle-name" href="{{.Href}}">{{.Name}}</a>
+            <span class="puzzle-sub">{{.Sub}}</span>
+          </span>
+          <span class="puzzle-grid">{{template "pattern" (dict "Grid" .Grid "Size" "lg")}}</span>
+        </li>
+      {{end}}
+    </ol>
+  </section>
+{{else}}
+  {{template "page-empty" (dict "Icon" "tag" "Title" (.T.T "puzzle.empty.title") "Body" (.T.T "puzzle.empty.body"))}}
+{{end}}
+{{end}}
