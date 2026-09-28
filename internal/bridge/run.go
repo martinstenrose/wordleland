@@ -52,7 +52,12 @@ type Bridge struct {
 // SIGNAL_ANNOUNCE_DAYS and SIGNAL_ANNOUNCE_WEEKS. respond may be nil the
 // same way, meaning a message that mentions the bot is treated as any other
 // conversation.
-func New(cfg config.Bridge, deliver Deliverer, announce Announcer, respond Responder, logger *slog.Logger) (*Bridge, error) {
+//
+// client is the Client the app posts to the group with, when it posts.
+// It must be the same one: a reply that quotes one of the bot's posts is
+// matched against what this client sent, and a second client would have
+// sent nothing. Nil builds one, for a bridge that only receives.
+func New(cfg config.Bridge, client *Client, deliver Deliverer, announce Announcer, respond Responder, logger *slog.Logger) (*Bridge, error) {
 	h := newHealth(time.Now)
 	source, err := newWebsocketSource(cfg.SignalAPIURL, cfg.SignalAccount, logger, h)
 	if err != nil {
@@ -64,9 +69,10 @@ func New(cfg config.Bridge, deliver Deliverer, announce Announcer, respond Respo
 		// Only with replies: the reaction and the typing indicator are
 		// the signs of a question being read, and there is no question
 		// without an answer coming.
-		client, err := NewClient(cfg.SignalAPIURL, cfg.SignalAccount, cfg.SignalGroupID)
-		if err != nil {
-			return nil, fmt.Errorf("signal client: %w", err)
+		if client == nil {
+			if client, err = NewClient(cfg.SignalAPIURL, cfg.SignalAccount, cfg.SignalGroupID); err != nil {
+				return nil, fmt.Errorf("signal client: %w", err)
+			}
 		}
 		f.presence = client
 		f.posts = client

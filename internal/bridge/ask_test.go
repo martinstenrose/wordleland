@@ -80,3 +80,65 @@ func TestAQuestionBeyondTheLineIsDropped(t *testing.T) {
 		t.Errorf("the dropped questions were not logged:\n%s", cap.log())
 	}
 }
+
+// A question that waited behind slow answers past maxQuestionWait is
+// dropped when its turn comes, not answered to a conversation that has
+// moved on.
+func TestAQuestionThatWaitedTooLongIsDropped(t *testing.T) {
+	f, cap := testFiler(t)
+	start := time.Date(2026, time.September, 27, 20, 0, 0, 0, time.UTC)
+	var elapsed atomic.Int64
+	f.now = func() time.Time { return start.Add(time.Duration(elapsed.Load())) }
+	release := make(chan struct{})
+	started := make(chan struct{}, 2)
+	var answered atomic.Int32
+	f.respond = func(context.Context, Message) error {
+		started <- struct{}{}
+		<-release
+		answered.Add(1)
+		return nil
+	}
+
+	f.handle(context.Background(), question("who leads?"))
+	<-started // the first has its turn; the clock moves while it answers
+	f.handle(context.Background(), question("and last week?"))
+	elapsed.Store(int64(maxQuestionWait + time.Second))
+	close(release)
+	f.wait()
+
+	if got := answered.Load(); got != 1 {
+		t.Errorf("answered %d questions, want 1", got)
+	}
+	if !strings.Contains(cap.log(), "waited too long") {
+		t.Errorf("the dropped question was not logged:\n%s", cap.log())
+	}
+}
+
+// A panic while answering is logged and costs that answer, not the
+// process, and the next question is still answered.
+func TestAPanickingAnswerIsContained(t *testing.T) {
+	f, cap := testFiler(t)
+	p := &fakePresence{}
+	f.presence = p
+	var calls atomic.Int32
+	f.respond = func(context.Context, Message) error {
+		if calls.Add(1) == 1 {
+			panic("assignment to entry in nil map")
+		}
+		return nil
+	}
+	f.handle(context.Background(), question("who leads?"))
+	f.wait()
+	f.handle(context.Background(), question("and now?"))
+	f.wait()
+	if calls.Load() != 2 {
+		t.Errorf("%d answers attempted, want 2", calls.Load())
+	}
+	if !strings.Contains(cap.log(), "answering a question panicked") {
+		t.Errorf("the panic was not logged:\n%s", cap.log())
+	}
+	// Both answers took the typing indicator down, the panicked one too.
+	if seq := strings.Join(p.sequence(), ","); strings.Count(seq, "stopped") != 2 {
+		t.Errorf("typing was not stopped after each answer: %s", seq)
+	}
+}

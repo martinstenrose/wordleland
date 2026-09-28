@@ -15,6 +15,7 @@ import (
 	"errors"
 	"log/slog"
 	"math/rand"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -191,6 +192,13 @@ func newFiler(groupID string, deliver Deliverer, announce Announcer, respond Res
 // fourth was answered the conversation would have moved on.
 const maxQuestionsInHand = 3
 
+// maxQuestionWait is how long a question may wait for its turn before it
+// is dropped rather than answered. Behind two slow answers a question
+// would otherwise be answered long after the conversation it belonged to
+// moved on. It never got its 👀, which is the sign to the asker that it
+// was not picked up.
+const maxQuestionWait = 2 * time.Minute
+
 // ask answers a question beside the worker rather than on it. The model
 // takes seconds and a result posted meanwhile must not wait for it: scores
 // are what the bridge is for, and chat is what it also does. Answers still
@@ -215,11 +223,26 @@ func (f *filer) ask(ctx context.Context, m Message) {
 		return
 	}
 	f.answers.Add(1)
+	arrived := f.now()
 	go func() {
 		defer f.answers.Done()
 		defer func() { <-f.asking }()
+		// The Supervisor's recover does not reach this goroutine, and an
+		// answer runs code steered by a language model's output: a bug it
+		// finds must cost the answer, not the process.
+		defer func() {
+			if r := recover(); r != nil {
+				f.logger.Error("answering a question panicked",
+					"panic", r, "stack", string(debug.Stack()))
+			}
+		}()
 		f.answering.Lock()
 		defer f.answering.Unlock()
+		if waited := f.now().Sub(arrived); waited > maxQuestionWait {
+			f.logger.Info("dropping a question; it waited too long for its turn",
+				"waited", waited.Round(time.Second))
+			return
+		}
 		f.maybeRespond(ctx, m)
 	}()
 }
@@ -327,9 +350,11 @@ func (f *filer) maybeAnnounce(ctx context.Context) {
 func (f *filer) maybeRespond(ctx context.Context, m Message) {
 	rctx, cancel := context.WithTimeout(ctx, respondTimeout)
 	defer cancel()
-	stop := f.showPresence(rctx, m)
+	// Deferred, so a panic in respond — recovered further up — takes the
+	// typing indicator down with it rather than leaving it running to the
+	// deadline.
+	defer f.showPresence(rctx, m)()
 	err := f.respond(rctx, m)
-	stop()
 	if err != nil {
 		// The question itself is never logged, for the same reason a
 		// message body never is: only that one went unanswered.
