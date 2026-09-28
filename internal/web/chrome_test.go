@@ -68,50 +68,40 @@ func TestEveryPageCarriesThemeAndLocale(t *testing.T) {
 	}
 }
 
-// The navigation drawer, the language picker and the account menu all offer
-// a choice or an action, so they share name="menu-group": the browser closes
-// whichever one was open when another opens. Without a shared name they open
-// independently, which is how the language picker used to leave the theme
-// picker open.
+// The phone's page menu and the account menu — or the guest's, on a share
+// link — both offer a choice or an action, so they share name="menu-group":
+// the browser closes whichever one was open when another opens. Without a
+// shared name they open independently, and a page menu stayed open behind
+// the account menu.
 //
-// The theme picker is no longer among them — it is three links rather than a
-// disclosure — but the reason the group exists outlives it, and the drawer
-// joining it is what keeps a full-height panel from staying open behind a
-// menu.
+// The theme is not among them — it is three links rather than a
+// disclosure — and neither is the language row, which opens in place inside
+// the menu it sits in and would close that menu if it joined the group.
 func TestTopbarMenusAreMutuallyExclusive(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
-
-	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	for _, open := range []string{
-		`<details class="drawer" name="menu-group">`,
-		`<details class="menu" name="menu-group">`,
-	} {
-		if !strings.Contains(body, open) {
-			t.Errorf("%s is not in the menu-group group", open)
-		}
-	}
-	if strings.Contains(body, `<details class="theme`) {
-		t.Error("the theme picker is a disclosure again; it is meant to be three links")
-	}
-}
-
-// The account menu is a menu too, so it must join the same exclusive group
-// as the pickers — otherwise opening it while a picker is open leaves both
-// showing.
-func TestAccountMenuJoinsTheTopbarMenuGroup(t *testing.T) {
-	t.Parallel()
-
-	srv := testServer(t)
-	seedBoard(t, srv)
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 
-	body := fetchAs(t, srv, "/leaderboard", signIn(t, srv, admin.ID)).Body.String()
-	if !strings.Contains(body, `<details class="account" name="menu-group">`) {
-		t.Error("the account menu does not share name=\"menu-group\" with the pickers")
+	shared := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
+	signedIn := fetchAs(t, srv, "/leaderboard", signIn(t, srv, admin.ID)).Body.String()
+	for body, menus := range map[string][]string{
+		shared:   {`<details class="bar-menu menu" name="menu-group">`, `<details class="account guest menu" name="menu-group">`},
+		signedIn: {`<details class="bar-menu menu" name="menu-group">`, `<details class="account menu" name="menu-group">`},
+	} {
+		for _, open := range menus {
+			if !strings.Contains(body, open) {
+				t.Errorf("%s is not in the menu-group group", open)
+			}
+		}
+		if !strings.Contains(body, `<details class="lang-row">`) {
+			t.Error("the language row is missing, or has joined a group it would close its menu with")
+		}
+	}
+	if strings.Contains(shared, `<details class="theme`) {
+		t.Error("the theme picker is a disclosure again; it is meant to be three links")
 	}
 }
 
@@ -173,8 +163,10 @@ func TestLanguageSwitcherChangesTheCopy(t *testing.T) {
 	}
 }
 
-// Switching one setting must not discard the other, or the board's filters.
-// The account menu is for people with accounts.
+// The account menu is for people with accounts. A reader without one — the
+// share link — gets the empty seat in its place: a menu that says why it is
+// empty, the way in, and the two preferences, and nothing that implies an
+// account.
 func TestAccountMenuOnlyForSignedInUsers(t *testing.T) {
 	t.Parallel()
 
@@ -190,31 +182,57 @@ func TestAccountMenuOnlyForSignedInUsers(t *testing.T) {
 	}
 
 	shared := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	if strings.Contains(shared, "account-menu") {
-		t.Error("the shared board offers an account menu")
+	if !strings.Contains(shared, `<details class="account guest menu"`) {
+		t.Error("the shared board has no empty seat where the account would be")
 	}
-	// No badge: the sign-in button is what marks the view as read-only, and
-	// two things saying it was one too many.
-	if strings.Contains(shared, "account-menu") {
-		t.Error("the shared board offers an account menu")
+	for _, account := range []string{`href="/settings"`, `action="/logout"`, `href="/admin/settings"`} {
+		if strings.Contains(shared, account) {
+			t.Errorf("the shared board offers %s", account)
+		}
 	}
 
 	as := func(u store.User) string {
 		return fetchAs(t, srv, "/leaderboard", signIn(t, srv, u.ID)).Body.String()
 	}
 	adminBody := as(admin)
-	if !strings.Contains(adminBody, "account-menu") {
+	if !strings.Contains(adminBody, `<details class="account menu"`) {
 		t.Fatal("no account menu for a signed-in admin")
 	}
-	if !strings.Contains(adminBody, "admin@example.tld") {
+	// Headed by who is signed in: the linked player's name where there is
+	// one, and the address where, as here, there is not.
+	if !strings.Contains(adminBody, `<span class="account-name">admin@example.tld</span>`) {
 		t.Error("the account menu does not show which account is signed in")
 	}
 	if !strings.Contains(adminBody, `href="/admin/settings"`) {
 		t.Error("an admin has no link to the admin area")
 	}
+	if strings.Contains(adminBody, "guest") {
+		t.Error("a signed-in reader is shown the empty seat")
+	}
 
 	if body := as(ordinary); strings.Contains(body, `href="/admin/settings"`) {
 		t.Error("a non-admin is offered the admin area")
+	}
+}
+
+// The account menu is headed by the player the account plays as.
+func TestTheAccountMenuNamesTheLinkedPlayer(t *testing.T) {
+	t.Parallel()
+
+	srv := testServer(t)
+	seedBoard(t, srv)
+	ctx := context.Background()
+	admin, _ := store.UserByEmail(ctx, srv.db, "admin@example.tld")
+	harda, err := store.PlayerBySlug(ctx, srv.db, "harda")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.LinkPlayer(ctx, srv.db, store.AdminActor(admin.ID), harda.ID, &admin.ID); err != nil {
+		t.Fatal(err)
+	}
+	body := fetchAs(t, srv, "/leaderboard", signIn(t, srv, admin.ID)).Body.String()
+	if !strings.Contains(body, `<span class="account-name">`+harda.Name+`</span>`) {
+		t.Errorf("the account menu is not headed by the linked player, %s", harda.Name)
 	}
 }
 
@@ -230,123 +248,11 @@ func TestAccountMenuNeedsNoScript(t *testing.T) {
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 
 	body := fetchAs(t, srv, "/leaderboard", signIn(t, srv, admin.ID)).Body.String()
-	if !strings.Contains(body, "<details class=\"account\" name=\"menu-group\">") {
+	if !strings.Contains(body, `<details class="account menu" name="menu-group">`) {
 		t.Error("the account menu is not a details element")
 	}
 	if strings.Contains(body, "onclick") {
 		t.Error("the account menu carries an inline event handler")
-	}
-}
-
-// Collapsing the rail is a link and nothing else. Following it re-renders at
-// the other width and the cookie remembers; boosted like every other link,
-// it does that without a reload, and no script renders any of it. What it
-// needs from the server is both labels, since the stylesheet shows whichever
-// the width in force calls for.
-func TestTheCollapseControlWorksWithoutScript(t *testing.T) {
-	t.Parallel()
-
-	srv := testServer(t)
-	seedBoard(t, srv)
-	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
-
-	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	control, ok := sectionOf(body, `<a class="nav-row nav-collapse"`, "</a>")
-	if !ok {
-		t.Fatal("the rail has no collapse control")
-	}
-
-	// A link with somewhere to go, not a button waiting for a handler.
-	if !strings.Contains(control, `href="`) {
-		t.Error("the collapse control is not a link")
-	}
-	if !strings.Contains(control, "sidebar=narrow") {
-		t.Error("a wide rail's control does not point at the narrow width")
-	}
-
-	// Both labels, so the wording and the accessible name follow the width
-	// through CSS rather than being written by a script.
-	for _, label := range []string{"Collapse sidebar", "Expand sidebar"} {
-		if !strings.Contains(control, ">"+label+"<") {
-			t.Errorf("the collapse control does not carry %q", label)
-		}
-	}
-
-	// Nothing in the script is about this control: it is one boosted link
-	// among the rest, and <html> takes the width from the page that comes
-	// back. app.js does set the width at the press as well — but off the
-	// ?sidebar= parameter every one of these links carries, the same way it
-	// handles ?theme=. It knows a parameter, not a control.
-	js := fetchAs(t, srv, "/static/app.js", nil).Body.String()
-	if strings.Contains(js, "nav-collapse") {
-		t.Error("app.js still handles the collapse control by hand")
-	}
-}
-
-// The rail's width is remembered the way the theme is: a link sets it, a
-// cookie keeps it, and <html> says which one is in force. Nothing about it
-// depends on a script having run.
-func TestSidebarWidthIsRememberedAndApplied(t *testing.T) {
-	t.Parallel()
-
-	srv := testServer(t)
-	seedBoard(t, srv)
-	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
-
-	rec := fetchAs(t, srv, "/share/"+slug+"/board?sidebar=narrow", nil)
-	if !strings.Contains(rec.Body.String(), `data-sidebar="narrow"`) {
-		t.Error("?sidebar=narrow did not apply")
-	}
-
-	var cookie *http.Cookie
-	for _, c := range rec.Result().Cookies() {
-		if c.Name == sidebarCookie {
-			cookie = c
-		}
-	}
-	if cookie == nil {
-		t.Fatal("collapsing the rail set no cookie")
-	}
-	if got := fetchAs(t, srv, "/share/"+slug+"/", cookie).Body.String(); !strings.Contains(got, `data-sidebar="narrow"`) {
-		t.Error("the remembered width was not applied on a later request")
-	}
-
-	// Wide is the default, and a value that is neither is ignored rather than
-	// written through to the attribute.
-	bad := fetchAs(t, srv, "/share/"+slug+"/board?sidebar=hidden", nil).Body.String()
-	if !strings.Contains(bad, `data-sidebar="wide"`) {
-		t.Error("an unknown width was not rejected")
-	}
-}
-
-// A collapsed rail keeps its labels in the markup. Hiding them with
-// display:none would save the same width and leave every row an icon with no
-// accessible name, which is the kind of saving that costs somebody the page.
-func TestACollapsedRailKeepsItsLabels(t *testing.T) {
-	t.Parallel()
-
-	srv := testServer(t)
-	seedBoard(t, srv)
-	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
-
-	body := fetchAs(t, srv, "/share/"+slug+"/board?sidebar=narrow", nil).Body.String()
-	rail, ok := sectionOf(body, `<nav class="sidebar"`, "</nav>")
-	if !ok {
-		t.Fatal("the rail is missing")
-	}
-	for _, view := range []string{"Today", "Leaderboard", "Months", "Grid", "Players"} {
-		if !strings.Contains(rail, ">"+view+"<") {
-			t.Errorf("the collapsed rail dropped %q from the markup", view)
-		}
-	}
-
-	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	rule, ok := ruleFor(css, `:root[data-sidebar="narrow"] .sidebar .nav-label`)
-	if !ok {
-		t.Fatal("nothing hides the labels when the rail is collapsed")
-	}
-	if strings.Contains(rule, "display: none") {
-		t.Error("the collapsed rail's labels are hidden from assistive technology too")
 	}
 }
 
@@ -367,50 +273,19 @@ func TestTheShellIsDrawnOncePerPage(t *testing.T) {
 		"/admin/activity", "/admin/diagnostics",
 	} {
 		body := fetchAs(t, srv, path, session).Body.String()
-		if got := strings.Count(body, `<nav class="sidebar"`); got != 1 {
-			t.Errorf("%s draws the rail %d times, want 1", path, got)
-		}
 		if got := strings.Count(body, `<header class="topbar">`); got != 1 {
 			t.Errorf("%s draws the bar %d times, want 1", path, got)
 		}
+		if got := strings.Count(body, `<footer class="site-footer">`); got != 1 {
+			t.Errorf("%s draws the footer %d times, want 1", path, got)
+		}
 	}
 
-	// An error page is chrome for a stranger: no rail, no bar, no way into
-	// the rest of the application from a page that says there is nothing here.
+	// An error page is chrome for a stranger: no bar, no way into the rest
+	// of the application from a page that says there is nothing here.
 	notFound := fetchAs(t, srv, "/no-such-page", session).Body.String()
-	if strings.Contains(notFound, `<nav class="sidebar"`) || strings.Contains(notFound, `<header class="topbar">`) {
-		t.Error("a 404 renders the application shell")
-	}
-}
-
-// The drawer opens, closes and reports its state without a line of script:
-// it is a <details>, the browser owns the open state, and nothing here binds
-// a handler to it.
-func TestTheDrawerNeedsNoScript(t *testing.T) {
-	t.Parallel()
-
-	srv := testServer(t)
-	seedBoard(t, srv)
-	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
-
-	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	if !strings.Contains(body, `<details class="drawer" name="menu-group">`) {
-		t.Error("the drawer is not a details element in the menu-group group")
-	}
-	if !strings.Contains(body, `<summary class="menu-btn drawer-btn"`) {
-		t.Error("the drawer has no summary to open it")
-	}
-	if strings.Contains(body, "onclick") {
-		t.Error("the drawer carries an inline event handler")
-	}
-	// Saying it is a modal dialog would be a claim this cannot keep: focus is
-	// free to leave an open drawer, and nothing server-rendered can hold it.
-	drawer, ok := sectionOf(body, `<details class="drawer"`, "</details>")
-	if !ok {
-		t.Fatal("the drawer is missing")
-	}
-	if strings.Contains(drawer, "aria-modal") || strings.Contains(drawer, `role="dialog"`) {
-		t.Error("the drawer claims to be a modal dialog it cannot behave as")
+	if strings.Contains(notFound, `<header class="topbar">`) {
+		t.Error("a 404 renders the application's bar")
 	}
 }
 
@@ -447,10 +322,10 @@ func TestPopupPositioningScriptIsWiredUpAndScoped(t *testing.T) {
 	}
 }
 
-// The two links live once each — in the About panel at the foot of the rail
-// for a page inside the shell, and in the footer for an error page, which has
-// no rail. So this is really a test that every page renders through one of
-// those — signed out, signed in, admin, and the read-only share view alike.
+// The two links end every page, in the footer — the shell's, the sign-in
+// family's and an error page's. So this is really a test that every page
+// renders through one of those — signed out, signed in, admin, and the
+// read-only share view alike.
 func TestEveryPageReachesPrivacyAndTheSource(t *testing.T) {
 	t.Parallel()
 
@@ -482,10 +357,11 @@ func TestEveryPageReachesPrivacyAndTheSource(t *testing.T) {
 	}
 }
 
-// What this is, for someone who followed a link into it. It replaces the page
-// footer, so it has to be on every page inside the shell and to open without a
-// script — the same <details> the drawer and the menus are.
-func TestTheAboutPanelIsOnEveryShellPageAndNeedsNoScript(t *testing.T) {
+// What this is, for someone who followed a link into it: About, in the
+// account menu or the guest's, and again in the footer. It opens without a
+// script — the same <details> the menus are — and in its own group, since it
+// lives inside a menu and a shared group would close the menu it opened from.
+func TestTheAboutPanelIsInEveryAccountMenuAndNeedsNoScript(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
@@ -498,38 +374,27 @@ func TestTheAboutPanelIsOnEveryShellPageAndNeedsNoScript(t *testing.T) {
 		path   string
 		cookie *http.Cookie
 	}{
-		// Not "/": the sign-in family has no rail to hang this off, and
-		// reaches the same two links through the footer instead.
+		// Not "/": the sign-in family has no menu to hang this off, and
+		// reaches the same two links through its footer instead.
 		{path: "/share/" + slug + "/"},
 		{path: "/leaderboard", cookie: session},
 		{path: "/admin/settings", cookie: session},
 	} {
 		body := fetchAs(t, srv, p.path, p.cookie).Body.String()
-		if !strings.Contains(body, `<details class="about" name="about">`) {
-			t.Errorf("%s: no About panel", p.path)
+		if got := strings.Count(body, `<details class="about" name="about">`); got != 1 {
+			t.Errorf("%s: %d About panels in the menus, want one", p.path, got)
 			continue
+		}
+		if got := strings.Count(body, `<details class="about about-footer" name="about">`); got != 1 {
+			t.Errorf("%s: %d About links in the footer, want one", p.path, got)
+		}
+		menu, _ := sectionOf(body, `<div class="menu-panel glass account-menu">`, `<div class="about-panel"`)
+		if !strings.Contains(menu, `<details class="about" name="about">`) {
+			t.Errorf("%s: the About panel is not in the account menu", p.path)
 		}
 		if !strings.Contains(body, "About Wordleland") {
 			t.Errorf("%s: the About panel says nothing about what this is", p.path)
 		}
-		// The rail renders one and the drawer renders the other, sharing a
-		// name so only one can be open — and so that opening the drawer's
-		// does not close the drawer it lives in, which a shared group with
-		// the drawer would.
-		if got := strings.Count(body, `<details class="about" name="about">`); got != 2 {
-			t.Errorf("%s: %d About panels, want one in the rail and one in the drawer", p.path, got)
-		}
-	}
-
-	// And the footer it replaces is gone from inside the shell, so the two
-	// links are in one place rather than two.
-	shell := fetchAs(t, srv, "/leaderboard", session).Body.String()
-	if strings.Contains(shell, `class="site-footer"`) {
-		t.Error("the page footer is still rendered inside the shell")
-	}
-	// It stays on an error page, which has no rail to carry them.
-	if !strings.Contains(fetchAs(t, srv, "/no/such/page", nil).Body.String(), `class="site-footer"`) {
-		t.Error("an error page has neither a rail nor a footer, so it reaches nothing")
 	}
 }
 
@@ -636,9 +501,9 @@ func TestThemeControlOffersAllThree(t *testing.T) {
 		}
 	}
 
-	// System is in force to begin with, and the track says so.
-	if !strings.Contains(body, `class="theme-opt on"`) {
-		t.Error("the track does not mark the setting in force")
+	// System is in force to begin with, and the segmented control says so.
+	if !strings.Contains(body, `class="seg-opt on"`) {
+		t.Error("the segmented control does not mark the setting in force")
 	}
 
 	// And it sits between the two it chooses from: the middle of the track is
@@ -646,8 +511,6 @@ func TestThemeControlOffersAllThree(t *testing.T) {
 	// two are either side of it.
 	at := map[string]int{}
 	for _, code := range []string{"light", "system", "dark"} {
-		// The first occurrence of each is its place in the track, which comes
-		// before the single cycling link the narrow bar uses.
 		if at[code] = strings.Index(body, "theme="+code+`"`); at[code] < 0 {
 			t.Fatalf("no link to the %s theme", code)
 		}
@@ -673,13 +536,6 @@ func TestPickersPreserveTheRestOfTheQuery(t *testing.T) {
 		}
 	}
 
-	narrow := strings.ReplaceAll(hrefFor(t, body, "Fäll ihop sidofältet"), "&amp;", "&")
-	for _, want := range []string{"mode=hard", "lang=sv", "sidebar=narrow"} {
-		if !strings.Contains(narrow, want) {
-			t.Errorf("the collapse link %q dropped %q", narrow, want)
-		}
-	}
-
 	next := fetchAs(t, srv, dark, nil).Body.String()
 	if !strings.Contains(next, `data-theme="dark"`) {
 		t.Error("following the link did not change the theme")
@@ -689,7 +545,8 @@ func TestPickersPreserveTheRestOfTheQuery(t *testing.T) {
 	}
 }
 
-// The language picker is its own menu in the bar, on every surface. What
+// The language is a row in the account menu, or in the guest's on a share
+// link — in the bar, on every surface. What
 // it changes for a signed-in reader is their account, not just this
 // browser — see TestSettingsLanguagePersistsToTheAccount.
 func TestLanguagePickerIsAvailableEverywhere(t *testing.T) {
@@ -719,8 +576,8 @@ func TestLanguagePickerIsAvailableEverywhere(t *testing.T) {
 	}
 
 	shared := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	if strings.Contains(shared, "account-menu") {
-		t.Fatal("the shared board grew an account menu")
+	if strings.Contains(shared, `action="/logout"`) {
+		t.Fatal("the shared board grew an account")
 	}
 	if !strings.Contains(shared, "lang=sv") {
 		t.Error("the shared board has no way to change language")
@@ -731,8 +588,10 @@ func TestLanguagePickerIsAvailableEverywhere(t *testing.T) {
 	}
 }
 
-// The shared bar carries what the design gives it: the read-only badge, the
-// note, and a sign-in button rather than a bare link.
+// The share link's empty seat offers the way in: a button, not a bare link,
+// at the foot of its menu, under the line that says why the seat is empty and
+// the preferences a guest can still set — and nothing in the bar itself,
+// where a sign-in button beside the seat would be two doors to one room.
 func TestSharedBarOffersSignIn(t *testing.T) {
 	t.Parallel()
 
@@ -741,53 +600,49 @@ func TestSharedBarOffersSignIn(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	bar := body[strings.Index(body, "topbar-controls"):strings.Index(body, "</header>")]
-
-	for _, want := range []string{`class="btn"`, "Sign in", "<svg"} {
-		if !strings.Contains(bar, want) {
-			t.Errorf("the shared bar is missing %q", want)
+	menu, ok := sectionOf(body, `<details class="account guest menu"`, `</header>`)
+	if !ok {
+		t.Fatal("the shared bar has no empty seat")
+	}
+	for _, want := range []string{"Viewing as guest", "You opened a shared link", `<a class="btn account-signin" href="/">`, "Sign in"} {
+		if !strings.Contains(menu, want) {
+			t.Errorf("the guest menu is missing %q", want)
 		}
 	}
-	if !strings.Contains(bar, `href="/"`) {
-		t.Error("the sign-in button does not point at the login page")
+	if strings.Index(menu, "account-signin") < strings.Index(menu, `<details class="about"`) {
+		t.Error("the way in is not the last thing the guest menu offers")
+	}
+	bar, _ := sectionOf(body, `<header class="topbar">`, `<details class="account guest menu"`)
+	if strings.Contains(bar, `class="btn`) {
+		t.Error("the bar carries a sign-in button of its own beside the seat")
 	}
 
 	// Signed in, there is nothing to sign in to.
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 	in := fetchAs(t, srv, "/today", signIn(t, srv, admin.ID)).Body.String()
-	if strings.Contains(in[:strings.Index(in, "</header>")], `class="btn"`) {
+	if strings.Contains(in[:strings.Index(in, "</header>")], "account-signin") {
 		t.Error("a signed-in reader is offered a sign-in button")
 	}
 }
 
-// The bar stands on the surface and the page on the canvas, and the search
-// control takes the page's ground rather than the bar's — which is what makes
-// it read as a field cut into the bar instead of a button sitting on it.
-func TestTheSearchControlSitsOnThePagesGround(t *testing.T) {
+// Search is glass like the rest of the bar, and its shortcut is a key cap
+// on the surface, which is what makes it read as raised out of the field.
+func TestTheSearchControlIsGlassWithAKeyCap(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	body := fetchAs(t, srv, "/leaderboard", session).Body.String()
+	if !strings.Contains(body, `<a class="bar-search glass" href="/search"`) {
+		t.Error("the search control is not a glass link to the search page")
+	}
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-
-	bar := cssRule(t, css, ".topbar {")
-	if !strings.Contains(bar, "background: var(--color-surface)") {
-		t.Error("the bar does not stand on the surface")
-	}
-
-	searchBtn := cssRule(t, css, ".search-btn {")
-	if !strings.Contains(searchBtn, "background: var(--color-canvas)") {
-		t.Error(".search-btn does not take the page's ground")
-	}
-
-	// The chip is a key cap: it steps back off that ground, which is what
-	// makes it read as raised out of the control.
-	shortcut := cssRule(t, css, ".search-shortcut {")
-	if !strings.Contains(shortcut, "font-size: var(--text-xs)") {
-		t.Error("the shortcut chip is not the smallest step")
-	}
-	if !strings.Contains(shortcut, "background: var(--color-surface-raised)") {
-		t.Error("the shortcut chip does not step off the control's ground")
+	key := cssRule(t, css, ".bar-search-key {")
+	if !strings.Contains(key, "background: var(--color-surface)") {
+		t.Error("the shortcut is not a key cap on the surface")
 	}
 }
 
@@ -815,31 +670,6 @@ func cssRule(t *testing.T, css, prefix string) string {
 	return css[start : start+end]
 }
 
-// On a narrow screen the sign-in button drops its text and keeps just the
-// icon, matching the search button's own label-hiding rule at the same
-// breakpoint — aria-label is what carries the accessible name once the
-// visible text is display:none.
-func TestSignInButtonDropsItsLabelOnMobile(t *testing.T) {
-	t.Parallel()
-
-	srv := testServer(t)
-	seedBoard(t, srv)
-	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
-
-	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-	if !strings.Contains(body, `aria-label="Sign in"`) {
-		t.Fatal("the sign-in button has no accessible name to fall back on")
-	}
-	if !strings.Contains(body, `<span class="btn-label">Sign in</span>`) {
-		t.Fatal("the sign-in button's label is not its own element to hide")
-	}
-
-	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	if !strings.Contains(css, ".btn-label { display: none; }") {
-		t.Error("no rule hides the sign-in label on a narrow screen")
-	}
-}
-
 // The search button's word is there, but quiet: the icon already says
 // "search", so the label is a muted hint rather than a second copy of the
 // same information at full strength. aria-label backs it up regardless,
@@ -852,7 +682,7 @@ func TestSearchButtonLabelIsPresentButFaded(t *testing.T) {
 	_, session := adminSession(t, srv)
 
 	body := fetchAs(t, srv, "/leaderboard", session).Body.String()
-	start := strings.Index(body, `class="menu-btn search-btn"`)
+	start := strings.Index(body, `class="bar-search glass"`)
 	if start < 0 {
 		t.Fatal("no search button on the page")
 	}
@@ -870,13 +700,13 @@ func TestSearchButtonLabelIsPresentButFaded(t *testing.T) {
 	}
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	if !strings.Contains(css, ".search-label { color: var(--color-text-45); flex: 1; text-align: left; }") {
+	if !strings.Contains(cssRule(t, css, ".bar-search {"), "color: var(--color-muted)") {
 		t.Error("the search label is not styled as faded")
 	}
 }
 
 // The door is its own arrangement, not the application shell with the
-// navigation taken out of it: a rail emptied down to a wordmark is a menu
+// navigation taken out of it: a bar emptied down to a wordmark is a menu
 // with nothing in it, which reads as an app that has lost its own rather
 // than as a way in.
 func TestTheSignInFamilyHasItsOwnFrame(t *testing.T) {
@@ -890,14 +720,14 @@ func TestTheSignInFamilyHasItsOwnFrame(t *testing.T) {
 		if !strings.Contains(body, `<div class="auth-frame">`) {
 			t.Errorf("%s is not drawn in the auth frame", path)
 		}
-		for _, gone := range []string{`class="sidebar"`, `<header class="topbar">`, `class="shell-main"`} {
+		for _, gone := range []string{`<header class="topbar">`, `<div class="page">`} {
 			if strings.Contains(body, gone) {
 				t.Errorf("%s still draws %s", path, gone)
 			}
 		}
-		// No rail means no About panel, so the footer is how these two
+		// No bar means no menu to carry Help, so the footer is how these two
 		// links stay reachable.
-		if !strings.Contains(body, `class="site-footer"`) {
+		if !strings.Contains(body, `<footer class="auth-footer">`) {
 			t.Errorf("%s reaches neither the privacy notice nor the source", path)
 		}
 	}
@@ -905,11 +735,11 @@ func TestTheSignInFamilyHasItsOwnFrame(t *testing.T) {
 	// The three frames are distinct, and each page gets exactly one.
 	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
 	app := fetchAs(t, srv, "/today", signIn(t, srv, admin.ID)).Body.String()
-	if !strings.Contains(app, `<div class="shell">`) || strings.Contains(app, "auth-frame") {
+	if !strings.Contains(app, `<div class="page">`) || strings.Contains(app, "auth-frame") {
 		t.Error("an application page is not drawn in the application shell")
 	}
 	bare := fetchAs(t, srv, "/no/such/page", nil).Body.String()
-	if strings.Contains(bare, "auth-frame") || strings.Contains(bare, `<div class="shell">`) {
+	if strings.Contains(bare, "auth-frame") || strings.Contains(bare, `<div class="page">`) {
 		t.Error("an error page is drawn in a frame")
 	}
 }

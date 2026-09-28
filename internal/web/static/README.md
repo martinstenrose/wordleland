@@ -12,8 +12,8 @@ scale are the Stenröse design system's, which lives outside this repository as
 a Claude Design project; Wordleland was drawn against it there before it was
 built here. What that means for anyone editing this file: a value that looks
 arbitrary probably isn't ours to re-pick in isolation. What was *not* taken
-from it is called out below — chiefly the dark score ramp, which the design
-only draws light-first.
+from it is called out below — chiefly the inks on the score ramp, which the
+design draws below 4.5:1.
 
 Colours are `oklch`. That is the design system's own notation, and it is the
 reason the alpha steps below can be one colour repeated at N% without the
@@ -38,7 +38,16 @@ muddy midpoints an `rgba` ramp gives over a tinted ground.
 | `--color-accent-NN` | Same idea over the accent hue — the "on" state of pickers, focus rings, hover fills |
 | `--score-1` … `--score-6` | The guess-count fill ramp, one step per guess (`.cell.t1`–`.t6`, `.cal.t1`–`.t6`) |
 | `--score-x` | A miss (`.cell.t7`, `.cal.t7`). Off the ramp, on the danger hue: a miss is not a seventh guess, it is the other outcome |
-| `--score-ink`, `--score-ink-alt`, `--score-x-ink` | The text colour that stays legible on a score fill: `--score-ink` on the strong end (tiers 1–2), `--score-ink-alt` on the weak end (3–6), `--score-x-ink` on the miss. Which of the first two is the pale colour flips between themes, because a fill that is bright on a dark canvas is deep on a light one; the tier the boundary falls after is the same in both, which is what lets one set of rules paint both themes |
+| `--score-ink`, `--score-3-ink`, `--score-ink-alt`, `--score-x-ink` | The text colour that stays legible on a score fill: `--score-ink` (the accent's own ink) on the full-strength fill of tiers 1–2, `--score-3-ink` on tier 3, `--score-ink-alt` (the text colour) on 4–6, `--score-x-ink` on the miss. Tier 3 is the one whose ink turns over with the theme — see the ramp below |
+| `--color-border`, `--color-sep`, `--color-muted` | The design system's own names for a hairline, the rule between rows, and secondary text — the three roles the text-alpha ramp spells as steps, named where a rule drawn from the mockups wants the design's word for them |
+| `--color-tint` | The accent's wash: a callout's glyph, the phone's page capsule, a filter pill in force |
+| `--color-track`, `--color-seg` | A segmented control's track and its raised segment — the theme control, the settings tabs on a phone, the language list |
+| `--grid-present` | The yellow of a letter in the word but in the wrong place, in a posted grid (`.pattern .sq.y`). A letter in place is the accent and one not in the word the border colour: the game's own three, not the score ramp's, since these are the game's squares |
+| `--color-rail` | The ground a step down from a card's, for the pill row's card and the fade at its edge on a phone: a shade between the canvas and the surface, so the row reads as set back from the content under it |
+| `--glass-bg`, `--glass-border`, `--glass-shadow`, `--glass-filter`, `--glass-hover` | Liquid Glass, for what floats and nothing else: the bar's pieces, their menus, the figures' half of the sign-in card. A surface the page shows through, a hairline of light round it, a highlight along its top edge and a soft shadow under it — the design's `glass()` recipe value for value — and the fill a pressed or current thing takes on it. `--glass-filter` is the blur and saturation behind it, painted on the piece's `::before` |
+| `--glass-menu-bg`, `--glass-menu-border`, `--glass-menu-shadow`, `--glass-menu-filter` | The same glass, frosted harder, for what floats and carries text: a menu, the toast, the search overlay, the sign-in card. The design's Frosted strength, which is what this app uses throughout; its Clear is not used |
+| `--scrim` | The veil over the page while the search overlay is open: warm and light in the light theme, darker in the dark |
+| `--search-well` | The filled field the search overlay's input sits in on a phone, as iOS draws a search field |
 
 **Why `--color-canvas` and `--color-surface` are two tokens:** every page is
 a full layout of cards on a page background, so the card itself needs a
@@ -54,19 +63,25 @@ dropped fifteen steps no rule ever used and added six that dark mode needed
 but only the light blocks defined; `--color-text-07` survived that pass unused
 and has since been dropped too.
 
-**The score ramp is the design system's, mirrored.** Its ramp is drawn for a
-light canvas: one hue stepping from a deep solved-in-1 down to a near-white
-tint. Those pale steps would glare on the dark canvas, so the dark ramp here
-is derived rather than copied — same hue, lightness running the other way, so
-that a strong fill is *bright* in dark mode and *deep* in light mode. That is
-also why `--score-ink` and `--score-ink-alt` swap which of them is the pale
-colour between the two blocks. The fills are opaque in both, so a tile's
-border is its own fill; there is no separate border token for a tier.
+**The score ramp is the design system's, and so is its formula.** A 2 is the
+accent at full strength and each guess after it is less of it: 78, 52, 30 and
+14 percent, mixed in sRGB into the raised surface. A 1 is drawn as a 2 —
+there is no stronger green to give it. The formula is written once, in the
+first token block: a custom property that uses `var()` is worked out on the
+element that declares it, so each theme's accent and surface arrive through
+the same line and a strong fill comes out deep in light mode and bright in
+dark without a second ramp. Mixed in OKLCH instead, the middle of the ramp
+walks through yellow on its way to a warm grey, and a 4 came out olive. The
+fills are opaque, so a tile's border is its own fill.
 
-Both ends of the ramp are pulled a little further apart than the design system
-draws them, so that the ink sitting on each fill clears 4.5:1. Every tier
-carries a digit at 11px, which is the content rather than decoration, and the
-design's own tier-2 green put white text at about 3.2:1.
+The inks are where this departs from the design, which puts the accent's own
+white on every tile down to 52%. Measured on the light canvas that is 3.2:1
+at 78% and 2.2:1 at 52%, and every tile carries a digit that is the content
+rather than decoration. So the pale half takes the text colour — from 78% in
+light mode, and from 52% in dark, where the accent is bright enough to carry
+dark ink at 78%. That is why tier 3 has an ink of its own. The full tile
+carries white at 4.3:1 in light mode, a shade under 4.5; the digit is bold,
+and the design's green was kept rather than darkened to clear it.
 
 Before this ramp existed there were four tiers, and a 5, a 6 and a miss all
 landed in the grey text ramp — so the three outcomes a player most wants to
@@ -82,8 +97,10 @@ two themes carry separately tuned alphas.
 
 ## Border radius
 
-`--radius-lg` (12px) is the card and panel radius and `--radius-md` (8px) the
-control radius. `--radius-xl` (14px) is a step above `--radius-lg`, for a
+`--radius-card` (22px) is the card radius, from the design's 20–24px, and
+`--radius-card-lg` (24px) the header card's and a menu's a step above it.
+`--radius-lg` (12px) is the panel radius inside a card and `--radius-md` (8px)
+the old control radius, which buttons have left for `--radius-pill`. `--radius-xl` (14px) is a step above `--radius-lg`, for a
 surface that floats free of the page rather than sitting in it — currently the
 search palette. `--radius-xs` (3px), `--radius-sm` (6px), `--radius-pill`
 (999px) and `--radius-circle` (50%) cover tiles, badges and pill-shaped
@@ -124,35 +141,40 @@ rendered before/after is the wrong tradeoff to make blind.
 
 ## Fonts and transitions
 
-`--font-body` is Manrope, the design system's typeface, and `fonts/` holds it.
-It is served from here rather than from a font CDN: a page that reaches a
-third party to finish rendering is a page this app does not control, and one
-more party watching whoever reads the board. One variable file carries the
-whole 200–800 range, so a bold costs no second request; `font-display: swap`
-because the board reads fine in the fallback and a blocked paint is worse than
-a reflow. The file is the design system's own, renamed from its upstream
-`Manrope[wght].ttf` only to keep brackets out of a URL, and `Manrope-OFL.txt`
-beside it is the licence the OFL requires to travel with it.
+`--font-body` is the Apple system font where there is one — SF Pro, which
+Apple licenses only as the system font, so it is named in the stack and never
+served — and Inter everywhere else, as the closest match to it. Inter is
+served from here rather than from a font CDN: a page that reaches a third
+party to finish rendering is a page this app does not control, and one more
+party watching whoever reads the board. An Apple device never asks for it,
+because the system font ahead of it in the stack answers first, so the bytes
+go only where they are used. One variable file carries the whole 100–900
+range, so a bold costs no second request; `font-display: swap` because the
+board reads fine in the fallback and a blocked paint is worse than a reflow.
+The file is the Inter project's own `InterVariable.woff2`, renamed only to
+match the other lower-case paths, and `Inter-OFL.txt` beside it is the licence
+the OFL requires to travel with it. It is served as `font/woff2` by name:
+Go's own type table has no entry for it.
 
-It is a 165 KB `.ttf`. A `.woff2` would be roughly a third of that, but
-producing one needs a font toolchain, and a build step is the thing this
-directory exists to avoid.
+Every figure is tabular (`font-variant-numeric: tabular-nums` on the body):
+scores, averages, dates and counts are read down columns, and a 1 narrower
+than a 4 moves the column.
 
 `--font-mono` is the monospace stack, which had quietly drifted into two
 different forms (some rules omitted `SFMono-Regular`); both now share one
-token. `--transition-fast` (`.12s ease`) tokenizes the settings switch's two
-transition rules, which were already identical but repeated by hand.
+token. `--transition-fast` (`.12s ease`) is the older of the two short
+transitions; `--transition-quiet` (`.2s ease`) is the glass bar's and the
+controls': a pill lighting, a chevron turning, a switch's knob — short and
+quiet, and never a spring.
 `--transition-page` (`.16s`) is how long a page takes to become the next
 one: the view transition every htmx swap runs. The browser pauses
 rendering for the whole of it, so it is short.
 
-Three `view-transition-name`s go with that token and are a fixed
-vocabulary: `topbar` on `.topbar`, `rail` on `.sidebar`, and `content` on
-`#main` inside the shell only. A named element holds still (or morphs)
-across a swap while everything unnamed cross-fades; a name must be unique
-on each side of a swap or the browser abandons the transition, so nothing
-else may claim one of these, and nothing else should need a name of its
-own. The reasoning is in `docs/decisions.md`, *A switch looks like one*.
+Nothing is named for it. An element with a `view-transition-name` is a
+backdrop root, and the glass inside a named bar frosts only its own empty
+box, so the whole window cross-fades instead — the bar, the same pixels on
+both sides of a swap, holds still through the blend anyway. The reasoning is
+in `docs/decisions.md`, *The navigation floats*.
 
 ## One deliberate non-token
 

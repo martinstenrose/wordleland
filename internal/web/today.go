@@ -19,6 +19,8 @@ type calloutView struct {
 	Args []any
 	Meta string
 	Href string
+	// Icon is the glyph the callout's card leads with; see calloutSymbols.
+	Icon string
 }
 
 // todayResultRow is one filed result, as the day's own table shows it.
@@ -39,14 +41,19 @@ type todayResultRow struct {
 	Label string
 	Tone  int
 
-	// AvgText is the all-time average the delta is measured against — or,
-	// for a player the board does not rank, why there is none.
+	// AvgText is the all-time average the delta is measured against, or
+	// "—" for a player the board does not rank; AvgWhy is then why, opened
+	// from the dash — a count in the column wrapped to two lines.
 	AvgText string
+	AvgWhy  string
 	// DeltaText is today's score against this player's own average: the
 	// figure that turns a 4 into a good or a bad day for them. Direction is
 	// the shared "better"/"worse"/"level" vocabulary.
 	DeltaText      string
 	DeltaDirection string
+
+	// Grid is the squares the player posted, "" when none were kept.
+	Grid string
 }
 
 type todayPage struct {
@@ -58,6 +65,10 @@ type todayPage struct {
 
 	PuzzleNo int
 	DateLong string
+	// PuzzleHref is the day's own page; GridsFrom the first puzzle the
+	// board kept a grid for, 0 when it has none yet.
+	PuzzleHref string
+	GridsFrom  int
 
 	Results []todayResultRow
 	Missing []string
@@ -80,7 +91,65 @@ type todayPage struct {
 	// playing, and the list grows forever as people drift away.
 	Benched      []boardRow
 	BenchedCount int
+
+	// Winners is everybody on today's best score, each with the tile they
+	// took it with.
+	Winners []todayWinner
+	// Spread is today's results by guess count, 1 to 6 and a miss: the
+	// shape of the day at a glance, beside the headline that names its best.
+	Spread []spreadBar
+	// GroupToday is today's mean over everyone who has filed, a miss as 7;
+	// GroupUsual the same over the ninety days before, so a hard puzzle
+	// reads as one.
+	GroupToday string
+	GroupUsual string
+
+	// Standing is the month so far, for the strip under the day: who leads
+	// it and the two behind. Nil outside a month with anybody ranked in it.
+	Standing *todayStanding
 }
+
+// todayWinner is one name on today's best score.
+type todayWinner struct {
+	Name  string
+	Href  string
+	Label string
+	Tone  int
+}
+
+// spreadBar is one guess count in today's spread.
+type spreadBar struct {
+	Label string
+	Count int
+	Tone  int
+	// Height is the bar's in pixels: the tallest is the full height, and one
+	// with nothing in it is a sliver of track so the scale still reads.
+	Height int
+}
+
+// todayStanding is the month's race, summarised for the front page.
+type todayStanding struct {
+	// Label is the month and how much of it is left.
+	Label string
+	// Line says who leads, and by how much.
+	Line  string
+	Pills []standingPill
+	Href  string
+}
+
+type standingPill struct {
+	Rank    string
+	Name    string
+	Href    string
+	Average string
+	Top     bool
+}
+
+// spreadHeight is the tallest bar in today's spread, in pixels.
+const spreadHeight = 54
+
+// usualWindow is how many puzzles "usually" looks back over.
+const usualWindow = 90
 
 // todayFormRow distinguishes position by form from the all-time board rank.
 type todayFormRow struct {
@@ -134,6 +203,12 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 		page.FiledPercent = percent(page.FiledCount, page.Expected)
 	}
 	page.Results = todayResults(ch.T, today, board, prefix)
+	page.PuzzleHref = puzzlePath(prefix, today.PuzzleNo)
+	for _, res := range results {
+		if res.Grid != "" && (page.GridsFrom == 0 || res.PuzzleNo < page.GridsFrom) {
+			page.GridsFrom = res.PuzzleNo
+		}
+	}
 	for _, p := range today.Missing {
 		page.Missing = append(page.Missing, p.Name)
 	}
@@ -198,6 +273,10 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 		page.Form = append(page.Form, view)
 	}
 
+	page.Winners, page.Spread = todaySpread(today, prefix)
+	page.GroupToday, page.GroupUsual = groupAverages(ch.T, today, results)
+	page.Standing = s.todayStanding(ch.T, players, results, board, prefix, now)
+
 	page.BenchedCount = len(board.Unranked)
 	for _, p := range board.Unranked {
 		page.Benched = append(page.Benched, s.newBoardRow(p, prefix, ch.T, traits, results, board.CurrentPuzzle))
@@ -215,7 +294,7 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request, prefix, boa
 
 // calloutFor turns a computed observation into a localised line.
 func (s *Server) calloutFor(c stats.Callout, prefix string, t translator) calloutView {
-	view := calloutView{Kind: c.Kind, Key: "callout." + c.Kind}
+	view := calloutView{Kind: c.Kind, Key: "callout." + c.Kind, Icon: calloutSymbols[c.Kind]}
 	if c.Slug != "" {
 		view.Href = prefix + "/players/" + c.Slug
 	}
@@ -289,6 +368,7 @@ func todayResults(t translator, today stats.Today, board stats.Board, prefix str
 			Href:  prefix + "/players/" + e.Slug,
 			Label: "X",
 			Tone:  7,
+			Grid:  e.Grid,
 		}
 		if e.Solved {
 			row.Label, row.Tone = strconv.Itoa(e.Guesses), e.Guesses
@@ -300,7 +380,8 @@ func todayResults(t translator, today stats.Today, board stats.Board, prefix str
 		p, isRanked := ranked[e.ID]
 		if !isRanked {
 			row.Pos, row.DeltaDirection = "\u2014", "level"
-			row.AvgText = t.TN("today.benchedGames", games[e.ID])
+			row.AvgText = "\u2014"
+			row.AvgWhy = t.TN("today.benchedWhy", games[e.ID]) + " " + t.T("today.rankedFrom", stats.MinGames)
 			out = append(out, row)
 			continue
 		}
@@ -320,4 +401,130 @@ func todayResults(t translator, today stats.Today, board stats.Board, prefix str
 		out = append(out, row)
 	}
 	return out
+}
+
+// todaySpread reads today's results into the names on the best score and the
+// count on each guess.
+func todaySpread(today stats.Today, prefix string) ([]todayWinner, []spreadBar) {
+	var counts [7]int
+	var winners []todayWinner
+	for _, e := range today.Filed {
+		tone := 7
+		label := "X"
+		if e.Solved {
+			tone, label = e.Guesses, strconv.Itoa(e.Guesses)
+		}
+		if tone >= 1 && tone <= 7 {
+			counts[tone-1]++
+		}
+		if e.HardMode {
+			label += "*"
+		}
+		if today.Best != nil && e.Solved && e.Guesses == today.Best.Guesses {
+			winners = append(winners, todayWinner{Name: e.Name, Href: prefix + "/players/" + e.Slug, Label: label, Tone: tone})
+		}
+	}
+	if len(today.Filed) == 0 {
+		return winners, nil
+	}
+	most := 0
+	for _, n := range counts {
+		most = max(most, n)
+	}
+	bars := make([]spreadBar, 0, len(counts))
+	for i, n := range counts {
+		bar := spreadBar{Label: strconv.Itoa(i + 1), Count: n, Tone: i + 1, Height: 3}
+		if i == 6 {
+			bar.Label = "X"
+		}
+		if n > 0 {
+			bar.Height = max(6, n*spreadHeight/most)
+		}
+		bars = append(bars, bar)
+	}
+	return winners, bars
+}
+
+// groupAverages is today's group mean and its usual one, a miss counted as 7
+// in both — the one reading of a miss every figure on this page shares.
+func groupAverages(t translator, today stats.Today, results []store.BoardResult) (string, string) {
+	score := func(solved bool, guesses int) float64 {
+		if !solved {
+			return 7
+		}
+		return float64(guesses)
+	}
+	var todaySum float64
+	for _, e := range today.Filed {
+		todaySum += score(e.Solved, e.Guesses)
+	}
+	var usualSum float64
+	var usualN int
+	for _, r := range results {
+		if r.PuzzleNo < today.PuzzleNo && r.PuzzleNo >= today.PuzzleNo-usualWindow {
+			usualSum += score(r.Solved, r.Guesses)
+			usualN++
+		}
+	}
+	var avg, usual *float64
+	if n := len(today.Filed); n > 0 {
+		v := todaySum / float64(n)
+		avg = &v
+	}
+	if usualN > 0 {
+		v := usualSum / float64(usualN)
+		usual = &v
+	}
+	return formatScore(t, avg), formatScore(t, usual)
+}
+
+// todayStanding summarises the month in progress: who leads, by how much,
+// and the two behind them. The months page has the whole of it; this is the
+// line that makes the front page say there is a race on.
+func (s *Server) todayStanding(t translator, players []store.Player, results []store.BoardResult,
+	board stats.Board, prefix string, now time.Time) *todayStanding {
+
+	months := stats.ComputeMonths(players, results, stats.Options{
+		CountXAsSeven: board.Options.CountXAsSeven,
+		CountMissed:   board.Options.CountMissed,
+		HardModeOnly:  board.Options.HardModeOnly,
+		Now:           now,
+	})
+	if len(months) == 0 {
+		return nil
+	}
+	m := months[0]
+	if m.Year != now.Year() || m.Month != now.Month() || len(m.Ranked) == 0 {
+		return nil
+	}
+
+	st := &todayStanding{Href: viewPath(prefix, viewMonths)}
+	month := t.T("month." + strconv.Itoa(int(m.Month)))
+	left := time.Date(m.Year, m.Month+1, 0, 0, 0, 0, 0, now.Location()).Day() - now.Day()
+	if left == 0 {
+		st.Label = t.T("today.standing.lastDay", month)
+	} else {
+		st.Label = t.TP("today.standing.daysLeft", left, month, left)
+	}
+
+	lead := m.Winners[0]
+	switch {
+	case len(m.Winners) > 1:
+		st.Line = t.T("today.standing.level", joinNames(t, m.Winners), formatScore(t, lead.Average))
+	case m.Margin != nil:
+		st.Line = t.T("today.standing.leads", lead.Name, t.Decimal(*m.Margin, 2))
+	default:
+		st.Line = t.T("today.standing.alone", lead.Name)
+	}
+
+	for _, p := range m.Ranked {
+		if len(st.Pills) == 3 {
+			break
+		}
+		st.Pills = append(st.Pills, standingPill{
+			Rank: t.Integer(p.Rank), Name: p.Name, Href: prefix + "/players/" + p.Slug,
+			Average: formatScore(t, p.Average), Top: p.Rank == 1,
+		})
+	}
+	return st
 }

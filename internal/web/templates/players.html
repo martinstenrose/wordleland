@@ -1,0 +1,9 @@
+{{define "title"}}{{.T.T "nav.view.players"}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{/* The players view with nobody to open on. It used to redirect to the
+     view's own address, which is itself, and the browser gave up after
+     twenty. The head is the same one a player's page has, with no pills,
+     and under it the card says why it is empty. */}}
+{{template "switcher" .Section}}
+{{template "page-empty" (dict "Icon" "group" "Title" (.T.T "players.empty.title") "Body" (.T.T "players.empty.body"))}}
+{{end}}

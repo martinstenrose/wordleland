@@ -19,6 +19,10 @@ type TodayEntry struct {
 	// PostedAt is when the result was posted in the group, nil when it was
 	// not or that is unknown.
 	PostedAt *time.Time
+
+	// Grid is the squares the result was posted with, "" when none were
+	// kept.
+	Grid string
 }
 
 // Today is the state of the current puzzle: who has filed, who has not, and
@@ -81,7 +85,7 @@ func ComputeToday(players []store.Player, results []store.BoardResult, currentPu
 		}
 		today.Filed = append(today.Filed, TodayEntry{
 			Player: p, Guesses: r.Guesses, Solved: r.Solved, HardMode: r.HardMode,
-			PostedAt: r.PostedAt,
+			PostedAt: r.PostedAt, Grid: r.Grid,
 		})
 	}
 

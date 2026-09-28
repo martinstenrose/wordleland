@@ -10,3 +10,33 @@
 {{end}}
 {{end}}
 
+
+{{/* The admin area's head, as the design draws it: the page head naming the
+     screen, then the five screens as a segmented bar under it — a track,
+     the open one raised out of it with its glyph filled, a count on
+     Pending while senders wait, and a check on Diagnostics while the bridge
+     is connected. Every tab is a link. On a phone the bar is hidden: the
+     sections are the list at /admin, and the eyebrow leads back to it.
+     Data: the switcher adminSwitcher builds. */}}
+{{define "admin-head"}}
+<header class="page-head">
+  <div class="page-head-id">
+    <p class="page-eyebrow wide-only">{{.Eyebrow}}</p>
+    {{/* On a phone the sections are a list at /admin, and the eyebrow is
+         the way back to it. */}}
+    <a class="page-eyebrow page-back narrow-only" href="/admin">{{symbol "chevron_left" 18}}{{.Eyebrow}}</a>
+    <h1 class="page-title">{{.Label}}</h1>
+    {{with .Sub}}<p class="page-sub">{{.}}</p>{{end}}
+  </div>
+</header>
+<nav class="admin-tabs" aria-label="{{.NavLabel}}">
+  {{range .Items}}
+    <a class="admin-tab{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>
+      {{symbol .Icon 19}}
+      <span class="admin-tab-label">{{.Label}}</span>
+      {{with .Badge}}<span class="admin-tab-badge num">{{.}}</span>{{end}}
+      {{with .Mark}}<span class="admin-tab-mark filled" title="{{.}}" aria-label="{{.}}">{{symbol "check_circle" 16}}</span>{{end}}
+    </a>
+  {{end}}
+</nav>
+{{end}}

@@ -3,8 +3,10 @@ package web
 import (
 	"context"
 	"fmt"
+	"html"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -39,7 +41,7 @@ func TestNavLinksAllResolve(t *testing.T) {
 			body := fetchAs(t, srv, board.path, board.cookie).Body.String()
 
 			// The brand and Today pill both lead to the front page.
-			home := hrefOfClass(t, body, "brand")
+			home := hrefOfClass(t, body, "bar-home")
 			if rec := fetchAs(t, srv, home, board.cookie); rec.Code != http.StatusOK {
 				t.Errorf("the mark links to %s = %d, want 200", home, rec.Code)
 			}
@@ -79,8 +81,8 @@ func TestTodayShowsTheCurrentPuzzleAndWhoIsOut(t *testing.T) {
 	}
 	body := rec.Body.String()
 
-	if !strings.Contains(body, "still to submit") {
-		t.Error("the today band does not say how many have not filed")
+	if !strings.Contains(body, "5 of 6 in") {
+		t.Error("the day does not say how many have filed")
 	}
 	// seedBoard gives lapsed no recent games, so they are still out today.
 	// The names are behind a disclosure, but they are in the markup either
@@ -185,10 +187,10 @@ func TestMonthsRanksPlayers(t *testing.T) {
 	}
 	body := rec.Body.String()
 
-	if !strings.Contains(body, "Month by month") {
+	if !strings.Contains(body, `<h1 class="page-title">Months</h1>`) {
 		t.Error("the month view did not render")
 	}
-	for _, col := range []string{"3 or better", "Fails", "Longest streak"} {
+	for _, col := range []string{"Behind", "Played", "Fails"} {
 		if !strings.Contains(body, col) {
 			t.Errorf("column %q is missing", col)
 		}
@@ -197,16 +199,12 @@ func TestMonthsRanksPlayers(t *testing.T) {
 	if !strings.Contains(body, "Normalb") {
 		t.Error("the month winner is missing")
 	}
-	start := strings.Index(body, `class="board months-table"`)
-	if start < 0 {
+	table, ok := sectionOf(body, `<ol class="month-rows">`, "</ol>")
+	if !ok {
 		t.Fatal("the ranked month table is missing")
 	}
-	table := body[start:]
-	if end := strings.Index(table, "</table>"); end >= 0 {
-		table = table[:end]
-	}
 	// Thin has fewer than ten games. That still excludes them on the main
-	// board, but the monthly view now ranks every scorable appearance.
+	// board, but the monthly view ranks every scorable appearance.
 	if !strings.Contains(table, "/players/thin") {
 		t.Error("a player below ten games is missing from the monthly ranking")
 	}
@@ -225,9 +223,10 @@ func TestMonthSelectionChangesTheTable(t *testing.T) {
 		t.Fatal("the month chips are not links")
 	}
 
-	// Follow the last chip, which is the oldest month in the fixture.
-	idx := strings.LastIndex(body, `href="/share/`+slug+`/months?`)
-	rest := body[idx+len(`href="`):]
+	// Follow the last pill, which is the oldest month in the fixture.
+	pills, _ := sectionOf(body, `<nav class="pills"`, "</nav>")
+	idx := strings.LastIndex(pills, `href="/share/`+slug+`/months?`)
+	rest := pills[idx+len(`href="`):]
 	href := rest[:strings.Index(rest, `"`)]
 	href = strings.ReplaceAll(href, "&amp;", "&")
 
@@ -238,7 +237,9 @@ func TestMonthSelectionChangesTheTable(t *testing.T) {
 	if other.Body.String() == body {
 		t.Error("selecting a different month rendered an identical page")
 	}
-	if regexp.MustCompile(`day \d+ of \d+`).MatchString(other.Body.String()) {
+	// A finished month does not count down: no days left, no running mark.
+	hero, _ := sectionOf(other.Body.String(), `<section class="card month-hero">`, "</section>")
+	if strings.Contains(hero, " left") || strings.Contains(hero, "month-daybar") {
 		t.Error("a completed month shows the current month's calendar progress")
 	}
 }
@@ -362,13 +363,16 @@ func TestGridRendersDaysByPlayers(t *testing.T) {
 		t.Error("the grid did not render")
 	}
 	// A player with games is a column; the never-played one is not.
-	if !strings.Contains(body, "/players/harda") {
+	if !strings.Contains(body, `title="Harda"`) {
 		t.Error("a player with games is missing from the grid")
 	}
-	// The rail carries an average, labelled with the window it covers
-	// rather than a fixed one the grid may not be showing.
-	if !strings.Contains(body, "Average · all") {
-		t.Error("the form rail is missing, or does not name its window")
+	// Each column carries its average, and the eyebrow names the window
+	// they cover rather than a fixed one the grid may not be showing.
+	if !strings.Contains(body, `<span class="grid-avg num">`) {
+		t.Error("the columns carry no average")
+	}
+	if !strings.Contains(body, `<p class="page-eyebrow">`) || !strings.Contains(body, " days</p>") {
+		t.Error("the grid does not name the window it covers")
 	}
 }
 
@@ -396,10 +400,9 @@ func TestGridCellsCarryTheAsteriskAndOpenAPopup(t *testing.T) {
 	if !strings.Contains(body, ">3*<") {
 		t.Error("a hard-mode result does not carry the asterisk in its box")
 	}
-	// The same words the recent strip's own legend uses, not a second
-	// phrasing for the same fact.
-	if !strings.Contains(body, "An asterisk marks hard mode") {
-		t.Error("the grid note does not explain the asterisk")
+	// The legend explains the asterisk with a tile carrying one.
+	if legend, _ := sectionOf(body, `<ul class="grid-legend">`, "</ul>"); !strings.Contains(legend, ">4*<") || !strings.Contains(legend, "Hard mode") {
+		t.Error("the grid legend does not explain the asterisk")
 	}
 	if got := strings.Count(body, `<details class="cell-pop" name="popup">`); got == 0 {
 		t.Error("no grid cell opens a popup")
@@ -463,14 +466,14 @@ func TestGridInactiveToggle(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(ctx, srv.db)
 
 	hidden := fetchAs(t, srv, "/share/"+slug+"/grid", nil).Body.String()
-	if strings.Contains(hidden, "/players/ghost") {
+	if strings.Contains(hidden, `title="Ghost"`) {
 		t.Error("a player with no games is a column by default")
 	}
 
 	// The label carries a count, so the control is found by its class.
-	href := strings.ReplaceAll(hrefOfClass(t, hidden, "toggle"), "&amp;", "&")
+	href := strings.ReplaceAll(hrefOfClass(t, hidden, "head-toggle"), "&amp;", "&")
 	shown := fetchAs(t, srv, href, nil).Body.String()
-	if !strings.Contains(shown, "/players/ghost") {
+	if !strings.Contains(shown, `title="Ghost"`) {
 		t.Error("following the toggle did not show them")
 	}
 }
@@ -497,7 +500,7 @@ func TestThePlayersViewOpensOnTheLeader(t *testing.T) {
 	}
 
 	body := fetchAs(t, srv, "/share/"+slug+"/players/normalb", nil).Body.String()
-	if !strings.Contains(body, `<h1 class="switcher-label">Normalb`) {
+	if !strings.Contains(body, `<h1 class="page-title">Normalb`) {
 		t.Error("the leader's page is not what opened")
 	}
 	// Every player is still one press away, ranked and not, with the one
@@ -507,7 +510,7 @@ func TestThePlayersViewOpensOnTheLeader(t *testing.T) {
 			t.Errorf("the roster is missing %s", want)
 		}
 	}
-	if !strings.Contains(body, "switcher-row on") {
+	if !strings.Contains(body, `<a class="pill on" href="/share/`+slug+`/players/normalb"`) {
 		t.Error("the roster does not mark the player being shown")
 	}
 }
@@ -522,60 +525,20 @@ func TestPlayerDetailHighlightsThePlayersTab(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/players/harda", nil).Body.String()
-	rail, ok := sectionOf(body, `<nav class="sidebar"`, "</nav>")
+	pages, ok := sectionOf(body, `<nav class="bar-pages glass"`, "</nav>")
 	if !ok {
-		t.Fatal("the rail is missing")
+		t.Fatal("the bar's pages are missing")
 	}
-	i := strings.Index(rail, `class="nav-row on"`)
+	i := strings.Index(pages, `class="bar-page on"`)
 	if i < 0 {
-		t.Fatal("no row marked current on the player page")
+		t.Fatal("no page marked current on the player page")
 	}
-	if !strings.Contains(rail[i:], ">Players<") {
-		t.Errorf("the row marked current is not Players: %q", rail[i:i+160])
+	if !strings.Contains(pages[i:], "<span>Players</span>") {
+		t.Errorf("the page marked current is not Players: %q", pages[i:i+160])
 	}
-}
-
-// A screen too narrow for the rail gets the same rail in a drawer, off the
-// top bar. It is the same list rendered from the same partial rather than a
-// second navigation with its own destinations to keep in step — which is
-// what the scrolling tab strip it replaces was built to avoid, and what
-// nesting the admin screens gives this one a fresh chance to get wrong.
-func TestTheDrawerCarriesTheSameRowsAsTheRail(t *testing.T) {
-	t.Parallel()
-
-	srv := testServer(t)
-	seedBoard(t, srv)
-	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
-
-	body := fetchAs(t, srv, "/share/"+slug+"/", nil).Body.String()
-
-	rail, ok := sectionOf(body, `<nav class="sidebar"`, "</nav>")
-	if !ok {
-		t.Fatal("the rail is missing")
-	}
-	drawer, ok := sectionOf(body, `<div class="drawer-panel">`, "</details>")
-	if !ok {
-		t.Fatal("the drawer is missing")
-	}
-
-	for _, label := range []string{"Today", "Leaderboard", "Months", "Grid", "Players"} {
-		if !strings.Contains(rail, ">"+label+"<") {
-			t.Errorf("the rail is missing %q", label)
-		}
-		if !strings.Contains(drawer, ">"+label+"<") {
-			t.Errorf("the drawer is missing %q", label)
-		}
-	}
-
-	// Same markup, not a second kind of row with its own classes.
-	if !strings.Contains(drawer, `class="nav-row`) {
-		t.Error("the drawer does not reuse the rail's rows")
-	}
-
-	// Collapsing is the rail's own control: the drawer is already at full
-	// width, so offering it there would offer nothing.
-	if strings.Contains(drawer, "nav-collapse") {
-		t.Error("the drawer offers a collapse control")
+	// And the phone's capsule names it.
+	if !strings.Contains(body, `<span class="bar-capsule-label">Players</span>`) {
+		t.Error("the phone's capsule does not say this is Players")
 	}
 }
 
@@ -699,7 +662,7 @@ func TestTodayIsTheFrontPage(t *testing.T) {
 	if root.Code != http.StatusOK {
 		t.Fatalf("the bare share URL = %d", root.Code)
 	}
-	if !strings.Contains(root.Body.String(), `class="today-head"`) {
+	if !strings.Contains(root.Body.String(), `<h1 class="page-title">Today</h1>`) {
 		t.Error("the bare share URL does not show the front page")
 	}
 
@@ -754,15 +717,15 @@ func TestGridHidesRetiredPlayersUntilToggled(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(ctx, srv.db)
 
 	hidden := fetchAs(t, srv, "/share/"+slug+"/grid", nil).Body.String()
-	if strings.Contains(hidden, "/players/harda") {
+	if strings.Contains(hidden, `title="Harda"`) {
 		t.Error("a player who has left the group is still a column")
 	}
-	if !strings.Contains(hidden, "Show inactive") {
+	if !strings.Contains(hidden, "Inactive (") {
 		t.Error("the toggle does not offer them")
 	}
 
 	shown := fetchAs(t, srv, "/share/"+slug+"/grid?inactive=1", nil).Body.String()
-	if !strings.Contains(shown, "/players/harda") {
+	if !strings.Contains(shown, `title="Harda"`) {
 		t.Error("the toggle did not bring them back")
 	}
 }
@@ -789,7 +752,10 @@ func seedCompletedWinningMonth(t *testing.T, srv *Server) time.Time {
 	return target
 }
 
-func TestMonthWinnerPaneShowsTheStats(t *testing.T) {
+// A finished month's own card names who won it, with what, and by how much;
+// its table says how far behind everybody else finished and how many of the
+// month's days they played.
+func TestAFinishedMonthNamesItsWinner(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
@@ -799,33 +765,27 @@ func TestMonthWinnerPaneShowsTheStats(t *testing.T) {
 
 	month := fmt.Sprintf("%d-%d", target.Year(), target.Month())
 	body := fetchAs(t, srv, "/share/"+slug+"/months?month="+month, nil).Body.String()
-	start := strings.Index(body, "stat-list-figure")
-	if start < 0 {
-		t.Fatal("the completed month has no winner stats")
+	hero, ok := sectionOf(body, `<section class="card month-hero">`, "</section>")
+	if !ok {
+		t.Fatal("the completed month has no card of its own")
 	}
-	stats := body[start:]
-	end := strings.Index(stats, "</dl>")
-	if end < 0 {
-		t.Fatal("the winner stats have no closing definition list")
+	if !strings.Contains(hero, " won ") {
+		t.Errorf("the completed month does not say who won it:\n%s", hero)
 	}
-	stats = stats[:end]
-
-	for _, want := range []string{"Average", "Puzzles", "3 or better", "Longest streak"} {
-		if !strings.Contains(stats, want) {
-			t.Errorf("the winner pane is missing %q", want)
-		}
+	if !strings.Contains(hero, " ahead of ") {
+		t.Errorf("the completed month does not say by how much:\n%s", hero)
 	}
-	// Games reads as played-over-possible, not a bare count.
-	if !strings.Contains(stats, "/") {
-		t.Error("the games figure does not say how many days were possible")
+	table, _ := sectionOf(body, `<ol class="month-rows">`, "</ol>")
+	table = html.UnescapeString(table)
+	if !strings.Contains(table, "+0.") || !strings.Contains(table, "/") {
+		t.Error("the table does not say how far behind, or played over possible")
 	}
 }
 
-// A chip is two small lines: an abbreviated month and who won it. Cutting a
-// name with an ellipsis was the wrong fix for a crowded row — the row scrolls
-// instead — and so was widening every chip to fit a month and a year, which
-// is what the detail directly beneath the row is for.
-func TestMonthChipsAreSmallAndTheMonthIsNamedInFullBelow(t *testing.T) {
+// A month pill is small: the abbreviated month and no year, and who won it
+// on a wide window. The row scrolls rather than wrapping, and the month
+// chosen is named in full in its own card below.
+func TestMonthPillsAreSmallAndTheMonthIsNamedInFullBelow(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
@@ -833,46 +793,28 @@ func TestMonthChipsAreSmallAndTheMonthIsNamedInFullBelow(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/months", nil).Body.String()
-	chips := body[strings.Index(body, "month-chips"):]
-	chips = chips[:strings.Index(chips, "</ol>")]
-
-	// The abbreviated month, and no year: the chips are a row of small boxes,
-	// and one wide enough for "September 2026" spends the row on what the
-	// line beneath it already says. Derive the fixture's current month so the
-	// assertion does not expire at the next rollover.
+	pills, ok := sectionOf(body, `<nav class="pills"`, "</nav>")
+	if !ok {
+		t.Fatal("there is no row of months")
+	}
 	now := time.Now()
 	short := now.Month().String()[:3]
-	head, ok := sectionOf(chips, `<span class="month-chip-head">`, "</span>")
-	if !ok {
-		t.Fatal("a chip has no head line")
+	name, ok := sectionOf(pills, `<span class="pill-label month-pill-name">`, "</span>")
+	if !ok || !strings.Contains(name, short) {
+		t.Errorf("the newest pill %q is not the abbreviated month %q", name, short)
 	}
-	if !strings.Contains(head, short+" ·") {
-		t.Errorf("the chip head %q does not open with the abbreviated month %q", head, short)
-	}
-	// The year lives in the href, which is why this looks at the head alone.
-	if strings.Contains(head, strconv.Itoa(now.Year())) {
-		t.Errorf("the chip head %q carries the year, which the detail beneath it names", head)
-	}
-	if !strings.Contains(body, "month-chip-head") || !strings.Contains(body, "month-winner") {
-		t.Error("the chip is missing its two lines")
+	if strings.Contains(name, strconv.Itoa(now.Year())) {
+		t.Errorf("the pill %q carries the year, which the card below names", name)
 	}
 
-	// Which is only safe because the month chosen is still named in full,
-	// directly under the row.
 	full := now.Month().String() + " " + strconv.Itoa(now.Year())
-	if !strings.Contains(strings.ToUpper(body), strings.ToUpper(full)) {
-		t.Errorf("the page never names %q in full", full)
+	if hero, _ := sectionOf(body, `<section class="card month-hero">`, "</section>"); !strings.Contains(hero, full) {
+		t.Errorf("the chosen month is not named %q in full in its card", full)
 	}
 
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	strip := css[strings.Index(css, ".month-chips {"):]
-	strip = strip[:strings.Index(strip, ".month-chip {")]
-	if !strings.Contains(strip, "overflow-x: auto") {
-		t.Error("the row of chips does not scroll")
-	}
-	if strings.Contains(css, ".month-chip-head") && strings.Contains(
-		css[strings.Index(css, ".month-chip-head"):strings.Index(css, ".month-chip-win")], "ellipsis") {
-		t.Error("the chip head still clips its text")
+	if !strings.Contains(cssRule(t, css, ".pills {"), "overflow-x: auto") {
+		t.Error("the row of months does not scroll")
 	}
 }
 
@@ -921,8 +863,6 @@ func min(a, b int) int {
 	return b
 }
 
-// A month with days left in it has a leader, not a winner, so the line
-// describing it belongs in the present tense.
 func TestRunningMonthReadsAsUnfinished(t *testing.T) {
 	t.Parallel()
 
@@ -933,40 +873,32 @@ func TestRunningMonthReadsAsUnfinished(t *testing.T) {
 	// The newest month is the one being played, and it is what the view
 	// opens on.
 	body := fetchAs(t, srv, "/share/"+slug+"/months", nil).Body.String()
-	start := strings.Index(body, "month-head")
-	if start < 0 {
-		t.Fatal("the current month has no heading")
+	hero, ok := sectionOf(body, `<section class="card month-hero">`, "</section>")
+	if !ok {
+		t.Fatal("the current month has no card")
 	}
-	head := body[start:]
-	end := strings.Index(head, `<div class="table-scroll">`)
-	if end < 0 {
-		t.Fatal("the current month heading has no following table")
+	if !strings.Contains(hero, "still running") {
+		t.Fatalf("the current month is not marked as running:\n%s", hero)
 	}
-	head = head[:end]
-
-	// "leading" rather than "winner" is how the head marks an unfinished
-	// month; the chips carry "still running".
-	if !strings.Contains(head, "leading") {
-		t.Fatalf("the current month is not marked as running:\n%s", head)
+	if strings.Contains(hero, " won ") {
+		t.Errorf("a running month is described as finished:\n%s", hero)
 	}
-	if strings.Contains(head, "took") {
-		t.Errorf("a running month is described as finished:\n%s", head)
+	if !strings.Contains(hero, " leads at ") && !strings.Contains(hero, " are level at ") {
+		t.Errorf("a running month is not described in the present tense:\n%s", hero)
+	}
+	if !strings.Contains(hero, " left.") && !strings.Contains(hero, "Last day.") {
+		t.Errorf("a running month does not say how much of it is left:\n%s", hero)
 	}
 	now := time.Now()
 	daysInMonth := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, now.Location()).Day()
-	wantProgress := fmt.Sprintf("day %d of %d", now.Day(), daysInMonth)
-	if !strings.Contains(head, wantProgress) {
-		t.Errorf("the current month does not show %q:\n%s", wantProgress, head)
-	}
-	if !strings.Contains(head, "is ahead") && !strings.Contains(head, "Level at") {
-		t.Errorf("a running month is not described in the present tense:\n%s", head)
+	if want := fmt.Sprintf("Day %d of %d", now.Day(), daysInMonth); !strings.Contains(hero, want) {
+		t.Errorf("the current month does not show %q", want)
 	}
 }
 
-// The month view against the design: the header names the puzzle range, the
-// winner pane says whether the month is complete, rows carry a medal and a
-// trait, and the season table has wins, top-three, best month and a mark
-// per month.
+// The month view against the design: the running month's leader carries the
+// rising glyph and a finished month's winner the trophy, and the season card
+// has its line of places, its wins and a legend for the tiles.
 func TestMonthViewMatchesTheDesign(t *testing.T) {
 	t.Parallel()
 
@@ -976,37 +908,25 @@ func TestMonthViewMatchesTheDesign(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/months", nil).Body.String()
-
-	if !regexp.MustCompile(`#\d+–#\d+`).MatchString(body) {
-		t.Error("the header does not name the puzzle range")
-	}
-	if !strings.Contains(body, "month · ") {
-		t.Error("the winner pane does not say whether the month is complete")
-	}
-	for _, col := range []string{"Top three", "Best month", "Season so far", "monthly wins across"} {
-		if !strings.Contains(body, col) {
-			t.Errorf("the season table is missing %q", col)
+	for _, want := range []string{"Season so far", "place per month", "Won", "Top three", "Other place", "Running"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the season card is missing %q", want)
 		}
 	}
-
-	// A month still being played has a leader, not a winner or a runner-up.
-	table := body[strings.Index(body, "months-table"):strings.Index(body, "season-head")]
-	if strings.Contains(table, ">Winner<") || strings.Contains(table, ">Runner-up<") {
-		t.Error("a running month names a winner")
-	}
-	if !strings.Contains(table, ">Leading<") {
-		t.Error("a running month does not name its leader")
+	table, _ := sectionOf(body, `<ol class="month-rows">`, "</ol>")
+	if !strings.Contains(table, `title="Leading"`) || strings.Contains(table, `title="Winner"`) {
+		t.Error("a running month does not mark a leader, or names a winner")
 	}
 
-	// A completed month seeded explicitly above does name its winner.
 	month := fmt.Sprintf("%d-%d", target.Year(), target.Month())
 	finished := fetchAs(t, srv, "/share/"+slug+"/months?month="+month, nil).Body.String()
-	if !strings.Contains(finished, ">Winner<") {
-		t.Error("a finished month does not name its winner")
+	if table, _ := sectionOf(finished, `<ol class="month-rows">`, "</ol>"); !strings.Contains(table, `title="Winner"`) {
+		t.Error("a finished month does not mark its winner")
 	}
 }
 
-// A star marks a title; a placing is a number; not ranked is a dot.
+// A trophy marks a title, a placing is a number, not ranked is a dot, and a
+// month still running is outlined rather than filled.
 func TestSeasonMarksReadAtAGlance(t *testing.T) {
 	t.Parallel()
 
@@ -1016,17 +936,15 @@ func TestSeasonMarksReadAtAGlance(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/months", nil).Body.String()
-	season := body[strings.Index(body, "season-table"):]
-
-	if !strings.Contains(season, "★") {
-		t.Error("no star marks a monthly win")
+	season, ok := sectionOf(body, `<div class="season-grid"`, `<ul class="season-legend">`)
+	if !ok {
+		t.Fatal("there is no season grid")
 	}
-	if !strings.Contains(season, "·") {
-		t.Error("nothing marks a month somebody was not ranked in")
+	if !strings.Contains(season, `class="season-tile won`) || !strings.Contains(season, symbolPaths["trophy"][0]) {
+		t.Error("no trophy marks a monthly win")
 	}
-	// The note explains all three, so the marks are not a puzzle.
-	if !strings.Contains(body, "★ marks a win") {
-		t.Error("the season note does not explain the marks")
+	if !strings.Contains(season, `class="season-tile running`) {
+		t.Error("the running month is not marked as running")
 	}
 }
 
@@ -1050,7 +968,7 @@ func TestFormPaneIsConsistent(t *testing.T) {
 	pane := body[strings.Index(body, "today-form"):]
 	pane = pane[:strings.Index(pane, "card-foot")]
 
-	if !strings.Contains(pane, "Form · last 30 days") {
+	if !strings.Contains(pane, `<h2 class="today-list-title">Form</h2>`) || !strings.Contains(pane, ">last five · 30 days<") {
 		t.Error("the form list has no heading naming the window")
 	}
 
@@ -1117,10 +1035,11 @@ func TestTraitExplanationIsReachableWithoutHover(t *testing.T) {
 	}
 }
 
-// The board has more columns than a phone is wide. It scrolls rather than
-// clipping, the same as the month tables — and a column hidden at that
-// width has to be hidden in the header too, or the two rows misalign.
-func TestBoardScrollsSidewaysOnNarrowScreens(t *testing.T) {
+// The board has more columns than a phone is wide. It re-flows there rather
+// than scrolling — the design's stacked row, from the same markup — so the
+// head and every row carry the same cells in the same order, and the phone
+// rule that re-flows them is the one that hides the head.
+func TestBoardRowsShareTheHeadsCells(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
@@ -1128,38 +1047,48 @@ func TestBoardScrollsSidewaysOnNarrowScreens(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	body := fetchAs(t, srv, "/share/"+slug+"/board", nil).Body.String()
-	table := strings.Index(body, `<table class="board">`)
-	if table < 0 {
-		t.Fatal("no board table")
+	cells := regexp.MustCompile(`<(?:span|a) class="(b-[a-z]+)`)
+	order := func(fragment string) []string {
+		var out []string
+		for _, m := range cells.FindAllStringSubmatch(fragment, -1) {
+			if !slices.Contains(out, m[1]) {
+				out = append(out, m[1])
+			}
+		}
+		return out
 	}
-	before := body[:table]
-	if !strings.Contains(before[strings.LastIndex(before, "<div"):], "table-scroll") {
-		t.Error("the board table is not inside a horizontal scroller")
+	head, ok := sectionOf(body, `<div class="b-row b-head">`, "</div>")
+	if !ok {
+		t.Fatal("the board has no head row")
+	}
+	row := rowFor(t, body, "harda")
+	row = row[strings.Index(row, ">")+1:]
+	// The row's own cells only: its name line and gap sit inside b-id.
+	var rowCells []string
+	for _, c := range order(row) {
+		if c != "b-name" && c != "b-gap" && c != "b-move" {
+			rowCells = append(rowCells, c)
+		}
+	}
+	if got, want := strings.Join(rowCells, " "), strings.Join(order(head), " "); got != want {
+		t.Errorf("a row's cells are %q, the head's %q", got, want)
 	}
 
-	head := body[strings.Index(body, "<thead>")+len("<thead>") : strings.Index(body, "</thead>")]
-	firstRow := body[strings.Index(body, "<tbody>"):]
-	firstRow = firstRow[strings.Index(firstRow, "<tr"):strings.Index(firstRow, "</tr>")]
-
-	if got, want := strings.Count(head, "spark-col"), 1; got != want {
-		t.Errorf("the header marks %d sparkline cells, want %d", got, want)
-	}
-	if got, want := strings.Count(firstRow, "spark-col"), 1; got != want {
-		t.Errorf("a row marks %d sparkline cells, want %d", got, want)
-	}
-	if got, want := strings.Count(head, "<th"), strings.Count(firstRow, "<td"); got != want {
-		t.Errorf("the header has %d cells and a row %d", got, want)
+	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
+	phone := css[strings.LastIndex(css, "@media (max-width: 860px) {\n  .b-head { display: none; }"):]
+	if end := strings.Index(phone, "\n}\n"); end < 0 || !strings.Contains(phone[:end], ".b-id { display: contents; }") {
+		t.Error("the phone rule does not re-flow the row")
 	}
 }
 
-// The grid's rank figures follow the window it is showing. A player who was
-// poor all year and excellent lately leads the recent view and trails the
-// whole-history one.
+// The grid's columns are the standings for the window it is showing, each
+// heading carrying the average. A player who was poor all year and excellent
+// lately leads the recent view and trails the whole-history one.
 //
-// The rank is a figure on the column, not the column's position: the
-// columns stay in name order so a reader finds the same person in the same
-// place whatever the range.
-func TestGridRanksOverTheSelectedWindow(t *testing.T) {
+// That costs what name order bought — a player's column moves when the
+// range changes — and it is the design's call: the standings rail that sat
+// beside alphabetical columns folded into the header.
+func TestGridColumnsFollowTheStandings(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -1193,109 +1122,45 @@ func TestGridRanksOverTheSelectedWindow(t *testing.T) {
 	add("improver", 6, 2) // dreadful, then the best lately
 
 	session := signIn(t, srv, admin.ID)
-
-	// The rank shown against one player's column, for a given range.
-	rank := regexp.MustCompile(`class="grid-rank[^"]*"[^>]*>(\d*)<`)
-	rankOf := func(path, slug string) string {
+	first := func(path string) string {
 		body := fetchAs(t, srv, path, session).Body.String()
-		// One rail entry per player, so find that entry rather than a
-		// window around the link: a fixed slice reaches into its neighbour
-		// and reports somebody else's rank.
-		for _, entry := range strings.Split(body, "<li>") {
-			if !strings.Contains(entry, "/players/"+slug+`"`) {
-				continue
-			}
-			if m := rank.FindStringSubmatch(entry); m != nil {
-				return m[1]
-			}
-			return ""
+		head, ok := sectionOf(body, "<thead>", "</thead>")
+		if !ok {
+			t.Fatalf("%s rendered without a table head", path)
 		}
-		t.Fatalf("%s has no rail entry for %s", path, slug)
-		return ""
+		steady, improver := strings.Index(head, `title="Steady"`), strings.Index(head, `title="Improver"`)
+		if steady < improver {
+			return "steady"
+		}
+		return "improver"
 	}
-
-	if got := rankOf("/grid?span=90", "improver"); got != "1" {
-		t.Errorf("over the last 90 days improver ranks %q, want 1", got)
+	if got := first("/grid?span=90"); got != "improver" {
+		t.Errorf("over the last 90 days %s leads the columns, want improver", got)
 	}
-	if got := rankOf("/grid?span=all", "steady"); got != "1" {
-		t.Errorf("over the whole history steady ranks %q, want 1", got)
+	if got := first("/grid?span=all"); got != "steady" {
+		t.Errorf("over the whole history %s leads the columns, want steady", got)
 	}
 }
 
-// Columns keep their places whatever the range, so the table can be read.
-// The rail beside them is a standings table and follows the window instead.
-func TestGridColumnsStayInNameOrder(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-	srv := testServer(t)
-	admin, _ := store.CreateUser(ctx, srv.db, store.SystemActor(), "admin@example.tld", "hash", true)
-	actor := store.AdminActor(admin.ID)
-	current := wordle.PuzzleForDate(time.Now())
-
-	for _, p := range []struct {
-		slug        string
-		early, late int
-	}{{"zoe", 3, 3}, {"adam", 6, 2}} {
-		pl, _ := store.CreatePlayer(ctx, srv.db, actor, strings.ToUpper(p.slug[:1])+p.slug[1:], p.slug)
-		for n := current - 149; n <= current; n++ {
-			g := p.early
-			if n > current-90 {
-				g = p.late
-			}
-			d, _ := wordle.DateForPuzzle(n)
-			store.UpsertResult(ctx, srv.db, store.Result{
-				PuzzleNo: n, Date: d, PlayerID: pl.ID, Guesses: &g, Solved: true}, nil, nil)
-		}
-	}
-
-	session := signIn(t, srv, admin.ID)
-	// Scoped to the table head: the rail carries the same two links in a
-	// different order, so a search over the whole page proves nothing.
-	head := func(body string) string {
-		start := strings.Index(body, "<thead>")
-		end := strings.Index(body, "</thead>")
-		if start < 0 || end < start {
-			t.Fatal("the grid rendered without a table head")
-		}
-		return body[start:end]
-	}
-	rail := func(body string) string {
-		start := strings.Index(body, `<aside class="grid-rail">`)
-		end := strings.Index(body, "</aside>")
-		if start < 0 || end < start {
-			t.Fatal("the grid rendered without a rail")
-		}
-		return body[start:end]
-	}
-
-	// Adam is worse than Zoe over the whole history and better over the last
-	// ninety days, so the rail turns over between the two ranges and the
-	// columns do not.
-	for _, span := range []string{"90", "all"} {
-		body := fetchAs(t, srv, "/grid?span="+span, session).Body.String()
-		if strings.Index(head(body), "/players/adam") > strings.Index(head(body), "/players/zoe") {
-			t.Errorf("span=%s orders the columns by rank rather than by name", span)
-		}
-	}
-
-	recent := rail(fetchAs(t, srv, "/grid?span=90", session).Body.String())
-	if strings.Index(recent, "/players/adam") > strings.Index(recent, "/players/zoe") {
-		t.Error("over the last 90 days the rail puts Adam below Zoe, though he averages better")
-	}
-	all := rail(fetchAs(t, srv, "/grid?span=all", session).Body.String())
-	if strings.Index(all, "/players/zoe") > strings.Index(all, "/players/adam") {
-		t.Error("over the whole history the rail puts Zoe below Adam, though she averages better")
-	}
-}
-
-// A range control that cannot change anything is not offered.
+// A range control that cannot change anything is not offered: a history
+// shorter than the recent window is the same grid under both.
 func TestGridHidesTheSpanToggleWhenThereIsNothingToChoose(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
-	seedBoard(t, srv)
-	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
+	ctx := context.Background()
+	admin, err := store.CreateUser(ctx, srv.db, store.SystemActor(), "admin@example.tld", "hash", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := store.CreatePlayer(ctx, srv.db, store.AdminActor(admin.ID), "Short", "short")
+	if err != nil {
+		t.Fatal(err)
+	}
+	current := currentPuzzle()
+	for puzzle := current - 9; puzzle <= current; puzzle++ {
+		seedResult(t, srv, p.ID, puzzle, 4, false)
+	}
 
 	body := fetchAs(t, srv, "/grid", signIn(t, srv, admin.ID)).Body.String()
 	if strings.Contains(body, `span=all`) {
@@ -1303,7 +1168,7 @@ func TestGridHidesTheSpanToggleWhenThereIsNothingToChoose(t *testing.T) {
 	}
 }
 
-// The month kicker states the rule the code applies, including the missed
+// The months head states the rule the code applies, including the missed
 // day, and drops the clause when the toggle it depends on is off.
 func TestMonthsKickerStatesTheScoringRule(t *testing.T) {
 	t.Parallel()
@@ -1312,19 +1177,19 @@ func TestMonthsKickerStatesTheScoringRule(t *testing.T) {
 	seedBoard(t, srv)
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
-	const clause = "a day not played counts as 7"
+	const clause = "A missed day counts as 7"
 
 	body := fetchAs(t, srv, "/share/"+slug+"/months", nil).Body.String()
 	if !strings.Contains(body, clause) {
-		t.Errorf("the kicker does not say %q, though the average counts them", clause)
+		t.Errorf("the head does not say %q, though the average counts them", clause)
 	}
 	if unwanted := "puzzles minimum"; strings.Contains(body, unwanted) {
-		t.Errorf("the kicker still contains the removed monthly minimum: %q", unwanted)
+		t.Errorf("the head still contains the removed monthly minimum: %q", unwanted)
 	}
 
 	plain := fetchAs(t, srv, "/share/"+slug+"/months?failed=0", nil).Body.String()
 	if strings.Contains(plain, clause) {
-		t.Errorf("the kicker still says %q with X not counted as 7", clause)
+		t.Errorf("the head still says %q with X not counted as 7", clause)
 	}
 }
 
@@ -1354,7 +1219,7 @@ func TestTodayShowsFourBanterHeadlinesInBothLanguages(t *testing.T) {
 			{"/share/" + slug + "/today", nil},
 		} {
 			body := fetchAs(t, srv, surface.path+"?lang="+locale, surface.cookie).Body.String()
-			if got := strings.Count(body, `class="callout"`); got != 4 {
+			if got := strings.Count(body, `class="card callout"`); got != 4 {
 				t.Errorf("%s (%s): got %d banter headlines, want four", surface.path, locale, got)
 			}
 			if got := strings.Count(body, `class="callout-meta"`); got != 4 {
@@ -1435,107 +1300,19 @@ func TestTraitBadgesAreOnlyWhereTheyMeanSomething(t *testing.T) {
 	}
 }
 
-// A win and a second place are told apart by colour as well as by the word:
-// the brand hue for the win, the palette's second colour for the runner-up.
-// Neither is a third hue invented for the purpose, and both clear 4.5:1 on
-// their own theme's surface at the 11px uppercase a chip is set in.
-func TestAWinAndASecondPlaceAreDifferentTones(t *testing.T) {
-	t.Parallel()
-
-	srv := testServer(t)
-	seedBoard(t, srv)
-	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
-
-	body := fetchAs(t, srv, "/months", signIn(t, srv, admin.ID)).Body.String()
-	if !strings.Contains(body, `<span class="medal win">`) {
-		t.Error("a win is not marked apart from a second place")
-	}
-
-	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	chip := cssRule(t, css, ".medal {")
-	if !strings.Contains(chip, "var(--color-accent-2-strong)") {
-		t.Error("the runner-up chip does not take the palette's second colour")
-	}
-	if !strings.Contains(css, ".medal.win { background: var(--color-accent-14); color: var(--color-accent-strong); }") {
-		t.Error("a win does not take the brand hue")
-	}
-	// Both chips show at every width now: the word is what they are for, and
-	// a phone has room for one of them beside a name.
-	if strings.Contains(css, ".months-table .medal") {
-		t.Error("a phone still drops one of the chips")
-	}
-	// The two marks this replaced are gone rather than left unread.
-	for _, gone := range []string{"--color-gold", "medal-mark", "medal-gold"} {
-		if strings.Contains(css, gone) {
-			t.Errorf("%q survives with nothing reading it", gone)
-		}
-	}
-}
-
-// A month's mark is a block that its cell centres, never an inline box.
-//
-// It was inline-grid, which puts a box on the text baseline — and a grid
-// container's baseline comes from its own content, so a ★ (which falls out of
-// Manrope to whatever the system has) and a place in an outlined month sat at
-// different heights. Two marks in the same row, in cells of identical height,
-// came out 5.4px apart, and a grid of places read as a grid that had slipped.
+// A season's places are centred in their rows, never set on a text
+// baseline: a trophy and a digit have different baselines, and a row of
+// places that sat at two heights read as a grid that had slipped.
 func TestASeasonMarkIsNotAlignedOnTheTextBaseline(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-
-	cell := cssRule(t, css, ".mark-cell {")
-	if strings.Contains(cell, "inline-grid") || strings.Contains(cell, "inline-flex") {
-		t.Error("the mark is an inline box again, so its content decides its height in the row")
+	if !strings.Contains(cssRule(t, css, ".season-row {"), "align-items: center") {
+		t.Error("the season's rows do not centre their places")
 	}
-	if !strings.Contains(cell, "margin: 0 auto") {
-		t.Error("the mark is a block with nothing centring it across its cell")
-	}
-	col := cssRule(t, css, ".season-table .mark-col {")
-	if !strings.Contains(col, "vertical-align: middle") {
-		t.Error("the cell does not centre the mark down its own height")
-	}
-}
-
-// Four tables about the same people, indented the same.
-//
-// The board, Months' own table and the season table under it put the player
-// name in three different places: the board numbered its ranks from the
-// gutter, Months right-aligned its rank column and so pushed the name further
-// in, and the season table had no rank column at all and started at the
-// gutter. Three tables that do not line up read as three different tables.
-// One token holds the first cell's width and the indent the table without a
-// rank takes instead.
-func TestEveryRankedTableIndentsItsNamesTheSame(t *testing.T) {
-	t.Parallel()
-
-	srv := testServer(t)
-	seedBoard(t, srv)
-	admin, _ := store.UserByEmail(context.Background(), srv.db, "admin@example.tld")
-	session := signIn(t, srv, admin.ID)
-
-	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
-	if !strings.Contains(css, "--rank-col:") {
-		t.Fatal("there is no shared rank-column width")
-	}
-	if rule := cssRule(t, css, ".board .rank-col {"); !strings.Contains(rule, "var(--rank-col)") {
-		t.Errorf("the rank column does not take the shared width: %s", rule)
-	}
-	// The one without a rank takes the same width as an indent, so its names
-	// land where the others' do.
-	if rule := cssRule(t, css, ".season-table th:first-child,"); !strings.Contains(rule, "var(--rank-col)") {
-		t.Errorf("the season table does not take the shared indent: %s", rule)
-	}
-
-	// And the markup asks for it: both ranked tables mark their first column.
-	for _, path := range []string{"/leaderboard", "/months"} {
-		body := fetchAs(t, srv, path, session).Body.String()
-		table := body[strings.Index(body, `<table class="board`):]
-		head := table[:strings.Index(table, "</tr>")]
-		if !strings.Contains(head, "rank-col") {
-			t.Errorf("%s: the first column is not the shared rank column", path)
-		}
+	if !strings.Contains(cssRule(t, css, ".season-tile {"), "align-items: center") {
+		t.Error("a place does not centre its trophy or digit")
 	}
 }
 
@@ -1543,9 +1320,10 @@ func TestEveryRankedTableIndentsItsNamesTheSame(t *testing.T) {
 // has to sit level with the row beside it. They share one rule rather than
 // two that agree today.
 //
-// content-box is the load-bearing part: the page is border-box throughout, so
-// a min-height counts the padding and the rule, and a row with nothing tall
-// in it settles short of one carrying a 30px score tile.
+// No vertical padding is the load-bearing part: the page is border-box
+// throughout, so a min-height with padding under it counts the padding, and
+// a row with nothing tall in it settled short of one carrying a score tile.
+// With none, the min-height is the row, whatever is in it.
 func TestTodaysTwoListsShareOneRowShape(t *testing.T) {
 	t.Parallel()
 
@@ -1553,13 +1331,9 @@ func TestTodaysTwoListsShareOneRowShape(t *testing.T) {
 	css := fetchAs(t, srv, "/static/app.css", nil).Body.String()
 
 	rule := cssRule(t, css, ".result-row, .form-row {")
-	for _, want := range []string{"box-sizing: content-box", "min-height: 30px", "padding: 11px 0"} {
+	for _, want := range []string{"min-height: 50px", "padding: 0 18px"} {
 		if !strings.Contains(rule, want) {
 			t.Errorf("the shared row rule is missing %q: %s", want, rule)
 		}
-	}
-	// Their headings too, or the rows start at different heights.
-	if !strings.Contains(css, ".result-row.head, .form-row.head {") {
-		t.Error("the two column-label rows are not styled as one")
 	}
 }

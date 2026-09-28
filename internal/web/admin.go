@@ -38,6 +38,11 @@ type adminPlayerRow struct {
 	Status      string
 	Href        string
 	Selected    bool
+	// Login is the second line's first half: the login's address, that an
+	// invitation is out, or that there is none. LastScore is the date of the
+	// latest result, "—" for none.
+	Login     string
+	LastScore string
 }
 
 type adminPlayersPage struct {
@@ -49,16 +54,27 @@ type adminPlayersPage struct {
 	Count    int
 	Linked   int
 	Unlinked int
+	Retired  int
+
+	// Orphans are logins no player reports for — made from the command
+	// line, or detached — each with the players it could be attached to.
+	Orphans []orphanLogin
 
 	// Selected is the player the panel is editing, nil when none is chosen.
 	// The list and the panel share one page, so choosing a player is a link
 	// rather than something that needs script.
 	Selected *adminPlayerPanel
 
+	// New is the New player card, open in the editor's place; nil when
+	// it is not.
+	New *newPlayerForm
+
 	// Notice reports the outcome of the previous action, carried in the
 	// query string so a reload cannot repeat the write.
 	Notice string
 	Error  string
+	// Moved is how many waiting results a new player took onto the board.
+	Moved string
 
 	// InviteLocale is the language pre-selected on the invitation form.
 	// English rather than the admin's own: the message is for somebody
@@ -66,26 +82,89 @@ type adminPlayersPage struct {
 	InviteLocale string
 }
 
+// NoticeText is what the toast says for the outcome in ?notice=, naming
+// the player and the address it is about where it has them.
+func (p adminPlayersPage) NoticeText() string {
+	name, email := "", ""
+	if p.Selected != nil {
+		name = p.Selected.Name
+		if p.Selected.Linked != nil {
+			email = p.Selected.Linked.Email
+		}
+		if p.Selected.Pending != nil {
+			email = p.Selected.Pending.Email
+		}
+	}
+	switch p.Notice {
+	case "":
+		return ""
+	case "created":
+		text := p.T.T("admin.notice.created", name, p.Selected.Slug)
+		if n, _ := strconv.Atoi(p.Moved); n > 0 {
+			text += " " + p.T.TN("admin.notice.moved", n)
+		}
+		return text
+	case "saved":
+		if name != "" {
+			return p.T.T("admin.notice.savedPlayer", name)
+		}
+		return p.T.T("admin.saved")
+	case "invited":
+		return p.T.T("admin.notice.invited", email)
+	case "inviteCancelled":
+		return p.T.T("admin.notice.inviteCancelled")
+	case "senderUnlinked":
+		return p.T.T("admin.notice.senderUnlinked")
+	case "resetSent":
+		return p.T.T("admin.notice.resetSent", email)
+	case "loginUnlinked":
+		return p.T.T("admin.notice.loginUnlinked", name)
+	case "loginDisabled":
+		return p.T.T("admin.notice.loginDisabled", name)
+	case "loginAttached":
+		return p.T.T("admin.notice.loginAttached", email, name)
+	}
+	return ""
+}
+
+// HereHref is this page without its outcome: the player open, or the list.
+func (p adminPlayersPage) HereHref() string {
+	if p.Selected != nil {
+		return "/admin/players/" + p.Selected.Slug
+	}
+	return "/admin/players"
+}
+
+// orphanLogin is a login with no player, and where it could go.
+type orphanLogin struct {
+	store.User
+	Sub     string
+	Choices []store.Player
+}
+
 // adminPlayerPanel is the editing panel beside the list.
 type adminPlayerPanel struct {
 	store.Player
 
-	// Figures feeds the stat-list partial directly (Variant "admin").
-	Figures  []playerStat
+	// Stats is the line under the name: puzzles, average, last score.
+	Stats    string
+	Initial  string
 	SlugBase string
-	Users    []store.User
 	Form     adminPlayerForm
+
+	// Senders are the Signal identities whose results land on this player.
+	Senders []store.ClaimedIdentity
 
 	// Pending is an invitation waiting to be accepted.
 	Pending      *store.Invitation
-	PendingUntil string
+	PendingSince string
 	CanInvite    bool
 
 	// Linked describes the attached login, nil when there is none.
-	Linked      *store.User
-	LinkedSince string
-	Initials    string
-	Role        string
+	Linked    *store.User
+	LinkedSub string
+	// ConfirmDisable is the second step of switching the login off.
+	ConfirmDisable bool
 }
 
 // adminPlayerForm is the editable surface, mirroring `player update` and
@@ -104,34 +183,48 @@ type adminPlayerForm struct {
 // One page rather than two: the design puts the list and the editor side by
 // side, and choosing a player is a link, so nothing here needs script.
 func (s *Server) handleAdminPlayers(w http.ResponseWriter, r *http.Request) {
-	board, players, results, _, err := s.boardData(r)
-	if err != nil {
-		s.logger.Error("build board", "error", err)
-		s.renderError(w, r, http.StatusInternalServerError)
-		return
-	}
-
-	games := make(map[int64]int, len(players))
-	for _, res := range results {
-		games[res.PlayerID]++
-	}
-
-	page := adminPlayersPage{
-		chrome: s.adminChrome(w, r, "players"),
-
-		Notice: r.URL.Query().Get("notice"),
-		Count:  len(players),
-
-		InviteLocale: defaultLocale,
-	}
-
 	// The chosen player comes from the path when one was followed, and from
 	// the query when a row in the list was clicked.
 	chosen := r.PathValue("slug")
 	if chosen == "" {
 		chosen = r.URL.Query().Get("player")
 	}
+	page, err := s.adminPlayersFor(w, r, chosen)
+	if err != nil {
+		if errors.Is(err, store.ErrPlayerNotFound) {
+			s.renderError(w, r, http.StatusNotFound)
+			return
+		}
+		s.logger.Error("build admin players", "error", err)
+		s.renderError(w, r, http.StatusInternalServerError)
+		return
+	}
+	page.Notice = r.URL.Query().Get("notice")
+	page.Moved = r.URL.Query().Get("moved")
+	if chosen == "" && r.URL.Query().Get("new") != "" {
+		if page.New, err = s.newPlayerFor(r, page.T, newPlayerForm{}, nil); err != nil {
+			s.logger.Error("list pending senders", "error", err)
+			s.renderError(w, r, http.StatusInternalServerError)
+			return
+		}
+	}
+	if !s.issueChromeToken(w, r, &page.chrome) {
+		return
+	}
+	s.render(w, r, http.StatusOK, "admin_players.html", page)
+}
 
+// adminPlayersFor builds the roster, the logins without a player, and the
+// panel for the chosen player when there is one.
+func (s *Server) adminPlayersFor(w http.ResponseWriter, r *http.Request, chosen string) (adminPlayersPage, error) {
+	board, players, results, _, err := s.boardData(r)
+	if err != nil {
+		return adminPlayersPage{}, err
+	}
+	games := make(map[int64]int, len(players))
+	for _, res := range results {
+		games[res.PlayerID]++
+	}
 	figures := make(map[int64]stats.Player, len(players))
 	for _, group := range [][]stats.Player{board.Ranked, board.Unranked} {
 		for _, p := range group {
@@ -139,64 +232,93 @@ func (s *Server) handleAdminPlayers(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	page := adminPlayersPage{
+		chrome:       s.adminChrome(w, r, "players"),
+		Count:        len(players),
+		InviteLocale: defaultLocale,
+	}
+	t := page.T
+
+	users, err := store.ListUsers(r.Context(), s.db)
+	if err != nil {
+		return adminPlayersPage{}, err
+	}
+	byID := make(map[int64]store.User, len(users))
+	for _, u := range users {
+		byID[u.ID] = u
+	}
+	linked := map[int64]bool{}
+
 	for _, p := range players {
 		row := adminPlayerRow{
-			Player:   p,
-			Games:    games[p.ID],
-			Average:  "—",
+			Player: p, Games: games[p.ID], Average: "—", LastScore: "—",
 			Href:     "/admin/players/" + p.Slug,
 			Selected: p.Slug == chosen,
-			Status:   page.T.T("admin.active"),
+			Status:   t.T("admin.active"),
+			Login:    t.T("admin.login.none"),
 		}
 		if !p.Active {
-			row.Status = page.T.T("admin.retired")
+			row.Status = t.T("admin.retired")
+			page.Retired++
 		}
 		if f, ok := figures[p.ID]; ok {
-			row.Average = formatScore(page.T, f.Average)
-		}
-		if p.UserID != nil {
-			page.Linked++
-			if user, err := store.UserByID(r.Context(), s.db, *p.UserID); err != nil {
-				s.logger.Error("read linked user", "player", p.Slug, "error", err)
-			} else {
-				row.LinkedEmail = user.Email
+			row.Average = formatScore(t, f.Average)
+			if f.LastPlayed != nil {
+				row.LastScore = dayMonth(t, *f.LastPlayed)
 			}
-		} else {
+		}
+		switch {
+		case p.UserID != nil:
+			page.Linked++
+			linked[*p.UserID] = true
+			if u, ok := byID[*p.UserID]; ok {
+				row.LinkedEmail, row.Login = u.Email, u.Email
+			}
+		default:
 			page.Unlinked++
+			if _, err := store.PendingInvitation(r.Context(), s.db, p.ID); err == nil {
+				row.Login = t.T("admin.login.invited")
+			}
 		}
 		page.Rows = append(page.Rows, row)
 	}
 
+	// Logins nobody plays as: attachable to an active player without one.
+	var free []store.Player
+	for _, p := range players {
+		if p.UserID == nil && p.Active {
+			free = append(free, p)
+		}
+	}
+	for _, u := range users {
+		if linked[u.ID] || u.Disabled() {
+			continue
+		}
+		sub := t.T("admin.orphan.never")
+		if u.EmailVerifiedAt != nil {
+			sub = t.T("admin.orphan.since", dayMonth(t, *u.EmailVerifiedAt))
+		}
+		if u.IsAdmin {
+			sub = t.T("settings.role.admin") + " · " + sub
+		}
+		page.Orphans = append(page.Orphans, orphanLogin{User: u, Sub: sub, Choices: free})
+	}
+
+	page.Section.Sub = t.T("admin.counts", page.Count, page.Linked, page.Retired)
+
 	if chosen != "" {
-		panel, err := s.adminPanel(r, chosen, games, figures)
+		panel, err := s.adminPanel(r, chosen, games, figures, byID)
 		if err != nil {
-			if !errors.Is(err, store.ErrPlayerNotFound) {
-				s.logger.Error("build admin panel", "error", err)
-			}
-			s.renderError(w, r, http.StatusNotFound)
-			return
+			return adminPlayersPage{}, err
 		}
 		page.Selected = panel
 	}
-
-	// The roster's own counts, where a section that has none falls back to
-	// the sentence describing it.
-	page.Section.Hint = page.T.T("admin.counts", page.Count, page.Linked, page.Unlinked)
-
-	if !s.issueChromeToken(w, r, &page.chrome) {
-		return
-	}
-	s.render(w, r, http.StatusOK, "admin_players.html", page)
+	return page, nil
 }
 
 // adminPanel gathers everything the editing panel shows for one player.
-func (s *Server) adminPanel(r *http.Request, slug string, games map[int64]int, figures map[int64]stats.Player) (*adminPlayerPanel, error) {
+func (s *Server) adminPanel(r *http.Request, slug string, games map[int64]int, figures map[int64]stats.Player, users map[int64]store.User) (*adminPlayerPanel, error) {
 	player, err := store.PlayerBySlug(r.Context(), s.db, slug)
-	if err != nil {
-		return nil, err
-	}
-
-	users, err := store.ListUsers(r.Context(), s.db)
 	if err != nil {
 		return nil, err
 	}
@@ -206,48 +328,62 @@ func (s *Server) adminPanel(r *http.Request, slug string, games map[int64]int, f
 	if f, ok := figures[player.ID]; ok {
 		average = formatScore(t, f.Average)
 		if f.LastPlayed != nil {
-			lastSeen = f.LastPlayed.Format(time.DateOnly)
+			lastSeen = dayMonth(t, *f.LastPlayed)
 		}
 	}
+	initial := ""
+	for _, r := range player.Name {
+		initial = strings.ToUpper(string(r))
+		break
+	}
 	panel := &adminPlayerPanel{
-		Player: player,
-		Figures: []playerStat{
-			{Label: t.T("board.column.games"), Value: t.Integer(games[player.ID])},
-			{Label: t.T("board.column.average"), Value: average},
-			{Label: t.T("admin.lastScore"), Value: lastSeen},
-		},
+		Player:  player,
+		Initial: initial,
+		Stats:   t.T("admin.player.stats", t.TN("player.games", games[player.ID]), average, lastSeen),
 		// Shown beside the slug field so an admin can see the address they
-		// are about to change. Falls back to a bare path when APP_URL is
-		// unset, which is the local-run case.
-		SlugBase: strings.TrimPrefix(s.cfg.AppURL, "https://") + "/players/",
-		Users:    users,
+		// are about to change.
+		SlugBase: "…/players/",
 		Form:     formFor(player),
 	}
+	panel.ConfirmDisable = r.URL.Query().Get("confirm") == "disable"
+
+	senders, err := store.ListClaimedIdentities(r.Context(), s.db, &player.ID)
+	if err != nil {
+		return nil, err
+	}
+	panel.Senders = senders
 
 	panel.CanInvite = s.mailer.Configured()
 	if player.UserID == nil {
 		if inv, err := store.PendingInvitation(r.Context(), s.db, player.ID); err == nil {
 			panel.Pending = &inv
-			panel.PendingUntil = localDate(inv.ExpiresAt)
+			panel.PendingSince = dayMonth(t, inv.CreatedAt)
 		}
 	}
 
 	if player.UserID != nil {
-		user, err := store.UserByID(r.Context(), s.db, *player.UserID)
-		if err != nil {
-			return nil, err
+		user, ok := users[*player.UserID]
+		if !ok {
+			if user, err = store.UserByID(r.Context(), s.db, *player.UserID); err != nil {
+				return nil, err
+			}
 		}
 		panel.Linked = &user
-		panel.Initials = initialsFor(user.Email)
-		panel.Role = t.T("settings.role.player")
-		if user.IsAdmin {
-			panel.Role = t.T("settings.role.admin")
+		panel.LinkedSub = t.T("admin.login.twoStepOff")
+		if user.HasTOTP {
+			panel.LinkedSub = t.T("admin.login.twoStepOn")
 		}
 		if user.EmailVerifiedAt != nil {
-			panel.LinkedSince = localDate(*user.EmailVerifiedAt)
+			panel.LinkedSub = t.T("admin.login.since", dayMonth(t, *user.EmailVerifiedAt)) + " · " + panel.LinkedSub
 		}
 	}
 	return panel, nil
+}
+
+// dayMonth is "27 Sep", from the catalogue's short month names.
+func dayMonth(t translator, at time.Time) string {
+	at = at.In(time.Local)
+	return strconv.Itoa(at.Day()) + " " + shortMonthName(t, at.Month())
 }
 
 // handleAdminPlayerSubmit applies an edit.
@@ -329,7 +465,7 @@ func (s *Server) handleAdminPlayerSubmit(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Redirect after the write, so a reload cannot repeat it.
-	http.Redirect(w, r, "/admin/players?notice=saved", http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/players/"+updated.Slug+"?notice=saved", http.StatusSeeOther)
 }
 
 // applyLink attaches or detaches a login, doing nothing when the selection
@@ -372,73 +508,20 @@ func formFor(p store.Player) adminPlayerForm {
 
 // renderAdminPlayer re-renders the page with the panel open and whatever was
 // submitted still in the fields, so a rejected edit is not thrown away.
-// renderAdminPlayer re-renders the page with the panel open and whatever was
-// submitted still in the fields, so a rejected edit is not thrown away.
 func (s *Server) renderAdminPlayer(w http.ResponseWriter, r *http.Request, player store.Player, errKey string, form adminPlayerForm) {
-	board, players, results, _, err := s.boardData(r)
+	page, err := s.adminPlayersFor(w, r, player.Slug)
 	if err != nil {
-		s.logger.Error("build board", "error", err)
+		s.logger.Error("build admin players", "error", err)
 		s.renderError(w, r, http.StatusInternalServerError)
 		return
 	}
-
-	games := make(map[int64]int, len(players))
-	for _, res := range results {
-		games[res.PlayerID]++
+	page.Error = errKey
+	if page.Selected != nil {
+		page.Selected.Form = form
 	}
-	figures := make(map[int64]stats.Player, len(players))
-	for _, group := range [][]stats.Player{board.Ranked, board.Unranked} {
-		for _, p := range group {
-			figures[p.ID] = p
-		}
-	}
-
-	page := adminPlayersPage{
-		chrome: s.adminChrome(w, r, "players"),
-
-		Error: errKey,
-		Count: len(players),
-
-		InviteLocale: defaultLocale,
-	}
-
-	for _, p := range players {
-		row := adminPlayerRow{
-			Player: p, Games: games[p.ID], Average: "—",
-			Href:     "/admin/players/" + p.Slug,
-			Selected: p.ID == player.ID,
-			Status:   page.T.T("admin.active"),
-		}
-		if !p.Active {
-			row.Status = page.T.T("admin.retired")
-		}
-		if f, ok := figures[p.ID]; ok {
-			row.Average = formatScore(page.T, f.Average)
-		}
-		if p.UserID != nil {
-			page.Linked++
-			if user, err := store.UserByID(r.Context(), s.db, *p.UserID); err == nil {
-				row.LinkedEmail = user.Email
-			}
-		} else {
-			page.Unlinked++
-		}
-		page.Rows = append(page.Rows, row)
-	}
-
-	panel, err := s.adminPanel(r, player.Slug, games, figures)
-	if err != nil {
-		s.logger.Error("build admin panel", "error", err)
-		s.renderError(w, r, http.StatusInternalServerError)
-		return
-	}
-	panel.Form = form
-	page.Selected = panel
-
 	if !s.issueChromeToken(w, r, &page.chrome) {
 		return
 	}
-
 	status := http.StatusOK
 	if errKey != "" {
 		status = http.StatusUnprocessableEntity
@@ -457,13 +540,6 @@ func (s *Server) issueChromeToken(w http.ResponseWriter, r *http.Request, c *chr
 	}
 	c.CSRFToken = token
 	return true
-}
-
-// localDate is the calendar date of a stored instant on the server's clock.
-// The database hands timestamps back in UTC, so without the conversion
-// anything between midnight and the offset lands on the day before.
-func localDate(t time.Time) string {
-	return dateIn(t, time.Local)
 }
 
 func dateIn(t time.Time, loc *time.Location) string {

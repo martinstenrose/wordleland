@@ -7,8 +7,8 @@ import (
 	"html"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -147,12 +147,18 @@ func rowFor(t *testing.T, body, slug string) string {
 	if i < 0 {
 		t.Fatalf("no row for %s", slug)
 	}
-	start := strings.LastIndex(body[:i], "<tr")
-	end := strings.Index(body[i:], "</tr>")
-	if start < 0 || end < 0 {
+	// A row is an <li> holding the last five's own <li>s, so it ends at
+	// the first </li> after its ⇄, which is the row's last cell.
+	start := strings.LastIndex(body[:i], `<li class="b-row`)
+	last := strings.Index(body[i:], `class="b-cmp`)
+	if start < 0 || last < 0 {
 		t.Fatalf("malformed row for %s", slug)
 	}
-	return body[start : i+end]
+	end := strings.Index(body[i+last:], "</li>")
+	if end < 0 {
+		t.Fatalf("malformed row for %s", slug)
+	}
+	return body[start : i+last+end]
 }
 
 // An unranked player keeps their raw scores, but the average, form and
@@ -298,18 +304,19 @@ func TestLastFiveCellsOpenAPopupInsteadOfHovering(t *testing.T) {
 	}
 }
 
-// Last game looks at the whole history, not just the last five or thirty
-// days, so a lapsed player still shows their real last game rather than
-// nothing.
-func TestLastGameShowsTheRealLastPuzzleEvenWhenLapsed(t *testing.T) {
+// A lapsed player's row says when they last played, from the whole history
+// rather than the last five or thirty days, so it is their real last game
+// and not nothing. It is the line under the name, where a ranked row says
+// how far behind the player above it is; the design's board has no
+// last-game column of its own.
+func TestALapsedRowSaysWhenTheyLastPlayed(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
 	seedBoard(t, srv)
 
 	current := wordle.PuzzleForDate(time.Now())
-	lastPuzzle := current - 170
-	date, err := wordle.DateForPuzzle(lastPuzzle)
+	date, err := wordle.DateForPuzzle(current - 170)
 	if err != nil {
 		t.Fatalf("DateForPuzzle: %v", err)
 	}
@@ -318,16 +325,9 @@ func TestLastGameShowsTheRealLastPuzzleEvenWhenLapsed(t *testing.T) {
 	body := fetch(t, srv, "/share/"+slug+"/board").Body.String()
 
 	lapsed := rowFor(t, body, "lapsed")
-	if want := ">" + strconv.Itoa(lastPuzzle) + "<"; !strings.Contains(lapsed, want) {
-		t.Errorf("lapsed's last game does not show puzzle %d:\n%s", lastPuzzle, lapsed)
-	}
-	if want := date.Format(time.DateOnly); !strings.Contains(lapsed, want) {
-		t.Errorf("lapsed's last game does not show its date %s:\n%s", want, lapsed)
-	}
-	// It joins the page's one shared popup group (see base.html), the same
-	// as a trait's explanation or a recent-strip cell's detail.
-	if !strings.Contains(lapsed, `<details class="lastgame-pop" name="popup">`) {
-		t.Error("the last-game popup does not share name=\"popup\" with the rest of the page")
+	want := `<span class="b-gap">last played ` + date.Format(time.DateOnly) + `</span>`
+	if !strings.Contains(lapsed, want) {
+		t.Errorf("lapsed's row does not say when they last played (%s):\n%s", want, lapsed)
 	}
 }
 
@@ -722,48 +722,49 @@ func TestPartialIsOnlyForTheCardsAScriptBorrows(t *testing.T) {
 	}
 }
 
-// Enrolment is the other, and the card it hands over has to be the card the
-// page renders — otherwise setting a secret up in the dialog and setting one
-// up by following the link are two different screens with one name.
-func TestEnrolmentHandsOverItsCardForTheDialog(t *testing.T) {
+// Setting an authenticator up from Settings happens in the two-step card,
+// as the design has it: the code to scan and the form beside it, a wrong
+// code sent back with the same secret so nothing has to be scanned again,
+// and on the right one the recovery codes, shown once, in the same card.
+func TestSettingsSetsAnAuthenticatorUpInPlace(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
-	seedLogin(t, srv, "admin@example.tld", true)
-	_, cookies := login(t, srv, "admin@example.tld", testPassword)
+	seedLogin(t, srv, "player@example.tld", false)
+	_, cookies := login(t, srv, "player@example.tld", testPassword)
 
-	full, cookies := getWith(t, srv, "/enroll-totp", cookies)
-	part, _ := getWith(t, srv, "/enroll-totp?partial=1", cookies)
-
-	body := part.Body.String()
-	if strings.Contains(body, "<html") || strings.Contains(body, "auth-frame") {
-		t.Error("the dialog is handed the page around the card")
-	}
-	if !strings.Contains(body, `<section class="auth-card`) {
-		t.Fatalf("the dialog is not handed a card:\n%s", body)
-	}
-	// Same shape, different secret: revisiting mints a fresh one, which is
-	// what makes a mis-scanned code recoverable by reloading.
-	card := full.Body.String()
-	card = card[strings.Index(card, `<section class="auth-card`):]
-	card = card[:strings.LastIndex(card, "</section>")]
-	for _, mark := range []string{`class="enrol-code"`, `action="/enroll-totp"`, `name="code"`} {
-		if !strings.Contains(body, mark) || !strings.Contains(card, mark) {
-			t.Errorf("%s is in one of the two and not the other", mark)
+	page, cookies := getWith(t, srv, "/settings?setup=totp", cookies)
+	body := page.Body.String()
+	for _, mark := range []string{`class="setup-qr" src="data:image/png;base64,`, `action="/enroll-totp"`, `name="from" value="settings"`, `name="code"`} {
+		if !strings.Contains(body, mark) {
+			t.Errorf("the setup is missing %s", mark)
 		}
 	}
-
-	// And the settings screen asks for it as a dialog rather than a page.
-	// Reachable once the account is enrolled: an admin who is not gets sent
-	// here from wherever else they try to go.
-	_, cookies = enrol(t, srv, cookies)
-	rec, _ := getWith(t, srv, "/settings/security", cookies)
-	settings := rec.Body.String()
-	if !strings.Contains(settings, `href="/enroll-totp"`) {
-		t.Error("the settings screen no longer links to enrolment at all")
+	grouped := regexp.MustCompile(`<p class="setup-secret">.*?<code>([A-Z2-7 ]+)</code>`).FindStringSubmatch(body)
+	if grouped == nil {
+		t.Fatal("the secret is not on the page to type")
 	}
-	if !strings.Contains(settings, "data-modal") {
-		t.Error("the link does not ask to be opened over the page")
+	secret := strings.ReplaceAll(grouped[1], " ", "")
+	csrf := csrfFieldPattern.FindStringSubmatch(body)[1]
+
+	wrong := postForm(t, srv, "/enroll-totp", url.Values{"csrf_token": {csrf}, "from": {"settings"}, "code": {"000000"}}, cookies)
+	if wrong.Code != http.StatusUnauthorized {
+		t.Fatalf("a wrong code = %d, want 401", wrong.Code)
+	}
+	if !strings.Contains(wrong.Body.String(), `id="two-step"`) || !strings.Contains(strings.ReplaceAll(wrong.Body.String(), " ", ""), secret) {
+		t.Error("a wrong code did not come back to the same setup on the settings page")
+	}
+
+	right := postForm(t, srv, "/enroll-totp", url.Values{"csrf_token": {csrf}, "from": {"settings"}, "code": {codeFor(t, secret, time.Now())}}, cookies)
+	if right.Code != http.StatusOK {
+		t.Fatalf("the right code = %d, want 200", right.Code)
+	}
+	done := right.Body.String()
+	if !strings.Contains(done, `<ol class="setup-codes">`) || strings.Count(done, "<li><code>") != 10 {
+		t.Error("the recovery codes are not shown in the card")
+	}
+	if !strings.Contains(done, `href="/settings?notice=totp-on#two-step"`) {
+		t.Error("there is no way on from the codes")
 	}
 }
 
@@ -811,5 +812,62 @@ func TestPartialNeverSurvivesIntoALink(t *testing.T) {
 		if linkWithPartial.MatchString(body) {
 			t.Errorf("%s: a rendered link carries partial=", tt.path)
 		}
+	}
+}
+
+// Every change to the ranking says what it did, with a way back: the link
+// carries the query it changes from, and the toast's Undo goes there. The
+// note belongs to that one change, so no link on the page carries it on.
+func TestARankingChangeLeavesAToastWithUndo(t *testing.T) {
+	t.Parallel()
+
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	board := fetchAs(t, srv, "/leaderboard?range=90", session).Body.String()
+	link := regexp.MustCompile(`href="(/leaderboard\?[^"]*changed=hard[^"]*)"`).FindStringSubmatch(board)
+	if link == nil {
+		t.Fatal("the hard-mode row does not mark its link as a change")
+	}
+	href := html.UnescapeString(link[1])
+
+	after := fetchAs(t, srv, href, session).Body.String()
+	if !strings.Contains(after, "Counting hard-mode games only.") {
+		t.Error("the change left no toast saying what it did")
+	}
+	if !strings.Contains(after, `<a class="toast-undo" href="/leaderboard?range=90">`) {
+		t.Error("the toast's Undo does not go back to the board as it was")
+	}
+	if !strings.Contains(after, `<a class="toast-close" href="/leaderboard?mode=hard&amp;range=90"`) {
+		t.Error("the toast's close does not go to the same board without the note")
+	}
+
+	for _, bad := range []string{"https://example.tld", "//example.tld"} {
+		body := fetchAs(t, srv, "/leaderboard?changed=hard&undo="+url.QueryEscape(bad), session).Body.String()
+		if strings.Contains(body, `href="`+bad) || strings.Contains(body, `href="/leaderboard`+bad) {
+			t.Errorf("undo=%s was followed rather than ignored", bad)
+		}
+	}
+}
+
+// An award names its holders, and each name is the way to their page — under
+// the share prefix on the shared view. A count ("3 players") links nowhere.
+func TestMonthAwardsLinkTheirHolders(t *testing.T) {
+	t.Parallel()
+
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+
+	body := fetchAs(t, srv, "/months", session).Body.String()
+	if !regexp.MustCompile(`<p class="month-award-who">(?:[^<]*<a href="/players/[a-z0-9-]+">[^<]+</a>)+`).MatchString(body) {
+		t.Error("an award's holder is not a link to their page")
+	}
+
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+	shared := fetchAs(t, srv, "/share/"+slug+"/months", nil).Body.String()
+	if !strings.Contains(shared, `<p class="month-award-who"><a href="/share/`+slug+`/players/`) {
+		t.Error("a shared award links out of the share prefix")
 	}
 }

@@ -328,10 +328,10 @@ func TestUnknownLanguageIsIgnored(t *testing.T) {
 	}
 }
 
-// Three tabs, each a page of its own. Rendering only the one that was asked
-// for is what the URL means: a reader can link to a tab, and — since a tab is
-// read from the path — a rejected form comes back where it was sent from.
-func TestSettingsRendersOneTabAtATime(t *testing.T) {
+// One page of three cards, as the design has it: how you appear, how you
+// sign in, and the second step. The addresses the tabs it replaced had show
+// the same page, so a link somebody kept still lands.
+func TestSettingsIsOnePageOfThreeCards(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
@@ -345,32 +345,16 @@ func TestSettingsRendersOneTabAtATime(t *testing.T) {
 		t.Fatalf("LinkPlayer: %v", err)
 	}
 
-	for _, tt := range []struct {
-		path, want string
-		absent     []string
-	}{
-		{path: "/settings", want: `action="/settings/name"`,
-			absent: []string{`action="/settings/password"`, `action="/settings/email"`, "/enroll-totp"}},
-		{path: "/settings/account", want: `action="/settings/email"`,
-			absent: []string{`action="/settings/name"`, "/enroll-totp"}},
-		{path: "/settings/security", want: "/enroll-totp",
-			absent: []string{`action="/settings/name"`, `action="/settings/password"`}},
-	} {
-		body := fetchAs(t, srv, tt.path, session).Body.String()
-		if !strings.Contains(body, tt.want) {
-			t.Errorf("%s: does not carry %s", tt.path, tt.want)
-		}
-		for _, gone := range tt.absent {
-			// Not merely tidiness: a password field in the markup of a page
-			// nobody asked for is a password field a manager may still
-			// offer to fill.
-			if strings.Contains(body, gone) {
-				t.Errorf("%s: also carries %s, which belongs to another tab", tt.path, gone)
+	for _, path := range []string{"/settings", "/settings/account", "/settings/security"} {
+		body := fetchAs(t, srv, path, session).Body.String()
+		for _, want := range []string{
+			`id="profile"`, `action="/settings/name"`,
+			`id="sign-in"`, `action="/settings/email"`, `action="/settings/password"`,
+			`id="two-step"`, `href="/settings?setup=totp#two-step"`,
+		} {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s: does not carry %s", path, want)
 			}
-		}
-		// The strip marks where you are.
-		if !strings.Contains(body, `aria-current="page"`) {
-			t.Errorf("%s: no tab is marked current", tt.path)
 		}
 	}
 }
@@ -399,8 +383,8 @@ func TestARejectedSettingsFormStaysOnItsTab(t *testing.T) {
 	}
 }
 
-// Changing the address lands back on the tab that changed it, so the notice
-// is beside the field it is about.
+// Changing the address lands back on the card that changed it, so the
+// notice is beside the field it is about.
 func TestChangingTheAddressLandsBackOnItsTab(t *testing.T) {
 	t.Parallel()
 
@@ -414,7 +398,7 @@ func TestChangingTheAddressLandsBackOnItsTab(t *testing.T) {
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("status = %d, want 303; body:\n%s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("Location"); got != "/settings/account?notice=email" {
-		t.Errorf("Location = %q, want the account tab", got)
+	if got := rec.Header().Get("Location"); got != "/settings?notice=email#sign-in" {
+		t.Errorf("Location = %q, want the sign-in card", got)
 	}
 }

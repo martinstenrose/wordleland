@@ -64,10 +64,26 @@ func TestNoCatalogueStringFormatsBadly(t *testing.T) {
 				continue
 			}
 			for _, n := range []int{1, 2, 7} {
-				if got := tr.TN(base, n); strings.Contains(got, "%!") {
-					t.Errorf("%s: TN(%q, %d) = %q", locale, base, n, got)
+				got := tr.TN(base, n)
+				if args, ok := pluralArgs[base]; ok {
+					got = tr.TP(base, n, args(n)...)
+				}
+				if strings.Contains(got, "%!") {
+					t.Errorf("%s: plural %q at %d = %q", locale, base, n, got)
 				}
 			}
 		}
 	}
+}
+
+// pluralArgs are the plural keys whose form is picked by one number and that
+// are formatted with more than it — through TP, as their callers do. Each
+// gives the arguments its caller passes, for a count of n.
+var pluralArgs = map[string]func(n int) []any{
+	"months.seasonLeader":     func(n int) []any { return []any{"Alma", n} },
+	"months.seasonShared":     func(n int) []any { return []any{"Alma and Bo", n} },
+	"today.standing.daysLeft": func(n int) []any { return []any{"September", n} },
+	"months.award.climbed":    func(n int) []any { return []any{n, "Aug"} },
+	"board.h2h.sub":           func(n int) []any { return []any{n, 2, "Alma", "0.12"} },
+	"board.h2h.subRecent":     func(n int) []any { return []any{n, 2, "Alma", "0.12"} },
 }

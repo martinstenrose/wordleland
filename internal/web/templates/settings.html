@@ -1,170 +1,217 @@
 {{define "title"}}{{.T.T "settings.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<section class="card settings">
-  <div class="settings-head">
-    <span class="avatar big" aria-hidden="true">{{.Initials}}</span>
-    <span class="account-id">
-      <span class="settings-name">{{if .Player}}{{.Player.Name}}{{else}}{{.Email}}{{end}}</span>
-      <span class="muted small">{{.Email}} · {{.Role}}</span>
-    </span>
+{{/* A reader's own account, as the design lays it out: the page head naming
+     whose it is, then three cards in one column — how you appear, how you
+     sign in, and the second step. Every form posts on its own and comes
+     back here, the outcome as a toast at the top and a rejection beside
+     the card it is about. */}}
+<header class="page-head">
+  <div class="page-head-id">
+    <p class="page-eyebrow">{{if .Player}}{{.Player.Name}} · {{end}}{{.Email}} · {{.Role}}</p>
+    <h1 class="page-title">{{.T.T "settings.title"}}</h1>
+    <p class="page-sub">{{.T.T "settings.sub"}}</p>
   </div>
+</header>
 
-  {{/* A column beside the panel on a wide card, a strip across the top of it
-       on a narrow one — the design's own two arrangements, decided in
-       app.css rather than here. Each tab is a page of its own, so a reader
-       can link to one and a rejected form comes back where it was sent
-       from. */}}
-  <div class="settings-split">
-    <nav class="settings-nav" aria-label="{{.T.T "settings.title"}}">
-      {{range .SettingsTabs}}
-        <a class="settings-tab{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>{{.Label}}</a>
-      {{end}}
-    </nav>
+<div class="settings-stack">
+  {{if .Notice}}
+    {{template "toast" (dict "Href" "/settings" "Text" .NoticeText "T" .T)}}
+  {{end}}
+  {{if .Error}}<p class="note error" role="alert">{{.T.T .Error}}</p>{{end}}
 
-    <div class="settings-panel">
-      {{if .Notice}}
-        {{/* data-raise asks app.js to lift this into the centred panel the
-             design draws, carrying the word for its button so the script
-             holds no copy of its own. Without the script it is a note where
-             notes go, saying the same thing. */}}
-        <p class="note" role="status" data-raise="{{.T.T "action.close"}}">
-          {{if eq .Notice "name"}}{{.T.T "settings.saved.name"}}
-          {{else if eq .Notice "email"}}{{.T.T "settings.saved.email"}}
-          {{else if eq .Notice "totp-off"}}{{.T.T "settings.totp.disabled"}}
-          {{else}}{{.T.T "admin.saved"}}{{end}}
-        </p>
-      {{end}}
-      {{if .Error}}<p class="note error" role="alert">{{.T.T .Error}}</p>{{end}}
+  <section class="card settings-card" id="profile">
+    {{template "settings-card-head" (dict "Icon" "badge" "Title" (.T.T "settings.profile") "Sub" (.T.T "settings.profileSub"))}}
+    {{if .Player}}
+      <form method="post" action="/settings/name" class="form settings-form">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <label class="field">
+          <span class="field-label">{{.T.T "settings.displayName"}}</span>
+          <input type="text" name="name" value="{{.Form.Name}}" required>
+          <span class="field-hint">{{.T.T "settings.displayNameHint"}}</span>
+        </label>
+        <div class="actions"><button class="btn" type="submit">{{.T.T "settings.save"}}</button></div>
+      </form>
+    {{else}}
+      <p class="field-hint">{{.T.T "settings.noPlayer"}}</p>
+    {{end}}
+  </section>
 
-      {{if eq .Tab "profile"}}
-        <h2 class="section flush">{{.T.T "settings.profile"}}</h2>
-        {{if .Player}}
-          <form method="post" action="/settings/name" class="form">
-            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <label for="name">{{.T.T "settings.displayName"}}</label>
-            <input type="text" id="name" name="name" value="{{.Form.Name}}" required>
-            <p class="hint">{{.T.T "settings.displayNameHint"}}</p>
-            <div class="actions"><button class="btn" type="submit">{{.T.T "settings.saveName"}}</button></div>
-          </form>
-        {{else}}
-          <p class="hint">{{.T.T "settings.noPlayer"}}</p>
-        {{end}}
-      {{end}}
+  <section class="card settings-card" id="sign-in">
+    {{template "settings-card-head" (dict "Icon" "key" "Title" (.T.T "settings.signIn") "Sub" (.T.T "settings.signInSub"))}}
+    {{if .PendingEmail}}<p class="note">{{.T.T "settings.pendingEmail" .PendingEmail}}</p>{{end}}
+    <form method="post" action="/settings/email" class="form settings-form">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <label class="field">
+        <span class="field-label">{{.T.T "signin.email"}}</span>
+        <span class="field-row">
+          <input type="email" name="email" value="{{.Form.Email}}" required autocomplete="email">
+          <button class="btn secondary" type="submit">{{.T.T "settings.changeEmail"}}</button>
+        </span>
+        <span class="field-hint">{{.T.T "settings.emailHint"}}</span>
+      </label>
+    </form>
+    <hr class="settings-rule">
+    <form method="post" action="/settings/password" class="form settings-form">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <div class="field-pair">
+        <label class="field">
+          <span class="field-label">{{.T.T "settings.currentPassword"}}</span>
+          <input type="password" name="current" required autocomplete="current-password">
+        </label>
+        <label class="field">
+          <span class="field-label">{{.T.T "reset.new"}}</span>
+          <input type="password" name="password" required autocomplete="new-password" placeholder="{{.T.T "reset.minimum"}}">
+        </label>
+      </div>
+      <div class="actions with-hint">
+        <button class="btn" type="submit">{{.T.T "settings.updatePassword"}}</button>
+        <span class="field-hint">{{.T.T "settings.passwordHint"}}</span>
+      </div>
+    </form>
+  </section>
 
-      {{if eq .Tab "account"}}
-        {{/* No heading over the address: the tab is named for it, and a
-             kicker reading EMAIL directly above a field labelled Email is
-             the same word three times in four lines. */}}
-        {{if .PendingEmail}}
-          <p class="note">{{.T.T "settings.pendingEmail" .PendingEmail}}</p>
-        {{end}}
-        <form method="post" action="/settings/email" class="form flush">
-          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-          <label for="email">{{.T.T "signin.email"}}</label>
-          <input type="email" id="email" name="email" value="{{.Form.Email}}" required autocomplete="email">
-          <p class="hint">{{.T.T "settings.emailHint"}}</p>
-          <div class="actions"><button class="btn" type="submit">{{.T.T "settings.changeEmail"}}</button></div>
-        </form>
-
-        <h2 class="section">{{.T.T "settings.password"}}</h2>
-        <form method="post" action="/settings/password" class="form">
-          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-          <label for="current">{{.T.T "settings.currentPassword"}}</label>
-          <input type="password" id="current" name="current" required autocomplete="current-password">
-
-          <label for="password">{{.T.T "reset.new"}}</label>
-          <input type="password" id="password" name="password" required autocomplete="new-password"
-                 placeholder="{{.T.T "reset.minimum"}}">
-          <p class="hint">{{.T.T "settings.passwordHint"}}</p>
-          <div class="actions"><button class="btn" type="submit">{{.T.T "settings.updatePassword"}}</button></div>
-        </form>
-      {{end}}
-
-      {{if eq .Tab "security"}}
-        <h2 class="section flush">{{.T.T "settings.twoFactor"}}</h2>
-        <p class="settings-state">
-          {{if .HasTOTP}}{{template "badge" (dict "Label" (.T.T "settings.totp.on") "On" true)}}
-          {{else}}{{template "badge" (dict "Label" (.T.T "settings.totp.off"))}}{{end}}
-          {{if .TOTPRequired}}<span class="muted small">{{.T.T "settings.totp.required"}}</span>{{end}}
-        </p>
-        <p class="hint">{{if .HasTOTP}}{{.T.T "settings.totp.onHint"}}{{else}}{{.T.T "settings.totp.offHint"}}{{end}}</p>
-        {{/* Both controls on one row, so the safe one and the destructive one
-             are the same object in two tones rather than two rows a reader
-             has to weigh separately.
-
-             Turning it off is offered to everyone it is optional for, which
-             is everyone but an admin: the admin area is gated on it, so a
-             control to switch it off would make "required for admins" a
-             suggestion. The handler checks the same thing — this decides what
-             is offered, that decides what is allowed. */}}
-        <div class="actions">
-          {{/* data-modal asks app.js to open this over the settings screen
-               rather than navigating to it: setting a key up is a step in
-               what the reader is already doing, not a place to go. It carries
-               the word for its close button, so the script holds no copy of
-               its own. Without the script it is an ordinary link to an
-               ordinary page, which is what it was. */}}
-          {{/* Setting a first secret up is safe and is what this screen is
-               for; rotating one is neither — it silences every app holding
-               the old secret and cancels the recovery codes — so the same
-               control changes tone with what it is about to do. */}}
-          <a class="btn{{if .HasTOTP}} secondary danger{{end}}" href="/enroll-totp"
-             data-modal data-modal-close="{{.T.T "action.close"}}" hx-boost="false">
-            {{if .HasTOTP}}{{.T.T "settings.totp.replace"}}{{else}}{{.T.T "settings.totp.setUp"}}{{end}}
-          </a>
-          {{if and .HasTOTP (not .TOTPRequired) (not .ConfirmDisable)}}
-            <a class="btn secondary danger" href="/settings/security?confirm=totp">{{.T.T "settings.totp.disable"}}</a>
-          {{end}}
-        </div>
-
-        {{if and .HasTOTP (not .TOTPRequired)}}
-          {{if .ConfirmDisable}}
-            {{/* The question, the cost of answering it, and only then the
-                 field. Filled red on the control that commits it, matching
-                 the slug rotation: outline opens a question, filled answers
-                 it. */}}
-            <div class="confirm">
-              <p class="confirm-title">{{.T.T "settings.totp.disable.title"}}</p>
-              <p class="hint">{{.T.T "settings.totp.disable.body"}}</p>
-              <form method="post" action="/settings/totp/disable" class="form">
-                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-                <label for="totp-off-password">{{.T.T "enrol.replace.password"}}</label>
-                <input type="password" id="totp-off-password" name="password"
-                       autocomplete="current-password" required>
-                <div class="actions">
-                  <button type="submit" class="btn danger">{{.T.T "settings.totp.disable.confirm"}}</button>
-                  <a class="btn secondary" href="/settings/security">{{.T.T "admin.cancel"}}</a>
-                </div>
-              </form>
-            </div>
-          {{end}}
-        {{end}}
-
-        {{if .HasTOTP}}
-          <h2 class="section">{{.T.T "settings.recovery.title"}}</h2>
-          <p class="settings-state">
-            {{if .RecoveryLeft}}
-              {{template "badge" (dict "Label" (.T.TN "settings.recovery.remaining" .RecoveryLeft) "On" (gt .RecoveryLeft 2))}}
-            {{else}}
-              {{template "badge" (dict "Label" (.T.T "settings.recovery.none"))}}
-            {{end}}
-          </p>
-          {{/* The warning is on the count, not on the act of generating: a set
-               that has nearly run out is the failure people do not see coming. */}}
-          {{if lt .RecoveryLeft 3}}<p class="hint warn">{{.T.T "settings.recovery.low"}}</p>{{end}}
-          <p class="hint">{{.T.T "settings.recovery.help"}}</p>
-          <form method="post" action="/settings/recovery-codes">
-            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            {{/* Outlined red: generating a set cancels the one before it, and
-                 a sheet somebody printed stops working the moment this is
-                 pressed. One press and no question, like discarding a held
-                 result — the new codes are on the next screen, so there is
-                 nothing to recover from between the two. */}}
-            <div class="actions"><button class="btn secondary danger" type="submit">{{.T.T "settings.recovery.generate"}}</button></div>
-          </form>
-        {{end}}
-      {{end}}
+  <section class="card settings-card" id="two-step">
+    <div class="settings-card-head">
+      <span class="settings-card-icon{{if .HasTOTP}} filled{{end}}">{{if .HasTOTP}}{{symbol "verified_user" 20}}{{else}}{{symbol "shield" 20}}{{end}}</span>
+      <span class="settings-card-id">
+        <span class="settings-card-title">{{.T.T "settings.twoFactor"}}</span>
+        <span class="settings-card-sub">{{if .HasTOTP}}{{.T.T "settings.totp.onSub"}}{{else}}{{.T.T "settings.totp.offSub"}}{{end}}</span>
+      </span>
+      <span class="state-pill{{if .HasTOTP}} filled{{end}}">{{if .HasTOTP}}{{symbol "check_circle" 16}}{{.T.T "settings.totp.on"}}{{else}}{{symbol "do_not_disturb_on" 16}}{{.T.T "settings.totp.off"}}{{end}}</span>
     </div>
-  </div>
-</section>
+
+    {{if or .Setup .Enrolling}}
+      {{/* Setting up is two steps, and the card says which one this is. */}}
+      <ol class="setup-steps">
+        <li class="{{if .Setup}}on{{else}}done{{end}}"><span class="setup-dot">{{if .Setup}}1{{else}}{{symbol "check" 15}}{{end}}</span>{{.T.T "settings.totp.step.scan"}}</li>
+        <li class="{{if .Enrolling}}on{{end}}"><span class="setup-dot">2</span>{{.T.T "settings.totp.step.codes"}}</li>
+      </ol>
+    {{end}}
+
+    {{if .Setup}}{{with .Setup}}
+      <div class="setup-scan">
+        <img class="setup-qr" src="{{.QRCode}}" alt="{{$.T.T "enrol.qrAlt"}}" width="168" height="168">
+        <form method="post" action="/enroll-totp" class="form settings-form setup-form">
+          <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+          <input type="hidden" name="from" value="settings">
+          <p class="setup-lead">{{$.T.T "settings.totp.scan"}}</p>
+          <p class="setup-secret"><span class="field-kicker">{{$.T.T "enrol.byHand"}}</span><code>{{.Secret}}</code></p>
+          {{if .Replacing}}<p class="field-hint warn">{{$.T.T "enrol.replace.codesGone"}}</p>{{end}}
+          {{with .Error}}<p class="note error" role="alert">{{.}}</p>{{end}}
+          <label class="field">
+            <span class="field-label">{{$.T.T "settings.totp.code"}}</span>
+            <input class="code-input" type="text" name="code" inputmode="numeric" autocomplete="one-time-code"
+                   pattern="[0-9 ]*" maxlength="7" placeholder="000 000" required autofocus>
+          </label>
+          {{if .Replacing}}
+            <label class="field">
+              <span class="field-label">{{$.T.T "enrol.replace.password"}}</span>
+              <input type="password" name="password" autocomplete="current-password" required>
+            </label>
+          {{end}}
+          <div class="actions">
+            <button class="btn{{if .Replacing}} danger{{end}}" type="submit">{{$.T.T "settings.totp.confirm"}}</button>
+            <a class="btn secondary" href="/settings#two-step">{{$.T.T "admin.cancel"}}</a>
+          </div>
+        </form>
+      </div>
+    {{end}}{{else if .Codes}}
+      {{/* Shown once and never again: only fingerprints are kept, so there
+           is no route that can rebuild this list. */}}
+      <p class="setup-warn">{{symbol "warning" 19}}<span>{{.T.T "settings.recovery.once"}}</span></p>
+      <ol class="setup-codes">
+        {{range .Codes}}<li><code>{{.}}</code></li>{{end}}
+      </ol>
+      <div class="actions">
+        <a class="btn" href="/settings?notice={{if .Enrolling}}totp-on{{else}}codes{{end}}#two-step">{{.T.T "settings.recovery.saved.button"}}</a>
+        {{/* Copying needs a script; the button is in the markup hidden, and
+             app.js shows it only where a clipboard can be written. The file
+             needs none: the codes are the link. */}}
+        <button class="btn secondary" type="button" data-copy-text="{{.CodesText}}" data-copied-label="{{.T.T "action.copied"}}" hidden>{{symbol "content_copy" 17}}<span>{{.T.T "action.copy"}}</span></button>
+        <a class="btn secondary" href="{{.CodesFile}}" download="wordleland-recovery-codes.txt">{{symbol "download" 17}}<span>{{.T.T "action.download"}}</span></a>
+      </div>
+    {{else if .HasTOTP}}
+      {{/* Each of the three changes something that cannot be taken back —
+           codes somebody printed, the app on a phone, the second step
+           itself — so each asks first, in the card, before it acts. */}}
+      <ul class="setting-rows">
+        <li class="setting-row">
+          {{symbol "password" 20}}
+          <span class="setting-row-id">
+            <span class="setting-row-title">{{.T.T "settings.recovery.title"}}</span>
+            <span class="setting-row-sub{{if lt .RecoveryLeft 3}} warn{{end}}">{{.T.TN "settings.recovery.left" .RecoveryLeft}}</span>
+          </span>
+          <a class="btn secondary danger" href="/settings?confirm=codes#two-step">{{symbol "refresh" 18}}<span>{{.T.T "settings.recovery.generate"}}</span></a>
+        </li>
+        <li class="setting-row">
+          {{symbol "phonelink_setup" 20}}
+          <span class="setting-row-id">
+            <span class="setting-row-title">{{.T.T "settings.totp.app"}}</span>
+            <span class="setting-row-sub">{{if .TOTPRequired}}{{.T.T "settings.totp.required"}} {{end}}{{.T.T "settings.totp.rotateHint"}}</span>
+          </span>
+          <span class="setting-row-actions">
+            <a class="btn secondary danger" href="/settings?confirm=rotate#two-step">{{symbol "autorenew" 18}}<span>{{.T.T "settings.totp.replace"}}</span></a>
+            {{/* Not offered to an admin: the admin area is gated on it. The
+                 handler checks the same thing. */}}
+            {{if not .TOTPRequired}}
+              <a class="btn secondary danger" href="/settings?confirm=totp#two-step">{{symbol "do_not_disturb_on" 18}}<span>{{.T.T "settings.totp.disable"}}</span></a>
+            {{end}}
+          </span>
+        </li>
+      </ul>
+      {{if eq .Confirm "codes"}}
+        <form method="post" action="/settings/recovery-codes" class="danger-box">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          {{symbol "warning" 19}}
+          <p class="danger-box-text"><b>{{.T.T "settings.recovery.ask"}}</b> {{.T.T "settings.recovery.askBody"}}</p>
+          <span class="danger-box-actions">
+            <a class="btn secondary" href="/settings#two-step">{{.T.T "admin.cancel"}}</a>
+            <button class="btn danger" type="submit">{{.T.T "settings.recovery.askAction"}}</button>
+          </span>
+        </form>
+      {{else if eq .Confirm "rotate"}}
+        <div class="danger-box">
+          {{symbol "warning" 19}}
+          <p class="danger-box-text"><b>{{.T.T "settings.totp.rotateAsk"}}</b> {{.T.T "settings.totp.rotateAskBody"}}</p>
+          <span class="danger-box-actions">
+            <a class="btn secondary" href="/settings#two-step">{{.T.T "admin.cancel"}}</a>
+            <a class="btn danger" href="/settings?setup=totp#two-step">{{.T.T "settings.totp.rotateAction"}}</a>
+          </span>
+        </div>
+      {{else if and .ConfirmDisable (not .TOTPRequired)}}
+        {{/* Turning it off asks for the password as well: a session on a
+             borrowed screen has cleared both factors already. */}}
+        <form method="post" action="/settings/totp/disable" class="danger-box column">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          <p class="danger-box-text">{{symbol "warning" 19}}<span><b>{{.T.T "settings.totp.disable.title"}}</b> {{.T.T "settings.totp.disable.body"}}</span></p>
+          <label class="field">
+            <span class="field-label">{{.T.T "enrol.replace.password"}}</span>
+            <input type="password" name="password" autocomplete="current-password" required>
+          </label>
+          <span class="danger-box-actions">
+            <a class="btn secondary" href="/settings#two-step">{{.T.T "admin.cancel"}}</a>
+            <button type="submit" class="btn danger">{{.T.T "settings.totp.disable.confirm"}}</button>
+          </span>
+        </form>
+      {{end}}
+    {{else}}
+      <div class="actions with-hint">
+        <a class="btn" href="/settings?setup=totp#two-step">{{symbol "qr_code_scanner" 18}}<span>{{.T.T "settings.totp.setUp"}}</span></a>
+        <span class="field-hint">{{.T.T "settings.totp.apps"}}</span>
+      </div>
+    {{end}}
+  </section>
+</div>
+{{end}}
+
+{{/* A settings card's head: a glyph in a tile, the card's name, and what it
+     is for. Data: {Icon, Title, Sub string}. */}}
+{{define "settings-card-head"}}
+<div class="settings-card-head">
+  <span class="settings-card-icon">{{symbol .Icon 20}}</span>
+  <span class="settings-card-id">
+    <span class="settings-card-title">{{.Title}}</span>
+    <span class="settings-card-sub">{{.Sub}}</span>
+  </span>
+</div>
 {{end}}

@@ -158,14 +158,6 @@ func (s *Server) handleEnrolTOTPForm(w http.ResponseWriter, r *http.Request) {
 		Mandatory: user.IsAdmin,
 		Replacing: replacing,
 	}
-	// The card alone, for the dialog the settings screen opens it in. The
-	// page around it is the sign-in family's frame, which is right for an
-	// admin sent here at sign-in and wrong over a page somebody is already
-	// reading.
-	if wantsPartial(r) {
-		s.renderBlock(w, r, http.StatusOK, "enroll_totp.html", "content", page)
-		return
-	}
 	s.render(w, r, http.StatusOK, "enroll_totp.html", page)
 }
 
@@ -215,7 +207,11 @@ func (s *Server) handleEnrolTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, store.ErrNoPendingSecret) {
 			// The page was reloaded or the enrolment abandoned; sending them
 			// back regenerates a secret rather than failing.
-			http.Redirect(w, r, "/enroll-totp", http.StatusSeeOther)
+			back := "/enroll-totp"
+			if fromSettings(r) {
+				back = "/settings?setup=totp#two-step"
+			}
+			http.Redirect(w, r, back, http.StatusSeeOther)
 			return
 		}
 		s.logger.Error("read pending totp secret", "error", err)
@@ -256,7 +252,12 @@ func (s *Server) handleEnrolTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 
 	// The codes are issued here rather than offered later, because later is
 	// after the phone has been lost. This is the one moment the person is
-	// both enrolled and looking at the screen.
+	// both enrolled and looking at the screen — in the settings page's
+	// two-step card when that is where they set it up.
+	if fromSettings(r) {
+		s.renderSettingsCodes(w, r, user, true)
+		return
+	}
 	s.showRecoveryCodes(w, r, user, true)
 }
 
@@ -399,6 +400,10 @@ func (s *Server) renderTOTPError(w http.ResponseWriter, r *http.Request, status 
 // renderEnrolError re-renders enrolment with the pending secret intact, so a
 // mistyped code does not force a fresh scan.
 func (s *Server) renderEnrolError(w http.ResponseWriter, r *http.Request, status int, message string) {
+	if fromSettings(r) {
+		s.renderSettingsSetup(w, r, status, message)
+		return
+	}
 	user, _ := userFrom(r)
 
 	sealed, err := store.PendingTOTPSecret(r.Context(), s.db, user.ID)
@@ -434,10 +439,6 @@ func (s *Server) renderEnrolError(w http.ResponseWriter, r *http.Request, status
 		Secret:    string(secret),
 		Mandatory: user.IsAdmin,
 		Replacing: user.HasTOTP,
-	}
-	if wantsPartial(r) {
-		s.renderBlock(w, r, status, "enroll_totp.html", "content", page)
-		return
 	}
 	s.render(w, r, status, "enroll_totp.html", page)
 }

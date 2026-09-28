@@ -14,11 +14,11 @@ func playerOrder(body string) []string {
 	var out []string
 	rest := body
 	for {
-		i := strings.Index(rest, `class="player" href="`)
+		i := strings.Index(rest, `class="player b-name" href="`)
 		if i < 0 {
 			return out
 		}
-		rest = rest[i+len(`class="player" href="`):]
+		rest = rest[i+len(`class="player b-name" href="`):]
 		j := strings.Index(rest, `"`)
 		href := rest[:j]
 		out = append(out, href[strings.LastIndex(href, "/")+1:])
@@ -77,12 +77,13 @@ func TestSortingDoesNotRenumberRanks(t *testing.T) {
 		out := map[string]string{}
 		for _, slug := range playerOrder(body) {
 			row := rowFor(t, body, slug)
-			start := strings.Index(row, `<td class="rank-col num">`)
+			start := strings.Index(row, `class="pill-rank num`)
 			if start < 0 {
 				continue
 			}
-			cell := row[start+len(`<td class="rank-col num">`):]
-			out[slug] = strings.TrimSpace(cell[:strings.Index(cell, "</td>")])
+			cell := row[start:]
+			cell = cell[strings.Index(cell, ">")+1:]
+			out[slug] = strings.TrimSpace(cell[:strings.Index(cell, "</span>")])
 		}
 		return out
 	}

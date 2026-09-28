@@ -55,6 +55,12 @@ func (s *Server) serveStatic() http.Handler {
 			// response's ETag for If-None-Match, so the 304 comes with it.
 			w.Header().Set("ETag", `"`+digest+`"`)
 		}
+		// Go's own table of types has no .woff2 and a slim container image
+		// has no mime.types to fill the gap, so the font would go out as
+		// whatever the sniffer guessed. Said here, the same everywhere.
+		if strings.HasSuffix(r.URL.Path, ".woff2") {
+			w.Header().Set("Content-Type", "font/woff2")
+		}
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/static/fonts/"),
 			known && r.URL.Query().Get("v") == digest:
@@ -109,7 +115,20 @@ func asset(p string) string {
 type templates map[string]*template.Template
 
 // templateFuncs are available to every page and partial.
-var templateFuncs = template.FuncMap{"dict": dict, "asset": asset}
+var templateFuncs = template.FuncMap{"dict": dict, "asset": asset, "symbol": symbol, "codeSymbol": codeSymbol, "gridRows": gridRows}
+
+// gridRows splits a stored grid ("nynnn/ggggg") into rows of squares for the
+// "pattern" partial, each square its letter: g, y or n.
+func gridRows(grid string) [][]string {
+	if grid == "" {
+		return nil
+	}
+	var out [][]string
+	for _, row := range strings.Split(grid, "/") {
+		out = append(out, strings.Split(row, ""))
+	}
+	return out
+}
 
 // dict builds a map from alternating key/value arguments, so a page can
 // construct a partial's data inline — {{template "chip" (dict "Label" .

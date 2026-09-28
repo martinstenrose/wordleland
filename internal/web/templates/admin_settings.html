@@ -1,105 +1,73 @@
 {{define "title"}}{{.T.T "admin.settings.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<section class="card card-bar">
-  {{template "switcher" .Section}}
+{{template "admin-head" .Section}}
+{{/* What this installation is: the share link, the one thing here that can
+     be changed, and the environment in cards by what each part needs. */}}
+{{with .Notice}}{{template "toast" (dict "Href" "/admin/settings" "Text" . "T" $.T)}}{{end}}
+{{with .Error}}<p class="note error" role="alert">{{.}}</p>{{end}}
 
-  {{if .Notice}}<p class="note" role="status" data-raise="{{.T.T "action.close"}}">{{.Notice}}</p>{{end}}
-  {{if .Error}}<p class="note error" role="alert">{{.Error}}</p>{{end}}
-
-  {{/* Rotating is three page loads without a script — ask, answer, outcome
-       — and these attributes collapse them into swaps of this card: every
-       link and form inside fetches the page it already pointed at, htmx
-       picks the card out of it and puts it in place of this one, and the
-       address follows. The card rather than the body, which every other
-       link swaps, so the outcome lands as the note inside it rather than
-       being raised into a panel: the slug visibly changed under the
-       reader's eyes, and a dialog on top of that is feedback for nothing. */}}
-  <div class="settings-section share-section"
-       hx-target="closest section.card" hx-select="section.card" hx-swap="outerHTML" hx-replace-url="true">
-    <h2 class="section flush">{{.T.T "admin.settings.slug"}}</h2>
-    {{if .Slug}}
-      {{/* The slug, and only the slug: it is what identifies this link and
-           the part that changes, and a whole URL on a phone is a string with
-           no good place to break. It was printed in full underneath and
-           wrapped mid-slug, which shredded the one thing here worth reading.
-
-           Not a link: following it would leave the admin area for the
-           board's public face, which is not what a reader of this screen is
-           reaching for. The address is had from the copy button beside it,
-           and reconstructed from APP_URL in the table below if that button
-           is not there. */}}
-      <p class="share-slug"><code>{{.Slug}}</code></p>
-      <p class="hint">{{.T.T "admin.settings.slugHint"}}</p>
-
-      {{if .Confirming}}
-        {{/* Step two. Rotating cannot be undone and the cost lands on
-             everyone else in the group, so it is asked before it happens
-             rather than reported after. No script involved: the control
-             below is a link back to this same page with the question
-             showing. */}}
-        <div class="confirm" role="group" aria-labelledby="rotate-ask">
-          <p id="rotate-ask" class="confirm-title">{{.T.T "admin.settings.rotateAsk"}}</p>
-          <p class="hint">{{.T.T "admin.settings.rotateAskBody"}}</p>
-          <form method="post" action="/admin/settings/slug" class="actions">
-            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <button class="btn danger" type="submit">{{.T.T "admin.settings.rotate"}}</button>
-            <a class="btn secondary" href="/admin/settings">{{.T.T "admin.cancel"}}</a>
-          </form>
-        </div>
-      {{else}}
-        {{/* data-copy asks app.js for a copy button, and carries both words
-             it needs so the script holds no strings of its own. It is absent
-             when APP_URL is not set, because the link is then a bare path and
-             copying it hands somebody something that is not a link. Without
-             the script the row is just the replace control, and the link
-             above is there to be selected. */}}
-        <div class="actions"{{if .CopyURL}} data-copy="{{.CopyURL}}"
-             data-copy-label="{{.T.T "action.copyLink"}}"
-             data-copied-label="{{.T.T "action.copied"}}"{{end}}>
-          {{/* Outlined and danger-toned: it opens the question rather than
-               answering it, so the risk reads before it is pressed while the
-               filled red stays on the control that actually does it. */}}
-          <a class="btn secondary danger" href="/admin/settings?confirm=slug">{{.T.T "admin.settings.rotate"}}</a>
-        </div>
-      {{end}}
-    {{else}}
-      <p class="hint">{{.T.T "admin.settings.noSlug"}}</p>
-    {{end}}
+<section class="card admin-card share-card">
+  <div class="admin-card-id">
+    <h2 class="admin-card-title">{{.T.T "admin.settings.slug"}}</h2>
+    <p class="admin-card-sub">{{.T.T "admin.settings.slugHint"}}</p>
   </div>
-
-  <h2 class="section">{{.T.T "admin.settings.env"}}</h2>
-  <p class="hint">{{.T.T "admin.settings.envHint"}}</p>
-  <dl class="detail-fields env-fields">
-    {{range .Env}}
-      <div>
-        <dt>{{.Name}}</dt>
-        <dd>
-          <span class="env-value{{if .Muted}} muted{{end}}">
-            {{if .Redacted}}
-              {{/* Dots rather than a word, at full strength rather than
-                   greyed: there is a value here, and greying it would say
-                   the opposite. The sentence behind them is the accessible
-                   name, so nothing is carried by the glyphs alone — and it
-                   is on the title too, for a reader who wonders. */}}
-              <span class="env-redacted" title="{{.Value}}" aria-hidden="true">••••••••</span>
-              <span class="visually-hidden">{{.Value}}</span>
-            {{else if .Mono}}<code>{{.Value}}</code>
-            {{else}}{{.Value}}{{end}}
-          </span>
-          {{/* A value nobody chose still says what it is, and says that
-               nobody chose it. Greyed like the unset rows, because the
-               question this column is swept for is what has been set. */}}
-          {{if .Default}}<span class="env-default">{{$.T.T "admin.settings.default"}}</span>{{end}}
-          {{/* One lock per row, as the design has it: the point is that
-               nothing in this table can be typed over, and a note at the top
-               alone leaves each row looking editable. */}}
-          <span class="env-lock" title="{{$.T.T "admin.settings.setViaEnv"}}">
-            {{template "lock-icon" .}}
-            <span class="visually-hidden">{{$.T.T "admin.settings.setViaEnv"}}</span>
-          </span>
-        </dd>
+  {{if .Slug}}
+    {{/* The link as a field: the origin quiet, the slug the thing. The copy
+         button needs a script to write the clipboard, and only exists with
+         APP_URL set, since a bare path is not a link to hand anyone. */}}
+    <div class="share-row">
+      <p class="share-link"><span class="muted">{{.ShareBase}}</span>{{.Slug}}</p>
+      {{if .CopyURL}}
+        <button class="btn" type="button" data-copy-text="{{.CopyURL}}" data-copied-label="{{.T.T "action.copied"}}" hidden>{{symbol "content_copy" 18}}<span>{{.T.T "action.copyLink"}}</span></button>
+      {{end}}
+    </div>
+    {{if .Confirming}}
+      {{/* Rotating cannot be undone and the cost lands on everyone else in
+           the group, so it is asked before it happens. */}}
+      <div class="danger-box" role="group" aria-labelledby="rotate-ask">
+        {{symbol "link_off" 19}}
+        <p id="rotate-ask" class="danger-box-text"><b>{{.T.T "admin.settings.rotateAskTitle"}}</b> {{.T.T "admin.settings.rotateAskBody"}}</p>
+        <form method="post" action="/admin/settings/slug" class="danger-box-actions">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          <a class="btn secondary small" href="/admin/settings">{{.T.T "admin.cancel"}}</a>
+          <button class="btn danger" type="submit">{{.T.T "admin.settings.rotateShort"}}</button>
+        </form>
       </div>
+    {{else}}
+      <p class="share-rotate"><a class="btn secondary danger" href="/admin/settings?confirm=slug">{{symbol "autorenew" 18}}<span>{{.T.T "admin.settings.rotate"}}</span></a><span class="field-hint">{{.T.T "admin.settings.rotateHint"}}</span></p>
     {{end}}
-  </dl>
+  {{else}}
+    <p class="admin-card-sub">{{.T.T "admin.settings.noSlug"}}</p>
+  {{end}}
 </section>
+
+<p class="admin-note">{{symbol "lock" 17}}<span>{{.T.T "admin.settings.envHint"}}</span></p>
+<div class="env-grid">
+  {{range .EnvGroups}}
+    <section class="card env-card">
+      <div class="env-head">
+        {{symbol .Icon 20}}
+        <h2 class="env-title">{{.Title}}</h2>
+        <span class="state-pill{{if eq .State "all"}} filled{{end}}">
+          {{if eq .State "all"}}{{symbol "check_circle" 17}}{{else if eq .State "none"}}{{symbol "do_not_disturb_on" 17}}{{else}}{{symbol "error" 17}}{{end}}{{.Status}}
+        </span>
+      </div>
+      {{if .Note}}
+        <p class="env-note">{{.Note}}</p>
+      {{else}}
+        <dl class="env-rows">
+          {{range .Rows}}
+            <div class="env-row">
+              <dt><code>{{.Name}}</code></dt>
+              <dd class="env-value{{if .Unset}} muted{{end}}{{if .Redacted}} env-redacted{{end}}">
+                {{if .Redacted}}<span aria-hidden="true">••••••••</span><span class="visually-hidden">{{.Value}}</span>{{else if .Mono}}<code>{{.Value}}</code>{{else}}{{.Value}}{{end}}
+              </dd>
+              {{if .Default}}<span class="env-default">{{$.T.T "admin.settings.default"}}</span>{{end}}
+            </div>
+          {{end}}
+        </dl>
+      {{end}}
+    </section>
+  {{end}}
+</div>
 {{end}}

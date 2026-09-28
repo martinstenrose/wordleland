@@ -1,164 +1,199 @@
 {{define "title"}}{{.Player.Name}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<section class="card card-bar">
-  {{template "switcher" .Section}}
+{{/* A player: the page head with their figures opposite the name, the
+     roster as a row of pills under it, and their story in cards — form
+     against the group, rank by month, the last thirty days and how their
+     guesses fall, two by two, and every day they played across the width
+     under them. */}}
+{{template "switcher" .Section}}
 
-  {{/* The trait and the retired mark used to sit beside the name. The name is
-       now the summary that opens the roster, and the trait is a <details> of
-       its own — one inside a <summary> is neither valid nor clickable — so
-       both moved down here, where they are still the first thing under the
-       name and now share a line with the figures. */}}
-  <div class="player-head">
-    {{if or .Trait (not .Player.Active)}}
-      <div class="player-marks">
-        {{if .Trait}}{{template "trait" .}}{{end}}
-        {{if not .Player.Active}}{{template "chip" (dict "Label" (.T.T "player.retired"))}}{{end}}
-      </div>
-    {{end}}
-    {{if .Player.Games}}{{template "stat-list" (dict "Variant" "figure" "Items" .Stats)}}{{end}}
-  </div>
+{{if not .Player.Games}}
+  {{template "page-empty" (dict "Icon" "person" "Title" (.T.T "player.noGames") "Body" (.T.T "player.noGamesBody"))}}
+{{else}}
 
-  {{if not .Player.Games}}
-    <p class="empty">{{.T.T "player.noGames"}}</p>
-  {{else}}
-
-  <div class="panels">
-    <div class="panel">
-      <div class="panel-head">
-        <span>{{.T.T "player.formChart"}}</span>
-        <span class="legend-lines">
-          <span class="muted small">— {{.Player.Name}}</span>
-          <span class="muted small">
-            <svg width="18" height="6" viewBox="0 0 18 6" aria-hidden="true">
-              <line x1="0" y1="3" x2="18" y2="3" stroke="currentColor" stroke-width="1.9" stroke-dasharray="7 4" stroke-linecap="round"/>
-            </svg>
-            {{.T.T "player.group"}}
-          </span>
-        </span>
-      </div>
-      {{if .ChartNoteKey}}
-        <p class="hint">{{.T.T .ChartNoteKey}}</p>
-      {{else if .HasChart}}
-        {{/* The scale is markup beside the chart rather than SVG text: the
-             chart stretches with preserveAspectRatio="none" and text inside
-             it would stretch with it. Each label is placed from its own rule's
-             offset, so the two cannot drift apart. */}}
-        <div class="chart-wrap">
-          <ol class="scale" aria-hidden="true">
-            {{range .Gridlines}}<li style="top:{{.Top}}">{{.Label}}</li>{{end}}
-          </ol>
-          <svg class="chart" viewBox="0 0 560 140" preserveAspectRatio="none" role="img"
-               aria-label="{{.T.T "player.formChart"}}">
-            {{range .Gridlines}}<line class="grid" x1="0" x2="560" y1="{{.Y}}" y2="{{.Y}}"/>{{end}}
-            {{if .GroupPath}}<path class="group" d="{{.GroupPath}}"/>{{end}}
-            <path class="player" d="{{.FormPath}}"/>
-          </svg>
-        </div>
-        <ol class="chart-x" aria-hidden="true">
-          {{range .FormXLabels}}<li>{{.}}</li>{{end}}
-        </ol>
-      {{end}}
+<div class="player-grid">
+  <section class="card panel-card">
+    <div class="panel-card-head">
+      <h2>{{.T.T "player.formChart"}}</h2>
+      <span class="legend-lines">
+        <span><span class="legend-line" aria-hidden="true"></span>{{.Player.Name}}</span>
+        <span><span class="legend-line dashed" aria-hidden="true"></span>{{.T.T "player.group"}}</span>
+      </span>
     </div>
-
-    <div class="panel">
-      <div class="panel-head">
-        <span>{{.T.T "player.distribution"}}</span>
-        <span class="muted small">{{.T.TN "player.games" .Player.Games}}</span>
+    {{if .ChartNoteKey}}
+      <p class="hint">{{.T.T .ChartNoteKey}}</p>
+    {{else if .HasChart}}
+      {{/* The scale is markup beside the chart rather than SVG text: the
+           chart stretches with preserveAspectRatio="none" and text inside
+           it would stretch with it. Each label is placed from its own rule's
+           offset, so the two cannot drift apart. */}}
+      <div class="chart-wrap">
+        <ol class="scale" aria-hidden="true">
+          {{range .Gridlines}}<li style="top:{{.Top}}">{{.Label}}</li>{{end}}
+        </ol>
+        <svg class="chart" viewBox="0 0 560 140" preserveAspectRatio="none" role="img"
+             aria-label="{{.T.T "player.formChart"}}">
+          {{range .Gridlines}}<line class="grid" x1="0" x2="560" y1="{{.Y}}" y2="{{.Y}}"/>{{end}}
+          {{if .GroupPath}}<path class="group" d="{{.GroupPath}}"/>{{end}}
+          <path class="player" d="{{.FormPath}}"/>
+        </svg>
       </div>
-      <ul class="dist">
-        {{range .Distribution}}
-          <li>
-            <span class="dist-label num">{{.Label}}</span>
-            {{template "progress-bar" (dict "Percent" .Percent)}}
-            <span class="dist-count num">{{$.T.Integer .Count}}</span>
-            <span class="dist-share num muted small">{{.Share}}</span>
+      <ol class="chart-x" aria-hidden="true">
+        {{range .FormXLabels}}<li>{{.}}</li>{{end}}
+      </ol>
+    {{end}}
+  </section>
+
+  {{/* Always drawn, so a new player's grid has no hole where the chart will
+       go: a line needs two months with a rank, and until then the card says
+       so. The rules and their places are markup over a stretched SVG, like
+       the form chart's, so the text does not stretch with the line. */}}
+  <section class="card panel-card">
+    <div class="panel-card-head">
+      <h2>{{.T.T "player.rankByMonth"}}</h2>
+      <span class="panel-card-hint">{{.WinsNote}}</span>
+    </div>
+    {{if .MonthRanks}}
+      <div class="rank-plot" role="img" aria-label="{{.T.T "player.rankByMonth"}}">
+        <svg viewBox="0 0 320 160" preserveAspectRatio="none" aria-hidden="true">
+          {{range .RankRules}}<line class="grid" x1="24" x2="320" y1="{{.Y}}" y2="{{.Y}}"/>{{end}}
+          <path class="player" d="{{.RankPath}}"/>
+          {{if .RankPathDashed}}<path class="player dashed" d="{{.RankPathDashed}}"/>{{end}}
+        </svg>
+        {{range .RankRules}}<span class="rank-rule-label num" style="top: {{.Top}}" aria-hidden="true">{{.Label}}</span>{{end}}
+        {{range .MonthRanks}}
+          <span class="rank-dot" style="left: {{.Left}}; top: {{.Top}}" title="{{.Label}} · {{$.T.Integer .Rank}}"></span>
+          <span class="rank-month" style="left: {{.Left}}" aria-hidden="true">{{.Label}}</span>
+        {{end}}
+      </div>
+    {{else}}
+      <p class="hint">{{.T.T "player.rankByMonthEmpty"}}</p>
+    {{end}}
+  </section>
+
+  {{/* The last thirty days, oldest first. A played day opens a popup —
+       which puzzle, when, what it took, how the group did — with the day's
+       page a press away; the popups share name="popup" (see base.html). */}}
+  <section class="card panel-card">
+    <div class="panel-card-head"><h2>{{.T.T "player.recent"}}</h2></div>
+    <ol class="strip">
+      {{range .Recent}}
+        <li class="cell{{if .Played}} t{{.Tone}}{{else}} gap{{end}}"
+            {{if not .Played}}title="{{.Date}} · {{$.T.T "player.puzzle" ($.T.Puzzle .PuzzleNo)}}"{{end}}>
+          {{if .Played}}
+            <details class="cell-pop" name="popup">
+              <summary>{{.Label}}</summary>
+              {{template "day-popup" (dict "Popup" .Popup "T" $.T)}}
+            </details>
+          {{end}}
+        </li>
+      {{end}}
+    </ol>
+    <p class="hint">{{.T.T "player.stripLegend"}}</p>
+  </section>
+
+  <section class="card panel-card">
+    <div class="panel-card-head">
+      <h2>{{.T.T "player.distribution"}}</h2>
+      <span class="panel-card-hint">{{.T.TN "player.games" .Player.Games}}</span>
+    </div>
+    <ul class="dist">
+      {{range $i, $d := .Distribution}}
+        <li>
+          <span class="dist-label num">{{.Label}}</span>
+          <span class="dist-track"><span class="dist-bar{{if eq $i 6}} miss{{end}}" style="width: {{.Percent}}%"></span></span>
+          <span class="dist-count num">{{$.T.Integer .Count}}</span>
+          <span class="dist-share num">{{.Share}}</span>
+        </li>
+      {{end}}
+    </ul>
+  </section>
+
+  <section class="card panel-card">
+    <div class="panel-card-head"><h2>{{.T.T "player.records"}}</h2></div>
+    <ul class="records">
+      {{range .Records}}
+        <li class="record">
+          {{symbol .Icon 19}}
+          <span class="record-label">{{.Label}}</span>
+          <span class="record-value">
+            <span class="record-figure num">{{.Value}}</span>
+            <span class="record-sub">{{.Sub}}</span>
+          </span>
+        </li>
+      {{end}}
+    </ul>
+  </section>
+
+  {{/* The average on each day of the week over the last year: a bar for
+       the player, a tick across it for the group. A shorter bar is a
+       better day, which the legend says, since a bar reads as "more". */}}
+  <section class="card panel-card">
+    <div class="panel-card-head">
+      <h2>{{.T.T "player.weekday"}}</h2>
+      <span class="panel-card-hint">{{.WeekdayNote}}</span>
+    </div>
+    {{if .Weekdays}}
+      <ul class="weekdays">
+        {{range .Weekdays}}
+          <li class="weekday{{with .Mark}} {{.}}{{end}}">
+            <span class="weekday-day">{{.Day}}</span>
+            <span class="weekday-track">
+              {{if .Width}}<span class="weekday-bar" style="width: {{.Width}}%"></span>{{end}}
+              {{if .Tick}}<span class="weekday-tick" style="left: {{.Tick}}%"></span>{{end}}
+            </span>
+            <span class="weekday-value num">{{.Value}}</span>
           </li>
         {{end}}
       </ul>
-    </div>
-
-    {{if .Calendar}}
-      <div class="panel">
-        <div class="panel-head">
-          <span>{{.T.T "player.calendar"}}</span>
-          <span class="muted small">{{.T.T "player.longestStreak"}} {{.Player.LongestStreak}}</span>
-        </div>
-        {{/* A day that was played opens a popup, joining the shared
-             name="popup" group (see base.html) — the same control the recent
-             strip's cells carry. The square is blank, so this one names the
-             result as well as the puzzle: there is no digit on the tile to
-             read it off. A day not played has only its date, which is a
-             title= rather than something to open. */}}
-        <div class="calendar-wrap">
-          <ol class="calendar">
-            {{range .Calendar}}
-              <li class="cal{{if not .Filled}} pad{{else if .Played}} t{{.Tone}}{{else}} miss{{end}}"
-                  {{if .Title}}title="{{.Title}}"{{end}}>
-                {{if .Played}}
-                  <details class="cell-pop" name="popup">
-                    <summary aria-label="{{.Detail}}"></summary>
-                    <p class="cell-popup popup-panel">{{.Detail}}</p>
-                  </details>
-                {{end}}
-              </li>
-            {{end}}
-          </ol>
-        </div>
-        <p class="hint">{{.T.T "player.calendarLegend"}}</p>
-      </div>
+      <p class="weekday-legend">
+        <span><span class="weekday-key-bar" aria-hidden="true"></span>{{.Player.Name}}</span>
+        <span><span class="weekday-key-tick" aria-hidden="true"></span>{{.T.T "player.groupCap"}}</span>
+        <span>{{.T.T "player.weekday.shorter"}}</span>
+      </p>
+    {{else}}
+      <p class="hint">{{.T.T "player.weekday.empty"}}</p>
     {{end}}
+  </section>
+</div>
 
-    {{/* Always drawn, so a new player's grid has no hole where the chart
-         will go: a line needs two months with a rank, and until then the
-         panel says so. */}}
-    <div class="panel">
-      <div class="panel-head"><span>{{.T.T "player.rankByMonth"}}</span></div>
-      {{if .MonthRanks}}
-        <svg class="rank-chart" viewBox="0 0 300 120" width="100%" height="120" role="img"
-             aria-label="{{.T.T "player.rankByMonth"}}">
-          <path class="player" d="{{.RankPath}}"/>
-          {{if .RankPathDashed}}<path class="player dashed" d="{{.RankPathDashed}}"/>{{end}}
-          {{range .MonthRanks}}
-            <g>
-              <circle cx="{{.X}}" cy="{{.Y}}" r="3.4"/>
-              <text x="{{.X}}" y="{{.LabelY}}" text-anchor="middle" font-size="11">{{$.T.Integer .Rank}}</text>
-              <text x="{{.X}}" y="114" text-anchor="middle" font-size="10" class="axis">{{.Label}}</text>
-            </g>
+{{/* The last year, a week per column and Monday at the top; a phone shows
+     its last 26 weeks. A played day opens the same popup the strip's do. */}}
+{{if .Heat}}
+  <section class="card panel-card heat-card">
+    <div class="panel-card-head">
+      <h2>{{.T.T "player.calendar"}}</h2>
+      <span class="panel-card-hint">{{.T.T "player.longestStreak"}} {{.Player.LongestPlayStreak}}</span>
+    </div>
+    <ol class="heat-months" aria-hidden="true">
+      {{range .HeatLabels}}<li>{{.Label}}</li>{{end}}
+    </ol>
+    <ol class="heat">
+      {{range .Heat}}
+        <li class="cal{{if not .Filled}} pad{{else if .Played}} t{{.Tone}}{{else}} miss{{end}}"
+            {{if .Title}}title="{{.Title}}"{{end}}>
+          {{if .Played}}
+            <details class="cell-pop" name="popup">
+              <summary aria-label="{{.Detail}}"></summary>
+              {{template "day-popup" (dict "Popup" .Popup "T" $.T)}}
+            </details>
           {{end}}
-        </svg>
-      {{else}}
-        <p class="hint">{{.T.T "player.rankByMonthEmpty"}}</p>
+        </li>
       {{end}}
-    </div>
+    </ol>
+    <p class="hint"><span class="heat-caption-wide">{{.T.T "player.heat.wide"}}</span><span class="heat-caption-narrow">{{.T.T "player.heat.narrow"}}</span></p>
+  </section>
+{{end}}
 
-    <div class="panel wide">
-      <div class="panel-head"><span>{{.T.T "player.recent"}}</span></div>
-      <ol class="strip">
-        {{range .Recent}}
-          <li class="cell{{if .Played}} t{{.Tone}}{{else}} gap{{end}}"
-              {{if not .Played}}title="{{.Date}} · {{$.T.T "player.puzzle" ($.T.Puzzle .PuzzleNo)}}"{{end}}>
-            {{if .Played}}
-              {{/* The cell itself is the click target: a popup joining the
-                   shared name="popup" group (see base.html). The guess
-                   count and hard mode are already the box's own label, so
-                   the popup adds only what the box cannot show: which
-                   puzzle, and when. No title= here — a hover tooltip
-                   saying the same thing as a tap-away popup is one of them
-                   spare, and it is the popup that also works on a phone. */}}
-              <details class="cell-pop" name="popup">
-                <summary>{{.Label}}</summary>
-                <p class="cell-popup popup-panel">{{.PuzzleDate}}</p>
-              </details>
-            {{else}}
-              <span>·</span>
-            {{end}}
-          </li>
-        {{end}}
-      </ol>
-      <p class="hint">{{.T.T "player.stripLegend"}}</p>
-    </div>
-  </div>
+{{end}}
+{{end}}
 
-  {{end}}
-</section>
+{{/* What a day opens on a player's page: the result and when, the group that
+     day, and the day's own page. Data: {Popup dayPopup, T translator}. */}}
+{{define "day-popup"}}
+<div class="cell-popup popup-panel day-popup">
+  <span class="day-popup-1">{{.Popup.Line1}}</span>
+  <span class="day-popup-2">{{.Popup.Line2}}</span>
+  <a class="day-popup-open" href="{{.Popup.Href}}">{{.T.T "player.openPuzzle"}}</a>
+</div>
 {{end}}

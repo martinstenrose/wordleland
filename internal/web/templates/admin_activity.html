@@ -1,40 +1,46 @@
 {{define "title"}}{{.T.T "activity.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<section class="card card-bar">
-  {{template "switcher" .Section}}
-
-  <div class="activity-filters">
-    {{template "pill-nav" (dict "Label" (.T.T "activity.filterLabel") "Items" .Filters)}}
-    <span class="muted small">{{.Summary}}</span>
-  </div>
-
-  {{if .Rows}}
-    <div class="table-scroll">
-    <ul class="activity">
-      {{/* A header, because the actor column holds an email on one row and
-           "matched automatically" on the next — without a label the two
-           read as the same kind of thing. */}}
-      <li class="activity-head">
-        <span>{{.T.T "activity.column.kind"}}</span>
-        <span>{{.T.T "activity.column.event"}}</span>
-        <span>{{.T.T "activity.column.actor"}}</span>
-        <span class="right">{{.T.T "activity.column.when"}}</span>
-      </li>
-      {{range .Rows}}
-        <li>
-          {{template "chip" (dict "Label" .Tag "Kind" .Kind)}}
-          {{/* The whole sentence is the link, so the target is easy to hit
-               on a phone rather than a word-sized tap. */}}
-          <a class="activity-text" href="{{.Href}}">{{.Text}}</a>
-          <span class="muted small activity-actor" title="{{.Actor}}">{{.Actor}}</span>
-          <span class="muted small num right">{{.When}}</span>
-        </li>
-      {{end}}
-    </ul>
-    </div>
-    <p class="activity-foot muted small">{{.T.T "activity.showing" .Shown .Count}}</p>
+{{template "admin-head" .Section}}
+{{/* Every change, newest first, in one card: the four filters across the
+     top as chips, then the days, each row a <details> that opens in place
+     to what was recorded — who, when, and the stored detail as written. */}}
+<section class="card activity-card">
+  <nav class="activity-filters" aria-label="{{.T.T "activity.filterLabel"}}">
+    {{range .Filters}}
+      <a class="activity-filter{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>{{symbol .Code 17}}{{.Label}}</a>
+    {{end}}
+  </nav>
+  {{range .Days}}
+    <p class="activity-day">{{.Label}}</p>
+    {{range .Rows}}
+      <details class="activity-row">
+        <summary>
+          <span class="activity-icon">{{symbol .Icon 17}}</span>
+          <span class="activity-id">
+            <span class="activity-title">{{.Title}}</span>
+            {{with .Detail}}<span class="activity-detail">{{.}}</span>{{end}}
+          </span>
+          <span class="activity-by">{{symbol .ActorIcon 15}}{{.Actor}}</span>
+          <span class="activity-clock num">{{.Clock}}</span>
+          <span class="activity-chevron">{{symbol "expand_more" 18}}</span>
+        </summary>
+        <div class="activity-open">
+          <dl class="activity-fields">
+            <dt>{{$.T.T "activity.field.type"}}</dt><dd>{{.Tag}}</dd>
+            <dt>{{$.T.T "activity.field.by"}}</dt><dd>{{.Actor}}</dd>
+            <dt>{{$.T.T "activity.field.when"}}</dt><dd>{{.When}}</dd>
+          </dl>
+          {{with .JSON}}
+            <p class="activity-kicker">{{$.T.T "activity.recorded"}}</p>
+            <pre class="activity-json">{{.}}</pre>
+          {{end}}
+          <a class="activity-page" href="{{.Href}}">{{$.T.T "activity.openPage"}} ›</a>
+        </div>
+      </details>
+    {{end}}
   {{else}}
-    <p class="empty">{{.T.T "activity.empty"}}</p>
+    <p class="activity-empty">{{.T.T "activity.empty"}}</p>
   {{end}}
+  {{if .Rows}}<p class="activity-foot">{{.T.T "activity.showing" .Shown .Count}}</p>{{end}}
 </section>
 {{end}}
