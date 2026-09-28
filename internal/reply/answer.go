@@ -52,6 +52,10 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 		return puzzles(t, req, players, results, now)
 	case KindWeekday:
 		return weekday(t, req, asker, players, results, now)
+	case KindForm:
+		return form(t, req, asker, players, results, now)
+	case KindSteady:
+		return steady(t, req, asker, players, results, now)
 	case KindRules:
 		return rules(t, req)
 	case KindThanks:
