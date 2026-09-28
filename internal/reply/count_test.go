@@ -2,6 +2,7 @@ package reply
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -70,6 +71,23 @@ func TestParseRequestNewFields(t *testing.T) {
 		}
 		if !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s:\ngot  %+v\nwant %+v", tc.content, got, tc.want)
+		}
+	}
+}
+
+// A kind the model is not told about is one it cannot pick, and a span it
+// is not told about one it cannot say.
+func TestThePromptDescribesEveryKindAndSpan(t *testing.T) {
+	t.Parallel()
+	prompt := systemPrompt(Prompt{})
+	for _, k := range Kinds {
+		if !strings.Contains(prompt, `"`+string(k)+`"`) {
+			t.Errorf("the prompt never mentions kind %q", k)
+		}
+	}
+	for _, s := range Spans {
+		if !strings.Contains(prompt, `"`+string(s)+`"`) {
+			t.Errorf("the prompt never mentions span %q", s)
 		}
 	}
 }

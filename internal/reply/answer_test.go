@@ -148,7 +148,7 @@ func TestAnswers(t *testing.T) {
 		{
 			name: "what can you do",
 			req:  Request{Kind: KindHelp},
-			want: "I can answer who is leading",
+			want: "I can answer who leads",
 		},
 	}
 	for _, tc := range tests {
