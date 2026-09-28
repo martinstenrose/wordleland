@@ -762,10 +762,11 @@ go build ./...
 go test ./...
 ```
 
-The tests above need nothing installed. Six more drive a real browser and
-check what it makes of the pages — that following a link never reloads the
-document, that the title does not move between views, that the enrolment
-dialog holds focus. They are behind a build tag, need a Chrome on `PATH`
+The tests above need nothing installed. The browser suite drives a real
+browser and checks what it makes of the pages — that following a link never
+reloads the document, that a link to the same page keeps the scroll, that
+the title does not move between views, that nothing sits at the foot of a
+phone. They are behind a build tag, need a Chrome on `PATH`
 (`WORDLELAND_CHROME` overrides), and run as their own CI job:
 
 ```sh
