@@ -1133,6 +1133,121 @@ and what was kept on purpose:
 - **Kept as they are:** Today's green puzzle number in the eyebrow, the
   Puzzle page's row height and its full month name.
 
+## The Home Screen app
+
+Added to a phone's Home Screen, Wordleland opens as an app: no Safari bars,
+its own icon, its own window. A web app manifest says `"display":
+"standalone"`, and the same is said the older way for Safari
+(`apple-mobile-web-app-capable`). What it looks like there is the design's
+Home Screen app, drawn for a phone.
+
+**The phone's app layout is the stylesheet's, for `display-mode:
+standalone`.** The floating bar goes; the views are a glass tab bar at the
+foot with search beside it, the account sits at the head's top corner, and
+the page scrolls on under the status bar, frosted there. It is the one thing pinned to the foot
+of a phone, and that is allowed here: the rule against it (see *The
+navigation floats*) is about Safari's toolbar, and an installed app has
+none. It is a media query and not a class a script sets, so the app never
+draws the browser's layout first and then jumps. A wider installed window —
+an iPad, a desktop — keeps the floating bar; the design draws the app for a
+phone only. The tab bar is always in the markup and hidden until the query
+applies, and every rule for the app layout is tied to its presence, so a
+page with no views to switch between — a stranger on Privacy — keeps the
+bar and its way home, which an installed app, with no Back button, needs.
+
+**The app is a member's, and starts at the root**: Today with a session,
+sign-in without. There is one manifest, `/manifest.webmanifest`, and every
+page names it, a share view included, so installing from a share link
+gives the same app, at sign-in. A share app of its own was built and taken
+out before it merged: it would have given a reader with no account a
+working app, but a share view is a link to read rather than an app to
+keep, and every installed one would have ended whenever the slug is
+rotated. For now the app is for the people with accounts — to begin with,
+the one who runs it.
+
+**An installed app keeps its own cookies** on an iPhone, apart from
+Safari's, so a member signs in once more inside it. Sessions last 30 days
+and renew with use, so once is enough.
+
+**The icons are full-bleed.** The favicon's plate has rounded, transparent
+corners; a phone masks an icon to its own shape and fills transparency with
+black, so the touch icon and the manifest's icons are the same mark on a
+square plate, with a maskable one whose grid sits inside the circle Android
+may crop to. The Home Screen icon is captured once, at install, and never
+follows light or dark mode — neither the manifest nor the touch icon has a
+dark variant a phone honours. The favicon in a browser tab can, and does:
+it switches to the dark plate where the browser honours a media query in an
+SVG favicon, and stays light where it does not.
+
+**The app switches pages without the cross-fade**, as an app's tab bar
+does. The fade is a view transition, drawn from pictures of the old and
+new page, and Safari's pictures drop the glass's frosting: for the length
+of the fade the tab bar went see-through, and the tab bar is where the
+reader is looking when they switch. `app.js` cancels the transition under
+the stylesheet's own query for the app layout, as it does for a reader
+who asked for reduced motion. The browser keeps its fade.
+
+**The tab bar's highlight is a lens that slides, and can be dragged**, as
+iOS's own tab bar is since its glass redesign: a tap sends it gliding to the
+new tab, and a finger dragged along the bar carries it, lights the tab under
+it, and opens that tab when let go. It is one element under the tabs,
+placed by the server from the current tab's index, so without the script it
+still marks the right tab and every tab is still a link. A switch replaces
+the whole body (see *Switching pages in place*), so the slide cannot be a
+transition on one element: `app.js` notes where the old lens was before the
+swap and starts the new one there. It sets off on the press, before the page
+answers, so it moves at once. Placed by `left` rather than a transform,
+because the lift a held lens gets is a `scale`, which a transform would be
+stretched by. A reader who asked for reduced motion gets no slide.
+
+**Pull to refresh, in the app only.** Installed, the page has no Reload
+button, and an app on an iPhone is refreshed by pulling its content down
+from the top. A gesture cannot be read without a script, so this is one of
+the script's jobs; in a browser the browser's own reload is there, and the
+script does nothing. The pull starts only at the very top of the page and
+only straight down, never while a menu or search is open, and past a
+threshold letting go fetches the page again and swaps it in the way a
+switch between pages does, with the page reloaded if that fails. The page's
+own overscroll bounce is off in the app, so the pull is the one thing that
+happens. The indicator floats below the status bar rather than moving the
+page down: the page does not follow the finger, which a native list would.
+That was the simpler choice, and it can change.
+
+**The page runs on under the status bar, frosted by the phone**, as it
+is in Safari and in Apple's own apps: `apple-mobile-web-app-status-bar-style`
+is `black-translucent`. The first cut used `default`, which gives the app an
+opaque status bar that the page stops at; next to Safari that read as a bar
+across the top. The second added a frosted band of the app's own the status
+bar's height, in case the phone added nothing. On an iPhone (iOS 26 on) the
+phone lays its own glass there, and the two together hid the page entirely
+under the clock; and since a blur reaches a little past its own edge, the
+band smeared the line below it before anything had scrolled. So nothing of
+the app's is drawn there, and how the page shows under the clock is the
+phone's. The phone also treats anything fixed near the top of the window as
+a header and stretches its frost down past it: the pull-to-refresh
+indicator, waiting hidden above the page, took the frost some 40 points
+below the clock, over the page's first lines. It is drawn only while a pull
+is under way, and a test keeps anything else fixed out of the top of the
+window in the app. Even then the phone frosts a band some 45 points below
+the status bar, at rest too — a native app's title can sit right under the
+clock, as Apple Podcasts' does, but a web app drawn under the status bar
+cannot have its first line there sharp. The choice was the frost or the
+higher head, and the frost won: the page starts below the band, and the
+account sits level with the head's first line at the browser's size,
+rather than with the title as the design draws it. On older iPhones, which draw the status bar's text white whatever
+the page's colour, the clock in the light theme is white on the page; the
+app is for the group's phones, which are recent. `theme-color` still
+names the canvas, the reader's chosen theme or both when they follow the
+system, for Android and for Safari's own bar. The manifest's splash and
+theme colour are the light canvas, since a manifest cannot follow a theme.
+
+**Tested by forcing the media query.** Chrome's DevTools cannot emulate
+`display-mode`, so the browser suite drops that one condition from the
+stylesheet's rule and checks what is left: the tab bar at the foot, the
+page menu gone, the avatar level with the title, search opening from the
+tab bar. Whether an iPhone matches `display-mode: standalone` for an app
+launched from its Home Screen is the platform's side, checked on a phone.
+
 ## Switching pages in place, and what that says about the script rule
 
 AGENTS.md's rule is that script is for what cannot exist without it. This

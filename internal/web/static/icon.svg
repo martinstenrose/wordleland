@@ -4,25 +4,35 @@
        equivalents of the board's own score ramp — a favicon is drawn at
        16px against an unknown background, so nothing here is translucent.
 
-       One fixed plate rather than a themed pair: a tab strip is light in one
-       browser and dark in the next, and an SVG favicon that switches on
-       prefers-color-scheme is honoured by some of them and ignored by the
-       rest. One plate that holds its own on either is worth more than a
-       switch that only sometimes happens — the light plate, since most tab
-       strips are. docs/logo/ has both the light and dark versions, for a
-       background that is known. -->
-  <rect width="34" height="34" rx="8" fill="#efeae6"/>
+       The plate follows the system's light or dark mode where the browser
+       honours a media query inside an SVG favicon (Chrome, Firefox), with
+       the dark colours of docs/logo/wordleland-dark.svg; anywhere else it is
+       the light plate, which holds its own on either kind of tab strip.
+       That fallback was once the whole of it, deliberately: a switch that
+       only sometimes happens seemed worse than none. It is kept as the
+       default for that reason, and the switch added on top, where it costs
+       nothing to a browser that ignores it. -->
+  <style>
+    @media (prefers-color-scheme: dark) {
+      .plate { fill: #312a23 }
+      .empty { fill: #403933 }
+      .g3 { fill: #156f41 }
+      .g2 { fill: #3bb974 }
+      .g1 { fill: #56db8f }
+    }
+  </style>
+  <rect class="plate" width="34" height="34" rx="8" fill="#efeae6"/>
   <g>
-    <rect x="4"  y="4"  width="8" height="8" rx="2" fill="#6fb789"/>
-    <rect x="13" y="4"  width="8" height="8" rx="2" fill="#ded9d5"/>
-    <rect x="22" y="4"  width="8" height="8" rx="2" fill="#ded9d5"/>
+    <rect x="4"  y="4"  width="8" height="8" rx="2" fill="#6fb789" class="g3"/>
+    <rect x="13" y="4"  width="8" height="8" rx="2" fill="#ded9d5" class="empty"/>
+    <rect x="22" y="4"  width="8" height="8" rx="2" fill="#ded9d5" class="empty"/>
 
-    <rect x="4"  y="13" width="8" height="8" rx="2" fill="#ded9d5"/>
-    <rect x="13" y="13" width="8" height="8" rx="2" fill="#007742"/>
-    <rect x="22" y="13" width="8" height="8" rx="2" fill="#ded9d5"/>
+    <rect x="4"  y="13" width="8" height="8" rx="2" fill="#ded9d5" class="empty"/>
+    <rect x="13" y="13" width="8" height="8" rx="2" fill="#007742" class="g2"/>
+    <rect x="22" y="13" width="8" height="8" rx="2" fill="#ded9d5" class="empty"/>
 
-    <rect x="4"  y="22" width="8" height="8" rx="2" fill="#ded9d5"/>
-    <rect x="13" y="22" width="8" height="8" rx="2" fill="#ded9d5"/>
-    <rect x="22" y="22" width="8" height="8" rx="2" fill="#00572f"/>
+    <rect x="4"  y="22" width="8" height="8" rx="2" fill="#ded9d5" class="empty"/>
+    <rect x="13" y="22" width="8" height="8" rx="2" fill="#ded9d5" class="empty"/>
+    <rect x="22" y="22" width="8" height="8" rx="2" fill="#00572f" class="g1"/>
   </g>
 </svg>

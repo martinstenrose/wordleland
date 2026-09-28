@@ -17,6 +17,9 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("GET /robots.txt", s.handleRobots)
 	mux.HandleFunc("GET /favicon.ico", s.handleFavicon)
+	// The Home Screen app's manifest: public, like the icons it names, so
+	// the sign-in page can be installed as well as a page behind it.
+	mux.HandleFunc("GET /manifest.webmanifest", s.handleManifest)
 	mux.Handle("GET /static/", s.serveStatic())
 
 	// The login page is the root, and the authenticated area sits on ordinary

@@ -154,7 +154,7 @@ plain CSS-class convention: wrap a scrolling table in
 
 | File | Partials | Why `app/` |
 |---|---|---|
-| `topbar.html` | `mark`, `topbar`, `preferences`, `language-row`, `about` | The brand mark, and every reader of `chrome`: the pages, account state, search path, admin flag. |
+| `topbar.html` | `mark`, `topbar`, `preferences`, `language-row`, `about` | The brand mark, and every reader of `chrome`: the pages, account state, search path, admin flag. `topbar` also draws the Home Screen app's tab bar after the bar, shown only when the page runs standalone on a phone, with its sliding lens, and the pull-to-refresh indicator inside it. |
 | `trait.html` | `trait` | A Wordle result trait and its explanation. |
 | `admin.html` | `admin-warning` | Admin-only chrome. |
 | `last-five.html` | `last-five` | A player's last five days as score tiles, each opening its puzzle and date: the leaderboard and Today. |
@@ -206,6 +206,17 @@ upstream SVGs; adding a glyph is copying its path in. A glyph with a filled
 form carries both, and app.css fills whichever is current.
 `TestEverySymbolExists` reads the names the templates ask for and holds them
 against the data, because `symbol` draws nothing for a name it does not know.
+
+The app's own icons are files, not glyphs. `static/icon.svg` is the favicon,
+switching to the dark plate where a browser honours a media query inside an
+SVG favicon; `static/icon-180.png` answers `/favicon.ico`. The Home Screen
+icons are full-bleed squares — a phone masks them to its own shape — in
+`static/app-icon-180.png` (the Apple touch icon), `app-icon-192.png`,
+`app-icon-512.png` and `app-icon-maskable-512.png`, rendered from
+`docs/logo/wordleland-app-icon.svg` and `wordleland-app-icon-maskable.svg`.
+Render at 512 and scale down (`sips -z 180 180`); a headless browser's
+minimum window width crops a smaller screenshot, which once put a white
+square on a phone. `TestTheHomeScreenIconsAreTheMark` decodes each one.
 
 ## Migration complete
 

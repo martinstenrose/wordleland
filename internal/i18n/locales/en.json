@@ -1181,5 +1181,11 @@
   "today.benchedWhy.other": "Not ranked yet: %d puzzles played.",
   "today.benchedGames.one": "1 puzzle",
   "today.benchedGames.other": "%d puzzles",
-  "today.rankedFrom": "The board ranks from %d."
+  "today.rankedFrom": "The board ranks from %d.",
+  "app.manifestDescription": "The group's Wordle scores: today, the leaderboard, months and every player.",
+  "nav.tab.today": "Today",
+  "nav.tab.board": "Board",
+  "nav.tab.months": "Months",
+  "nav.tab.grid": "Grid",
+  "nav.tab.players": "Players"
 }

@@ -13,7 +13,24 @@
 <title>{{block "title" .}}Wordleland{{end}}</title>
 <link rel="icon" type="image/svg+xml" href="{{asset "/static/icon.svg"}}">
 <link rel="icon" type="image/png" sizes="180x180" href="{{asset "/static/icon-180.png"}}">
-<link rel="apple-touch-icon" href="{{asset "/static/icon-180.png"}}">
+{{/* The Home Screen app: a manifest that opens it standalone, and the
+     same said the older way for Safari. The status bar takes the page's
+     canvas — the reader's chosen theme, or both when they follow the
+     system — since it is drawn before any stylesheet. In the app the page
+     runs on under the status bar, which the phone frosts there as it does
+     for its own apps (black-translucent; see app.css). The touch icon is the
+     full-bleed plate: a phone masks it to its own shape and fills any
+     transparency with black. See manifest.go. */}}
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="{{.T.T "app.name"}}">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+{{if eq .Theme "dark"}}<meta name="theme-color" content="#18130e">
+{{else if eq .Theme "light"}}<meta name="theme-color" content="#f8f4f1">
+{{else}}<meta name="theme-color" content="#f8f4f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#18130e" media="(prefers-color-scheme: dark)">
+{{end}}<link rel="apple-touch-icon" href="{{asset "/static/app-icon-180.png"}}">
 <link rel="stylesheet" href="{{asset "/static/app.css"}}">
 {{/* htmx does the fetching and swapping app.js used to do by hand; app.js
      keeps what has no server-rendered counterpart. Loaded first because

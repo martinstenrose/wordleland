@@ -265,7 +265,19 @@ var onPageChange = (function () {
   // "Search"; see topbar.html.
   var narrow = window.matchMedia("(max-width: 860px)");
 
-  function open() {
+  // What opens the overlay: the bar's search, and the Home Screen app's
+  // tab-bar search. button is whichever opened it, for focus to go back to.
+  function triggers() {
+    return document.querySelectorAll('[aria-controls="search-overlay"]');
+  }
+
+  function open(from) {
+    if (from) button = from;
+    else {
+      // The keyboard: whichever trigger is on screen.
+      var shown = Array.prototype.filter.call(triggers(), function (t) { return t.getClientRects().length; });
+      button = shown[0] || triggers()[0];
+    }
     button.setAttribute("aria-expanded", "true");
     overlay.hidden = false;
     input.value = "";
@@ -297,7 +309,7 @@ var onPageChange = (function () {
 
   onPageChange(function () {
     overlay = document.getElementById("search-overlay");
-    button = document.querySelector(".bar-search");
+    button = triggers()[0];
     if (!overlay || !button) {
       overlay = null;
       return;
@@ -305,9 +317,11 @@ var onPageChange = (function () {
     input = overlay.querySelector(".search-overlay-input");
     results = overlay.querySelector(".search-overlay-results");
 
-    button.addEventListener("click", function (event) {
-      event.preventDefault(); // The link still has a real href; only override it once script has run.
-      open();
+    Array.prototype.forEach.call(triggers(), function (trigger) {
+      trigger.addEventListener("click", function (event) {
+        event.preventDefault(); // The link still has a real href; only override it once script has run.
+        open(trigger);
+      });
     });
 
     overlay.addEventListener("click", function (event) {
@@ -675,15 +689,21 @@ var onPageChange = (function () {
     });
   });
 
-  // 6. Reduced motion. Every swap is a view transition (the config in
-  // base.html), and htmx has no attribute for a reader who has asked their
-  // system for less of that. The stylesheet zeroes the animation, but the
-  // browser still pauses to take its pictures; cancelling here, before it
-  // starts, is the version that costs nothing. Read at each swap rather
-  // than once, so a setting changed mid-session is honoured. Without
-  // script there is no transition to cancel.
+  // 6. Reduced motion, and the Home Screen app. Every swap is a view
+  // transition (the config in base.html), and htmx has no attribute for a
+  // reader who has asked their system for less of that. The stylesheet
+  // zeroes the animation, but the browser still pauses to take its
+  // pictures; cancelling here, before it starts, is the version that costs
+  // nothing. The installed app on a phone switches without one too, the
+  // way an app's tab bar does — and Safari's pictures of the page drop the
+  // frosting, so the tab bar went see-through for the length of the fade.
+  // The query is the stylesheet's for the app layout (see app.css). Read at
+  // each swap rather than once, so a setting changed mid-session is
+  // honoured. Without script there is no transition to cancel.
   document.addEventListener("htmx:beforeTransition", function (event) {
-    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (!window.matchMedia) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+        window.matchMedia("(display-mode: standalone) and (max-width: 860px)").matches) {
       event.preventDefault();
     }
   });
@@ -713,4 +733,226 @@ var onPageChange = (function () {
     if (!landed || pageOf(landed) !== pageOf(window.location.href)) return;
     detail.swapOverride = "innerHTML show:none";
   });
+})();
+
+// Pull to refresh, in the Home Screen app. Installed, the page has no
+// browser around it and so no Reload button, and an iOS app is refreshed by
+// pulling its content down from the top. It exists only because a gesture
+// cannot be read without a script; in a browser the browser's own reload is
+// there, and this does nothing.
+//
+// The pull starts only at the very top of the page, only downward and
+// mostly vertical, and not while a menu, a popup or search is open. Past
+// the threshold, letting go asks the server for this page again and swaps it
+// in, as following a link to it would; if that fails, the page reloads.
+(function () {
+  "use strict";
+
+  if (!window.matchMedia || !window.htmx) return;
+
+  // The stylesheet's query for the app layout (see app.css).
+  var app = "(display-mode: standalone) and (max-width: 860px)";
+  var threshold = 72; // px of pull, after the resistance below
+  var most = 110;
+
+  var startX = 0, startY = null, pulled = 0, busy = false;
+
+  function indicator() { return document.querySelector(".pull-refresh"); }
+
+  function show(px) {
+    var el = indicator();
+    if (!el) return;
+    el.style.setProperty("--pull", String(px));
+    el.classList.toggle("pulling", px > 0);
+    el.classList.toggle("ready", px >= threshold);
+  }
+
+  function reset() {
+    startY = null;
+    pulled = 0;
+    var el = indicator();
+    if (el) {
+      el.style.removeProperty("--pull");
+      el.classList.remove("pulling", "ready", "spinning");
+    }
+  }
+
+  // Something the reader has open would be swept away by a refresh.
+  function somethingOpen() {
+    var overlay = document.getElementById("search-overlay");
+    return (overlay && !overlay.hidden) || !!document.querySelector("details[open]");
+  }
+
+  document.addEventListener("touchstart", function (event) {
+    if (busy || event.touches.length !== 1) return;
+    // The tab bar's own drag is along the bar, not a pull.
+    if (event.target.closest && event.target.closest(".tabbar")) return;
+    if (!window.matchMedia(app).matches || window.scrollY > 0 || somethingOpen()) return;
+    startX = event.touches[0].clientX;
+    startY = event.touches[0].clientY;
+    pulled = 0;
+  }, { passive: true });
+
+  // Not passive: once it is a pull, the page must not also scroll or bounce.
+  document.addEventListener("touchmove", function (event) {
+    if (startY === null) return;
+    var dy = event.touches[0].clientY - startY;
+    var dx = Math.abs(event.touches[0].clientX - startX);
+    if (dy <= 0 || dx > dy) {
+      // Up, or sideways — a pill row, a scrolled card: not a pull.
+      reset();
+      return;
+    }
+    event.preventDefault();
+    // Half the finger's travel, so the indicator trails it the way a
+    // native one does, up to a limit.
+    pulled = Math.min(most, dy / 2);
+    show(pulled);
+  }, { passive: false });
+
+  function release() {
+    if (startY === null) return;
+    startY = null;
+    if (pulled < threshold) {
+      reset();
+      return;
+    }
+    busy = true;
+    var el = indicator();
+    if (el) el.classList.add("spinning");
+    var done = function () { busy = false; reset(); };
+    htmx.ajax("GET", window.location.pathname + window.location.search, {
+      source: document.body, target: document.body, swap: "innerHTML"
+    }).then(done, function () { window.location.reload(); });
+  }
+  document.addEventListener("touchend", release);
+  document.addEventListener("touchcancel", function () { if (!busy) reset(); });
+})();
+
+// The tab bar's lens, in the Home Screen app: the current tab's highlight
+// slides to the next tab on a switch, and a finger can drag it along the bar
+// and let go on a tab to open it, as iOS's own tab bar does. The server
+// places the lens under the current tab (topbar.html), so without this it
+// still marks the right one; and every tab is still a link.
+//
+// A switch replaces the whole body, lens and all, so a slide cannot be a
+// transition on one element: the old lens's place is noted before the swap
+// and the new one is started from there.
+(function () {
+  "use strict";
+
+  if (!window.matchMedia || !window.htmx || !Element.prototype.animate) return;
+
+  var app = "(display-mode: standalone) and (max-width: 860px)";
+  var slide = { duration: 380, easing: "cubic-bezier(.3, 1.3, .5, 1)" }; // a little overshoot, as iOS settles
+  var from = null; // the old lens's left edge, across a swap
+  var drag = null;
+
+  function reduced() { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
+  function inApp() { return window.matchMedia(app).matches; }
+  function lens() { return document.querySelector(".tabbar .tab-lens"); }
+  // A tab's width, unrounded and unscaled: offsetWidth rounds, and the
+  // error adds up across the bar.
+  function slot(el) { return parseFloat(getComputedStyle(el).width); }
+
+  // Where the lens's middle is now, in the window, wherever its transform
+  // or an animation has it.
+  function middle(el) {
+    var r = el.getBoundingClientRect();
+    return r.left + r.width / 2;
+  }
+
+  // Moves the lens to x pixels from its resting place, at once.
+  function place(el, x) {
+    el.style.translate = x + "px 0";
+  }
+
+  // Glides the lens from wherever it is to the tab at index i.
+  function glide(i) {
+    var el = lens();
+    if (!el) return;
+    var bar = el.parentElement;
+    var on = Number(getComputedStyle(bar).getPropertyValue("--tab-on"));
+    var w = slot(el);
+    var x = (i - on) * w;
+    // From where it is seen, mid-slide or mid-drag included.
+    var now = middle(el) - (tabs(bar)[0].getBoundingClientRect().left + on * w + w / 2);
+    el.getAnimations().forEach(function (a) { a.cancel(); });
+    place(el, x);
+    if (!reduced() && Math.abs(now - x) >= 1) el.animate({ translate: [now + "px 0", x + "px 0"] }, slide);
+  }
+
+  function tabs(bar) { return Array.prototype.slice.call(bar.querySelectorAll(".tab")); }
+
+  // A tab pressed: the lens sets off for it now, before the page answers.
+  document.addEventListener("click", function (event) {
+    var tab = event.target.closest && event.target.closest(".tabbar .tab");
+    if (!tab || !inApp()) return; // htmx has taken the press itself by now: defaultPrevented is no guide
+    glide(tabs(tab.parentElement).indexOf(tab));
+  });
+
+  document.addEventListener("htmx:beforeSwap", function () {
+    var el = lens();
+    from = el && inApp() ? middle(el) : null;
+  });
+  document.addEventListener("htmx:afterSwap", function () {
+    var start = from;
+    from = null;
+    var el = lens();
+    if (start === null || !el || reduced() || !el.animate) return;
+    var dx = start - middle(el);
+    if (Math.abs(dx) < 1) return;
+    el.animate({ translate: [dx + "px 0", "0px 0"] }, slide);
+  });
+
+  // Dragging along the bar. A touch that moves mostly sideways is a drag;
+  // anything else is left alone, so a tap is still a tap.
+  document.addEventListener("touchstart", function (event) {
+    var bar = event.target.closest && event.target.closest(".tabbar-tabs");
+    if (!bar || !lens() || event.touches.length !== 1 || !inApp()) return;
+    drag = { bar: bar, x: event.touches[0].clientX, y: event.touches[0].clientY, moving: false, at: -1 };
+  }, { passive: true });
+
+  document.addEventListener("touchmove", function (event) {
+    if (!drag) return;
+    var t = event.touches[0];
+    if (!drag.moving) {
+      var dx = Math.abs(t.clientX - drag.x), dy = Math.abs(t.clientY - drag.y);
+      if (dx < 8 || dx < dy) {
+        if (dy > 12) drag = null; // up or down: not a drag along the bar
+        return;
+      }
+      drag.moving = true;
+      drag.bar.classList.add("dragging");
+    }
+    event.preventDefault();
+    var el = lens(), list = tabs(drag.bar);
+    var start = list[0].getBoundingClientRect().left, w = slot(el);
+    var on = Number(getComputedStyle(drag.bar).getPropertyValue("--tab-on"));
+    // The lens's centre follows the finger, kept within the bar.
+    var left = Math.max(0, Math.min((list.length - 1) * w, t.clientX - start - w / 2));
+    place(el, left - on * w);
+    var at = Math.max(0, Math.min(list.length - 1, Math.floor((t.clientX - start) / w)));
+    if (at !== drag.at) {
+      list.forEach(function (tab, i) { tab.classList.toggle("under", i === at); });
+      drag.at = at;
+    }
+  }, { passive: false });
+
+  function letGo(event, cancelled) {
+    if (!drag) return;
+    var d = drag;
+    drag = null;
+    if (!d.moving) return;
+    if (event.cancelable) event.preventDefault(); // no click on the tab the finger started on
+    d.bar.classList.remove("dragging");
+    var list = tabs(d.bar);
+    list.forEach(function (tab) { tab.classList.remove("under"); });
+    var on = Number(getComputedStyle(d.bar).getPropertyValue("--tab-on"));
+    var to = cancelled || d.at < 0 ? on : d.at;
+    if (to === on) glide(on);
+    else list[to].click(); // which glides it there, as a tap does
+  }
+  document.addEventListener("touchend", function (event) { letGo(event, false); });
+  document.addEventListener("touchcancel", function (event) { letGo(event, true); });
 })();

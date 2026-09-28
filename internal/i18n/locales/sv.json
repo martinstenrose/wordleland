@@ -1181,5 +1181,11 @@
   "today.benchedWhy.other": "Inte rankad än: %d pussel spelade.",
   "today.benchedGames.one": "1 pussel",
   "today.benchedGames.other": "%d pussel",
-  "today.rankedFrom": "Tavlan rankar från %d."
+  "today.rankedFrom": "Tavlan rankar från %d.",
+  "app.manifestDescription": "Gruppens Wordle-resultat: idag, topplistan, månader och varje spelare.",
+  "nav.tab.today": "Idag",
+  "nav.tab.board": "Topplista",
+  "nav.tab.months": "Månader",
+  "nav.tab.grid": "Rutnät",
+  "nav.tab.players": "Spelare"
 }

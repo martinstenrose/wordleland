@@ -1740,3 +1740,244 @@ func TestBrowserAPressedPillIsNotLeftCircled(t *testing.T) {
 		t.Error("a pill reached from the keyboard shows no ring")
 	}
 }
+
+// forceStandalone makes app.css's display-mode: standalone rules apply, as
+// opened from the Home Screen: the browser under test is not installed and
+// DevTools cannot emulate the display mode, so the one media condition is
+// dropped from each rule that names it. What is left is exactly the rules
+// the stylesheet has for a phone.
+const forceStandalone = `(() => { let n = 0; for (const sheet of document.styleSheets) { let rules; try { rules = sheet.cssRules; } catch (e) { continue; } for (const rule of rules) { if (rule.media && rule.media.mediaText.includes("display-mode: standalone")) { rule.media.mediaText = rule.media.mediaText.replace(/\(display-mode: standalone\) and /, ""); n++; } } } return n; })()`
+
+// Opened from the Home Screen on a phone, the app is the design's: the views
+// as a tab bar at the foot with search beside it, the account beside the
+// page's title, and no floating bar. In a browser none of that shows.
+func TestBrowserTheHomeScreenAppHasATabBar(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), phoneWidth)
+	p.Navigate(site.base + "/today")
+
+	if shown := p.Eval(`getComputedStyle(document.querySelector(".tabbar")).display`); shown != "none" {
+		t.Errorf("in a browser the tab bar shows (%v)", shown)
+	}
+
+	if n := p.Number(forceStandalone); n != 1 {
+		t.Fatalf("%v standalone rules in app.css, want the one", n)
+	}
+	bar := p.Eval(`(() => { const r = document.querySelector(".tabbar").getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom), innerHeight].join(" "); })()`)
+	var top, bottom, height int
+	fmt.Sscan(bar.(string), &top, &bottom, &height)
+	if bottom > height || height-bottom > 30 || bottom-top < 60 {
+		t.Errorf("the tab bar is not at the foot of the window: %v", bar)
+	}
+	if shown := p.Eval(`getComputedStyle(document.querySelector(".bar-menu")).display`); shown != "none" {
+		t.Error("the floating page menu still shows in the app")
+	}
+	// The avatar sits at the head's top corner, level with its first line,
+	// at the size it is in a browser.
+	if off := p.Number(`(() => { const h = document.querySelector(".page-head-id").firstElementChild.getBoundingClientRect(), a = document.querySelector("details.account > summary").getBoundingClientRect();
+		return Math.abs(h.top - a.top); })()`); off > 1 {
+		t.Errorf("the avatar is %vpx off the top of the page's head", off)
+	}
+	// The page starts below the band the phone frosts under the status bar
+	// even at rest, so its first line is sharp; DevTools has no status bar,
+	// so the band's 45 points are all there is to measure here.
+	if top := p.Number(`document.querySelector(".page-head-id").firstElementChild.getBoundingClientRect().top`); top < 45 {
+		t.Errorf("the page's first line is %vpx from the top, inside the frosted band", top)
+	}
+	// The page scrolls on under the status bar with nothing of the app's
+	// fixed near the top of the window, hidden or not. An iPhone frosts the
+	// status bar down past any such element, as it would past a header: a
+	// frosted band of the app's own hid the page under the clock, and the
+	// idle pull-to-refresh indicator stretched the frost over the page's
+	// first lines. What sits in a closed <details> is not drawn.
+	if top := p.String(`JSON.stringify([...document.querySelectorAll("body *")].flatMap(el => [null, "::before", "::after"].map(pseudo => [el, pseudo])).filter(([el, pseudo]) => {
+		if (el.parentElement.closest("details:not([open])") && !el.matches("details > summary, details > summary *")) return false;
+		const s = getComputedStyle(el, pseudo);
+		if (pseudo && s.content === "none") return false;
+		return (s.position === "fixed" || s.position === "sticky") && s.display !== "none" && el.getBoundingClientRect().top < 150;
+	}).map(([el, pseudo]) => el.className + (pseudo || "")))`); top != "[]" {
+		t.Errorf("fixed near the top of the window in the app: %s", top)
+	}
+
+	p.Click(".tab-search")
+	p.WaitFor(`!document.getElementById("search-overlay").hidden && document.activeElement === document.querySelector(".search-overlay-input")`)
+	if got := p.Eval(`document.querySelector(".tab-search").getAttribute("aria-expanded")`); got != "true" {
+		t.Errorf("the tab bar's search is not marked open (%v)", got)
+	}
+}
+
+// The Home Screen app switches pages without a view transition, as an app's
+// tab bar does. Safari's pictures of the page drop the glass's frosting, so
+// the tab bar went see-through for the length of the fade. In a browser the
+// fade stays. DevTools cannot emulate the display mode, so the page's
+// matchMedia is told it is standalone, which is what app.js asks.
+func TestBrowserTheHomeScreenAppSwitchesWithoutAFade(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), phoneWidth)
+
+	countFrom := func(from, to string, standalone bool) float64 {
+		t.Helper()
+		p.Navigate(site.base + from)
+		ok := p.Eval(fmt.Sprintf(`(() => {
+			window.__transitions = 0;
+			const start = document.startViewTransition;
+			if (!start) return false;
+			document.startViewTransition = function () { window.__transitions++; return start.apply(this, arguments); };
+			if (%t) {
+				const real = window.matchMedia.bind(window);
+				window.matchMedia = q => q.includes("display-mode: standalone") ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} } : real(q);
+			}
+			document.getElementById("main").__old = true;
+			document.querySelector('.tabbar a.tab[href=%q]').click();
+			return true;
+		})()`, standalone, to))
+		if ok != true {
+			t.Skip("the browser has no view transitions")
+		}
+		p.WaitFor(fmt.Sprintf(`document.getElementById("main").__old !== true && location.pathname === %q`, to))
+		return p.Number(`window.__transitions`)
+	}
+
+	if n := countFrom("/today", "/leaderboard", false); n != 1 {
+		t.Fatalf("in a browser a switch started %v view transitions, want the one fade", n)
+	}
+	if n := countFrom("/today", "/months", true); n != 0 {
+		t.Errorf("in the Home Screen app a switch started %v view transitions, want none", n)
+	}
+}
+
+// The Home Screen app is refreshed by pulling the page down from its top, as
+// an iOS app is: an installed app has no Reload button. A pull past the
+// threshold fetches the page again in place, never reloading the document;
+// a short one does nothing.
+func TestBrowserTheHomeScreenAppPullsToRefresh(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), phoneWidth)
+	p.Viewport(phoneWidth, 900, true)
+	p.call("Emulation.setTouchEmulationEnabled", map[string]any{"enabled": true, "maxTouchPoints": 5})
+	p.Navigate(site.base + "/today")
+	if n := p.Number(forceStandalone); n < 1 {
+		t.Fatalf("%v standalone rules forced", n)
+	}
+	p.Eval(`(() => {
+		const real = window.matchMedia.bind(window);
+		window.matchMedia = q => q.includes("display-mode: standalone") ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} } : real(q);
+		window.__alive = 1;
+		document.getElementById("main").__old = true;
+		return true; })()`)
+
+	touch := func(kind string, y int) {
+		t.Helper()
+		points := []map[string]any{{"x": 195, "y": y}}
+		if kind == "touchEnd" {
+			points = []map[string]any{}
+		}
+		p.call("Input.dispatchTouchEvent", map[string]any{"type": kind, "touchPoints": points})
+	}
+	pull := func(to int) {
+		touch("touchStart", 150)
+		for y := 160; y <= to; y += 20 {
+			touch("touchMove", y)
+		}
+	}
+
+	// A short pull: the indicator shows a little and nothing is fetched.
+	pull(210)
+	touch("touchEnd", 0)
+	time.Sleep(400 * time.Millisecond)
+	if p.Eval(`document.getElementById("main").__old === true`) != true {
+		t.Fatal("a short pull refreshed the page")
+	}
+
+	// A full one: ready before letting go, then the page fetched in place.
+	pull(450)
+	if ready := p.Eval(`(() => { const el = document.querySelector(".pull-refresh"); return el.classList.contains("ready") && getComputedStyle(el).opacity === "1"; })()`); ready != true {
+		t.Error("a full pull does not show the indicator ready")
+	}
+	touch("touchEnd", 0)
+	p.WaitFor(`document.getElementById("main").__old !== true`)
+	if alive := p.Number(`window.__alive || 0`); alive != 1 {
+		t.Error("pulling to refresh reloaded the document")
+	}
+}
+
+// The tab bar's lens, in the Home Screen app: the current tab's highlight is
+// one piece under the tabs, placed by the server, which slides to the next
+// tab on a switch and follows a finger dragged along the bar, opening the
+// tab it is let go on — as iOS's own tab bar does.
+func TestBrowserTheHomeScreenAppTabLensSlidesAndDrags(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), phoneWidth)
+	p.Viewport(phoneWidth, 844, true)
+	p.call("Emulation.setTouchEmulationEnabled", map[string]any{"enabled": true, "maxTouchPoints": 5})
+	p.Navigate(site.base + "/today")
+	if n := p.Number(forceStandalone); n < 1 {
+		t.Fatalf("%v standalone rules forced", n)
+	}
+	p.Eval(`(() => {
+		const real = window.matchMedia.bind(window);
+		window.matchMedia = q => q.includes("display-mode: standalone") ? { matches: true, media: q, addEventListener() {}, removeEventListener() {} } : real(q);
+		window.__alive = 1;
+		window.__slides = 0;
+		const animate = Element.prototype.animate;
+		Element.prototype.animate = function () { if (this.classList.contains("tab-lens")) window.__slides++; return animate.apply(this, arguments); };
+		return true; })()`)
+
+	// The lens sits under the current tab, wherever the server put it.
+	under := func() float64 {
+		t.Helper()
+		return p.Number(`(() => { const l = document.querySelector(".tab-lens").getBoundingClientRect(), o = document.querySelector(".tab.on").getBoundingClientRect();
+			return Math.abs((l.left + l.width / 2) - (o.left + o.width / 2)); })()`)
+	}
+	if off := under(); off > 1 {
+		t.Fatalf("the lens is %vpx off the current tab", off)
+	}
+
+	// A tap: the page switches and the lens slides there.
+	to := p.String(`document.querySelectorAll(".tabbar .tab")[1].getAttribute("href")`)
+	p.Click(".tabbar .tab:nth-of-type(2)")
+	p.WaitFor(fmt.Sprintf(`location.pathname === %q && document.querySelector(".tab.on") === document.querySelectorAll(".tabbar .tab")[1]`, to))
+	if n := p.Number(`window.__slides`); n < 1 {
+		t.Error("a switch did not slide the lens")
+	}
+	p.WaitFor(`document.querySelector(".tab-lens").getAnimations().length === 0`)
+	if off := under(); off > 1 {
+		t.Errorf("after a switch the lens is %vpx off the current tab", off)
+	}
+
+	// A drag from the current tab to the fourth: the lens follows, the tab
+	// under the finger lights, and letting go opens it.
+	centre := func(i int) (int, int) {
+		t.Helper()
+		var x, y int
+		fmt.Sscan(p.String(fmt.Sprintf(`(() => { const r = document.querySelectorAll(".tabbar .tab")[%d].getBoundingClientRect(); return Math.round(r.left + r.width / 2) + " " + Math.round(r.top + r.height / 2); })()`, i)), &x, &y)
+		return x, y
+	}
+	touch := func(kind string, x, y int) {
+		t.Helper()
+		points := []map[string]any{{"x": x, "y": y}}
+		if kind == "touchEnd" {
+			points = []map[string]any{}
+		}
+		p.call("Input.dispatchTouchEvent", map[string]any{"type": kind, "touchPoints": points})
+	}
+	x1, y := centre(1)
+	x3, _ := centre(3)
+	to = p.String(`document.querySelectorAll(".tabbar .tab")[3].getAttribute("href")`)
+	touch("touchStart", x1, y)
+	for x := x1 + 10; x <= x3; x += 10 {
+		touch("touchMove", x, y)
+	}
+	touch("touchMove", x3, y)
+	if got := p.Eval(`document.querySelector(".tabbar-tabs").classList.contains("dragging") && document.querySelectorAll(".tabbar .tab")[3].classList.contains("under")`); got != true {
+		t.Error("dragging along the bar does not light the tab under the finger")
+	}
+	if off := p.Number(fmt.Sprintf(`(() => { const l = document.querySelector(".tab-lens").getBoundingClientRect(); return Math.abs(l.left + l.width / 2 - %d); })()`, x3)); off > 2 {
+		t.Errorf("the lens is %vpx from the finger", off)
+	}
+	touch("touchEnd", 0, 0)
+	p.WaitFor(fmt.Sprintf(`location.pathname === %q && document.querySelector(".tab.on") === document.querySelectorAll(".tabbar .tab")[3]`, to))
+	if alive := p.Number(`window.__alive || 0`); alive != 1 {
+		t.Error("letting go reloaded the document")
+	}
+}

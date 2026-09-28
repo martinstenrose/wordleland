@@ -196,6 +196,36 @@
     </details>
   {{end}}
 </header>
+{{/* The Home Screen app's tab bar: the views at the foot of a phone, and
+     search beside them, as iOS draws an app. Drawn always and shown only
+     for display-mode: standalone on a phone (see app.css) — installed,
+     there is no browser toolbar down there to keep clear of, and the top
+     bar it stands in for is hidden. Every tab is a link, and search is the
+     same link as the bar's, opening the same overlay. */}}
+{{if .Nav}}
+<nav class="tabbar" aria-label="{{.T.T "nav.views"}}">
+  {{/* Pull to refresh's indicator: an installed app has no Reload button.
+       Drawn by app.js as the page is pulled down from its top. */}}
+  <span class="pull-refresh" aria-hidden="true">{{symbol "refresh" 20}}</span>
+  {{/* The lens is the current tab's highlight, as iOS draws it: one piece
+       of glass under the tabs, placed by the current tab's index so it
+       needs no script. app.js slides it to the next tab on a switch, and
+       lets a finger drag it along the bar. */}}
+  {{$on := -1}}{{range $i, $n := .Nav}}{{if $n.On}}{{$on = $i}}{{end}}{{end}}
+  <div class="tabbar-tabs glass" style="--tabs: {{len .Nav}}; --tab-on: {{$on}}">
+    {{if ge $on 0}}<span class="tab-lens" aria-hidden="true"></span>{{end}}
+    {{range .Nav}}
+      <a class="tab{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>
+        {{codeSymbol .Code 23}}
+        <span class="tab-label">{{$.T.T (print "nav.tab." .Code)}}</span>
+      </a>
+    {{end}}
+  </div>
+  {{if .SearchPath}}
+    <a class="tab-search glass" href="{{.SearchPath}}" hx-boost="false" aria-label="{{.T.T "search.title"}}" title="{{.T.T "search.title"}}" aria-haspopup="dialog" aria-expanded="false" aria-controls="search-overlay">{{symbol "search" 24}}</a>
+  {{end}}
+</nav>
+{{end}}
 {{end}}
 
 {{/* The two preferences every reader has, signed in or not: the theme, as

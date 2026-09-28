@@ -4156,3 +4156,131 @@ details.account > summary { position: relative; }
    app.js). html in front out-ranks every :focus-visible rule above. */
 html .focus-quiet:focus-visible,
 html .menu > summary.focus-quiet:focus-visible .menu-btn { outline: none; }
+
+/* ---- The Home Screen app --------------------------------------------------
+
+   Installed on a phone and opened from the Home Screen, the page runs
+   standalone: no Safari bars. The design's app then drops the floating bar
+   for what an iOS app has — the views as a tab bar at the foot, search
+   beside it, the account beside the page's title — and a fade under the
+   status bar where the page scrolls away. The foot of a phone is ours here:
+   the rule against pinning anything there (see "The navigation floats") is
+   about Safari's toolbar, and there is none. A wider installed window keeps
+   the floating bar; the design draws the app for a phone only.
+
+   The tab bar is in the markup wherever there are views to switch between
+   (topbar.html), and hidden until this applies; every rule below is tied
+   to it, so a page with none — a stranger on Privacy — keeps the bar and
+   its way home, which an installed app, with no Back button, needs. The
+   avatar is the bar's own account menu, moved: the bar is taken out of
+   the window's frame and set at the title's height, so it scrolls with the
+   page as the design's does. */
+.tabbar, .pull-refresh { display: none; }
+@keyframes pull-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .pull-refresh.spinning .sym { animation: none; } }
+
+@media (display-mode: standalone) and (max-width: 860px) {
+  /* The page starts below the band an iPhone frosts under the status bar
+     — the status bar and some 45 points more, frosted even before
+     anything scrolls (see base.html) — so its first line is sharp. */
+  .tabbar ~ .page {
+    padding-top: calc(env(safe-area-inset-top) + 40px);
+    padding-bottom: calc(env(safe-area-inset-bottom) + 108px);
+  }
+
+  .topbar:has(+ .tabbar) {
+    position: absolute;
+    top: calc(env(safe-area-inset-top) + 46px);
+    left: auto;
+    right: calc(env(safe-area-inset-right) + 16px);
+  }
+  .topbar:has(+ .tabbar) :is(.bar-pages, .bar-menu, .bar-search) { display: none; }
+  /* The design's app avatar is a plain orb on the card colour, not glass:
+     it sits on the page rather than over it. The browser's size, level
+     with the top of the page's head, as an iOS app sets its account at
+     the top corner. */
+  .topbar:has(+ .tabbar) .bar-orb { background: var(--color-surface); border: 1px solid var(--color-border); box-shadow: none; }
+  .topbar:has(+ .tabbar) .bar-orb::before { display: none; }
+  /* The head's first lines keep clear of it. */
+  .tabbar ~ .page .page-head-id > :is(.page-eyebrow, .page-title, .page-title-line) { padding-right: 64px; }
+
+  .tabbar {
+    display: flex; align-items: center; gap: 8px;
+    position: fixed; z-index: 30;
+    left: calc(env(safe-area-inset-left) + 14px);
+    right: calc(env(safe-area-inset-right) + 14px);
+    bottom: max(12px, calc(env(safe-area-inset-bottom) - 10px));
+  }
+  /* The page scrolls on under the status bar (base.html: black-translucent)
+     and the phone frosts it there, as it does for Apple's own apps. Nothing
+     of ours is drawn over it: a frosted band of the app's own sat under the
+     phone's glass, hid the page entirely under the clock, and — since a
+     blur reaches past its own edge — smeared the line below it before
+     anything had scrolled. */
+  /* --tabs and --tab-on are set on the element by topbar.html; these are
+     what they would be on the full set with the first one current. */
+  .tabbar-tabs { --tabs: 5; --tab-on: 0; flex: 1; min-width: 0; display: flex; align-items: center; height: 62px; padding: 4px; border-radius: 31px; }
+  /* The lens: the current tab's highlight, one piece under the tabs, so it
+     can slide from tab to tab and follow a finger along the bar (app.js).
+     The tabs share the bar's width equally, so the current tab's index
+     places it. */
+  .tab-lens {
+    position: absolute; top: 4px; bottom: 4px;
+    width: calc((100% - 8px) / var(--tabs));
+    /* Placed by left rather than a transform, which would be scaled with
+       it when it is held. */
+    left: calc(4px + var(--tab-on) * (100% - 8px) / var(--tabs));
+    border-radius: 27px;
+    background: var(--glass-hover);
+    pointer-events: none;
+  }
+  /* Held, it grows a little and lifts, as iOS's lens does under a finger. */
+  .tabbar-tabs.dragging .tab-lens {
+    scale: 1.08;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .14);
+    transition: scale var(--transition-quiet), box-shadow var(--transition-quiet);
+  }
+  .tab {
+    position: relative;
+    flex: 1; min-width: 0; height: 54px; border-radius: 27px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    color: var(--color-text); text-decoration: none;
+    transition: color var(--transition-quiet);
+  }
+  .tab.on, .tabbar-tabs.dragging .tab.under { color: var(--color-accent); }
+  .tabbar-tabs.dragging .tab.on:not(.under) { color: var(--color-text); }
+  .tab-label { font-size: 10px; font-weight: 600; letter-spacing: .01em; white-space: nowrap; }
+  .tab-search { flex: none; display: grid; place-items: center; width: 62px; height: 62px; border-radius: 31px; color: var(--color-text); }
+  .tab:focus-visible, .tab-search:focus-visible { outline: 2px solid var(--color-accent-50); outline-offset: 1px; }
+
+  /* Pull to refresh: an installed app has no Reload button, so the page
+     is pulled down from its top, as an iOS app's is (app.js). The phone's
+     own rubber band is turned off here so the two do not fight. --pull is
+     how far the finger has pulled, in pixels, set by app.js. */
+  html { overscroll-behavior-y: none; }
+  /* Drawn only while a pull is under way. Idle at the top of the window,
+     even hidden, a fixed element reads to an iPhone as a header: it
+     stretches its frost under the status bar down past it, over the
+     page's first lines. */
+  .pull-refresh:is(.pulling, .spinning) {
+    display: grid; place-items: center;
+  }
+  .pull-refresh {
+    position: fixed; z-index: 40; left: 50%;
+    top: calc(env(safe-area-inset-top) + 6px);
+    width: 36px; height: 36px; border-radius: 18px;
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .1);
+    color: var(--color-muted);
+    opacity: clamp(0, calc(var(--pull, 0) / 72), 1);
+    transform: translate(-50%, calc(var(--pull, 0) * 1px - 48px)) rotate(calc(var(--pull, 0) * 4deg));
+    pointer-events: none;
+  }
+  .pull-refresh.ready, .pull-refresh.spinning { color: var(--color-accent); }
+  .pull-refresh.spinning { --pull: 72; }
+  .pull-refresh.spinning .sym { animation: pull-spin .8s linear infinite; }
+
+  /* The toast floats over the tab bar, as the design's does, rather than
+     hanging under a bar that is not there. */
+  .tabbar ~ .page .toast { top: auto; bottom: calc(max(12px, env(safe-area-inset-bottom) - 10px) + 72px); }
+}
