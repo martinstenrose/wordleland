@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -162,7 +163,7 @@ func TestInterpretAsksForARequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Interpret: %v", err)
 	}
-	if req != (Request{Kind: KindLeader, Span: SpanDays, Days: 7}) {
+	if !reflect.DeepEqual(req, Request{Kind: KindLeader, Span: SpanDays, Days: 7}) {
 		t.Errorf("request = %+v", req)
 	}
 
@@ -216,7 +217,7 @@ func TestParseRequestNormalises(t *testing.T) {
 			t.Errorf("%s: %v", tc.content, err)
 			continue
 		}
-		if got != tc.want {
+		if !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s: got %+v, want %+v", tc.content, got, tc.want)
 		}
 	}

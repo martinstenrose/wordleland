@@ -40,6 +40,8 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 		return count(t, req, asker, players, results, now)
 	case KindHabits:
 		return habits(t, req, asker, players, results, now)
+	case KindWhatIf:
+		return whatIf(t, req, players, results, now)
 	case KindRules:
 		return rules(t, req)
 	case KindThanks:
