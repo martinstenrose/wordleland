@@ -71,11 +71,55 @@ const (
 	// list. Its own kind so that asking for help is not counted among the
 	// questions the bot could not place.
 	KindHelp Kind = "help"
+	// KindWhatIf is a result that has not happened yet — "if Martin gets
+	// a 6 tomorrow and Ibrahim a 3, who leads?" — scored into the month
+	// with everyone else's results as they stand.
+	KindWhatIf Kind = "whatif"
+	// KindVersus is two players head to head: their averages over a span,
+	// and the days both played, won, drawn and lost.
+	KindVersus Kind = "versus"
+	// KindDay is one day for everyone: each result, the group's average,
+	// and how hard the puzzle was against the group's usual.
+	KindDay Kind = "day"
+	// KindPuzzles is the hardest puzzle over a span, or with Worst the
+	// easiest: the group's average on it.
+	KindPuzzles Kind = "puzzles"
+	// KindDayWins is who has had the day's best score most often, ties
+	// shared: a daily competition inside the month's.
+	KindDayWins Kind = "daywins"
+	// KindForm is who is playing best right now, over the board's form
+	// window, and who has improved most against their own average; with
+	// Worst, the other end.
+	KindForm Kind = "form"
+	// KindSteady is who is most consistent — the smallest spread of
+	// scores — or with Worst the least predictable.
+	KindSteady Kind = "steady"
+	// KindWeekday is which day of the week is hardest for the group, or
+	// a player's best and worst day of the week.
+	KindWeekday Kind = "weekday"
+	// KindProfile is everything about one player in one answer: "tell me
+	// about Bo", "roast Alma".
+	KindProfile Kind = "profile"
+	// KindHistory is one player's months: how each went, and their best.
+	KindHistory Kind = "history"
+	// KindRecords is the group's all-time records.
+	KindRecords Kind = "records"
+	// KindGroup is the group as a whole: how many play, how many results,
+	// the group's average.
+	KindGroup Kind = "group"
 	// KindUnknown is anything else: answered with one short line inviting
 	// a question the bot can take, and kept for the owner to read, since
 	// what the group asks and the bot cannot place is the next kind.
 	KindUnknown Kind = "unknown"
 )
+
+// Kinds is every Kind, in the order the prompt describes them: the
+// schema's enum and the parse's check both read it, so a kind cannot be
+// added to one and not the other.
+var Kinds = []Kind{KindLeader, KindStanding, KindStreak, KindToday, KindScore, KindWins,
+	KindCatchup, KindCount, KindHabits, KindWhatIf, KindVersus, KindDay, KindPuzzles,
+	KindDayWins, KindForm, KindSteady, KindWeekday, KindProfile, KindHistory, KindRecords,
+	KindGroup, KindRules, KindThanks, KindHelp, KindUnknown}
 
 // Topic is which rule a KindRules question asks about. Each has one
 // catalogue text, written by hand to match what internal/stats does.
@@ -89,10 +133,13 @@ const (
 	TopicHardMode Topic = "hardmode"
 	TopicForm     Topic = "form"
 	TopicRanked   Topic = "ranked"
+	// TopicData is what the bot knows at all: the scores, never the words.
+	TopicData Topic = "data"
 )
 
 // Topics is every Topic, in the order the "which one?" answer lists them.
-var Topics = []Topic{TopicMiss, TopicAverage, TopicStreak, TopicMonth, TopicHardMode, TopicForm, TopicRanked}
+var Topics = []Topic{TopicMiss, TopicAverage, TopicStreak, TopicMonth, TopicHardMode, TopicForm,
+	TopicRanked, TopicData}
 
 // Span is the window a leader or standing question covers.
 type Span string
@@ -105,7 +152,15 @@ const (
 	SpanDays Span = "days"
 	// SpanAll is the whole history, which is the board's own ranking.
 	SpanAll Span = "all"
+	// SpanWeek is the calendar week so far, Monday to today: the week the
+	// Sunday recap will close.
+	SpanWeek Span = "week"
+	// SpanLastWeek is the calendar week before it, Monday to Sunday.
+	SpanLastWeek Span = "lastweek"
 )
+
+// Spans is every Span, for the schema's enum.
+var Spans = []Span{SpanMonth, SpanDays, SpanAll, SpanWeek, SpanLastWeek}
 
 // Request is a question reduced to what the answer needs. It is what the
 // model produces, and the only thing it produces.
@@ -134,6 +189,23 @@ type Request struct {
 	// Guesses is the score a count question asks about: 1 to 6, 7 for a
 	// failure, 0 for the whole distribution.
 	Guesses int `json:"guesses"`
+	// OrBetter widens a count question's Guesses to that score or better:
+	// "3 or better", the board's own column.
+	OrBetter bool `json:"orbetter"`
+	// Other is the second player of a versus question.
+	Other string `json:"other"`
+	// Puzzle is a puzzle named by its number — "Wordle 1 900" — for a
+	// score or day question; worked out to a date here, not by the model.
+	Puzzle int `json:"puzzle"`
+	// Scores are a what-if question's results that have not happened.
+	Scores []Hypothetical `json:"scores"`
+}
+
+// Hypothetical is one made-up result: a player and their guesses, 1 to 6,
+// or 7 for a failure.
+type Hypothetical struct {
+	Player  string `json:"player"`
+	Guesses int    `json:"guesses"`
 }
 
 // Layouts for Request.Date and Request.Month.

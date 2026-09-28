@@ -46,20 +46,7 @@ func catchup(t i18n.Translator, req Request, asker *store.Player,
 		return t.T("reply.leader.none", capitalized(label))
 	}
 
-	current := wordle.PuzzleForDate(now)
-	monthEnd := wordle.PuzzleForDate(time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, now.Location()))
-	race := race{
-		length:    monthEnd - m.First,
-		concluded: current - m.First,
-		afterNow:  monthEnd - current - 1,
-		leader:    *m.Winners[0].Average,
-		today:     map[int64]bool{},
-	}
-	for _, r := range results {
-		if r.PuzzleNo == current {
-			race.today[r.PlayerID] = true
-		}
-	}
+	race := newRace(m, results, now)
 	leaders := joinNames(t, names(m.Winners))
 	leaderAvg := t.Decimal(race.leader, 2)
 
@@ -137,6 +124,35 @@ func leadersView(t i18n.Translator, label, leaders string, m stats.Month, race r
 	}
 	return t.T("reply.catchup.leads", leaders, label, points, left, chaser.Name, t.Decimal(need, 2),
 		leaders, t.Decimal(race.leader, 2))
+}
+
+// newRace reads the current month's arithmetic: its length, how much of it
+// is over, and who has played today. m must have a leader.
+func newRace(m stats.Month, results []store.BoardResult, now time.Time) race {
+	current := wordle.PuzzleForDate(now)
+	monthEnd := wordle.PuzzleForDate(time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, now.Location()))
+	r := race{
+		length:    monthEnd - m.First,
+		concluded: current - m.First,
+		afterNow:  monthEnd - current - 1,
+		leader:    *m.Winners[0].Average,
+		today:     map[int64]bool{},
+	}
+	for _, res := range results {
+		if res.PuzzleNo == current {
+			r.today[res.PlayerID] = true
+		}
+	}
+	return r
+}
+
+// scored is how many of the month's days are in a player's average now:
+// the concluded ones, a day not played counting 7, and today once played.
+func (r race) scored(id int64) int {
+	if r.today[id] {
+		return r.concluded + 1
+	}
+	return r.concluded
 }
 
 // race is the month's arithmetic, shared by every line above.

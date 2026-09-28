@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
 // Ollama is an Interpreter backed by an Ollama server: the model runs in
@@ -241,20 +243,38 @@ func (o *Ollama) pull(ctx context.Context) error {
 var requestSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
-		"kind": map[string]any{"type": "string", "enum": []string{
-			string(KindLeader), string(KindStanding), string(KindStreak), string(KindToday),
-			string(KindScore), string(KindWins), string(KindCatchup), string(KindCount), string(KindHabits),
-			string(KindRules), string(KindThanks), string(KindHelp), string(KindUnknown)}},
-		"span":    map[string]any{"type": "string", "enum": []string{string(SpanMonth), string(SpanDays), string(SpanAll)}},
-		"days":    map[string]any{"type": "integer"},
-		"worst":   map[string]any{"type": "boolean"},
-		"player":  map[string]any{"type": "string"},
-		"topic":   map[string]any{"type": "string", "enum": topicNames()},
-		"date":    map[string]any{"type": "string"},
-		"month":   map[string]any{"type": "string"},
-		"guesses": map[string]any{"type": "integer"},
+		"kind":     map[string]any{"type": "string", "enum": enum(Kinds)},
+		"span":     map[string]any{"type": "string", "enum": enum(Spans)},
+		"days":     map[string]any{"type": "integer"},
+		"worst":    map[string]any{"type": "boolean"},
+		"player":   map[string]any{"type": "string"},
+		"other":    map[string]any{"type": "string"},
+		"topic":    map[string]any{"type": "string", "enum": topicNames()},
+		"date":     map[string]any{"type": "string"},
+		"puzzle":   map[string]any{"type": "integer"},
+		"month":    map[string]any{"type": "string"},
+		"guesses":  map[string]any{"type": "integer"},
+		"orbetter": map[string]any{"type": "boolean"},
+		"scores": map[string]any{"type": "array", "items": map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"player":  map[string]any{"type": "string"},
+				"guesses": map[string]any{"type": "integer"},
+			},
+			"required": []string{"player", "guesses"},
+		}},
 	},
-	"required": []string{"kind", "span", "days", "worst", "player", "topic", "date", "month", "guesses"},
+	"required": []string{"kind", "span", "days", "worst", "player", "other", "topic", "date", "puzzle",
+		"month", "guesses", "orbetter", "scores"},
+}
+
+// enum is a list of constants as the schema's strings.
+func enum[T ~string](values []T) []string {
+	out := make([]string, len(values))
+	for i, v := range values {
+		out[i] = string(v)
+	}
+	return out
 }
 
 // topicNames is every Topic plus the empty string for "not a rules
@@ -326,10 +346,7 @@ func parseRequest(content string) (Request, error) {
 	if err := json.Unmarshal([]byte(strings.TrimSpace(content)), &r); err != nil {
 		return Request{}, fmt.Errorf("model did not answer with a request: %w", err)
 	}
-	switch r.Kind {
-	case KindLeader, KindStanding, KindStreak, KindToday, KindScore, KindWins, KindCatchup,
-		KindCount, KindHabits, KindRules, KindThanks, KindHelp:
-	default:
+	if !slices.Contains(Kinds, r.Kind) {
 		r.Kind = KindUnknown
 	}
 	if r.Kind != KindRules {
@@ -338,14 +355,26 @@ func parseRequest(content string) (Request, error) {
 		// A rules question about nothing on the list gets the list.
 		r.Topic = ""
 	}
+	dated := r.Kind == KindScore || r.Kind == KindDay || r.Kind == KindWhatIf
 	r.Date = strings.TrimSpace(r.Date)
-	if _, err := time.Parse(DateLayout, r.Date); err != nil || r.Kind != KindScore {
-		// A date the model could not write properly is today, which is
-		// the likeliest day to be asked about anyway.
+	if _, err := time.Parse(DateLayout, r.Date); err != nil || !dated {
+		// A date the model could not write properly is the default day,
+		// which is the likeliest day to be asked about anyway.
 		r.Date = ""
 	}
+	if r.Kind != KindScore && r.Kind != KindDay {
+		r.Puzzle = 0
+	}
+	if r.Puzzle != 0 {
+		// A puzzle number is a date by arithmetic, done here: "Wordle
+		// 1 900" is exact, and the model would only guess its date.
+		if date, err := wordle.DateForPuzzle(r.Puzzle); err == nil {
+			r.Date = date.Format(DateLayout)
+		}
+		r.Puzzle = 0
+	}
 	r.Month = strings.TrimSpace(r.Month)
-	if _, err := time.Parse(MonthLayout, r.Month); err != nil || (r.Kind != KindLeader && r.Kind != KindStanding) {
+	if _, err := time.Parse(MonthLayout, r.Month); err != nil || !slices.Contains(spanned, r.Kind) {
 		r.Month = ""
 	}
 	if r.Month != "" {
@@ -354,6 +383,10 @@ func parseRequest(content string) (Request, error) {
 	}
 	if r.Kind != KindCount || r.Guesses < 0 || r.Guesses > 7 {
 		r.Guesses = 0
+	}
+	if r.Guesses < 1 || r.Guesses > 6 {
+		// "X or better" is every game, which is not a question.
+		r.OrBetter = false
 	}
 	switch r.Span {
 	case SpanDays:
@@ -365,25 +398,55 @@ func parseRequest(content string) (Request, error) {
 			// day would be work the answer's deadline cannot interrupt.
 			r.Span, r.Days = SpanAll, 0
 		}
-	case SpanAll:
+	case SpanAll, SpanWeek, SpanLastWeek:
 	default:
 		r.Span = SpanMonth
 	}
 	if r.Span != SpanDays {
 		r.Days = 0
 	}
-	if r.Kind != KindLeader {
+	switch r.Kind {
+	case KindLeader, KindPuzzles, KindForm, KindSteady, KindWeekday, KindCount:
+	default:
 		r.Worst = false
 	}
 	r.Player = strings.TrimSpace(r.Player)
 	switch r.Kind {
-	case KindLeader, KindToday, KindRules, KindThanks, KindHelp, KindUnknown:
+	case KindLeader, KindToday, KindRules, KindThanks, KindHelp, KindUnknown,
+		KindWhatIf, KindDay, KindPuzzles, KindRecords, KindGroup:
 		// Nothing to be about a player: a name here is the model filling
 		// a field in, which it does for a message that asks nothing.
 		r.Player = ""
 	}
+	r.Other = strings.TrimSpace(r.Other)
+	if r.Kind != KindVersus || strings.EqualFold(r.Other, r.Player) {
+		r.Other = ""
+	}
+	if r.Kind != KindWhatIf {
+		r.Scores = nil
+	}
+	var scores []Hypothetical
+	seen := map[string]bool{}
+	for _, h := range r.Scores {
+		h.Player = strings.TrimSpace(h.Player)
+		// One result per player: a day has one, and a second is the
+		// model repeating itself. The first is the one asked about.
+		key := strings.ToLower(h.Player)
+		if h.Player != "" && !seen[key] && h.Guesses >= 1 && h.Guesses <= failGuesses && len(scores) < maxHypotheticals {
+			scores = append(scores, h)
+			seen[key] = true
+		}
+	}
+	r.Scores = scores
 	return r, nil
 }
+
+// spanned are the kinds a span, and a named month, apply to.
+var spanned = []Kind{KindLeader, KindStanding, KindVersus, KindPuzzles, KindDayWins}
+
+// maxHypotheticals bounds a what-if question: more results than players
+// is the model inventing them.
+const maxHypotheticals = 20
 
 // systemPrompt is the model's whole job description. English, whatever
 // language the group uses: these small models follow English instructions
