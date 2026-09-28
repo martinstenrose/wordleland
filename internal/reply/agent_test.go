@@ -1043,3 +1043,46 @@ func TestRulesAndThanksAreNotPhrased(t *testing.T) {
 		}
 	}
 }
+
+// The agent's instructions are the same whoever asks, whatever they reply
+// to and whatever came before; only today and the players change them.
+// The server reuses its work on a prompt up to the first difference, and
+// the tools come after the instructions, so a per-question line in them
+// would have everything read again on every round.
+func TestTheAgentsInstructionsDoNotChangeWithTheQuestion(t *testing.T) {
+	t.Parallel()
+	today := time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC)
+	players := []string{"Alma", "Bo"}
+	plain := Prompt{Question: "hej", Players: players, Today: today, Language: "Svenska"}
+	full := Prompt{Question: "and last week?", Asker: "Bo", Players: players, Today: today,
+		Language: "Svenska", Context: "Wordle 1 560: Alma 2/6",
+		History: []Exchange{{Asker: "Alma", Question: "who leads?", Answer: "Alma."}},
+		Placed:  placedLookup(Request{Kind: KindLeader, Span: SpanMonth}, "Alma leads.")}
+	if agentPrompt(plain) != agentPrompt(full) {
+		t.Errorf("the instructions differ with the question:\n%s\n---\n%s", agentPrompt(plain), agentPrompt(full))
+	}
+	// What was taken out is still said, in the question's message.
+	note := askedNote(full)
+	for _, want := range []string{"The person asking is Bo", "recent conversation", "first lookup", "Alma 2/6"} {
+		if !strings.Contains(note, want) {
+			t.Errorf("the note leaves out %q:\n%s", want, note)
+		}
+	}
+}
+
+// The placing model's instructions start the same for every question: the
+// asker and a quoted post come after all of the fixed text.
+func TestThePlacingInstructionsEndWithWhatChanges(t *testing.T) {
+	t.Parallel()
+	today := time.Date(2026, 9, 28, 12, 0, 0, 0, time.UTC)
+	a := systemPrompt(Prompt{Question: "hej", Players: []string{"Alma"}, Today: today, Agent: true})
+	b := systemPrompt(Prompt{Question: "what's this?", Asker: "Alma", Players: []string{"Alma"}, Today: today,
+		Agent: true, Context: "Wordle 1 560: Alma 2/6", ContextDate: "2026-09-27"})
+	same := 0
+	for same < len(a) && same < len(b) && a[same] == b[same] {
+		same++
+	}
+	if !strings.Contains(a[:same], "Fields:") || !strings.Contains(a[:same], "Another part of the bot") {
+		t.Errorf("the prompts part before their fixed text ends; shared:\n%s", a[:same])
+	}
+}

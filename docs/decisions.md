@@ -1637,6 +1637,25 @@ stay exact and instant, and the placed answer is a lookup handed to the
 agent. Whether the agent should place questions itself is for measuring,
 not assuming.
 
+**Every call sets the context size, and each prompt puts what changes
+last.** Ollama's default context on a CPU is 4096 tokens, and a longer
+prompt is cut from the front — the instructions and tools first — with a
+200 and a warning only in its own log; the agent's instructions and tools
+are about 1.5k tokens before any lookup or earlier turn. So every call,
+the warm-up included, asks for 8192: one number, since a request asking
+for another size reloads the model. On a CPU most of an answer's time is
+the model reading its prompt, and the server reuses that work only up to
+the first byte that differs from the last prompt. The agent's
+instructions used to carry the asker, the quoted post and notes about the
+conversation near their top, and the tools are rendered after the
+instructions, so every round read everything again. Now the instructions
+change only with the day and the player list, and what is particular to
+a question is a note at the head of its own message. The placing
+prompt keeps its fixed text first and the asker and quoted post last.
+Whether the reuse actually happens depends on the model and the server
+(a model with recurrent layers may not rewind to a partial prefix); the
+server's `prompt_eval_duration` says.
+
 **With the agent on, it words the placed answers too.** An answer from a
 kind is right but reads as a report — "Martin över 217 spel: 0×1, 16×2,
 …" — and when the placing model reads a question too narrowly ("who has the

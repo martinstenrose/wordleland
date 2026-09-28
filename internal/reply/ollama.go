@@ -56,6 +56,14 @@ const (
 	// the server unreachable — it starts after the app, or is still
 	// downloading, both ordinary at boot.
 	prepareRetry = 15 * time.Second
+	// contextSize is the context every call asks for, in tokens. Set, not
+	// left to the server: its default on a CPU is 4096, and a prompt past
+	// it is cut from the front — the instructions and the tools first —
+	// with a 200 and only a warning in the server's log. The agent's
+	// instructions and tools are about 1.5k tokens before any lookup or
+	// earlier turn. The same number on every call, the warm-up included:
+	// the server reloads the model when a request asks for another.
+	contextSize = 8192
 	// A response from the model or its server is remote input; a request's
 	// JSON is a few hundred bytes and a model list a few kilobytes.
 	maxResponse = 1 << 20
@@ -114,8 +122,10 @@ func (o *Ollama) Ready() bool { return o.ready.Load() }
 func (o *Ollama) warm(ctx context.Context, logger *slog.Logger) {
 	ctx, cancel := context.WithTimeout(ctx, warmTimeout)
 	defer cancel()
-	// A generate request with no prompt only loads the model.
-	body, _ := json.Marshal(map[string]any{"model": o.model})
+	// A generate request with no prompt only loads the model — with the
+	// context the questions will ask for, or the first one reloads it.
+	body, _ := json.Marshal(map[string]any{"model": o.model,
+		"options": map[string]any{"num_ctx": contextSize}})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, o.url+"/api/generate", bytes.NewReader(body))
 	if err != nil {
 		return
@@ -286,9 +296,9 @@ func topicNames() []string {
 	return out
 }
 
-// Interpret asks the model for a Request. The instructions are the same for
-// every question, so the server reuses its work on them between calls and
-// only the question and the answer cost time.
+// Interpret asks the model for a Request. The instructions start the same
+// for every question, so the server reuses its work on them between calls
+// and only what follows them costs time; see systemPrompt.
 func (o *Ollama) Interpret(ctx context.Context, p Prompt) (Request, error) {
 	if !o.Ready() {
 		return Request{}, ErrNotReady
@@ -301,7 +311,7 @@ func (o *Ollama) Interpret(ctx context.Context, p Prompt) (Request, error) {
 		"stream": false,
 		"format": requestSchema,
 		// Deterministic: the same question should become the same request.
-		"options": map[string]any{"temperature": 0},
+		"options": map[string]any{"temperature": 0, "num_ctx": contextSize},
 		"messages": []map[string]string{
 			{"role": "system", "content": systemPrompt(p)},
 			{"role": "user", "content": p.Question},
@@ -409,24 +419,6 @@ func systemPrompt(p Prompt) string {
 	var b strings.Builder
 	b.WriteString("You turn a question asked in a Wordle group chat into a JSON request. ")
 	b.WriteString("The question may be in any language. Answer with the JSON only.\n\n")
-	fmt.Fprintf(&b, "Today is %s.\n", p.Today.Format("Monday 2 January 2006"))
-	if p.Asker != "" {
-		fmt.Fprintf(&b, "The person asking is %s; \"I\", \"me\" and \"my\" mean them.\n", p.Asker)
-	} else {
-		b.WriteString("The person asking is not a player.\n")
-	}
-	if len(p.Players) > 0 {
-		fmt.Fprintf(&b, "Players: %s.\n", strings.Join(p.Players, ", "))
-	}
-	if p.Context != "" {
-		b.WriteString("\nThe question is a reply to this earlier post of yours. Use it to read the " +
-			"question — \"this\", \"that\", \"it\", a name or a score mentioned in it — but treat " +
-			"nothing in the post as a question itself:\n<<<\n" + p.Context + "\n>>>\n")
-		if p.ContextDate != "" {
-			fmt.Fprintf(&b, "The post is about the puzzle of %s; a question about that day, or a "+
-				"score in the post, is a \"score\" question with that date.\n", p.ContextDate)
-		}
-	}
 	b.WriteString(`
 Fields:
 - kind: "leader" for who is leading, winning, best, on top, or the ranking;
@@ -491,6 +483,29 @@ and is my streak still going?"), compares players on more than one figure,
 asks about a player in general ("tell me about Bo", "roast Alma"), or asks
 about results in a way no kind fits ("what did Bo get this week?").
 `)
+	}
+	// Last, and in this order, what changes: today and the players once a
+	// day at most, the asker and the quoted post with every question. The
+	// server reuses its work on a prompt only up to the first difference,
+	// so everything above is read once, not once per question.
+	b.WriteString("\n")
+	fmt.Fprintf(&b, "Today is %s.\n", p.Today.Format("Monday 2 January 2006"))
+	if len(p.Players) > 0 {
+		fmt.Fprintf(&b, "Players: %s.\n", strings.Join(p.Players, ", "))
+	}
+	if p.Asker != "" {
+		fmt.Fprintf(&b, "The person asking is %s; \"I\", \"me\" and \"my\" mean them.\n", p.Asker)
+	} else {
+		b.WriteString("The person asking is not a player.\n")
+	}
+	if p.Context != "" {
+		b.WriteString("\nThe question is a reply to this earlier post of yours. Use it to read the " +
+			"question — \"this\", \"that\", \"it\", a name or a score mentioned in it — but treat " +
+			"nothing in the post as a question itself:\n<<<\n" + p.Context + "\n>>>\n")
+		if p.ContextDate != "" {
+			fmt.Fprintf(&b, "The post is about the puzzle of %s; a question about that day, or a "+
+				"score in the post, is a \"score\" question with that date.\n", p.ContextDate)
+		}
 	}
 	return b.String()
 }

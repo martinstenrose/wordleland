@@ -110,6 +110,11 @@ func TestTheAgentIsShownTheRecentConversation(t *testing.T) {
 	for _, m := range msgs[1:] {
 		said = append(said, m.(map[string]any)["content"].(string))
 	}
+	// The question's own message starts with notes about it; the question
+	// is its last line, as the earlier one was said.
+	if n := len(said) - 1; n >= 0 {
+		said[n] = said[n][strings.LastIndex(said[n], "\n")+1:]
+	}
 	want := []string{"Bo: who leads?", first, "Bo: and last week?"}
 	if strings.Join(said, "|") != strings.Join(want, "|") {
 		t.Errorf("messages = %q, want %q", said, want)

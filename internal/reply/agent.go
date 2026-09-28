@@ -386,7 +386,8 @@ func (a *Agent) Run(ctx context.Context, p Prompt,
 			chatMessage{Role: "user", Content: saidBy(h.Asker, h.Question)},
 			chatMessage{Role: "assistant", Content: h.Answer})
 	}
-	messages = append(messages, chatMessage{Role: "user", Content: saidBy(p.Asker, p.Question)})
+	messages = append(messages, chatMessage{Role: "user",
+		Content: askedNote(p) + "\n" + saidBy(p.Asker, p.Question)})
 	var looked []lookedUp
 	if p.Placed != nil {
 		// The placing model's reading, answered already: shown to the
@@ -601,7 +602,11 @@ func (a *Agent) chat(ctx context.Context, messages []chatMessage) (chatMessage, 
 		// get a different quip, and the numbers are checked either way.
 		// num_predict caps a rambling answer's cost: three short
 		// sentences are well under it, and tidy cuts what is over.
-		"options":  map[string]any{"temperature": 0.6, "num_predict": 300},
+		// top_p and top_k because a model's own defaults may be set for
+		// thinking, which is off (qwen3.5 ships 0.95 and no top_k); these
+		// are the values Qwen gives for answering without it.
+		"options": map[string]any{"temperature": 0.6, "num_predict": 300,
+			"top_p": 0.8, "top_k": 20, "num_ctx": contextSize},
 		"messages": messages,
 	}))
 	if err != nil {
@@ -627,7 +632,14 @@ func (a *Agent) chat(ctx context.Context, messages []chatMessage) (chatMessage, 
 }
 
 // agentPrompt is the agent's job description. English for the same reason
-// as systemPrompt's; the answer is asked for in the question's language.
+// as systemPrompt's; the answer is asked for in the group's language.
+//
+// It holds only what is the same from one question to the next — today
+// and the players change once a day at most — and what changes with each
+// question is in askedNote, in the question's own message. The server
+// reuses its work on a prompt only up to the first difference, and with
+// the tools rendered after these instructions, one line here that changed
+// per question would have them all read again, every round.
 func agentPrompt(p Prompt) string {
 	var b strings.Builder
 	b.WriteString("You are the bot in a Wordle group chat. Answer the question using the tools. ")
@@ -639,16 +651,8 @@ func agentPrompt(p Prompt) string {
 		"leave the game out of it: the bot adds a line about Wordle after it. In such an answer you " +
 		"may name the person asking, or anyone the question names, but state no figures about them. " +
 		"If you are not sure, say so with a quip.\n")
-	if p.Placed != nil {
-		b.WriteString("The first lookup was made for you, from how the question was first read. Answer " +
-			"from it in your own words, and if the question asks for more than it covers — another " +
-			"player, another figure, the whole group — look that up too.\n")
-	}
-	if len(p.History) > 0 {
-		b.WriteString("The messages before the last are the recent conversation, each question " +
-			"prefixed with who asked. Use them to read a follow-up (\"and last week?\", \"what about " +
-			"Bo?\"), but answer only the last message, and look its figures up again.\n")
-	}
+	b.WriteString("Notes about the question come before it in its message: who is asking, " +
+		"and what else to read it with.\n")
 	fmt.Fprintf(&b, "Reply in %s, in one to three short sentences of plain text, no markdown.\n",
 		language(p))
 	b.WriteString(persona)
@@ -657,21 +661,38 @@ func agentPrompt(p Prompt) string {
 	}
 	b.WriteString("A lower average is better. A failed puzzle counts as 7.\n\n")
 	fmt.Fprintf(&b, "Today is %s (%s).\n", p.Today.Format("Monday 2 January 2006"), p.Today.Format(DateLayout))
-	if p.Asker != "" {
-		fmt.Fprintf(&b, "The person asking is %s; \"I\", \"me\" and \"my\" mean them.\n", p.Asker)
-	} else {
-		b.WriteString("The person asking is not a player.\n")
-	}
 	if len(p.Players) > 0 {
 		fmt.Fprintf(&b, "Players: %s.\n", strings.Join(p.Players, ", "))
-	}
-	if p.Context != "" {
-		b.WriteString("\nThe question replies to this earlier post of yours:\n<<<\n" + p.Context + "\n>>>\n")
 	}
 	// Last, where a small model weighs it most: the group reads one
 	// language, and every other line the bot posts is in it.
 	fmt.Fprintf(&b, "\nAlways write your reply in %s, whatever language the question or the tool "+
 		"results are in.\n", language(p))
+	return b.String()
+}
+
+// askedNote is what the agent is told about this question in particular,
+// put ahead of it in its message; see agentPrompt for why not there.
+func askedNote(p Prompt) string {
+	var b strings.Builder
+	if p.Asker != "" {
+		fmt.Fprintf(&b, "The person asking is %s; \"I\", \"me\" and \"my\" mean them.\n", p.Asker)
+	} else {
+		b.WriteString("The person asking is not a player.\n")
+	}
+	if len(p.History) > 0 {
+		b.WriteString("The messages before this one are the recent conversation, each question " +
+			"prefixed with who asked. Use them to read a follow-up (\"and last week?\", \"what about " +
+			"Bo?\"), but answer only this message, and look its figures up again.\n")
+	}
+	if p.Placed != nil {
+		b.WriteString("The first lookup was made for you, from how the question was first read. Answer " +
+			"from it in your own words, and if the question asks for more than it covers — another " +
+			"player, another figure, the whole group — look that up too.\n")
+	}
+	if p.Context != "" {
+		b.WriteString("The question replies to this earlier post of yours:\n<<<\n" + p.Context + "\n>>>\n")
+	}
 	return b.String()
 }
 
@@ -1072,7 +1093,7 @@ func askAgent(ctx context.Context, q asked, agent *Agent, conv *conversation,
 	// either, which may be an off-topic answer that went out unchecked.
 	unquoted := p
 	unquoted.Context = ""
-	numbers := []string{agentPrompt(unquoted)}
+	numbers := []string{agentPrompt(p), askedNote(unquoted)}
 	for _, l := range looked {
 		seen = append(seen, l.text)
 		numbers = append(numbers, l.text)

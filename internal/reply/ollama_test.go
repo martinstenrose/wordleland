@@ -32,8 +32,10 @@ type fakeOllama struct {
 	// capabilities is what /api/show reports for every model; nil leaves
 	// the field out, as an older server does.
 	capabilities []string
-	// warmed is the models loaded ahead of a question.
-	warmed []string
+	// warmed is the models loaded ahead of a question, and warmOptions
+	// the options each was loaded with.
+	warmed      []string
+	warmOptions []any
 	// replies, when set, are the chat's messages in turn, for a
 	// conversation of more than one round; content is used after them.
 	replies []map[string]any
@@ -75,6 +77,7 @@ func (f *fakeOllama) handler() http.Handler {
 		json.NewDecoder(r.Body).Decode(&req)
 		f.mu.Lock()
 		f.warmed = append(f.warmed, req["model"].(string))
+		f.warmOptions = append(f.warmOptions, req["options"])
 		f.mu.Unlock()
 		json.NewEncoder(w).Encode(map[string]any{"done": true})
 	})
@@ -340,5 +343,45 @@ func TestReasoningIsNeverPartOfTheAnswer(t *testing.T) {
 	}
 	if got := withoutThinking("Just the answer."); got != "Just the answer." {
 		t.Errorf("got %q", got)
+	}
+}
+
+// Every call asks for the same context: the server's default on a CPU is
+// shorter than the agent's instructions and lookups, and cuts a longer
+// prompt from the front without an error; and a call that asked for
+// another size would have the model loaded again.
+func TestEveryCallAsksForTheSameContext(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen3.5:4b"}, capabilities: []string{"completion", "tools"},
+		content: `{"kind":"today"}`}
+	srv := httptest.NewServer(f.handler())
+	t.Cleanup(srv.Close)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	o := NewOllama(srv.URL, "qwen3.5:4b")
+	o.Prepare(context.Background(), logger)
+	if _, err := o.Interpret(context.Background(), Prompt{Question: "who played today?", Today: time.Now()}); err != nil {
+		t.Fatalf("Interpret: %v", err)
+	}
+	a := NewAgent(srv.URL, "qwen3.5:4b")
+	a.Prepare(context.Background(), logger)
+	if _, err := a.chat(context.Background(), []chatMessage{{Role: "user", Content: "hej"}}); err != nil {
+		t.Fatalf("chat: %v", err)
+	}
+
+	var sizes []any
+	for _, opts := range f.warmOptions {
+		sizes = append(sizes, opts.(map[string]any)["num_ctx"])
+	}
+	for _, chat := range f.chats {
+		sizes = append(sizes, chat["options"].(map[string]any)["num_ctx"])
+	}
+	if len(sizes) != 4 {
+		t.Fatalf("%d calls seen, want two warm-ups and two chats", len(sizes))
+	}
+	for i, n := range sizes {
+		if n != float64(contextSize) {
+			t.Errorf("call %d: num_ctx = %v, want %d", i, n, contextSize)
+		}
 	}
 }
