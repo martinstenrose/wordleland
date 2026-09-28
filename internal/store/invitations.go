@@ -213,3 +213,22 @@ func AcceptInvitation(ctx context.Context, db *sql.DB, token, passwordHash strin
 	})
 	return user, err
 }
+
+// CancelInvitation withdraws a player's live invitation: its link stops
+// working at once. It is spent rather than deleted — the way a newer
+// invitation spends an older one in CreateInvitation — so the row that says
+// an invitation was sent stays with the activity that mentions it.
+func CancelInvitation(ctx context.Context, db *sql.DB, actor Actor, playerID int64) error {
+	return InTx(ctx, db, func(tx *sql.Tx) error {
+		res, err := tx.ExecContext(ctx,
+			`UPDATE invitations SET used_at = CURRENT_TIMESTAMP
+			 WHERE player_id = ? AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP`, playerID)
+		if err != nil {
+			return fmt.Errorf("cancel invitation: %w", err)
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return ErrInvitationInvalid
+		}
+		return LogActivity(ctx, tx, actor, ActionInvitationCancelled, SubjectPlayer, &playerID, nil)
+	})
+}

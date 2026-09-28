@@ -52,8 +52,9 @@ const (
 	// renders a vanished subject as "#id".
 	ActionPlayerDeleted = "player.deleted"
 
-	ActionInvitationSent     = "invitation.sent"
-	ActionInvitationAccepted = "invitation.accepted"
+	ActionInvitationSent      = "invitation.sent"
+	ActionInvitationAccepted  = "invitation.accepted"
+	ActionInvitationCancelled = "invitation.cancelled"
 
 	ActionTokenCreated = "token.created"
 	ActionTokenRevoked = "token.revoked"
@@ -66,6 +67,7 @@ const (
 	ActionIdentityClaimed    = "identity.claimed"
 	ActionIdentityDiscarded  = "identity.discarded"
 	ActionIdentityReassigned = "identity.reassigned"
+	ActionIdentityUnlinked   = "identity.unlinked"
 
 	ActionSlugGenerated = "settings.slug_generated"
 	ActionSlugRotated   = "settings.slug_rotated"
@@ -184,6 +186,7 @@ var activityKinds = map[string]string{
 	ActionPlayerUnlinked:     ActivityPlayers,
 	ActionIdentityAdded:      ActivityPlayers,
 	ActionIdentityReassigned: ActivityPlayers,
+	ActionIdentityUnlinked:   ActivityPlayers,
 
 	ActionUserCreated:         ActivityUsers,
 	ActionUserDisabled:        ActivityUsers,
@@ -198,6 +201,7 @@ var activityKinds = map[string]string{
 	ActionUserEmailChanged:    ActivityUsers,
 	ActionInvitationSent:      ActivityUsers,
 	ActionInvitationAccepted:  ActivityUsers,
+	ActionInvitationCancelled: ActivityUsers,
 	ActionTokenCreated:        ActivityUsers,
 	ActionTokenRevoked:        ActivityUsers,
 }
