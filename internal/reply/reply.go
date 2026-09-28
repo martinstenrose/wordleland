@@ -199,16 +199,20 @@ type Exchange struct {
 }
 
 // phrased reports whether the agent, when ready, words the answer to a
-// placed question of this kind. The figures: yes, since the catalogue's
-// sentence for them reads as a report. Help, thanks, the unknown line and
-// the rules: no — the first three are the bot's own lines, and a rule is
-// explained in exactly the words that match what internal/stats does.
+// placed question of this kind. The ones whose answer reads as a report —
+// the table, a catch-up with several players in it, a distribution — yes.
+// The ones already answered in a sentence with its figure in it — today,
+// one day's score, a streak, month wins, posting habits — no: the agent's
+// wording costs a round of the model, most of a minute on a CPU, and adds
+// only the attitude. Help, thanks, the unknown line and the rules: no —
+// the first three are the bot's own lines, and a rule is explained in
+// exactly the words that match what internal/stats does.
 func phrased(k Kind) bool {
 	switch k {
-	case KindHelp, KindThanks, KindUnknown, KindRules:
-		return false
+	case KindLeader, KindStanding, KindCatchup, KindCount:
+		return true
 	}
-	return true
+	return false
 }
 
 // thanksLines is how many ways the bot takes praise: reply.thanks, then

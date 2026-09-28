@@ -242,11 +242,14 @@ of "no idea what that was", the question goes to the agent, which looks
 things up and writes the answer itself: "tell me about Bo", "roast Alma",
 "who leads, and is my streak still going?", "what did Bo get this week?".
 With it on, the model passes questions like those on when placing them
-rather than answering half of them, and the answers it does place are handed to the
-agent to word, so "who's leading?" gets a sentence rather than a report.
-If the agent's wording fails a check or times out, the plain answer goes
-out instead. The price is that every answer with figures waits for a
-round or more of tool calling.
+rather than answering half of them. The placed answers that read as a
+report — the leader, the standings, a catch-up, a distribution — are
+handed to the agent to word, so "who's leading?" gets a sentence rather
+than a table; the ones already a sentence (today, one day's score, a
+streak, month wins, posting habits) are posted as they are. If the
+agent's wording fails a check or times out, the plain answer goes out
+instead. The price is that those answers wait for a round or more of
+tool calling.
 
 - **What it can look up:** the same answers the bot gives to a placed
   question, a whole-player profile, and a day-by-day list of one player's

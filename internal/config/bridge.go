@@ -86,7 +86,8 @@ type Bridge struct {
 	LLMModel string
 	// LLMAgent has LLMModel do more than place questions: it also takes
 	// the ones it could not place, looking the figures up and phrasing the
-	// answer itself, and words the answers to the ones it did. Off, the
+	// answer itself, and words the answers to the ones it did that read as
+	// a report. Off, the
 	// default, is placing only: unplaced questions get the unknown line.
 	// One model for both, so one to pull and keep in memory; a model that
 	// cannot call tools is refused for this at startup and only places.

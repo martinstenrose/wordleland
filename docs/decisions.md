@@ -1672,6 +1672,17 @@ also showed Ollama reading the whole prompt again on every call
 qwen3.5 the reuse above does not happen, and a question costs about 40
 seconds to place and a minute per agent round on 8 cores.
 
+**Only the placed answers that read as a report are reworded.** At a
+minute per agent round, rewording every placed answer made "how's my
+streak?" as slow as "tell me about Bo". Today, one day's score, a streak,
+month wins and posting habits are already a sentence with the figure in
+it, and the agent added only the attitude, so they are posted as they
+are. The leader, the standings, a catch-up and a distribution read as a
+report and are still reworded. Placing itself stays with the agent on: it
+makes the first lookup, which usually saves the agent a round; it reads
+spans and dates at temperature 0 against a schema; and its answer is what
+goes out when the agent cannot.
+
 **With the agent on, it words the placed answers too.** An answer from a
 kind is right but reads as a report — "Martin över 217 spel: 0×1, 16×2,
 …" — and when the placing model reads a question too narrowly ("who has the

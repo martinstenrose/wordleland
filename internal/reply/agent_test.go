@@ -957,21 +957,21 @@ func TestAFigureInAFreeAnswerIsWhatTheNudgeSays(t *testing.T) {
 func TestAPlacedAnswerIsPhrasedByTheAgent(t *testing.T) {
 	t.Parallel()
 	db := replyDB(t)
-	f := &fakeOllama{models: []string{"qwen2.5:7b"}, content: "Bo is on 12 days in a row. Somebody stop him."}
-	answer, c := newAgentAnswerer(t, db, canned{req: Request{Kind: KindStreak, Player: "Bo"}}, testAgent(t, f))
+	f := &fakeOllama{models: []string{"qwen2.5:7b"}, content: "Bo has 12 4s. Consistency, or a rut."}
+	answer, c := newAgentAnswerer(t, db, canned{req: Request{Kind: KindCount, Player: "Bo", Guesses: 4}}, testAgent(t, f))
 
-	if err := answer(context.Background(), senderUUID, "how's my streak?", "", nil); err != nil {
+	if err := answer(context.Background(), senderUUID, "how many 4s do I have?", "", nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := c.last(t); got != "Bo is on 12 days in a row. Somebody stop him." {
+	if got := c.last(t); got != "Bo has 12 4s. Consistency, or a rut." {
 		t.Errorf("got %q", got)
 	}
 	msgs := f.chats[0]["messages"].([]any)
 	call := msgs[len(msgs)-2].(map[string]any)["tool_calls"].([]any)[0].(map[string]any)["function"].(map[string]any)
-	if call["name"] != "streak" || call["arguments"].(map[string]any)["player"] != "Bo" {
+	if call["name"] != "count" || call["arguments"].(map[string]any)["player"] != "Bo" {
 		t.Errorf("the placed lookup was %v", call)
 	}
-	if tool := msgs[len(msgs)-1].(map[string]any)["content"]; tool != "Bo: 12 days in a row now, 12 at best." {
+	if tool := msgs[len(msgs)-1].(map[string]any)["content"]; tool != "Bo: 12 4s out of 12 games (100%)." {
 		t.Errorf("the placed answer handed over was %v", tool)
 	}
 	var kept int
@@ -987,7 +987,23 @@ func TestAPlacedAnswerIsPhrasedByTheAgent(t *testing.T) {
 // kind's own answer: never worse than without the agent.
 func TestAPlacedAnswerFallsBackToTheKind(t *testing.T) {
 	t.Parallel()
-	f := &fakeOllama{models: []string{"qwen2.5:7b"}, content: "Bo is on 40 days in a row."}
+	f := &fakeOllama{models: []string{"qwen2.5:7b"}, content: "Bo has 40 of them."}
+	answer, c := newAgentAnswerer(t, replyDB(t), canned{req: Request{Kind: KindCount, Player: "Bo", Guesses: 4}}, testAgent(t, f))
+
+	if err := answer(context.Background(), senderUUID, "how many 4s do I have?", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := c.last(t); got != "Bo: 12 4s out of 12 games (100%)." {
+		t.Errorf("got %q", got)
+	}
+}
+
+// A kind whose answer is already a sentence with its figure in it is
+// posted as it is, with the agent on: rewording it would cost a round of
+// the model for the attitude alone.
+func TestASentenceAnswerSkipsTheAgent(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen2.5:7b"}, content: "Bo is on 12 days in a row."}
 	answer, c := newAgentAnswerer(t, replyDB(t), canned{req: Request{Kind: KindStreak, Player: "Bo"}}, testAgent(t, f))
 
 	if err := answer(context.Background(), senderUUID, "how's my streak?", "", nil); err != nil {
@@ -995,6 +1011,9 @@ func TestAPlacedAnswerFallsBackToTheKind(t *testing.T) {
 	}
 	if got := c.last(t); got != "Bo: 12 days in a row now, 12 at best." {
 		t.Errorf("got %q", got)
+	}
+	if len(f.chats) != 0 {
+		t.Errorf("%d chat calls, want none", len(f.chats))
 	}
 }
 
@@ -1007,15 +1026,15 @@ func TestAnAnswerWithoutTheFiguresIsSentBack(t *testing.T) {
 	for _, tc := range []struct {
 		rewrite, want string
 	}{
-		{"Bo is on 12 in a row. Somebody stop him.", "Bo is on 12 in a row. Somebody stop him."},
-		{"Bo is unstoppable, honestly.", "Bo: 12 days in a row now, 12 at best."},
+		{"Bo has 12 of them. Somebody stop him.", "Bo has 12 of them. Somebody stop him."},
+		{"Bo is unstoppable, honestly.", "Bo: 12 4s out of 12 games (100%)."},
 	} {
 		f := &fakeOllama{models: []string{"qwen2.5:7b"}, replies: []map[string]any{
 			{"role": "assistant", "content": "You can still catch him, Bo!"},
 		}, content: tc.rewrite}
-		answer, c := newAgentAnswerer(t, replyDB(t), canned{req: Request{Kind: KindStreak, Player: "Bo"}}, testAgent(t, f))
+		answer, c := newAgentAnswerer(t, replyDB(t), canned{req: Request{Kind: KindCount, Player: "Bo", Guesses: 4}}, testAgent(t, f))
 
-		if err := answer(context.Background(), senderUUID, "how's my streak?", "", nil); err != nil {
+		if err := answer(context.Background(), senderUUID, "how many 4s do I have?", "", nil); err != nil {
 			t.Fatal(err)
 		}
 		if got := c.last(t); got != tc.want {

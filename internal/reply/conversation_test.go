@@ -80,7 +80,7 @@ func TestOffTopicIsAlwaysAnsweredAndSteeredBack(t *testing.T) {
 			t.Errorf("off-topic %d: got %q, want the answer and a line back", i+1, got)
 		}
 	}
-	if got := ask("how's my streak?"); got != "Bo is on 12 days in a row. Somebody stop him." {
+	if got := ask("how's my streak?"); got != "Bo: 12 days in a row now, 12 at best." {
 		t.Errorf("the game: got %q", got)
 	}
 }
