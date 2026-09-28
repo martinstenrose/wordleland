@@ -675,12 +675,15 @@ func freeReply(answer string, players []store.Player, seen ...string) (bool, []s
 }
 
 // nudgeRequest tells the model what was wrong with an answer it made
-// without looking anything up.
+// without looking anything up: a player the conversation never named, or
+// — when stray is empty — a figure about one it did.
 func nudgeRequest(stray []string, lang string) string {
-	about := "a player"
-	if len(stray) > 0 {
-		about = strings.Join(stray, ", ")
+	if len(stray) == 0 {
+		return "You gave a figure about a player without looking anything up. If the question is " +
+			"about the group's Wordle, use the tools. Otherwise answer again in one short sentence " +
+			"with no figures about anyone, in " + lang + "."
 	}
+	about := strings.Join(stray, ", ")
 	return "You mentioned " + about + " without looking anything up. If the question is about the " +
 		"group's Wordle, use the tools. Otherwise answer again in one short sentence without figures " +
 		"about anyone and without naming " + about + ", in " + lang + "."

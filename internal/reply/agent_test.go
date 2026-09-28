@@ -928,3 +928,25 @@ func TestAFreeAnswerIsShort(t *testing.T) {
 		t.Errorf("free answer of %d runes: %q", n, first)
 	}
 }
+
+// A free answer with a figure about someone the conversation did name is
+// nudged about the figure, not about a name it was allowed to use.
+func TestAFigureInAFreeAnswerIsWhatTheNudgeSays(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen2.5:7b"},
+		replies: []map[string]any{{"role": "assistant", "content": "Bo is on 40 days in a row."}},
+		content: "You're doing fine, trust me."}
+	answer, c := agentAnswerer(t, replyDB(t), testAgent(t, f))
+
+	if err := answer(context.Background(), senderUUID, "am I any good?", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	msgs := f.chats[1]["messages"].([]any)
+	note := msgs[len(msgs)-1].(map[string]any)["content"].(string)
+	if !strings.Contains(note, "figure about a player") || strings.Contains(note, "mentioned") {
+		t.Errorf("the nudge was %q", note)
+	}
+	if got := c.last(t); !strings.HasPrefix(got, "You're doing fine, trust me.\nAnyway") {
+		t.Errorf("got %q", got)
+	}
+}
