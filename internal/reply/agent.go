@@ -387,7 +387,60 @@ func (a *Agent) Run(ctx context.Context, p Prompt,
 			chatMessage{Role: "assistant", Content: h.Answer})
 	}
 	messages = append(messages, chatMessage{Role: "user", Content: saidBy(p.Asker, p.Question)})
-	return a.loop(ctx, messages, look)
+	var looked []lookedUp
+	if p.Placed != nil {
+		// The placing model's reading, answered already: shown to the
+		// model as a lookup it made, so it starts from the right figures
+		// and phrases them — or looks up more when the reading fell short.
+		var call toolCall
+		call.Function.Name = p.Placed.tool
+		call.Function.Arguments = p.Placed.args
+		messages = append(messages,
+			chatMessage{Role: "assistant", ToolCalls: []toolCall{call}},
+			chatMessage{Role: "tool", Content: p.Placed.text, ToolName: p.Placed.tool})
+		looked = append(looked, lookedUp{p.Placed.tool, p.Placed.text})
+	}
+	return a.loop(ctx, messages, look, looked)
+}
+
+// Placed is a question the Interpreter placed, answered already: which
+// kind, the request's fields as that tool's arguments, and the answer the
+// bot would have posted. The agent phrases it; when the agent cannot, it
+// is what gets posted.
+type Placed struct {
+	tool string
+	args json.RawMessage
+	text string
+}
+
+// placedLookup makes a Placed of a request and its answer, with only the
+// arguments the kind's tool takes, and none left at their zero value.
+func placedLookup(req Request, text string) *Placed {
+	all := map[string]any{
+		"span": string(req.Span), "days": req.Days, "month": req.Month, "worst": req.Worst,
+		"player": req.Player, "date": req.Date, "guesses": req.Guesses, "topic": string(req.Topic),
+	}
+	args := map[string]any{}
+	if i := slices.IndexFunc(tools, func(tl tool) bool { return tl.name == string(req.Kind) }); i >= 0 {
+		for _, name := range tools[i].params {
+			switch v := all[name].(type) {
+			case string:
+				if v != "" {
+					args[name] = v
+				}
+			case int:
+				if v != 0 {
+					args[name] = v
+				}
+			case bool:
+				if v {
+					args[name] = v
+				}
+			}
+		}
+	}
+	raw, _ := json.Marshal(args)
+	return &Placed{tool: string(req.Kind), args: raw, text: text}
 }
 
 // nudge continues a conversation whose answer, made without a lookup,
@@ -400,15 +453,14 @@ func (a *Agent) nudge(ctx context.Context, res runResult, note string,
 	messages := append(slices.Clone(res.transcript),
 		chatMessage{Role: "assistant", Content: res.text},
 		chatMessage{Role: "user", Content: note})
-	return a.loop(ctx, messages, look)
+	return a.loop(ctx, messages, look, nil)
 }
 
 // loop lets the model look things up until it answers, from the
-// conversation so far.
+// conversation so far and what it has already looked up.
 func (a *Agent) loop(ctx context.Context, messages []chatMessage,
-	look func(name string, args json.RawMessage) (string, error)) (runResult, error) {
+	look func(name string, args json.RawMessage) (string, error), looked []lookedUp) (runResult, error) {
 
-	var looked []lookedUp
 	tried := false
 	for range maxAgentRounds {
 		reply, err := a.chat(ctx, messages)
@@ -586,6 +638,11 @@ func agentPrompt(p Prompt) string {
 		"leave the game out of it: the bot adds a line about Wordle after it. In such an answer you " +
 		"may name the person asking, or anyone the question names, but state no figures about them. " +
 		"If you are not sure, say so with a quip.\n")
+	if p.Placed != nil {
+		b.WriteString("The first lookup was made for you, from how the question was first read. Answer " +
+			"from it in your own words, and if the question asks for more than it covers — another " +
+			"player, another figure, the whole group — look that up too.\n")
+	}
 	if len(p.History) > 0 {
 		b.WriteString("The messages before the last are the recent conversation, each question " +
 			"prefixed with who asked. Use them to read a follow-up (\"and last week?\", \"what about " +
@@ -933,7 +990,11 @@ func askAgent(ctx context.Context, q asked, agent *Agent, conv *conversation,
 	send func(context.Context, string) error, db *sql.DB, logger *slog.Logger) error {
 
 	t, p := q.t, q.prompt
-	keepUnanswered(ctx, db, logger, p.Question)
+	if p.Placed == nil {
+		// Placed questions were placed; only the rest are the list of
+		// what to teach the bot next.
+		keepUnanswered(ctx, db, logger, p.Question)
+	}
 	remember := func(text string, tp topic) {
 		conv.add(turn{at: q.now, asker: p.Asker, question: p.Question, answer: text, topic: tp})
 	}

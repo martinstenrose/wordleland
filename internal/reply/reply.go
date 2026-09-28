@@ -177,6 +177,10 @@ type Prompt struct {
 	Language string
 	Voice    string
 
+	// Placed is set when the Interpreter placed the question and the
+	// agent is to phrase the answer; see Placed.
+	Placed *Placed
+
 	// History is the last few questions put to the bot and what it
 	// answered, oldest first, for a follow-up that means nothing alone.
 	// Only the agent is shown it; see conversation.
@@ -192,6 +196,19 @@ type Exchange struct {
 	// OffTopic says the answer was posted without its numbers checked,
 	// so it is no source for a number in a later one.
 	OffTopic bool
+}
+
+// phrased reports whether the agent, when ready, words the answer to a
+// placed question of this kind. The figures: yes, since the catalogue's
+// sentence for them reads as a report. Help, thanks, the unknown line and
+// the rules: no — the first three are the bot's own lines, and a rule is
+// explained in exactly the words that match what internal/stats does.
+func phrased(k Kind) bool {
+	switch k {
+	case KindHelp, KindThanks, KindUnknown, KindRules:
+		return false
+	}
+	return true
 }
 
 // thanksLines is how many ways the bot takes praise: reply.thanks, then
@@ -360,6 +377,14 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter, ag
 		}
 
 		text := answer(t, req, asker, players, results, now)
+		if agent != nil && agent.Ready() && phrased(req.Kind) {
+			// The agent says it in its own words, from this answer, and
+			// may look up more when the reading fell short of the
+			// question. If it cannot, this answer is what goes out.
+			prompt.Placed = placedLookup(req, text)
+			q := asked{t: t, prompt: prompt, asker: asker, players: players, results: results, now: now}
+			return askAgent(ctx, q, agent, conv, send, db, logger)
+		}
 		switch req.Kind {
 		case KindHelp:
 			text = help(t, agent)

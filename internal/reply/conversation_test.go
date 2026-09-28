@@ -60,7 +60,10 @@ func TestOffTopicIsAlwaysAnsweredAndSteeredBack(t *testing.T) {
 	db := replyDB(t)
 	unknown := Request{Kind: KindUnknown}
 	interp := &scripted{reqs: []Request{unknown, unknown, unknown, unknown, {Kind: KindStreak, Player: "Bo"}}}
-	f := &fakeOllama{models: []string{"qwen2.5:7b"}, content: "Stockholm, obviously."}
+	stockholm := map[string]any{"role": "assistant", "content": "Stockholm, obviously."}
+	f := &fakeOllama{models: []string{"qwen2.5:7b"},
+		replies: []map[string]any{stockholm, stockholm, stockholm, stockholm},
+		content: "Bo is on 12 days in a row. Somebody stop him."}
 	answer, c := newAgentAnswerer(t, db, interp, testAgent(t, f))
 
 	ask := func(q string) string {
@@ -77,7 +80,7 @@ func TestOffTopicIsAlwaysAnsweredAndSteeredBack(t *testing.T) {
 			t.Errorf("off-topic %d: got %q, want the answer and a line back", i+1, got)
 		}
 	}
-	if got := ask("how's my streak?"); !strings.HasPrefix(got, "Bo: 12 days in a row") {
+	if got := ask("how's my streak?"); got != "Bo is on 12 days in a row. Somebody stop him." {
 		t.Errorf("the game: got %q", got)
 	}
 }
@@ -98,10 +101,11 @@ func TestTheAgentIsShownTheRecentConversation(t *testing.T) {
 	if err := answer(context.Background(), senderUUID, "and last week?", "", nil); err != nil {
 		t.Fatal(err)
 	}
-	if len(f.chats) != 1 {
-		t.Fatalf("%d chat calls, want 1", len(f.chats))
+	// Both questions went to the agent: the first placed, the second not.
+	if len(f.chats) != 2 {
+		t.Fatalf("%d chat calls, want 2", len(f.chats))
 	}
-	msgs := f.chats[0]["messages"].([]any)
+	msgs := f.chats[1]["messages"].([]any)
 	var said []string
 	for _, m := range msgs[1:] {
 		said = append(said, m.(map[string]any)["content"].(string))

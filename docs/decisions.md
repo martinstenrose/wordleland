@@ -1621,6 +1621,20 @@ expected to choose tools well, so the agent is a separate, larger model
 is expected to take tens of seconds per round, so the bridge's deadline for
 an answer is four minutes with the agent on.
 
+**With the agent on, it words the placed answers too.** An answer from a
+kind is right but reads as a report — "Martin över 217 spel: 0×1, 16×2,
+…" — and when the placing model reads a question too narrowly ("who has the
+most sixes and the most X's?" read as the asker's distribution), it is the
+wrong report. So when the agent is ready, a placed question's answer is
+handed to it as a lookup it had already made, with the question: it says
+it in its own words and looks up more when the reading fell short. The
+checks are the same as for any looked-up answer, and whatever cannot be
+posted falls back to the kind's own answer — the agent can make a reply
+slower, never wronger. Rules, help and thanks are not handed over: a rule
+is explained in exactly the words that match what internal/stats does,
+and the other two are the bot's own lines. The cost is time: every figure
+waits for the larger model, tens of seconds on a CPU instead of a few.
+
 **With the agent on, the placing model hands on what it could only half
 answer.** Without an agent, "who leads, and is my streak still going?"
 placed as `leader` answers half the question, which beats the unknown

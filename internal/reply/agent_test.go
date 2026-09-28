@@ -950,3 +950,96 @@ func TestAFigureInAFreeAnswerIsWhatTheNudgeSays(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
+
+// A placed question is answered from its kind, as always, and then the
+// agent says it in its own words: the answer reaches it as a lookup it
+// made, and is checked like any other.
+func TestAPlacedAnswerIsPhrasedByTheAgent(t *testing.T) {
+	t.Parallel()
+	db := replyDB(t)
+	f := &fakeOllama{models: []string{"qwen2.5:7b"}, content: "Bo is on 12 days in a row. Somebody stop him."}
+	answer, c := newAgentAnswerer(t, db, canned{req: Request{Kind: KindStreak, Player: "Bo"}}, testAgent(t, f))
+
+	if err := answer(context.Background(), senderUUID, "how's my streak?", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := c.last(t); got != "Bo is on 12 days in a row. Somebody stop him." {
+		t.Errorf("got %q", got)
+	}
+	msgs := f.chats[0]["messages"].([]any)
+	call := msgs[len(msgs)-2].(map[string]any)["tool_calls"].([]any)[0].(map[string]any)["function"].(map[string]any)
+	if call["name"] != "streak" || call["arguments"].(map[string]any)["player"] != "Bo" {
+		t.Errorf("the placed lookup was %v", call)
+	}
+	if tool := msgs[len(msgs)-1].(map[string]any)["content"]; tool != "Bo: 12 days in a row now, 12 at best." {
+		t.Errorf("the placed answer handed over was %v", tool)
+	}
+	var kept int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM unanswered_questions`).Scan(&kept); err != nil {
+		t.Fatal(err)
+	}
+	if kept != 0 {
+		t.Errorf("a placed question was kept as unanswered")
+	}
+}
+
+// When the agent's words fail the checks, twice, the group gets the
+// kind's own answer: never worse than without the agent.
+func TestAPlacedAnswerFallsBackToTheKind(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen2.5:7b"}, content: "Bo is on 40 days in a row."}
+	answer, c := newAgentAnswerer(t, replyDB(t), canned{req: Request{Kind: KindStreak, Player: "Bo"}}, testAgent(t, f))
+
+	if err := answer(context.Background(), senderUUID, "how's my streak?", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := c.last(t); got != "Bo: 12 days in a row now, 12 at best." {
+		t.Errorf("got %q", got)
+	}
+}
+
+// A reading that fell short — "who has the most 6s and the most X's?"
+// read as the asker's distribution — is made good by the agent looking
+// up what was asked.
+func TestTheAgentLooksUpWhatAPlacedReadingMissed(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen2.5:7b"},
+		replies: []map[string]any{{"role": "assistant", "content": "", "tool_calls": []map[string]any{
+			{"function": map[string]any{"name": "count", "arguments": map[string]any{"guesses": 6}}},
+			{"function": map[string]any{"name": "count", "arguments": map[string]any{"guesses": 7}}},
+		}}},
+		content: "Nobody has a 6 or an X yet. Flawless, the lot of you."}
+	answer, c := newAgentAnswerer(t, replyDB(t), canned{req: Request{Kind: KindCount, Player: "Bo"}}, testAgent(t, f))
+
+	if err := answer(context.Background(), senderUUID, "who has the most 6s, and the most X's?", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := c.last(t); got != "Nobody has a 6 or an X yet. Flawless, the lot of you." {
+		t.Errorf("got %q", got)
+	}
+	msgs := f.chats[1]["messages"].([]any)
+	var tools []string
+	for _, m := range msgs {
+		if m.(map[string]any)["role"] == "tool" {
+			tools = append(tools, m.(map[string]any)["content"].(string))
+		}
+	}
+	if len(tools) != 3 || !strings.Contains(tools[1], "6s") || !strings.Contains(tools[2], "X's") {
+		t.Errorf("lookups handed back: %q", tools)
+	}
+}
+
+// Rules, thanks and help are the bot's own exact words, and stay so.
+func TestRulesAndThanksAreNotPhrased(t *testing.T) {
+	t.Parallel()
+	for _, req := range []Request{{Kind: KindRules, Topic: TopicMiss}, {Kind: KindThanks}, {Kind: KindHelp}} {
+		f := &fakeOllama{models: []string{"qwen2.5:7b"}, content: "Should not be asked."}
+		answer, c := newAgentAnswerer(t, replyDB(t), canned{req: req}, testAgent(t, f))
+		if err := answer(context.Background(), senderUUID, "well?", "", nil); err != nil {
+			t.Fatal(err)
+		}
+		if len(f.chats) != 0 || c.last(t) == "Should not be asked." {
+			t.Errorf("%s went to the agent", req.Kind)
+		}
+	}
+}
