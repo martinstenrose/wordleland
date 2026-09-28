@@ -56,6 +56,14 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 		return form(t, req, asker, players, results, now)
 	case KindSteady:
 		return steady(t, req, asker, players, results, now)
+	case KindProfile:
+		return profile(t, req, asker, players, results, now)
+	case KindHistory:
+		return history(t, req, asker, players, results, now)
+	case KindRecords:
+		return records(t, players, results, now)
+	case KindGroup:
+		return group(t, players, results, now)
 	case KindRules:
 		return rules(t, req)
 	case KindThanks:
