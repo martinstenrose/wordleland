@@ -37,6 +37,10 @@ type Result struct {
 	// it was not, or when that is not known. It is the first known posting
 	// and never moves: see UpsertResult.
 	PostedAt *time.Time
+
+	// Grid is the squares the result was shared with, "" when none is
+	// known. See wordle.Grid, and UpsertResult for when it is kept.
+	Grid string
 }
 
 // ErrResultNotFound is returned when no row matches.
@@ -64,6 +68,11 @@ var ErrResultNotFound = errors.New("result not found")
 // later re-post or correction does not change, but a row first written by
 // the API or the CLI and then posted in the group did get posted, and the
 // gap is filled rather than left for ever.
+//
+// r.Grid replaces the stored grid when it carries one. When it does not — a
+// correction by hand, a score through the API — the stored grid is kept only
+// if the score is unchanged: a grid drawn for a 4 must not sit beside the 3 a
+// correction made of it.
 func UpsertResult(ctx context.Context, q Querier, r Result, enteredBy, identityID *int64) (Outcome, *Result, error) {
 	previous, err := resultFor(ctx, q, r.PuzzleNo, r.PlayerID)
 	switch {
@@ -81,10 +90,10 @@ func UpsertResult(ctx context.Context, q Querier, r Result, enteredBy, identityI
 
 	if previous == nil {
 		if _, err := q.ExecContext(ctx, `
-			INSERT INTO results (puzzle_no, date, player_id, guesses, solved, hard_mode, entered_by, identity_id, posted_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			INSERT INTO results (puzzle_no, date, player_id, guesses, solved, hard_mode, entered_by, identity_id, posted_at, grid)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			r.PuzzleNo, r.Date.Format(time.DateOnly), r.PlayerID,
-			r.Guesses, r.Solved, r.HardMode, enteredBy, identityID, r.PostedAt,
+			r.Guesses, r.Solved, r.HardMode, enteredBy, identityID, r.PostedAt, nullIfEmpty(r.Grid),
 		); err != nil {
 			return "", nil, fmt.Errorf("insert result: %w", err)
 		}
@@ -94,10 +103,15 @@ func UpsertResult(ctx context.Context, q Querier, r Result, enteredBy, identityI
 	if _, err := q.ExecContext(ctx, `
 		UPDATE results
 		SET date = ?, guesses = ?, solved = ?, hard_mode = ?, entered_by = ?, identity_id = ?,
-		    posted_at = COALESCE(posted_at, ?)
+		    posted_at = COALESCE(posted_at, ?),
+		    grid = CASE
+		        WHEN ? IS NOT NULL THEN ?
+		        WHEN guesses IS ? AND solved = ? THEN grid
+		    END
 		WHERE puzzle_no = ? AND player_id = ?`,
 		r.Date.Format(time.DateOnly), r.Guesses, r.Solved, r.HardMode, enteredBy, identityID,
-		r.PostedAt, r.PuzzleNo, r.PlayerID,
+		r.PostedAt, nullIfEmpty(r.Grid), nullIfEmpty(r.Grid), r.Guesses, r.Solved,
+		r.PuzzleNo, r.PlayerID,
 	); err != nil {
 		return "", nil, fmt.Errorf("update result: %w", err)
 	}
@@ -114,10 +128,11 @@ func resultFor(ctx context.Context, q Querier, puzzleNo int, playerID int64) (*R
 		date time.Time
 	)
 	err := q.QueryRowContext(ctx, `
-		SELECT puzzle_no, date, player_id, guesses, solved, hard_mode, entered_by, identity_id, posted_at
+		SELECT puzzle_no, date, player_id, guesses, solved, hard_mode, entered_by, identity_id, posted_at,
+		       COALESCE(grid, '')
 		FROM results WHERE puzzle_no = ? AND player_id = ?`, puzzleNo, playerID,
 	).Scan(&r.PuzzleNo, &date, &r.PlayerID, &r.Guesses, &r.Solved, &r.HardMode, &r.EnteredBy,
-		&r.IdentityID, &r.PostedAt)
+		&r.IdentityID, &r.PostedAt, &r.Grid)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrResultNotFound

@@ -8,6 +8,7 @@ import (
 
 	"github.com/martinstenrose/wordleland/internal/ingest"
 	"github.com/martinstenrose/wordleland/internal/store"
+	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
 // ingestRequest is the body of POST /api/ingest.
@@ -26,6 +27,9 @@ type ingestRequest struct {
 	Solved   *bool `json:"solved"`
 	Guesses  *int  `json:"guesses"`
 	HardMode bool  `json:"hard_mode"`
+	// Grid is optional: the share's squares as letters, rows joined by "/"
+	// ("nynnn/ggggg"). See wordle.Grid.
+	Grid string `json:"grid"`
 }
 
 // ingestResponse carries the outcome in a machine-readable form, so a caller
@@ -70,6 +74,7 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 		Solved:      *req.Solved,
 		Guesses:     req.Guesses,
 		HardMode:    req.HardMode,
+		Grid:        wordle.Grid(req.Grid),
 	}
 
 	// A token holder posting a sender is the live path, so it may reactivate

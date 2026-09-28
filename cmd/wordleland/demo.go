@@ -104,7 +104,11 @@ func demoSeed(e *env, args []string) error {
 				continue
 			}
 			outcome := traits.Play(rng)
-			result, err := ingest.Apply(e.ctx, e.db, actor, submissionFor(player.Slug, oldest+day, outcome), false)
+			sub := submissionFor(player.Slug, oldest+day, outcome)
+			if day >= *days-demo.GridDays {
+				sub.Grid = demo.GridFor(player.Slug, oldest+day, *seed, outcome)
+			}
+			result, err := ingest.Apply(e.ctx, e.db, actor, sub, false)
 			if err != nil {
 				return fmt.Errorf("file result for %s, puzzle %d: %w", player.Slug, oldest+day, err)
 			}
@@ -226,7 +230,9 @@ func demoTick(e *env, args []string) error {
 		}
 
 		outcome := persona.Play(rng)
-		result, err := ingest.Apply(e.ctx, e.db, actor, submissionFor(player.Slug, today, outcome), false)
+		sub := submissionFor(player.Slug, today, outcome)
+		sub.Grid = demo.GridFor(player.Slug, today, *seed, outcome)
+		result, err := ingest.Apply(e.ctx, e.db, actor, sub, false)
 		if err != nil {
 			return fmt.Errorf("file result for %s: %w", player.Slug, err)
 		}

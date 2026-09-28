@@ -175,10 +175,10 @@ func TestParse(t *testing.T) {
 // by locale and by whether the sender used the app or the browser.
 func TestParseSpecExamples(t *testing.T) {
 	tests := map[string]Result{
-		"Wordle 1 890 4/6\n⬛🟨⬛⬛⬛\n⬛⬛⬛⬛⬛\n⬛🟩🟩⬛🟩\n🟩🟩🟩🟩🟩": {PuzzleNo: 1890, Solved: true, Guesses: 4},
-		"Wordle 1 890 3/6*\n⬛🟨⬛⬛⬛\n⬛🟩🟩⬛🟨\n🟩🟩🟩🟩🟩":       {PuzzleNo: 1890, Solved: true, Guesses: 3, HardMode: true},
-		"Wordle 1,890 3/6\n🟨⬛⬛⬛⬛\n🟨🟨🟨⬛⬛\n🟩🟩🟩🟩🟩":        {PuzzleNo: 1890, Solved: true, Guesses: 3},
-		"Wordle 1,890 3/6*\n⬜⬜🟨⬜⬜\n⬜🟩⬜🟩🟩\n🟩🟩🟩🟩🟩":       {PuzzleNo: 1890, Solved: true, Guesses: 3, HardMode: true},
+		"Wordle 1 890 4/6\n⬛🟨⬛⬛⬛\n⬛⬛⬛⬛⬛\n⬛🟩🟩⬛🟩\n🟩🟩🟩🟩🟩": {PuzzleNo: 1890, Solved: true, Guesses: 4, Grid: "nynnn/nnnnn/nggng/ggggg"},
+		"Wordle 1 890 3/6*\n⬛🟨⬛⬛⬛\n⬛🟩🟩⬛🟨\n🟩🟩🟩🟩🟩":       {PuzzleNo: 1890, Solved: true, Guesses: 3, HardMode: true, Grid: "nynnn/nggny/ggggg"},
+		"Wordle 1,890 3/6\n🟨⬛⬛⬛⬛\n🟨🟨🟨⬛⬛\n🟩🟩🟩🟩🟩":        {PuzzleNo: 1890, Solved: true, Guesses: 3, Grid: "ynnnn/yyynn/ggggg"},
+		"Wordle 1,890 3/6*\n⬜⬜🟨⬜⬜\n⬜🟩⬜🟩🟩\n🟩🟩🟩🟩🟩":       {PuzzleNo: 1890, Solved: true, Guesses: 3, HardMode: true, Grid: "nnynn/ngngg/ggggg"},
 	}
 
 	for input, want := range tests {
@@ -190,5 +190,57 @@ func TestParseSpecExamples(t *testing.T) {
 		if got != want {
 			t.Errorf("Parse(%q) = %+v, want %+v", input, got, want)
 		}
+	}
+}
+
+// The grid under the header is read into letters, whatever squares the
+// sharer's theme drew it in, and kept only when it agrees with the score.
+// The header alone decides the score either way: a grid that is missing or
+// wrong costs the grid, never the result.
+func TestParseGrid(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  Grid
+	}{
+		{"captured message, blank line before the grid",
+			"Wordle 1 891 3/6*\n\n⬛🟨⬛⬛⬛\n⬛🟩🟩⬛🟨\n🟩🟩🟩🟩🟩", "nynnn/nggny/ggggg"},
+		{"light theme", "Wordle 1,891 2/6\n\n⬜🟨⬜⬜⬜\n🟩🟩🟩🟩🟩", "nynnn/ggggg"},
+		{"high contrast", "Wordle 1,891 2/6\n\n⬛🟦⬛⬛🟧\n🟧🟧🟧🟧🟧", "nynng/ggggg"},
+		{"variation selectors between squares", "Wordle 1,891 2/6\n\n⬜️🟨⬜️⬜️⬜️\n🟩🟩🟩🟩🟩", "nynnn/ggggg"},
+		{"windows line endings", "Wordle 1,891 2/6\r\n\r\n⬛🟨⬛⬛⬛\r\n🟩🟩🟩🟩🟩\r\n", "nynnn/ggggg"},
+		{"a one", "Wordle 1,891 1/6\n\n🟩🟩🟩🟩🟩", "ggggg"},
+		{"a miss has six rows and no win",
+			"Wordle 1,891 X/6\n\n⬛⬛⬛⬛⬛\n⬛🟨⬛⬛⬛\n⬛🟩🟩⬛⬛\n🟩🟩🟩⬛⬛\n🟩🟩🟩⬛🟩\n🟩🟩🟩🟨🟩",
+			"nnnnn/nynnn/nggnn/gggnn/gggng/gggyg"},
+		{"chat after the grid is not part of it",
+			"Wordle 1,891 2/6\n\n⬛🟨⬛⬛⬛\n🟩🟩🟩🟩🟩\nphew, lucky", "nynnn/ggggg"},
+		{"chat before the header does not matter",
+			"morning all\nWordle 1,891 2/6\n\n⬛🟨⬛⬛⬛\n🟩🟩🟩🟩🟩", "nynnn/ggggg"},
+
+		// Refused: the result files, the grid does not.
+		{"no grid at all", "Wordle 1,891 3/6", ""},
+		{"too few rows for the score", "Wordle 1,891 3/6\n\n⬛🟨⬛⬛⬛\n🟩🟩🟩🟩🟩", ""},
+		{"too many rows for the score", "Wordle 1,891 2/6\n\n⬛⬛⬛⬛⬛\n⬛🟨⬛⬛⬛\n🟩🟩🟩🟩🟩", ""},
+		{"a solve that does not end green", "Wordle 1,891 2/6\n\n⬛🟨⬛⬛⬛\n🟩🟩🟩🟨🟩", ""},
+		{"a green row before the end", "Wordle 1,891 3/6\n\n🟩🟩🟩🟩🟩\n⬛🟨⬛⬛⬛\n🟩🟩🟩🟩🟩", ""},
+		{"a miss that ends green",
+			"Wordle 1,891 X/6\n\n⬛⬛⬛⬛⬛\n⬛⬛⬛⬛⬛\n⬛⬛⬛⬛⬛\n⬛⬛⬛⬛⬛\n⬛⬛⬛⬛⬛\n🟩🟩🟩🟩🟩", ""},
+		{"a row of four", "Wordle 1,891 2/6\n\n⬛🟨⬛⬛\n🟩🟩🟩🟩🟩", ""},
+		{"text on the grid's first line", "Wordle 1,891 2/6\nnice\n⬛🟨⬛⬛⬛\n🟩🟩🟩🟩🟩", ""},
+		{"a grid split by a blank line", "Wordle 1,891 2/6\n\n⬛🟨⬛⬛⬛\n\n🟩🟩🟩🟩🟩", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := Parse(tt.input)
+			if !ok {
+				t.Fatal("the result itself was not parsed")
+			}
+			if got.Grid != tt.want {
+				t.Errorf("Grid = %q, want %q", got.Grid, tt.want)
+			}
+		})
 	}
 }

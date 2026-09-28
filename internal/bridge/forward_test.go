@@ -481,6 +481,29 @@ func TestForwardsAMessageWithItsGrid(t *testing.T) {
 	if sent[0].PuzzleNo != 1891 || sent[0].Guesses == nil || *sent[0].Guesses != 3 || !sent[0].HardMode {
 		t.Errorf("result = %+v, want puzzle 1891 solved in 3 in hard mode", sent[0])
 	}
+	// And the squares go with it, as letters.
+	if sent[0].Grid != "nnygn/yyygn/ggggg" {
+		t.Errorf("grid = %q, want the message's squares", sent[0].Grid)
+	}
+}
+
+// A grid that does not agree with its header is dropped, and the result
+// still files: the score is the header's, and a garbled grid is not a reason
+// to lose it.
+func TestForwardsAResultWhoseGridDisagreesWithoutTheGrid(t *testing.T) {
+	t.Parallel()
+
+	f, cap := testFiler(t)
+
+	f.handle(context.Background(), msg("Wordle 1,891 4/6\n\n\u2b1b\U0001f7e8\u2b1b\u2b1b\u2b1b\n\U0001f7e9\U0001f7e9\U0001f7e9\U0001f7e9\U0001f7e9"))
+
+	sent := cap.sent()
+	if len(sent) != 1 {
+		t.Fatalf("sent %d requests, want 1", len(sent))
+	}
+	if *sent[0].Guesses != 4 || sent[0].Grid != "" {
+		t.Errorf("result = %+v, want a 4 with no grid", sent[0])
+	}
 }
 
 // The incident this reproduces: results could not be written, every one was
