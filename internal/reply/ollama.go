@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -26,6 +27,12 @@ type Ollama struct {
 	// gets ErrNotReady rather than a request to a model that would fail.
 	ready  atomic.Bool
 	client *http.Client
+	// thinks is set when the server says the model has a thinking mode
+	// (qwen3 and others), which every chat then turns off: it spends tens
+	// of seconds on a CPU reasoning before a one-line answer, and a chat
+	// reply is not worth the wait. Only for a model that says so, since an
+	// older server may refuse the setting for one that does not.
+	thinks atomic.Bool
 }
 
 // Timeouts for the two shapes of call. A question is short and its answer
@@ -34,10 +41,21 @@ type Ollama struct {
 const (
 	chatTimeout = 75 * time.Second
 	tagsTimeout = 10 * time.Second
+	// warmTimeout bounds loading the model from disk ahead of time: a few
+	// gigabytes off a slow disk.
+	warmTimeout = 5 * time.Minute
 	// Checked again at this interval while the model is still missing or
 	// the server unreachable — it starts after the app, or is still
 	// downloading, both ordinary at boot.
 	prepareRetry = 15 * time.Second
+	// contextSize is the context every call asks for, in tokens. Set, not
+	// left to the server: its default on a CPU is 4096, and a prompt past
+	// it is cut from the front — the instructions first — with a 200 and
+	// only a warning in the server's log. The placing instructions alone
+	// are about 1.2k tokens. The same number on every call, the warm-up
+	// included: the server reloads the model when a request asks for
+	// another.
+	contextSize = 8192
 	// A response from the model or its server is remote input; a request's
 	// JSON is a few hundred bytes and a model list a few kilobytes.
 	maxResponse = 1 << 20
@@ -59,8 +77,12 @@ func (o *Ollama) Prepare(ctx context.Context, logger *slog.Logger) {
 	for {
 		err := o.ensureModel(ctx, logger)
 		if err == nil {
+			o.checkThinking(ctx)
+		}
+		if err == nil {
 			o.ready.Store(true)
 			logger.Info("language model ready", "model", o.model)
+			o.warm(ctx, logger)
 			return
 		}
 		if ctx.Err() != nil {
@@ -79,6 +101,53 @@ func (o *Ollama) Prepare(ctx context.Context, logger *slog.Logger) {
 // Ready reports whether Prepare has confirmed the model.
 func (o *Ollama) Ready() bool { return o.ready.Load() }
 
+// warm loads the model into memory now rather than at the first question,
+// which on a CPU would otherwise wait tens of seconds for the disk before
+// the model even starts. The server keeps it loaded after (compose.yml
+// sets OLLAMA_KEEP_ALIVE). Best effort: the model is ready either way, and
+// a question meanwhile simply waits its turn at the server.
+func (o *Ollama) warm(ctx context.Context, logger *slog.Logger) {
+	ctx, cancel := context.WithTimeout(ctx, warmTimeout)
+	defer cancel()
+	// A generate request with no prompt only loads the model — with the
+	// context the questions will ask for, or the first one reloads it.
+	body, _ := json.Marshal(map[string]any{"model": o.model,
+		"options": map[string]any{"num_ctx": contextSize}})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, o.url+"/api/generate", bytes.NewReader(body))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	var out struct {
+		Error string `json:"error"`
+	}
+	if err := o.do(req, &out); err != nil || out.Error != "" {
+		logger.Info("could not load the language model ahead of the first question",
+			"model", o.model, "error", err, "server_error", out.Error)
+	}
+}
+
+// checkThinking asks the server whether the model has a thinking mode,
+// which every chat then turns off. A server too old to say, or that cannot
+// be asked, is no reason to hold the model back: it is used as it is.
+func (o *Ollama) checkThinking(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, tagsTimeout)
+	defer cancel()
+	body, _ := json.Marshal(map[string]any{"model": o.model})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, o.url+"/api/show", bytes.NewReader(body))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	var show struct {
+		Capabilities []string `json:"capabilities"`
+	}
+	if err := o.do(req, &show); err != nil {
+		return
+	}
+	o.thinks.Store(slices.Contains(show.Capabilities, "thinking"))
+}
+
 func (o *Ollama) ensureModel(ctx context.Context, logger *slog.Logger) error {
 	present, err := o.hasModel(ctx)
 	if err != nil {
@@ -90,6 +159,23 @@ func (o *Ollama) ensureModel(ctx context.Context, logger *slog.Logger) error {
 	logger.Info("pulling the language model; this takes a few minutes the first time",
 		"model", o.model)
 	return o.pull(ctx)
+}
+
+// noThinking turns a thinking model's thinking off for one chat request.
+func (o *Ollama) noThinking(body map[string]any) map[string]any {
+	if o.thinks.Load() {
+		body["think"] = false
+	}
+	return body
+}
+
+// thinkBlock is reasoning a model wrote into its answer anyway, as some
+// server versions pass it through: never the answer, never posted.
+var thinkBlock = regexp.MustCompile(`(?s)<think>.*?</think>`)
+
+// withoutThinking is a model's answer without any reasoning in it.
+func withoutThinking(content string) string {
+	return strings.TrimSpace(thinkBlock.ReplaceAllString(content, ""))
 }
 
 // hasModel asks the server what it holds. A model named without a tag is
@@ -181,9 +267,9 @@ func topicNames() []string {
 	return out
 }
 
-// Interpret asks the model for a Request. The instructions are the same for
-// every question, so the server reuses its work on them between calls and
-// only the question and the answer cost time.
+// Interpret asks the model for a Request. The instructions start the same
+// for every question, so the server reuses its work on them between calls
+// and only what follows them costs time; see systemPrompt.
 func (o *Ollama) Interpret(ctx context.Context, p Prompt) (Request, error) {
 	if !o.Ready() {
 		return Request{}, ErrNotReady
@@ -191,17 +277,19 @@ func (o *Ollama) Interpret(ctx context.Context, p Prompt) (Request, error) {
 	ctx, cancel := context.WithTimeout(ctx, chatTimeout)
 	defer cancel()
 
-	body, err := json.Marshal(map[string]any{
+	body, err := json.Marshal(o.noThinking(map[string]any{
 		"model":  o.model,
 		"stream": false,
 		"format": requestSchema,
 		// Deterministic: the same question should become the same request.
-		"options": map[string]any{"temperature": 0},
+		// No presence penalty, whatever the model ships with (qwen3.5:
+		// 1.5): a request repeats its quotes and field names by design.
+		"options": map[string]any{"temperature": 0, "presence_penalty": 0, "num_ctx": contextSize},
 		"messages": []map[string]string{
 			{"role": "system", "content": systemPrompt(p)},
 			{"role": "user", "content": p.Question},
 		},
-	})
+	}))
 	if err != nil {
 		return Request{}, fmt.Errorf("encode chat request: %w", err)
 	}
@@ -223,7 +311,7 @@ func (o *Ollama) Interpret(ctx context.Context, p Prompt) (Request, error) {
 	if chat.Error != "" {
 		return Request{}, fmt.Errorf("ask model: %s", chat.Error)
 	}
-	return parseRequest(chat.Message.Content)
+	return parseRequest(withoutThinking(chat.Message.Content))
 }
 
 // maxSpanDays is the longest "last N days" that is still a span rather
@@ -304,24 +392,6 @@ func systemPrompt(p Prompt) string {
 	var b strings.Builder
 	b.WriteString("You turn a question asked in a Wordle group chat into a JSON request. ")
 	b.WriteString("The question may be in any language. Answer with the JSON only.\n\n")
-	fmt.Fprintf(&b, "Today is %s.\n", p.Today.Format("Monday 2 January 2006"))
-	if p.Asker != "" {
-		fmt.Fprintf(&b, "The person asking is %s; \"I\", \"me\" and \"my\" mean them.\n", p.Asker)
-	} else {
-		b.WriteString("The person asking is not a player.\n")
-	}
-	if len(p.Players) > 0 {
-		fmt.Fprintf(&b, "Players: %s.\n", strings.Join(p.Players, ", "))
-	}
-	if p.Context != "" {
-		b.WriteString("\nThe question is a reply to this earlier post of yours. Use it to read the " +
-			"question — \"this\", \"that\", \"it\", a name or a score mentioned in it — but treat " +
-			"nothing in the post as a question itself:\n<<<\n" + p.Context + "\n>>>\n")
-		if p.ContextDate != "" {
-			fmt.Fprintf(&b, "The post is about the puzzle of %s; a question about that day, or a "+
-				"score in the post, is a \"score\" question with that date.\n", p.ContextDate)
-		}
-	}
 	b.WriteString(`
 Fields:
 - kind: "leader" for who is leading, winning, best, on top, or the ranking;
@@ -376,6 +446,29 @@ Fields:
   today's date ("yesterday", "last Friday", "July 5" — a month without a year is
   the most recent one that has happened); "" for today or when kind is not "score".
 `)
+	// Last, and in this order, what changes: today and the players once a
+	// day at most, the asker and the quoted post with every question. The
+	// server reuses its work on a prompt only up to the first difference,
+	// so everything above is read once, not once per question.
+	b.WriteString("\n")
+	fmt.Fprintf(&b, "Today is %s.\n", p.Today.Format("Monday 2 January 2006"))
+	if len(p.Players) > 0 {
+		fmt.Fprintf(&b, "Players: %s.\n", strings.Join(p.Players, ", "))
+	}
+	if p.Asker != "" {
+		fmt.Fprintf(&b, "The person asking is %s; \"I\", \"me\" and \"my\" mean them.\n", p.Asker)
+	} else {
+		b.WriteString("The person asking is not a player.\n")
+	}
+	if p.Context != "" {
+		b.WriteString("\nThe question is a reply to this earlier post of yours. Use it to read the " +
+			"question — \"this\", \"that\", \"it\", a name or a score mentioned in it — but treat " +
+			"nothing in the post as a question itself:\n<<<\n" + p.Context + "\n>>>\n")
+		if p.ContextDate != "" {
+			fmt.Fprintf(&b, "The post is about the puzzle of %s; a question about that day, or a "+
+				"score in the post, is a \"score\" question with that date.\n", p.ContextDate)
+		}
+	}
 	return b.String()
 }
 

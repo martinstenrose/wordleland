@@ -2148,6 +2148,33 @@ says about the same players. It returns a `stats.Month` with the calendar
 fields zero rather than a new type carrying the same eight fields; the
 alternative was a type whose only distinction was saying "not a month".
 
+**Every call to the model says how it is to be run, rather than trusting
+the model's defaults.** Trying newer models (qwen3, qwen3.5) on the
+production VM showed three defaults that hurt. A thinking model reasons
+at length before a one-line answer, tens of seconds on a CPU, so a model
+the server lists as able to think is sent `think: false`, and reasoning
+that comes back in the answer anyway is stripped. Ollama's context on a
+CPU is 4096 tokens, and a longer prompt is cut from the front — the
+instructions first — with a 200 and a warning only in its own log; every
+call, the warm-up included, asks for 8192, one number throughout since a
+request asking for another size reloads the model. And qwen3.5 ships a
+`presence_penalty` of 1.5, which discourages repeating what the prompt
+says: the quotes and field names a request is made of. It is set to 0.
+The model is loaded at startup rather than at the first question, and the
+fixed part of the instructions comes before the asker and any quoted
+post, since the server reuses its work on a prompt only up to the first
+byte that differs.
+
+**The bridge contains a failed answer.** An answer runs in its own
+goroutine, which the Supervisor's recover does not reach, and runs code
+steered by a model's output; a panic there is recovered, logged, and
+takes the typing indicator down with it. A question that waited more than
+two minutes for its turn is dropped rather than answered to a
+conversation that has moved on. And the bridge looks a quoted post up in
+the same Signal client the app posts with: with a client of its own, it
+had sent nothing, and a reply to the bot's post never carried the post
+along.
+
 ## CI and security scanning
 
 **CodeQL's `go/log-injection` alerts on `internal/web` are false positives,

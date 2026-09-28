@@ -201,6 +201,7 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 	var monthly, daily, weekly func(context.Context, time.Time) error
 	var announcer bridge.Announcer
 	var respond bridge.Responder
+	var client *bridge.Client
 	var model *reply.Ollama
 	if bridgeCfg != nil {
 		// Delivery is a direct call now. The bridge writes as the
@@ -219,10 +220,14 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 			if err != nil {
 				return err
 			}
-			send, err := bridge.NewSender(bridgeCfg.SignalAPIURL, bridgeCfg.SignalAccount, bridgeCfg.SignalGroupID)
+			// One client for posting and for the bridge: it remembers
+			// what it posted, which is how a reply quoting the bot's post
+			// is recognised.
+			client, err = bridge.NewClient(bridgeCfg.SignalAPIURL, bridgeCfg.SignalAccount, bridgeCfg.SignalGroupID)
 			if err != nil {
 				return err
 			}
+			send := client.Send
 			if bridgeCfg.Replies {
 				model = reply.NewOllama(bridgeCfg.LLMURL, bridgeCfg.LLMModel)
 				answer := reply.New(db, cats, bridgeCfg.AnnounceLocale, model, send, logger)
@@ -266,7 +271,7 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 			announcer = joinChecks(daily, weekly, monthly)
 		}
 
-		b, err := bridge.New(*bridgeCfg, deliver, announcer, respond, logger)
+		b, err := bridge.New(*bridgeCfg, client, deliver, announcer, respond, logger)
 		if err != nil {
 			return err
 		}

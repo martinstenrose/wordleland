@@ -22,6 +22,23 @@ type fakeOllama struct {
 	pulled  []string
 	chats   []map[string]any
 	content string
+	// blockFrom, when not zero, is the chat call (counting from 1) from
+	// which the server hangs until the request is given up on: a model
+	// that takes longer than the deadline.
+	blockFrom int
+	// always, when set, is the chat's message every time: a model that
+	// never stops calling tools.
+	always map[string]any
+	// capabilities is what /api/show reports for every model; nil leaves
+	// the field out, as an older server does.
+	capabilities []string
+	// warmed is the models loaded ahead of a question, and warmOptions
+	// the options each was loaded with.
+	warmed      []string
+	warmOptions []any
+	// replies, when set, are the chat's messages in turn, for a
+	// conversation of more than one round; content is used after them.
+	replies []map[string]any
 }
 
 func (f *fakeOllama) handler() http.Handler {
@@ -46,15 +63,45 @@ func (f *fakeOllama) handler() http.Handler {
 		f.mu.Unlock()
 		json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 	})
+	mux.HandleFunc("POST /api/show", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		out := map[string]any{}
+		if f.capabilities != nil {
+			out["capabilities"] = f.capabilities
+		}
+		json.NewEncoder(w).Encode(out)
+	})
+	mux.HandleFunc("POST /api/generate", func(w http.ResponseWriter, r *http.Request) {
+		var req map[string]any
+		json.NewDecoder(r.Body).Decode(&req)
+		f.mu.Lock()
+		f.warmed = append(f.warmed, req["model"].(string))
+		f.warmOptions = append(f.warmOptions, req["options"])
+		f.mu.Unlock()
+		json.NewEncoder(w).Encode(map[string]any{"done": true})
+	})
 	mux.HandleFunc("POST /api/chat", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		var req map[string]any
 		json.Unmarshal(body, &req)
 		f.mu.Lock()
 		f.chats = append(f.chats, req)
-		content := f.content
+		n := len(f.chats)
+		message := map[string]any{"role": "assistant", "content": f.content}
+		if len(f.replies) > 0 {
+			message, f.replies = f.replies[0], f.replies[1:]
+		}
+		if f.always != nil {
+			message = f.always
+		}
+		block := f.blockFrom != 0 && n >= f.blockFrom
 		f.mu.Unlock()
-		json.NewEncoder(w).Encode(map[string]any{"message": map[string]string{"role": "assistant", "content": content}})
+		if block {
+			<-r.Context().Done()
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"message": message})
 	})
 	return mux
 }
@@ -175,5 +222,137 @@ func TestParseRequestNormalises(t *testing.T) {
 	}
 	if _, err := parseRequest("Sure! Here is the JSON:"); err == nil {
 		t.Error("prose parsed as a request")
+	}
+}
+
+// Once present, the model is loaded ahead of the first question, with a
+// request that asks it nothing.
+func TestPrepareLoadsTheModel(t *testing.T) {
+	f := &fakeOllama{models: []string{"qwen2.5:3b"}}
+	o := testOllama(t, f)
+	o.Prepare(context.Background(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if len(f.warmed) != 1 || f.warmed[0] != "qwen2.5:3b" {
+		t.Errorf("warmed %v, want the model once", f.warmed)
+	}
+	if len(f.chats) != 0 {
+		t.Errorf("%d chats while warming, want none", len(f.chats))
+	}
+}
+
+// A model that says it thinks is told not to, on every chat; one that
+// does not say so is sent no such setting, which an older server may
+// refuse.
+func TestThinkingIsTurnedOffOnlyForAModelThatThinks(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		caps []string
+		off  bool
+	}{
+		{[]string{"completion", "tools", "thinking"}, true},
+		{[]string{"completion", "tools"}, false},
+		{nil, false},
+	} {
+		f := &fakeOllama{models: []string{"qwen3:8b"}, capabilities: tc.caps, content: `{"kind":"today"}`}
+		srv := httptest.NewServer(f.handler())
+		t.Cleanup(srv.Close)
+		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+		o := NewOllama(srv.URL, "qwen3:8b")
+		o.Prepare(context.Background(), logger)
+		if _, err := o.Interpret(context.Background(), Prompt{Question: "who played today?", Today: time.Now()}); err != nil {
+			t.Fatalf("%v: Interpret: %v", tc.caps, err)
+		}
+		for i, chat := range f.chats {
+			think, set := chat["think"]
+			if set != tc.off || (set && think != false) {
+				t.Errorf("%v, chat %d: think = %v (set %v), want off %v", tc.caps, i, think, set, tc.off)
+			}
+		}
+	}
+}
+
+// The placing model needs nothing of the server, so one that cannot say
+// what the model does is no reason to hold it back.
+func TestThePlacingModelIsReadyWithoutCapabilities(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	f := &fakeOllama{models: []string{"qwen2.5:3b"}}
+	mux.Handle("/api/tags", f.handler())
+	mux.Handle("/api/generate", f.handler())
+	srv := httptest.NewServer(mux) // no /api/show: a 404
+	t.Cleanup(srv.Close)
+	o := NewOllama(srv.URL, "qwen2.5:3b")
+	// Bounded: held back, Prepare would try again for ever.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	o.Prepare(ctx, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if !o.Ready() {
+		t.Error("the placing model was held back by a server that cannot show capabilities")
+	}
+}
+
+func TestReasoningIsNeverPartOfTheAnswer(t *testing.T) {
+	t.Parallel()
+	if got := withoutThinking("<think>\nThe user asks…\n</think>\n\nStockholm."); got != "Stockholm." {
+		t.Errorf("got %q", got)
+	}
+	if got := withoutThinking("Just the answer."); got != "Just the answer." {
+		t.Errorf("got %q", got)
+	}
+}
+
+// Every call asks for the same context: the server's default on a CPU cuts
+// a longer prompt from the front without an error, and a call that asked
+// for another size would have the model loaded again.
+func TestEveryCallAsksForTheSameContext(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen3.5:4b"}, capabilities: []string{"completion", "tools"},
+		content: `{"kind":"today"}`}
+	srv := httptest.NewServer(f.handler())
+	t.Cleanup(srv.Close)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	o := NewOllama(srv.URL, "qwen3.5:4b")
+	o.Prepare(context.Background(), logger)
+	if _, err := o.Interpret(context.Background(), Prompt{Question: "who played today?", Today: time.Now()}); err != nil {
+		t.Fatalf("Interpret: %v", err)
+	}
+
+	var sizes []any
+	for _, opts := range f.warmOptions {
+		sizes = append(sizes, opts.(map[string]any)["num_ctx"])
+	}
+	for _, chat := range f.chats {
+		sizes = append(sizes, chat["options"].(map[string]any)["num_ctx"])
+	}
+	if len(sizes) != 2 {
+		t.Fatalf("%d calls seen, want the warm-up and the chat", len(sizes))
+	}
+	for i, n := range sizes {
+		if n != float64(contextSize) {
+			t.Errorf("call %d: num_ctx = %v, want %d", i, n, contextSize)
+		}
+	}
+}
+
+// Every chat turns the model's own presence penalty off: qwen3.5 ships one,
+// and it steers an answer away from the names and figures it just read.
+func TestNoPresencePenaltyOnAnyChat(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen3.5:4b"}, capabilities: []string{"completion", "tools"},
+		content: `{"kind":"today"}`}
+	srv := httptest.NewServer(f.handler())
+	t.Cleanup(srv.Close)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	o := NewOllama(srv.URL, "qwen3.5:4b")
+	o.Prepare(context.Background(), logger)
+	if _, err := o.Interpret(context.Background(), Prompt{Question: "who played today?", Today: time.Now()}); err != nil {
+		t.Fatalf("Interpret: %v", err)
+	}
+	for i, chat := range f.chats {
+		if pp, set := chat["options"].(map[string]any)["presence_penalty"]; !set || pp != float64(0) {
+			t.Errorf("chat %d: presence_penalty = %v (set %v), want 0", i, pp, set)
+		}
 	}
 }
