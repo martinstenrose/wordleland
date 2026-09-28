@@ -115,7 +115,7 @@ func TestNoBridgeShowsOnlyTheTwoThatTurnItOn(t *testing.T) {
 	for _, s := range settings {
 		switch s.Name {
 		case "SIGNAL_ANNOUNCE_MONTHS", "SIGNAL_LOCALE", "SIGNAL_API_URL",
-			"SIGNAL_REPLIES", "LLM_MODEL", "LLM_URL":
+			"SIGNAL_REPLIES", "LLM_MODEL", "LLM_AGENT", "LLM_URL":
 			t.Errorf("%s is shown with no bridge configured", s.Name)
 		}
 	}
@@ -133,6 +133,9 @@ func TestRepliesAndTheModelAreListedWithTheBridge(t *testing.T) {
 	}
 	if got := find(t, settings, "LLM_MODEL"); got.Value != DefaultLLMModel || !got.Default {
 		t.Errorf("LLM_MODEL = %q (default %v), want the default model, marked as a default", got.Value, got.Default)
+	}
+	if got := find(t, settings, "LLM_AGENT"); got.Kind != SettingOff || !got.Default {
+		t.Errorf("LLM_AGENT: kind = %v, default = %v; want off, as a default", got.Kind, got.Default)
 	}
 	if got := find(t, settings, "LLM_URL"); got.Value != DefaultLLMURL {
 		t.Errorf("LLM_URL = %q, want the compose default", got.Value)

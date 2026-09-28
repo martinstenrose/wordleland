@@ -95,7 +95,7 @@ and an extra URL that commonly attract spam-filter rules.
 | `SIGNAL_LOCALE` | Optional, default `en`. The language the announcements above, and the bot's answers, are written in — one fixed choice for the whole group, not a per-member preference. |
 | `SIGNAL_REPLIES` | Optional, default `true`. Answer a message that mentions the bot — see below. Set it to `false` for a bridge that never answers, which also means the `ollama` container is not needed. |
 | `LLM_MODEL` | Optional, default `qwen2.5:3b`. The model that reads the questions, by its Ollama name. The app pulls it if the model container does not have it. Anything larger answers better and slower; on a CPU, 3B is the size that answers in seconds. |
-| `LLM_AGENT_MODEL` | Optional, default empty (off). A larger model, by its Ollama name, that takes the questions `LLM_MODEL` could not place: it looks the figures up itself, can combine several in one answer, and phrases the reply — see "It answers when mentioned" below. `qwen2.5:7b` is a reasonable start. It needs roughly twice the memory and takes tens of seconds per answer on a CPU. Pulled on first start like the other. |
+| `LLM_AGENT` | Optional, default `false`. Have `LLM_MODEL` also take the questions it could not place: it looks the figures up itself, can combine several in one answer, and phrases the reply — see "It answers when mentioned" below. The same model does both, so there is still one to pull and hold in memory, but it is asked more of: pick one that can call tools, and larger than the default (`qwen2.5:7b` is a reasonable start). Answers then take tens of seconds on a CPU. |
 
 `SIGNAL_API_URL` and `LLM_URL` are not configured. They default to
 `http://signal-cli-rest-api:8080` and `http://ollama:11434` — service names
@@ -233,20 +233,20 @@ be reached for gets an apology in the group and a warning in the log; it is
 not retried, since an answer arriving after the conversation has moved on
 reads as the bot talking to itself.
 
-**With `LLM_AGENT_MODEL` set, a larger model takes what the small one
-cannot place.** Off by default; `qwen2.5:7b` is a reasonable start, and
-any model Ollama marks as able to call tools will do. One that cannot is
-refused at startup with an error in the log, and the bot carries on as if
-the agent were off. Instead
+**With `LLM_AGENT=true`, the model also takes what it cannot place.**
+Off by default. It needs a model Ollama marks as able to call tools, and
+one larger than the default: `qwen2.5:7b` is a reasonable start. A model
+that cannot call tools is refused for this at startup with an error in the
+log, and the bot carries on placing questions as if the agent were off. Instead
 of "no idea what that was", the question goes to the agent, which looks
 things up and writes the answer itself: "tell me about Bo", "roast Alma",
 "who leads, and is my streak still going?", "what did Bo get this week?".
-With it on, the small model passes questions like those on rather than
-answering half of them, and the answers it does place are handed to the
+With it on, the model passes questions like those on when placing them
+rather than answering half of them, and the answers it does place are handed to the
 agent to word, so "who's leading?" gets a sentence rather than a report.
 If the agent's wording fails a check or times out, the plain answer goes
-out instead. The price is that every answer with figures waits for the
-larger model.
+out instead. The price is that every answer with figures waits for a
+round or more of tool calling.
 
 - **What it can look up:** the same answers the bot gives to a placed
   question, a whole-player profile, and a day-by-day list of one player's
@@ -275,8 +275,8 @@ larger model.
   bot's post. A conversation ends after fifteen minutes with no question,
   and is then forgotten. Held in memory only, never logged or stored, and
   not at all while the agent is off or not ready; a restart forgets it.
-- **Cost:** a second model held in memory, roughly twice the first, and
-  tens of seconds per answer on a CPU. The bridge allows up to four minutes
+- **Cost:** a model large enough to call tools well, which holds more
+  memory than the default, and tens of seconds per answer on a CPU. The bridge allows up to four minutes
   per answer with the agent on. Its log lines say `kind=agent`, with how
   many lookups it made and whether its sentence passed the checks — never
   the question.

@@ -16,7 +16,7 @@ var notInCompose = []string{"SIGNAL_API_URL", "LLM_URL"}
 
 // compose.yml lists each variable app gets by name, so a variable added
 // here and not there is one that can be set in .env and does nothing. That
-// happened to LLM_AGENT_MODEL before it shipped.
+// happened to the agent's model variable before it shipped.
 func TestComposePassesOnEveryVariable(t *testing.T) {
 	t.Parallel()
 	read := regexp.MustCompile(`(?:Getenv|envOr|envBool)\("([A-Z0-9_]+)"`)

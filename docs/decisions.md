@@ -1566,7 +1566,7 @@ pulls the model it needs on first start and nothing about the model is
 configured by hand.
 
 **A question the model cannot place can go to an agent, which is held to
-the same rule by checking.** Off by default (`LLM_AGENT_MODEL`). The small
+the same rule by checking.** Off by default (`LLM_AGENT`). The small
 model's fixed set of kinds is what keeps its numbers right, and also what
 makes it a menu: "who has the most 2s, and is their streak still going?" is
 two kinds, and "what did Bo get this week?" is none. With a larger model
@@ -1616,10 +1616,26 @@ it. Rather than MCP, because the model and the tools are in one process;
 MCP is for offering tools to a client somewhere else. Rather than a SQL
 tool, because a model a CPU can run writes plausible SQL that is wrong, and
 the tool would be a way into every table. The 3B model that places questions is not
-expected to choose tools well, so the agent is a separate, larger model
-(7B or up; not yet measured against the group's questions). On a CPU that
-is expected to take tens of seconds per round, so the bridge's deadline for
-an answer is four minutes with the agent on.
+expected to choose tools well, so the agent wants a larger model (7B or up;
+not yet measured against the group's questions). On a CPU that is expected
+to take tens of seconds per round, so the bridge's deadline for an answer
+is four minutes with the agent on.
+
+**One model places and answers; `LLM_AGENT` says whether it does the
+second.** The agent first came as a second model (`LLM_AGENT_MODEL`)
+beside the 3B one that places. Once the agent also words the placed
+answers, every answer with figures waits for both, and the small model
+saves time only on help, thanks and the rules — while both are pulled and
+held in memory, on a VM with 16 GB. So `LLM_MODEL` names the one model and
+`LLM_AGENT` switches the tool calling on: off, the default model places
+questions and answers in seconds; on, the operator picks a model that can
+call tools and pays its time on every answer. A model that cannot is
+refused for the agent at startup and still places. Its capabilities are
+checked after it is pulled, not alongside, so the model is pulled once.
+Placing still comes first with the agent on: help, thanks and the rules
+stay exact and instant, and the placed answer is a lookup handed to the
+agent. Whether the agent should place questions itself is for measuring,
+not assuming.
 
 **With the agent on, it words the placed answers too.** An answer from a
 kind is right but reads as a report — "Martin över 217 spel: 0×1, 16×2,

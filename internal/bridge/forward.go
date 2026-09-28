@@ -74,9 +74,9 @@ type Responder func(ctx context.Context, m Message) error
 // finish, short enough that a hung one cannot hold results back for long.
 const respondTimeout = 90 * time.Second
 
-// agentRespondTimeout replaces it when the larger model is configured: the
-// placing model's seconds, then a few rounds of a model two or three times
-// its size looking things up. Results do not wait for it — answers run
+// agentRespondTimeout replaces it when the agent is on: placing the
+// question, then a few rounds of the model looking things up — a model
+// chosen for calling tools, two or three times the default's size. Results do not wait for it — answers run
 // beside the worker — but the next question does.
 const agentRespondTimeout = 4 * time.Minute
 

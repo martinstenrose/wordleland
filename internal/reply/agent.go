@@ -23,7 +23,7 @@ import (
 )
 
 // Agent answers the questions the Interpreter could not place, by letting
-// a larger model look things up and write the answer itself.
+// the model look things up and write the answer itself.
 //
 // The lookups are the answers the bot already gives — each Kind is a tool,
 // rendered by answer from internal/stats exactly as a placed question is —

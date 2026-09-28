@@ -231,8 +231,11 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 			send := client.Send
 			if bridgeCfg.Replies {
 				model = reply.NewOllama(bridgeCfg.LLMURL, bridgeCfg.LLMModel)
-				if bridgeCfg.LLMAgentModel != "" {
-					agent = reply.NewAgent(bridgeCfg.LLMURL, bridgeCfg.LLMAgentModel)
+				if bridgeCfg.LLMAgent {
+					// The same model, asked more of: it must also call
+					// tools, which the agent checks on its own, so a model
+					// that cannot still places questions.
+					agent = reply.NewAgent(bridgeCfg.LLMURL, bridgeCfg.LLMModel)
 				}
 				answer := reply.New(db, cats, bridgeCfg.AnnounceLocale, model, agent, send, logger)
 				respond = func(ctx context.Context, m bridge.Message) error {
@@ -318,19 +321,16 @@ func runServe(ctx context.Context, args []string, dbPath string, out io.Writer) 
 			go func() {
 				defer wg.Done()
 				model.Prepare(ctx, logger)
+				// After, not alongside: it is the same model, so by now
+				// it is pulled and loaded, and only whether it calls
+				// tools is left to find out. Two at once would pull it
+				// twice.
+				if agent != nil {
+					agent.Prepare(ctx, logger)
+				}
 			}()
-			logger.Info("replies started", "model", bridgeCfg.LLMModel,
+			logger.Info("replies started", "model", bridgeCfg.LLMModel, "agent", agent != nil,
 				"on", "a message that mentions the bot")
-		}
-		if agent != nil {
-			// Its own goroutine: the larger model takes longer to pull, and
-			// the small one answering meanwhile is the point of having both.
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				agent.Prepare(ctx, logger)
-			}()
-			logger.Info("agent started", "model", bridgeCfg.LLMAgentModel)
 		}
 
 		// One run just after midnight for all three, in the Announcer's

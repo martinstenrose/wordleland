@@ -60,24 +60,31 @@ func TestLoadBridgeChecksTheModelURLOnlyWhenRepliesAreOn(t *testing.T) {
 	}
 }
 
-// The agent is off unless a model is named for it.
+// The agent is off unless asked for, and a value that is not a boolean is
+// refused rather than read as off.
 func TestLoadBridgeAgentIsOptIn(t *testing.T) {
 	setEnv(t, bridgeEnv())
 	cfg, err := LoadBridge()
 	if err != nil {
 		t.Fatalf("LoadBridge() failed: %v", err)
 	}
-	if cfg.LLMAgentModel != "" {
-		t.Errorf("LLMAgentModel = %q, want empty by default", cfg.LLMAgentModel)
+	if cfg.LLMAgent {
+		t.Error("LLMAgent is on by default")
 	}
 
 	env := bridgeEnv()
-	env["LLM_AGENT_MODEL"] = " qwen2.5:7b "
+	env["LLM_AGENT"] = "true"
 	setEnv(t, env)
 	if cfg, err = LoadBridge(); err != nil {
 		t.Fatalf("LoadBridge() failed: %v", err)
 	}
-	if cfg.LLMAgentModel != "qwen2.5:7b" {
-		t.Errorf("LLMAgentModel = %q, want qwen2.5:7b", cfg.LLMAgentModel)
+	if !cfg.LLMAgent {
+		t.Error("LLM_AGENT=true left the agent off")
+	}
+
+	env["LLM_AGENT"] = "qwen2.5:7b"
+	setEnv(t, env)
+	if _, err := LoadBridge(); err == nil || !strings.Contains(err.Error(), "LLM_AGENT") {
+		t.Errorf("a model name in LLM_AGENT loaded: %v", err)
 	}
 }

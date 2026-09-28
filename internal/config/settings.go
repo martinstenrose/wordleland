@@ -118,6 +118,7 @@ func (c *Config) Settings(b *Bridge) []Setting {
 		orDefault(text("SIGNAL_API_URL", b.SignalAPIURL), "SIGNAL_API_URL"),
 		orDefault(toggle("SIGNAL_REPLIES", b.Replies), "SIGNAL_REPLIES"),
 		orDefault(text("LLM_MODEL", b.LLMModel), "LLM_MODEL"),
+		orDefault(toggle("LLM_AGENT", b.LLMAgent), "LLM_AGENT"),
 		orDefault(text("LLM_URL", b.LLMURL), "LLM_URL"),
 	)
 }

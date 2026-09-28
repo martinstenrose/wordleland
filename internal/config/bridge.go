@@ -84,12 +84,13 @@ type Bridge struct {
 	// enough for a CPU. The app pulls the model itself if it is missing.
 	LLMURL   string
 	LLMModel string
-	// LLMAgentModel is the larger model that takes the questions LLMModel
-	// could not place, looking the figures up and phrasing the answer
-	// itself. Empty, the default, is no agent: those questions get the
-	// unknown line. Served by the same server as LLMModel, and
-	// pulled the same way.
-	LLMAgentModel string
+	// LLMAgent has LLMModel do more than place questions: it also takes
+	// the ones it could not place, looking the figures up and phrasing the
+	// answer itself, and words the answers to the ones it did. Off, the
+	// default, is placing only: unplaced questions get the unknown line.
+	// One model for both, so one to pull and keep in memory; a model that
+	// cannot call tools is refused for this at startup and only places.
+	LLMAgent bool
 }
 
 // Defaults for the language model, overridable for running outside compose
@@ -126,7 +127,6 @@ func LoadBridge() (*Bridge, error) {
 		Replies:        true,
 		LLMURL:         envOr("LLM_URL", DefaultLLMURL),
 		LLMModel:       envOr("LLM_MODEL", DefaultLLMModel),
-		LLMAgentModel:  strings.TrimSpace(os.Getenv("LLM_AGENT_MODEL")),
 	}
 
 	// Nothing configured: the bridge is off, which is a valid deployment.
@@ -179,6 +179,11 @@ func LoadBridge() (*Bridge, error) {
 		problems = append(problems, problem)
 	} else {
 		cfg.Replies = value
+	}
+	if value, problem := envBool("LLM_AGENT", cfg.LLMAgent); problem != "" {
+		problems = append(problems, problem)
+	} else {
+		cfg.LLMAgent = value
 	}
 	// Only checked when it will be used: a deployment with replies off has
 	// no model, and must not be refused over the URL of one.

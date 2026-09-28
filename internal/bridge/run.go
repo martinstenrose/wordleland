@@ -76,7 +76,7 @@ func New(cfg config.Bridge, client *Client, deliver Deliverer, announce Announce
 		}
 		f.presence = client
 		f.posts = client
-		if cfg.LLMAgentModel != "" {
+		if cfg.LLMAgent {
 			f.respondTimeout = agentRespondTimeout
 		}
 	}
