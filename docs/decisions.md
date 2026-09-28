@@ -1656,6 +1656,22 @@ Whether the reuse actually happens depends on the model and the server
 (a model with recurrent layers may not rewind to a partial prefix); the
 server's `prompt_eval_duration` says.
 
+**An answer states a figure when its lookups had one.** The first real
+question with `qwen3.5:9b` — the leader asking whether anyone could still
+catch him — got an answer with the right chasers and no figures, spoken
+to the leader as if he were one of them. It passed: the number and name
+checks catch what is wrong in an answer, and an answer with no figures
+has nothing for them to catch. So when the lookups gave figures and the
+answer states none, it is sent back once, told so, and failing that the
+lookups are posted. The same run showed the model's own
+`presence_penalty` of 1.5 in the server's sampler settings, which
+discourages repeating what is already in the context: the names and
+figures the answer is meant to repeat. Every call now sets it to 0. It
+also showed Ollama reading the whole prompt again on every call
+("forcing full prompt re-processing … hybrid/recurrent memory"): with
+qwen3.5 the reuse above does not happen, and a question costs about 40
+seconds to place and a minute per agent round on 8 cores.
+
 **With the agent on, it words the placed answers too.** An answer from a
 kind is right but reads as a report — "Martin över 217 spel: 0×1, 16×2,
 …" — and when the placing model reads a question too narrowly ("who has the

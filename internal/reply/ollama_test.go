@@ -385,3 +385,30 @@ func TestEveryCallAsksForTheSameContext(t *testing.T) {
 		}
 	}
 }
+
+// Every chat turns the model's own presence penalty off: qwen3.5 ships one,
+// and it steers an answer away from the names and figures it just read.
+func TestNoPresencePenaltyOnAnyChat(t *testing.T) {
+	t.Parallel()
+	f := &fakeOllama{models: []string{"qwen3.5:4b"}, capabilities: []string{"completion", "tools"},
+		content: `{"kind":"today"}`}
+	srv := httptest.NewServer(f.handler())
+	t.Cleanup(srv.Close)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	o := NewOllama(srv.URL, "qwen3.5:4b")
+	o.Prepare(context.Background(), logger)
+	if _, err := o.Interpret(context.Background(), Prompt{Question: "who played today?", Today: time.Now()}); err != nil {
+		t.Fatalf("Interpret: %v", err)
+	}
+	a := NewAgent(srv.URL, "qwen3.5:4b")
+	a.Prepare(context.Background(), logger)
+	if _, err := a.chat(context.Background(), []chatMessage{{Role: "user", Content: "hej"}}); err != nil {
+		t.Fatalf("chat: %v", err)
+	}
+	for i, chat := range f.chats {
+		if pp, set := chat["options"].(map[string]any)["presence_penalty"]; !set || pp != float64(0) {
+			t.Errorf("chat %d: presence_penalty = %v (set %v), want 0", i, pp, set)
+		}
+	}
+}

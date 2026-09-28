@@ -311,7 +311,9 @@ func (o *Ollama) Interpret(ctx context.Context, p Prompt) (Request, error) {
 		"stream": false,
 		"format": requestSchema,
 		// Deterministic: the same question should become the same request.
-		"options": map[string]any{"temperature": 0, "num_ctx": contextSize},
+		// No presence penalty, whatever the model ships with (qwen3.5:
+		// 1.5): a request repeats its quotes and field names by design.
+		"options": map[string]any{"temperature": 0, "presence_penalty": 0, "num_ctx": contextSize},
 		"messages": []map[string]string{
 			{"role": "system", "content": systemPrompt(p)},
 			{"role": "user", "content": p.Question},

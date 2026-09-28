@@ -552,6 +552,15 @@ func repairRequest(numbers, names []string, lang string) string {
 		"Answer with the rewritten message only."
 }
 
+// bareRequest asks again for an answer that left out every figure the
+// lookups gave.
+func bareRequest(lang string) string {
+	return "Your answer states none of the figures your lookups gave. Rewrite it so it answers " +
+		"the question with the figures from the lookups that answer it, written as digits, " +
+		"with the attitude as one short aside. Same voice, as short, in " + lang + ". " +
+		"Answer with the rewritten message only."
+}
+
 // numberWords are numbers spelled out, in the languages the group uses —
 // the one way a figure gets past grounded. "One" and "en"/"ett" are left
 // out: they are words far more often than numbers.
@@ -605,8 +614,11 @@ func (a *Agent) chat(ctx context.Context, messages []chatMessage) (chatMessage, 
 		// top_p and top_k because a model's own defaults may be set for
 		// thinking, which is off (qwen3.5 ships 0.95 and no top_k); these
 		// are the values Qwen gives for answering without it.
+		// presence_penalty for the same reason: qwen3.5 ships 1.5, which
+		// steers the answer away from the names and figures it has just
+		// read — exactly what it is meant to repeat.
 		"options": map[string]any{"temperature": 0.6, "num_predict": 300,
-			"top_p": 0.8, "top_k": 20, "num_ctx": contextSize},
+			"top_p": 0.8, "top_k": 20, "presence_penalty": 0, "num_ctx": contextSize},
 		"messages": messages,
 	}))
 	if err != nil {
@@ -1107,17 +1119,33 @@ func askAgent(ctx context.Context, q asked, agent *Agent, conv *conversation,
 	check := func(text string) (nums, names []string) {
 		return ungroundedNumbers(text, numbers...), ungroundedNames(text, q.players, seen...)
 	}
+	// An answer that leaves every figure out passes the checks above by
+	// saying nothing they could catch — and reads as an answer while
+	// getting who leads wrong. When the lookups had figures, the answer
+	// states one of them.
+	figures := false
+	for _, l := range looked {
+		figures = figures || number.MatchString(l.text)
+	}
+	bare := func(text string) bool { return figures && !number.MatchString(text) }
 	nums, names := check(text)
-	isGrounded := err == nil && text != "" && len(nums) == 0 && len(names) == 0
+	isGrounded := err == nil && text != "" && len(nums) == 0 && len(names) == 0 && !bare(text)
 	failed := failedCheck(nums, names)
+	if failed == "" && err == nil && text != "" && bare(text) {
+		failed = "no figures"
+	}
 	repaired := false
 	if !isGrounded && err == nil && text != "" && timeLeft(actx) > repairMinLeft {
 		// One rewrite, told what failed, before giving up on the model's
 		// sentence: the lookups alone are true but read as a data dump,
 		// which "roast Alma" should not get.
-		if again, rerr := agent.repair(actx, res.transcript, text, repairRequest(nums, names, language(p))); rerr == nil {
+		request := repairRequest(nums, names, language(p))
+		if len(nums) == 0 && len(names) == 0 {
+			request = bareRequest(language(p))
+		}
+		if again, rerr := agent.repair(actx, res.transcript, text, request); rerr == nil {
 			again = tidy(again)
-			if n, m := check(again); again != "" && len(n) == 0 && len(m) == 0 && !spellsANumber(again) {
+			if n, m := check(again); again != "" && len(n) == 0 && len(m) == 0 && !bare(again) && !spellsANumber(again) {
 				text, isGrounded, repaired = again, true, true
 			}
 		}

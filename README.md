@@ -256,8 +256,11 @@ round or more of tool calling.
 - **What is checked:** every number in its answer must appear in what it
   looked up (or in its own earlier checked answers), not merely in the
   question, and every player it names must have been mentioned in the
-  conversation or a lookup. A number written as a word is not checked;
-  the model is told to write digits. An answer that fails
+  conversation or a lookup. When the lookups gave figures, the answer
+  must state at least one of them: an answer that leaves them all out
+  says nothing the checks can catch, and can still get the question
+  wrong. A number written as a word is not checked; the model is told to
+  write digits. An answer that fails
   either is sent back once, with what failed, to be rewritten; if the
   rewrite fails too, or there is no time for it, the lookups' own text is
   posted instead. Markdown is stripped

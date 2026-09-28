@@ -998,6 +998,39 @@ func TestAPlacedAnswerFallsBackToTheKind(t *testing.T) {
 	}
 }
 
+// An answer that leaves out every figure its lookup gave passes the number
+// and name checks by saying nothing they can catch, and can still get the
+// question wrong. It is sent back once, told so; a rewrite with a figure
+// is posted, and one without gives the lookup itself.
+func TestAnAnswerWithoutTheFiguresIsSentBack(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		rewrite, want string
+	}{
+		{"Bo is on 12 in a row. Somebody stop him.", "Bo is on 12 in a row. Somebody stop him."},
+		{"Bo is unstoppable, honestly.", "Bo: 12 days in a row now, 12 at best."},
+	} {
+		f := &fakeOllama{models: []string{"qwen2.5:7b"}, replies: []map[string]any{
+			{"role": "assistant", "content": "You can still catch him, Bo!"},
+		}, content: tc.rewrite}
+		answer, c := newAgentAnswerer(t, replyDB(t), canned{req: Request{Kind: KindStreak, Player: "Bo"}}, testAgent(t, f))
+
+		if err := answer(context.Background(), senderUUID, "how's my streak?", "", nil); err != nil {
+			t.Fatal(err)
+		}
+		if got := c.last(t); got != tc.want {
+			t.Errorf("rewrite %q: got %q, want %q", tc.rewrite, got, tc.want)
+		}
+		if len(f.chats) != 2 {
+			t.Fatalf("%d chat calls, want the answer and one rewrite", len(f.chats))
+		}
+		msgs := f.chats[1]["messages"].([]any)
+		if asked := msgs[len(msgs)-1].(map[string]any)["content"].(string); !strings.Contains(asked, "none of the figures") {
+			t.Errorf("the rewrite was asked for with %q", asked)
+		}
+	}
+}
+
 // A reading that fell short — "who has the most 6s and the most X's?"
 // read as the asker's distribution — is made good by the agent looking
 // up what was asked.

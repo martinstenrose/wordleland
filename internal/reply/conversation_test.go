@@ -102,10 +102,12 @@ func TestTheAgentIsShownTheRecentConversation(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Both questions went to the agent: the first placed, the second not.
-	if len(f.chats) != 2 {
-		t.Fatalf("%d chat calls, want 2", len(f.chats))
+	// The first answer, "Sure.", states none of its lookup's figures, so it
+	// is sent back once before the lookup itself is posted.
+	if len(f.chats) != 3 {
+		t.Fatalf("%d chat calls, want 3", len(f.chats))
 	}
-	msgs := f.chats[1]["messages"].([]any)
+	msgs := f.chats[2]["messages"].([]any)
 	var said []string
 	for _, m := range msgs[1:] {
 		said = append(said, m.(map[string]any)["content"].(string))
