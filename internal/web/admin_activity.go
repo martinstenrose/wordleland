@@ -16,7 +16,7 @@ import (
 const activityLimit = 120
 
 type activityRow struct {
-	// Href opens the detail behind the row.
+	// Href opens the detail behind the row, on a page of its own.
 	Href string
 
 	Kind  string
@@ -24,6 +24,22 @@ type activityRow struct {
 	Text  string
 	Actor string
 	When  string
+
+	// As the design draws a row: a glyph for its kind, what happened and
+	// to whom on two lines, who did it with a glyph for what they are, and
+	// the clock time. Opened, it shows the stored detail as it was written.
+	Icon      string
+	Title     string
+	Detail    string
+	ActorIcon string
+	Clock     string
+	JSON      string
+}
+
+// activityDay is the rows of one day, under its name.
+type activityDay struct {
+	Label string
+	Rows  []activityRow
 }
 
 type activityPage struct {
@@ -37,6 +53,9 @@ type activityPage struct {
 
 	// Summary names the slice being shown, beside the filters.
 	Summary string
+
+	// Days is Rows grouped by the day they happened, newest first.
+	Days []activityDay
 }
 
 // handleAdminActivity lists what admins have done and what has been logged.
@@ -72,7 +91,7 @@ func (s *Server) handleAdminActivity(w http.ResponseWriter, r *http.Request) {
 		if f.code != "" {
 			href += "?kind=" + f.code
 		}
-		opt := chromeOpt{Code: f.code, Label: page.T.T(f.key), Href: href, On: f.code == kind}
+		opt := chromeOpt{Code: activityFilterIcons[f.code], Label: page.T.T(f.key), Href: href, On: f.code == kind}
 		if opt.On {
 			// Names the slice on show beside the filters, so the count
 			// below is read against the right population.
@@ -84,14 +103,45 @@ func (s *Server) handleAdminActivity(w http.ResponseWriter, r *http.Request) {
 		page.Filters = append(page.Filters, opt)
 	}
 
+	now := time.Now()
 	for _, e := range events {
-		page.Rows = append(page.Rows, s.activityRowFor(e, page.T))
+		row := s.activityRowFor(e, page.T)
+		page.Rows = append(page.Rows, row)
+		label := activityDayLabel(page.T, e.At, now)
+		if n := len(page.Days); n == 0 || page.Days[n-1].Label != label {
+			page.Days = append(page.Days, activityDay{Label: label})
+		}
+		page.Days[len(page.Days)-1].Rows = append(page.Days[len(page.Days)-1].Rows, row)
 	}
 
 	if !s.issueChromeToken(w, r, &page.chrome) {
 		return
 	}
 	s.render(w, r, http.StatusOK, "admin_activity.html", page)
+}
+
+// activityFilterIcons is each filter's glyph, as the design has them.
+var activityFilterIcons = map[string]string{
+	"":                    "list",
+	store.ActivityResults: "scoreboard",
+	store.ActivityPlayers: "person",
+	store.ActivityUsers:   "key",
+}
+
+// activityDayLabel names the day a row happened: today and yesterday by
+// those words, with the date after them, and any other day by its date.
+func activityDayLabel(t translator, at, now time.Time) string {
+	at, now = at.Local(), now.Local()
+	date := t.T("weekday.short."+strconv.Itoa(int(at.Weekday()))) + " " + dayMonth(t, at)
+	y1, m1, d1 := at.Date()
+	y2, m2, d2 := now.Date()
+	switch days := int(time.Date(y2, m2, d2, 0, 0, 0, 0, time.UTC).Sub(time.Date(y1, m1, d1, 0, 0, 0, 0, time.UTC)).Hours() / 24); days {
+	case 0:
+		return t.T("activity.day.today", date)
+	case 1:
+		return t.T("activity.day.yesterday", date)
+	}
+	return date
 }
 
 // activityRowFor turns one event into a line of copy.
@@ -101,12 +151,16 @@ func (s *Server) handleAdminActivity(w http.ResponseWriter, r *http.Request) {
 // still shows its action and its time rather than breaking the page.
 func (s *Server) activityRowFor(e store.Event, t translator) activityRow {
 	row := activityRow{
-		Kind: e.Kind,
-		Tag:  t.T("activity.tag." + e.Kind),
-		When: absoluteTime(e.At),
-		Text: t.T("activity.action." + e.Action),
-		Href: "/admin/activity/" + strconv.FormatInt(e.ID, 10),
+		Kind:  e.Kind,
+		Tag:   t.T("activity.tag." + e.Kind),
+		When:  absoluteTime(e.At),
+		Text:  t.T("activity.action." + e.Action),
+		Href:  "/admin/activity/" + strconv.FormatInt(e.ID, 10),
+		Icon:  activityFilterIcons[e.Kind],
+		Clock: e.At.Local().Format("15:04"),
+		JSON:  indentJSON(e.Detail),
 	}
+	row.Title = row.Text
 
 	// Read before the actor is named, because a system row is only as
 	// specific as its detail: see below.
@@ -141,6 +195,10 @@ func (s *Server) activityRowFor(e store.Event, t translator) activityRow {
 	default:
 		row.Actor = e.ActorEmail
 	}
+	row.ActorIcon = "person"
+	if e.ActorKind != "admin" && e.ActorKind != "player" {
+		row.ActorIcon = "chat"
+	}
 
 	// The slug first, then the address for a user row. A bare id is the
 	// last resort and means the subject is gone — a player deleted outright
@@ -154,13 +212,18 @@ func (s *Server) activityRowFor(e store.Event, t translator) activityRow {
 	}
 	if subject != "" {
 		row.Text = t.T("activity.line", row.Text, subject)
+		row.Detail = subject
 	}
 
 	// A result carries which puzzle it was, which is the one thing that
-	// makes two otherwise identical lines tell apart.
+	// makes two otherwise identical lines tell apart, and the score itself.
 	if e.Kind == store.ActivityResults {
 		if puzzle, ok := detailNumber(detail, "puzzle_no"); ok {
 			row.Text += " · " + t.T("player.puzzle", t.Puzzle(puzzle))
+			row.Detail += " · " + t.T("player.puzzle", t.Puzzle(puzzle))
+		}
+		if line := scorelineFrom(detail); line != "" {
+			row.Detail += " · " + line
 		}
 	}
 	return row

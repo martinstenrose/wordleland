@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
@@ -37,20 +38,20 @@ func TestTheSettingsScreenNamesEveryVariableThisAppReads(t *testing.T) {
 	// greyed word: greying it would put it in the same visual class as "Not
 	// set", which is the opposite of what it means. Grey marks one thing on
 	// this table — that there is no value at all.
-	if !strings.Contains(body, `class="env-redacted"`) {
+	if !strings.Contains(body, `class="env-value env-redacted"`) {
 		t.Error("a secret that is set is not shown as a redacted value")
 	}
 	if !strings.Contains(body, "Set, and never shown here.") {
 		t.Error("nothing says what the dots stand for, so they carry it alone")
 	}
-	if strings.Contains(cellAround(t, body, `class="env-redacted"`), "muted") {
+	if strings.Contains(cellAround(t, body, `env-redacted`), "muted") {
 		t.Error("a secret is greyed, which says it is not set")
 	}
 	// Grey is still doing its one job: marking the rows with no value.
 	if !strings.Contains(cellAround(t, body, "Not set"), "muted") {
 		t.Error("an unset variable is not greyed, so the column cannot be swept")
 	}
-	if !strings.Contains(body, "Not editable here") {
+	if !strings.Contains(body, "read-only here") {
 		t.Error("nothing says these cannot be changed here")
 	}
 }
@@ -99,8 +100,8 @@ func TestRotatingTheSlugIsAskedFirst(t *testing.T) {
 	if !strings.Contains(asked, `action="/admin/settings/slug"`) {
 		t.Error("the question does not carry the form that answers it")
 	}
-	if !strings.Contains(asked, "Rotate the share slug?") {
-		t.Error("the question is not asked")
+	if !strings.Contains(asked, "loses access until you send them the new one") {
+		t.Error("the question does not say what rotating costs")
 	}
 }
 
@@ -204,9 +205,9 @@ func TestTheAdminAreaOpensOnSettings(t *testing.T) {
 	}
 }
 
-// The outcome is on the page as a note, with no script involved. app.js
-// raises it into the centred panel the design draws, and carries the word for
-// that panel's button in the markup so the script holds no copy of its own.
+// The outcome is on the page as a toast with no script involved, its close a
+// link to the page without it. An error is not a toast: it belongs beside
+// the thing that has to be fixed, which is where it can be acted on.
 func TestAnOutcomeIsRenderedBeforeAnyScriptRunsIt(t *testing.T) {
 	t.Parallel()
 
@@ -215,20 +216,18 @@ func TestAnOutcomeIsRenderedBeforeAnyScriptRunsIt(t *testing.T) {
 	_, session := adminSession(t, srv)
 
 	body := fetchAs(t, srv, "/admin/settings?notice=rotated", session).Body.String()
-	if !strings.Contains(body, `class="note" role="status"`) {
-		t.Error("the outcome is not rendered as a note")
+	if !strings.Contains(body, `<div class="toast glass" role="status">`) {
+		t.Error("the outcome is not rendered as a toast")
 	}
-	if !strings.Contains(body, `data-raise="Close"`) {
-		t.Error("the outcome carries no hook, or no word for the panel's button")
+	if !strings.Contains(body, `<a class="toast-close" href="/admin/settings"`) {
+		t.Error("the toast cannot be put away without a script")
 	}
-	// An error is not raised: it belongs beside the thing that has to be
-	// fixed, which is where it can be acted on.
 	bad := fetchAs(t, srv, "/admin/settings?error=failed", session).Body.String()
 	if !strings.Contains(bad, `role="alert"`) {
 		t.Fatal("the error is not rendered")
 	}
-	if strings.Contains(bad, "data-raise") {
-		t.Error("an error was marked to be raised into a panel")
+	if strings.Contains(bad, `class="toast`) {
+		t.Error("an error was shown as a passing outcome")
 	}
 }
 
@@ -240,7 +239,7 @@ func cellAround(t *testing.T, body, needle string) string {
 	if at < 0 {
 		t.Fatalf("no %q on the page", needle)
 	}
-	open := strings.LastIndex(body[:at], "<dd>")
+	open := strings.LastIndex(body[:at], "<dd")
 	close := strings.Index(body[at:], "</dd>")
 	if open < 0 || close < 0 {
 		t.Fatalf("%q is not inside a table cell", needle)
@@ -248,11 +247,11 @@ func cellAround(t *testing.T, body, needle string) string {
 	return body[open : at+close]
 }
 
-// The share link is on the page in a form that can be selected, and the copy
-// button is not: a clipboard cannot be written to from markup, so app.js
-// builds that button and it exists exactly where it works. Rendering one here
-// would put a control on the page for every reader whose browser will not let
-// it do anything.
+// The share link is on the page as text that can be selected — the origin
+// quiet, the slug the thing — and the copy button is in the markup hidden:
+// a clipboard cannot be written to from markup, so app.js shows the button
+// only where it works, and a reader whose browser will not let it do
+// anything never sees it.
 func TestTheShareLinkIsSelectableAndTheCopyButtonIsNot(t *testing.T) {
 	t.Parallel()
 
@@ -268,33 +267,24 @@ func TestTheShareLinkIsSelectableAndTheCopyButtonIsNot(t *testing.T) {
 	body := fetchAs(t, srv, "/admin/settings", session).Body.String()
 	want := "https://wordle.example.tld/share/" + slug + "/"
 
-	// The slug alone is what is printed: a whole URL on a phone is a string
-	// with no good place to break, and it used to wrap mid-slug.
-	if !strings.Contains(body, `<p class="share-slug"><code>`+slug+`</code></p>`) {
-		t.Error("the slug is not shown alone")
+	if !strings.Contains(body, `<p class="share-link"><span class="muted">wordle.example.tld/share/</span>`+slug+`</p>`) {
+		t.Error("the link is not shown with its slug standing out")
 	}
-	// The URL itself is nowhere on the page but the copy target: it is had
-	// from the button, not read.
+	// The whole URL is the copy target and nothing else.
 	if strings.Count(body, want) != 1 {
 		t.Errorf("the share URL appears %d times, want once: the copy target",
 			strings.Count(body, want))
 	}
-	// Nothing in that row is a button: the only control the server puts
-	// there is the link to the replace question.
-	row := body[strings.Index(body, `<div class="actions" data-copy=`):]
-	row = row[:strings.Index(row, "</div>")]
-	if strings.Contains(row, "<button") {
-		t.Error("a copy button was rendered server-side, where it may not work")
+	button := body[strings.Index(body, `data-copy-text="`+want+`"`)-40:]
+	button = button[:strings.Index(button, ">")]
+	if !strings.Contains(button, "hidden") {
+		t.Error("the copy button is shown before a script can say it works")
 	}
-	if !strings.Contains(row, `href="/admin/settings?confirm=slug"`) {
+	if !strings.Contains(body, `data-copied-label="Copied"`) {
+		t.Error("the script is given no word for having copied, so it would carry its own")
+	}
+	if !strings.Contains(body, `href="/admin/settings?confirm=slug"`) {
 		t.Error("the row lost the control that does not need a script")
-	}
-	// What the script needs is in the markup, so no string in it is English.
-	if !strings.Contains(body, `data-copy="`+want+`"`) {
-		t.Error("the script is given no link to copy")
-	}
-	if !strings.Contains(body, `data-copy-label="Copy link"`) || !strings.Contains(body, `data-copied-label="Copied"`) {
-		t.Error("the script is given no words, so it would have to carry its own")
 	}
 }
 
@@ -314,96 +304,29 @@ func TestNoCopyControlWithoutAnOrigin(t *testing.T) {
 	if srv.cfg.AppURL != "" {
 		t.Fatal("this test needs an installation with no APP_URL")
 	}
-	if strings.Contains(body, "data-copy=") {
+	if strings.Contains(body, "data-copy-text=") {
 		t.Error("a copy control is offered for a link that is only a path")
 	}
 	// The slug is still shown, and still the link: it is what somebody needs
 	// to reconstruct the address, and APP_URL is in the table below.
-	if !strings.Contains(body, `class="share-slug"`) {
+	if !strings.Contains(body, `class="share-link"`) {
 		t.Error("the slug is not shown at all")
 	}
 }
 
-// Rotating is three page loads without a script — ask, answer, outcome — and
-// the share section's htmx attributes collapse them into swaps in place.
-// What they swap is scoped to this one block, so the admin strip above,
-// which links here too, is left alone.
-//
-// Every control stays a real one: the question is a link, the answer is a
-// form that posts its own token, and either works with the scripts gone.
-func TestTheShareSectionIsScopedAndStillWorksWithoutAScript(t *testing.T) {
+// The bot's language model is the Signal bridge's, so its settings sit in
+// the Signal card rather than falling through to the app's.
+func TestTheRepliesModelIsGroupedWithSignal(t *testing.T) {
 	t.Parallel()
 
-	srv := testServer(t)
-	seedBoard(t, srv)
-	_, session := adminSession(t, srv)
-	if _, _, err := store.EnsureShareSlug(context.Background(), srv.db); err != nil {
-		t.Fatalf("EnsureShareSlug: %v", err)
+	groups := envGroups(translator{}, []settingRow{
+		{Name: "APP_URL"}, {Name: "SIGNAL_REPLIES"}, {Name: "LLM_URL"}, {Name: "LLM_MODEL"}, {Name: "SMTP_HOST"},
+	})
+	var signal []string
+	for _, row := range groups[1].Rows {
+		signal = append(signal, row.Name)
 	}
-
-	plain := fetchAs(t, srv, "/admin/settings", session).Body.String()
-	if !strings.Contains(plain, `class="settings-section share-section"`) {
-		t.Error("the share section carries no hook, so the script would reach the whole page")
-	}
-	if !strings.Contains(plain, `href="/admin/settings?confirm=slug"`) {
-		t.Error("asking the question is not a link")
-	}
-
-	asked := fetchAs(t, srv, "/admin/settings?confirm=slug", session).Body.String()
-	form := asked[strings.Index(asked, `<form method="post" action="/admin/settings/slug"`):]
-	form = form[:strings.Index(form, "</form>")]
-	if !strings.Contains(form, `name="csrf_token"`) {
-		t.Error("the answer carries no token, so posting it from script would be refused")
-	}
-	// The script is not named anywhere in the markup: it finds its own work.
-	if strings.Contains(asked, "onclick") || strings.Contains(asked, "onsubmit") {
-		t.Error("a control carries an inline handler")
-	}
-}
-
-// The rotation swaps the card, not the body, and the address follows.
-//
-// Every other link swaps the whole body and the note that comes back is
-// raised into a panel; here the slug visibly changes under the reader's
-// eyes, and a dialog on top of that is feedback for nothing. So the section
-// aims htmx at the card: pick the card out of the page each step returns,
-// put it in place of this one, and replace the address rather than pushing
-// a history entry for each half of one decision.
-//
-// htmx posts a form the way the form declares — url-encoded, which Go's
-// ParseForm reads — so an enctype on the form would be the one thing that
-// could make the token go missing again.
-func TestTheRotationSwapsTheCardInPlace(t *testing.T) {
-	t.Parallel()
-
-	srv := testServer(t)
-	seedBoard(t, srv)
-	_, session := adminSession(t, srv)
-	if _, _, err := store.EnsureShareSlug(context.Background(), srv.db); err != nil {
-		t.Fatalf("EnsureShareSlug: %v", err)
-	}
-
-	for _, path := range []string{"/admin/settings", "/admin/settings?confirm=slug"} {
-		body := fetchAs(t, srv, path, session).Body.String()
-		section, ok := sectionOf(body, `<div class="settings-section share-section"`, ">")
-		if !ok {
-			t.Fatalf("%s: no share section", path)
-		}
-		for _, attr := range []string{
-			`hx-target="closest section.card"`,
-			`hx-select="section.card"`,
-			`hx-swap="outerHTML"`,
-			`hx-replace-url="true"`,
-		} {
-			if !strings.Contains(section, attr) {
-				t.Errorf("%s: the share section is missing %s", path, attr)
-			}
-		}
-	}
-
-	asked := fetchAs(t, srv, "/admin/settings?confirm=slug", session).Body.String()
-	form := asked[strings.Index(asked, `<form method="post" action="/admin/settings/slug"`):]
-	if strings.Contains(form[:strings.Index(form, ">")], "enctype") {
-		t.Error("the form declares an enctype, so htmx would post something ParseForm does not read")
+	if want := []string{"SIGNAL_REPLIES", "LLM_URL", "LLM_MODEL"}; !slices.Equal(signal, want) {
+		t.Errorf("the Signal card holds %v, want %v", signal, want)
 	}
 }

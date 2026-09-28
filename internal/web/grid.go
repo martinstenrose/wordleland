@@ -34,7 +34,9 @@ type gridCellView struct {
 type gridRowView struct {
 	Date     string
 	PuzzleNo int
-	Cells    []gridCellView
+	// Href is the day's own page, which the date links to.
+	Href  string
+	Cells []gridCellView
 }
 
 type gridPage struct {
@@ -44,24 +46,25 @@ type gridPage struct {
 	BoardPath string
 	Query     boardQuery
 
+	// Columns are the players in finishing order for the window shown, each
+	// heading carrying its average: the header is the standings, and the
+	// grid under it is how they got there. It was alphabetical beside a
+	// separate standings rail; with the average in the heading, one order
+	// does both jobs and the rail went.
 	Columns []gridColumn
-	// Rail is the same players in finishing order for the window shown.
-	// The grid keeps them alphabetical so a reader can find somebody; the
-	// rail is a standings table and has to be in order to be one.
-	Rail []gridColumn
-	Rows []gridRowView
+	Rows    []gridRowView
 
-	// Legend is the score ramp, 1 through X, so the colours are readable
-	// without guessing.
-	Legend []scoreCell
+	// Legend names a few tiles of the ramp, the miss and the day not played,
+	// so the colours are readable without guessing.
+	Legend []gridLegend
 
 	Total int
 	Shown int
 
 	Spans []chromeOpt
 
-	// FormLabel names the window the column figures are computed over.
-	FormLabel string
+	// Eyebrow names the window the grid covers.
+	Eyebrow string
 
 	Inactive     bool
 	InactiveHref string
@@ -108,7 +111,7 @@ func (s *Server) handleGrid(w http.ResponseWriter, r *http.Request, prefix, boar
 		chrome: ch, Prefix: prefix, BoardPath: boardPath, Query: query,
 		Total: grid.Total, Shown: len(grid.Rows), Hidden: grid.Hidden,
 		Inactive: showInactive,
-		Legend:   legendCells(),
+		Legend:   gridLegendFor(ch.T),
 	}
 
 	if showInactive {
@@ -121,17 +124,19 @@ func (s *Server) handleGrid(w http.ResponseWriter, r *http.Request, prefix, boar
 	// invites a click and answers with the same page.
 	if grid.Total > stats.GridSpan {
 		page.Spans = []chromeOpt{
-			{Code: "90", Label: ch.T.T("grid.span.recent", stats.GridSpan),
-				Href: urlWith(r, "span", "90"), On: span > 0},
+			{Code: "recent", Label: ch.T.T("grid.span.recent", stats.GridSpan),
+				Href: urlWith(r, "span", strconv.Itoa(stats.GridSpan)), On: span > 0},
 			{Code: "all", Label: ch.T.T("grid.span.all", grid.Total),
 				Href: urlWith(r, "span", "all"), On: span == 0},
 		}
 	}
 
-	// The heading says which window the figures describe.
-	page.FormLabel = ch.T.T("grid.form.all", grid.Total)
-	if span > 0 && grid.Total > stats.GridSpan {
-		page.FormLabel = ch.T.T("grid.form.recent", stats.GridSpan)
+	// The eyebrow says which window the grid and its averages describe.
+	page.Eyebrow = ch.T.TN("grid.days", grid.Total)
+	for _, opt := range page.Spans {
+		if opt.On {
+			page.Eyebrow = opt.Label
+		}
 	}
 
 	if len(grid.Rows) == 0 {
@@ -143,17 +148,23 @@ func (s *Server) handleGrid(w http.ResponseWriter, r *http.Request, prefix, boar
 		return
 	}
 
-	for _, p := range grid.Players {
-		page.Columns = append(page.Columns, gridColumnFor(prefix, p, ch.T))
+	// The columns in finishing order, and each row's cells put in the same
+	// order: the grid's own is alphabetical.
+	index := make(map[int64]int, len(grid.Players))
+	for i, p := range grid.Players {
+		index[p.ID] = i
 	}
+	var order []int
 	for _, p := range stats.GridRanking(grid.Players) {
-		page.Rail = append(page.Rail, gridColumnFor(prefix, p, ch.T))
+		page.Columns = append(page.Columns, gridColumnFor(prefix, p, ch.T))
+		order = append(order, index[p.ID])
 	}
 
 	for _, row := range grid.Rows {
 		date := strconv.Itoa(row.Date.Day()) + " " + shortMonthName(ch.T, row.Date.Month())
-		view := gridRowView{PuzzleNo: row.PuzzleNo, Date: date}
-		for i, c := range row.Cells {
+		view := gridRowView{PuzzleNo: row.PuzzleNo, Date: date, Href: puzzlePath(prefix, row.PuzzleNo)}
+		for _, i := range order {
+			c := row.Cells[i]
 			cell := gridCellView{Played: c.Played}
 			if c.Played {
 				cell.Label, cell.Tone = "X", int(worstScore)
@@ -176,8 +187,7 @@ func (s *Server) handleGrid(w http.ResponseWriter, r *http.Request, prefix, boar
 	s.render(w, r, http.StatusOK, "grid.html", page)
 }
 
-// gridColumnFor is one player as a heading, shared by the grid and the
-// rail so the two orders cannot drift into showing different figures.
+// gridColumnFor is one player as a heading.
 func gridColumnFor(prefix string, p stats.Player, t translator) gridColumn {
 	col := gridColumn{
 		Name: p.Name, Short: shortName(p.Name),
@@ -189,16 +199,25 @@ func gridColumnFor(prefix string, p stats.Player, t translator) gridColumn {
 	return col
 }
 
-// legendCells is the ramp from a one-guess solve to a failure.
-//
-// The swatches carry no labels: the row is bookended by "1" and "X", and
-// numbering every square as well just reads as "1 1 2 3 4 5 6 X X".
-func legendCells() []scoreCell {
-	cells := make([]scoreCell, 0, 7)
-	for i := 1; i <= int(worstScore); i++ {
-		cells = append(cells, scoreCell{Played: true, Solved: i < int(worstScore), Tone: i})
+// gridLegend is one tile in the legend and what it stands for. Tone 0 with
+// no label is a day not played.
+type gridLegend struct {
+	Label string
+	Tone  int
+	Text  string
+}
+
+// gridLegendFor names the tiles a reader has to tell apart: the strong end
+// of the ramp, the middle, the weak end, a miss and a day not played.
+func gridLegendFor(t translator) []gridLegend {
+	return []gridLegend{
+		{Label: "2", Tone: 2, Text: t.T("grid.legend.oneTwo")},
+		{Label: "4", Tone: 4, Text: t.T("grid.legend.four")},
+		{Label: "6", Tone: 6, Text: t.T("grid.legend.six")},
+		{Label: "X", Tone: int(worstScore), Text: t.T("grid.legend.failed")},
+		{Text: t.T("grid.legend.notPlayed")},
+		{Label: "4*", Tone: 4, Text: t.T("grid.legend.hard")},
 	}
-	return cells
 }
 
 // shortName abbreviates a column heading, since a grid column is barely

@@ -77,3 +77,16 @@ func stamp(t *testing.T, v, c string) {
 	t.Cleanup(func() { Version, Commit = prevV, prevC })
 	Version, Commit = v, c
 }
+
+func TestShortIsTheCommitWhenThereIsOne(t *testing.T) {
+	t.Parallel()
+
+	stamp(t, "testing", "7b50be9c1d2e3f4")
+	if got := Short(); got != "7b50be9" {
+		t.Errorf("Short() = %q, want the short commit", got)
+	}
+	stamp(t, "dev", "")
+	if got := Short(); got != "dev" {
+		t.Errorf("Short() = %q unstamped, want the version", got)
+	}
+}

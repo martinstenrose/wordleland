@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -12,19 +13,6 @@ import (
 
 // themeCookie remembers a light/dark/system choice.
 const themeCookie = "wordleland_theme"
-
-// sidebarCookie remembers whether the rail is collapsed to its icons.
-const sidebarCookie = "wordleland_sidebar"
-
-// The two rail widths. Both are stored explicitly, for the reason the theme
-// settings are: so that the attribute on <html> always names which one is in
-// force rather than leaving the stylesheet to infer it from an absence.
-const (
-	sidebarWide   = "wide"
-	sidebarNarrow = "narrow"
-)
-
-func validSidebar(v string) bool { return v == sidebarWide || v == sidebarNarrow }
 
 // The three theme settings. "system" is a real stored value rather than the
 // absence of one, so that choosing it explicitly is distinguishable from
@@ -89,8 +77,8 @@ type chrome struct {
 
 	// Frame is which of the three arrangements this page is drawn in.
 	//
-	// frameApp is the application shell: the rail, the top bar, the page
-	// well. frameAuth is the sign-in family — a card centred on the canvas,
+	// frameApp is the application shell: the glass bar floating over the
+	// page, and the footer under it. frameAuth is the sign-in family — a card centred on the canvas,
 	// with the wordmark in one corner and the pickers in the other and no
 	// navigation at all, because there is nothing yet to navigate. frameBare
 	// is an error page: chrome for a stranger, where a full navigation
@@ -98,23 +86,24 @@ type chrome struct {
 	// the rest of the application to somebody who has not got it.
 	Frame string
 
-	// Sidebar is "wide" or "narrow" and lands on <html> beside the theme,
-	// which is what the stylesheet keys the rail's width off.
-	Sidebar string
-
-	// SidebarToggle is the collapse/expand control: a link back to this URL
-	// with the other width, exactly as the two switchers are. Following it
-	// works with no script at all.
-	SidebarToggle chromeOpt
-
-	// ThemeNext is the theme the single-button control moves to, for a bar
-	// too narrow to carry all three.
-	ThemeNext chromeOpt
-
-	// Subtitle sits under the wordmark where the page has something to put
-	// there — the design's "N days". Blank elsewhere rather than costing a
-	// query on every page that has no board data to hand.
+	// Subtitle is the design's "N days": how long the group has been at it,
+	// said beside the wordmark in the footer and in the account menu.
 	Subtitle string
+
+	// Page names a page in the shell that is not one of the views —
+	// Settings, Search, Privacy — for the phone's bar, which shows where you
+	// are rather than every page at once. Set by that page's handler; a view
+	// or an admin screen needs nothing, since Nav and AdminTab already say.
+	Page chromeOpt
+
+	// Tiles is the field of score tiles behind the sign-in card: one tone
+	// per tile, 2–6 as the score ramp draws them and 0 for an empty square.
+	// Set only in the sign-in family. See authTiles.
+	Tiles []int
+
+	// DisplayName heads the account menu: the name of the player this
+	// account is linked to, or its address where it is linked to nobody.
+	DisplayName string
 
 	// User is nil when nobody is signed in, which is also how a read-only
 	// page suppresses the account menu.
@@ -125,13 +114,13 @@ type chrome struct {
 	// ReadOnly hides everything that implies an account.
 	ReadOnly bool
 
-	// AdminTab marks which admin page is open, for the bar they share.
+	// AdminTab marks which admin page is open, for the pill row they share.
 	AdminTab string
 
-	// Section is that bar: the heading of an admin card, and the control
-	// that changes which section the card is. Empty outside the area. A
-	// page with a count worth showing overwrites its Hint or Badge — see
-	// adminSwitcher.
+	// Section is that row, with the head it sits under: the section's name
+	// and the pill for every other one. Empty outside the area. A page with
+	// counts worth saying overwrites its Hint; the Pending pill's count is
+	// set for every screen by adminChrome.
 	Section switcher
 
 	// AdminWarning is a problem worth an admin's attention, raised on the way
@@ -152,6 +141,10 @@ type chrome struct {
 	// error page has none, and only the share view's readOnly is paired
 	// with one.
 	SearchPath string
+
+	// PendingCount is how many senders wait in Pending results, counted for
+	// an admin only; 0 for everyone else.
+	PendingCount int
 }
 
 // SignedIn reports whether the account menu should render.
@@ -160,33 +153,41 @@ func (c chrome) SignedIn() bool { return c.User != nil && !c.ReadOnly }
 // IsAdmin reports whether the admin entries belong in the account menu.
 func (c chrome) IsAdmin() bool { return c.SignedIn() && c.User.IsAdmin }
 
-// SidebarRows is the rail's contents: the views, then the admin area for an
-// admin. One row for the area rather than five: which screen inside it you
-// are on is the strip at the top of that screen's job, and the rail is for
-// where in the application you are.
-//
-// Built here rather than in newChrome because it depends on the session,
-// which newChrome resolves after it builds Nav.
-func (c chrome) SidebarRows() []chromeOpt {
-	rows := make([]chromeOpt, 0, len(c.Nav)+1)
-	rows = append(rows, c.Nav...)
-	if c.IsAdmin() {
-		rows = append(rows, chromeOpt{
-			Code:  "admin",
-			Label: c.T.T("nav.admin"),
-			Href:  "/admin/settings",
-			On:    c.AdminTab != "",
-		})
+// AdminHref is where the account menu's Admin area row goes on a wide
+// window: straight to Pending while senders wait there, to Settings
+// otherwise. A phone goes to the list of sections at /admin instead.
+func (c chrome) AdminHref() string {
+	if c.PendingCount > 0 {
+		return "/admin/pending"
 	}
-	return rows
+	return "/admin/settings"
 }
 
-// AdminTabs feeds the section bar shared by every admin screen. The five
+// Here is the page the phone's bar names: its capsule holds where you are
+// and opens the rest, where a desktop's shows every view at once. A view, the
+// admin area, or the page a handler named in Page; the wordmark itself where
+// none of them applies, which is an error page or the share view's search.
+func (c chrome) Here() chromeOpt {
+	for _, v := range c.Nav {
+		if v.On {
+			return v
+		}
+	}
+	if c.AdminTab != "" {
+		return chromeOpt{Code: "admin", Label: c.T.T("nav.admin"), Href: "/admin/settings", On: true}
+	}
+	if c.Page.Label != "" {
+		return c.Page
+	}
+	return chromeOpt{Label: c.T.T("app.name"), Href: c.TodayHref}
+}
+
+// AdminTabs feeds the pill row shared by every admin screen. The five
 // destinations are fixed, unlike Nav's — there is no admin page that can be
 // absent — so this builds them from AdminTab rather than the caller passing
 // a slice each time.
 //
-// Settings leads, and is where the rail's Admin row lands: it is the screen
+// Settings leads, and is where the account menu's Admin area row lands: it is the screen
 // that answers "what is this installation", which is the question someone
 // opening the area for the first time has.
 func (c chrome) AdminTabs() []chromeOpt {
@@ -212,7 +213,6 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 		T:         t,
 		Lang:      t.locale,
 		Theme:     s.themeFor(w, r),
-		Sidebar:   s.sidebarFor(w, r),
 		Frame:     frameApp,
 		ReadOnly:  readOnly,
 	}
@@ -248,9 +248,9 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 		})
 	}
 
-	// The wordmark's subtitle. Built here rather than by each page: five
-	// pages set it and the rest did not, so it vanished on Settings and in
-	// the admin area. The top bar owns everything the top bar shows.
+	// "N days", for the footer and the account menu. Built here rather than
+	// by each page: five pages set it and the rest did not, so it vanished on
+	// Settings and in the admin area.
 	if days, err := s.playedPuzzles(r.Context()); err != nil {
 		// Not worth failing a page over. The subtitle is decoration.
 		s.logger.Error("count played puzzles", "error", err)
@@ -277,36 +277,28 @@ func (s *Server) newChrome(w http.ResponseWriter, r *http.Request, prefix, view 
 	c.ThemeLabel = t.T("theme.label") + ": " + t.T("theme."+c.Theme)
 	c.LangLabel = t.T("lang.label") + ": " + s.catalogues[c.Lang]["locale.name"]
 
-	// A bar too narrow for three theme buttons gets one that moves to the
-	// next setting, in the order the three are offered in.
-	order := []string{themeLight, themeSystem, themeDark}
-	for i, theme := range order {
-		if theme != c.Theme {
-			continue
-		}
-		next := order[(i+1)%len(order)]
-		c.ThemeNext = chromeOpt{
-			Code:  next,
-			Label: t.T("theme.cycle", t.T("theme."+c.Theme), t.T("theme."+next)),
-			Href:  urlWith(r, "theme", next),
-		}
-		break
-	}
-
-	// Collapsing the rail is a per-device preference like the theme, and it
-	// travels the same way: a link back to this URL with the other width,
-	// remembered in a cookie. Nothing decides the width but this handler,
-	// so a page reached with or without script shows the same rail.
-	toggle := chromeOpt{Code: sidebarNarrow, Label: t.T("nav.collapse")}
-	if c.Sidebar == sidebarNarrow {
-		toggle = chromeOpt{Code: sidebarWide, Label: t.T("nav.expand")}
-	}
-	toggle.Href = urlWith(r, "sidebar", toggle.Code)
-	c.SidebarToggle = toggle
-
 	if user, ok := authenticated(r); ok && !readOnly {
 		c.User = &user
 		c.Initials = initialsFor(user.Email)
+		// Senders waiting to be claimed, for an admin: a count on the
+		// avatar from anywhere, since a result held for want of a click is
+		// a result missing from the board. One aggregate query.
+		if user.IsAdmin {
+			if senders, err := store.ListPendingSenders(r.Context(), s.db); err == nil {
+				c.PendingCount = len(senders)
+			} else {
+				s.logger.Error("count pending senders", "error", err)
+			}
+		}
+		c.DisplayName = user.Email
+		// The player this account plays as, where there is one: the account
+		// menu is headed by who you are, and an address is only that where
+		// there is nothing better. Not worth failing a page over either way.
+		if p, err := store.PlayerByUserID(r.Context(), s.db, user.ID); err == nil {
+			c.DisplayName = p.Name
+		} else if !errors.Is(err, store.ErrPlayerNotFound) {
+			s.logger.Error("find the player linked to the account", "error", err)
+		}
 	}
 
 	// See the field comment: a real session, or a real share prefix, gets
@@ -369,29 +361,6 @@ func (s *Server) themeFor(w http.ResponseWriter, r *http.Request) string {
 	return themeSystem
 }
 
-// sidebarFor resolves the rail's width exactly as themeFor resolves the
-// theme, and for the same reason: it is a property of the device in front of
-// the reader rather than of the account, so it lives in a cookie and the
-// control that sets it is an ordinary link.
-func (s *Server) sidebarFor(w http.ResponseWriter, r *http.Request) string {
-	if requested := r.URL.Query().Get("sidebar"); validSidebar(requested) {
-		http.SetCookie(w, &http.Cookie{
-			Name:     sidebarCookie,
-			Value:    requested,
-			Path:     "/",
-			HttpOnly: true,
-			Secure:   s.secureCookies,
-			SameSite: http.SameSiteLaxMode,
-			MaxAge:   365 * 24 * 60 * 60,
-		})
-		return requested
-	}
-	if c, err := r.Cookie(sidebarCookie); err == nil && validSidebar(c.Value) {
-		return c.Value
-	}
-	return sidebarWide
-}
-
 // urlWith returns the current URL with one query parameter set.
 //
 // The rest of the query is carried through, so switching language on a
@@ -446,13 +415,12 @@ func initialsFor(email string) string {
 func (s *Server) signedOutChrome(w http.ResponseWriter, r *http.Request, token string) chrome {
 	c := s.newChrome(w, r, "", "", false)
 	c.CSRFToken = token
-	// Its own frame rather than the application shell. A rail emptied down
+	// Its own frame rather than the application shell. A bar emptied down
 	// to the wordmark is a navigation with nothing in it, which reads as an
 	// app that has lost its menu rather than as a door: the design puts the
-	// wordmark in one corner, the two pickers in the other, and the card in
-	// the middle of the canvas. Nav is cleared all the same: every view needs
-	// a session, so offering one here would be offering a round trip back to
-	// this page.
+	// card on a field of tiles with no bar at all, and the language in the
+	// footer. Nav is cleared all the same: every view needs a session, so
+	// offering one here would be offering a round trip back to this page.
 	//
 	// The subtitle stays. It used to go, on the reasoning that how much
 	// history exists is not for a visitor who has not signed in — but the
@@ -460,6 +428,7 @@ func (s *Server) signedOutChrome(w http.ResponseWriter, r *http.Request, token s
 	// which settles that question in the other direction, and on a phone,
 	// where that panel does not fit, this is the only place it is said.
 	c.Frame = frameAuth
+	c.Tiles = authTiles
 	c.Nav = nil
 	// The account menu has nothing to show yet, and on the two-factor step
 	// there is a session that is deliberately not yet an identity.
@@ -471,6 +440,35 @@ func (s *Server) signedOutChrome(w http.ResponseWriter, r *http.Request, token s
 	c.SearchPath = ""
 	return c
 }
+
+// authTiles is the field behind the sign-in card: enough tiles to cover a
+// wide window at the size app.css draws them, in the proportions a group's
+// scores actually fall in — mostly 4s and 3s, a few 5s, the odd 2 and 6, and
+// the odd day nobody played. Fixed rather than random, so the door looks the
+// same every time and a page is the same bytes on every request; the order
+// comes from a small linear congruential sequence so nobody had to type out
+// four hundred numbers.
+var authTiles = func() []int {
+	out := make([]int, 22*18)
+	x := uint32(1925)
+	for i := range out {
+		x = x*1664525 + 1013904223
+		r := float64(x>>8) / (1 << 24)
+		switch {
+		case r < .05:
+			out[i] = 2
+		case r < .25:
+			out[i] = 3
+		case r < .6:
+			out[i] = 4
+		case r < .82:
+			out[i] = 5
+		case r < .93:
+			out[i] = 6
+		}
+	}
+	return out
+}()
 
 // The views the nav offers.
 const (
@@ -513,6 +511,27 @@ func (s *Server) adminChrome(w http.ResponseWriter, r *http.Request, tab string)
 	c := s.newChrome(w, r, "", "", false)
 	c.AdminTab = tab
 	c.Section = c.adminSwitcher()
+
+	// Senders waiting to be claimed, counted on the Pending pill from every
+	// admin screen: a count only the pending screen shows is a count you
+	// have to go there to see. One aggregate query, and not worth failing a
+	// page over.
+	if s.bridge != nil {
+		if alive, _ := s.bridge.Alive(); alive && s.bridge.Status().Connected {
+			for i := range c.Section.Items {
+				if c.Section.Items[i].Href == "/admin/diagnostics" {
+					c.Section.Items[i].Mark = c.T.T("diag.bridgeConnected")
+				}
+			}
+		}
+	}
+	if c.PendingCount > 0 {
+		for i := range c.Section.Items {
+			if c.Section.Items[i].Href == "/admin/pending" {
+				c.Section.Items[i].Badge = c.T.Integer(c.PendingCount)
+			}
+		}
+	}
 
 	// Losing the container-level "unhealthy" signal when the services merged
 	// traded a warning that came to you for a page you have to open. This

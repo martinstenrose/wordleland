@@ -24,6 +24,9 @@ that must work. The space *after* the word `Wordle` is always U+0020.
 10,000 and 2,000 times, from dark and light theme; high-contrast mode
 substitutes different colours again. Only the header line is matched, and
 every grid line simply fails to match. Do not write emoji-aware logic.
+*Reversed for the grid's own rows by* The squares under a result are kept,
+*below: the score still comes from the header alone, and the squares are
+read after it, in any theme's colours, and dropped when they disagree.*
 
 **Hard mode is about half of all results, and it splits by player rather than
 spreading across the group.** A third of the roster plays it almost
@@ -295,6 +298,26 @@ compute, with the added failure mode of being wrong.
 results do not: they are historical and say nothing about the present. Nor
 does backfill, whose input declares membership explicitly.
 
+**The squares under a result are kept, as letters, and only when they agree
+with the score.** Since migration 0016 a result carries its grid —
+`results.grid`, and `pending_results.grid` for a sender still to be claimed
+— so Today and the Puzzle page can draw who got there how. The parser still
+takes the score from the header alone; it then reads the run of square rows
+under it into `g`, `y` and `n` per letter (`nynnn/ggggg` is a 2), whatever
+the sharer's theme drew them in: ⬛ or ⬜, and 🟧/🟦 in high contrast. A grid
+that disagrees with its header — the wrong number of rows, a solve that does
+not end green, a miss that does — is dropped and the result filed without it,
+because a cropped or edited paste is no reason to lose a score. The API
+takes the same letters as an optional `grid` and refuses one that
+disagrees, since there a caller could send one.
+
+A later write replaces the grid when it brings one. When it does not — a
+correction by hand, a score through the API — the stored grid is kept only
+if the score is unchanged: squares drawn for a 4 must not sit beside the 3 a
+correction made of it. Nothing is backfilled: the chat history is not
+re-read, so the board has grids from the day this shipped, and the pages say
+so ("Grids recorded since #N") rather than showing earlier days as bare.
+
 ## Authentication
 
 **Hand-rolled, and it stays that way.** No self-registration, no OAuth. Every
@@ -341,6 +364,12 @@ until the new one is confirmed, which is what the pending-secret design was
 already for, and promotion then discards the recovery codes along with the
 secret they were minted against — so the flow ends where a first enrolment
 ends, handing over a new set.
+
+*Since the design's fifth pass the setup is drawn inline, in the Two-step
+card of the settings page itself (`/settings?setup=totp`), with or without a
+script; the dialog, and this use of `?partial=1`, are gone. See* Settings
+and the admin area, fifth and sixth passes. *What follows is the earlier
+shape.*
 
 Setting a key up is a step in what somebody is already doing on the settings
 screen, not a place to go, so with a script it opens over that screen and the
@@ -496,101 +525,175 @@ each one.
 What follows from that: a value in the token block that looks arbitrary
 probably is not ours to re-pick on its own, and a change to the look is worth
 making there first. What does *not* follow is that the design is authoritative
-over this repository's constraints — three things were deliberately not taken
-from it:
+over this repository's constraints — four things were deliberately taken
+differently:
 
-- **Its icon font.** The design pulls Material Symbols from Google Fonts. Icons
-  here stay inline SVG: a page that reaches a third party to finish rendering
-  is a page this app does not control, and one more party watching whoever
-  reads the board. Manrope is self-hosted for the same reason.
-- **Its shell.** The prototype is React, and its rail, drawer, theme picker and
-  collapse state are component state. Here the rail is server-rendered, the
-  drawer is a `<details>`, the theme is three links, and the collapsed width is
-  a cookie set by following a link — the same mechanism the theme has used all
-  along.
+- **Its icon font.** The design pulls Material Symbols Outlined from Google
+  Fonts. The glyphs are the same here, drawn from their path data as inline
+  SVG by a template function (`symbols.go`): a page that reaches a third party
+  to finish rendering is a page this app does not control, and one more party
+  watching whoever reads the board. It also costs a page only the glyphs it
+  draws, where the font is megabytes for the few dozen used. A glyph with a
+  filled form carries both paths, and the stylesheet fills whichever is
+  current. The licence, Apache 2.0, travels beside the static files.
+- **Its fonts.** The body face is the Apple system font, SF Pro, named in the
+  stack and never served — Apple licenses it only as the system font — with
+  Inter self-hosted as the fallback everywhere else, as the closest match to
+  it. Manrope, the design system's own face, went with the glass redesign.
+  An Apple device never asks for the Inter file.
+- **Its shell.** The prototype is React, and its menus and pages are
+  component state. Here every menu is a `<details>`, every choice in one is a
+  link, and the theme is three links. See *The navigation floats*, below.
+- **The inks on its score ramp.** The ramp itself is the design's: the accent
+  at full strength for a 2 and at 78, 52, 30 and 14 percent for a 3 to a 6,
+  mixed in sRGB into the raised surface (in OKLCH the middle of the ramp
+  walks through yellow and comes out olive). A 1 is drawn as a 2; there is
+  no stronger green to give it. The design puts the accent's white ink on
+  every tile to 52%; measured on the light canvas that is 3.2:1 at 78% and
+  2.2:1 at 52%, so the pale half takes the text colour instead — from 78%
+  in light mode and from 52% in dark, where the accent is bright. The full
+  tile carries white at 4.3:1 in light mode, a shade under 4.5; the digit
+  is bold, and the design's green was kept rather than darkened.
 
-  Collapsing the rail was the first place script was worth adding on top, and
-  it set the pattern the rest followed — see *Switching pages in place*,
-  below. It is added the way this repository allows: the link is the whole
-  feature and
-  still works on its own, and `app.js` only saves the round trip, flipping the
-  width attribute on `<html>` and telling the server in the background. It
-  renders nothing — the wording, the arrow and the accessible name all follow
-  that one attribute through CSS, so there is no second copy of any of them to
-  keep in step. With the script absent, disabled or failing to load, pressing
-  the control navigates, exactly as before.
+**What the menus do not do.** Each opens and closes with no script, and the
+browser keeps one open at a time. A press outside one closes it and so does
+Esc, but both are `app.js`'s; without it a menu stays open until its own
+control is pressed again, and focus is free to leave it. None of them is
+marked up as a modal dialog, because none of them is one.
 
-  The shape of that shell is the design's: a bar across the whole width
-  carrying the wordmark and the controls, and beneath it the rail on the
-  surface beside the page, the page itself in a well cut out of that surface
-  with its top-left corner turned. The bar spans the rail rather than sitting
-  beside it, which is what keeps the wordmark in one place at every width and
-  leaves the rail as navigation and nothing else.
-- **Its dark score ramp**, which it does not have. The design draws the
-  guess-count ramp light-first, and its pale end would glare on the dark
-  canvas; the dark ramp is derived here. Both ends are also pulled slightly
-  further apart than the design draws them, so that the digit each tile carries
-  clears 4.5:1 — the design's own tier-2 green put white text at about 3.2:1,
-  and at 11px that digit is the content rather than decoration.
+## The navigation floats
 
-**What the drawer does not do.** It opens and closes with no script, and when
-it is open its summary becomes the dim behind the panel, so clicking away is
-clicking the control again. Esc does not close it, and focus is free to leave
-it for the page behind — a `<details>` gives neither, and nothing
-server-rendered can add them. It is therefore marked up as the disclosure it
-is and not as a modal dialog. None of that is verifiable here: this project has
-no headless browser, and adding one is a dependency that needs its own
-argument, so the drawer's behaviour is checked by looking at it.
+The redesign that took the rail out is Apple's Human Interface Guidelines
+with a light layer of Liquid Glass: calm, content-first pages, and the
+navigation floating over them as frosted glass. It was drawn in the design
+project as four sets of mockups — desktop, phone, sign-in, and the pill row —
+and built from them here.
 
-## A card's heading is the control that changes it
+- **No rail.** On a wide window the bar is a capsule holding the mark, which
+  is the way back to Today, and every view; a search field with its ⌘K; and
+  the account. On a phone the capsule shows the page you are on and opens
+  the rest, and beside it are two round buttons and nothing else. The admin
+  area is not a view: it is one row in the account menu, for the reader who
+  has it. The rail's collapse control, its cookie and its `?sidebar=` went
+  with it; an old link carrying the parameter is only a link with a
+  parameter nobody reads.
+- **Glass on what floats, and nothing else.** The bar's pieces, their menus,
+  and the figures' half of the sign-in card are glass; every card of content
+  is the solid surface. The frosting is painted by each piece's `::before`
+  rather than by the piece: a `backdrop-filter` makes its element the box
+  fixed descendants are placed in, and About is a fixed panel opened from
+  inside the account menu.
+- **Nothing is named for the view transition.** An element with a
+  `view-transition-name` is a backdrop root — the edge of what a
+  `backdrop-filter` inside it can see — so a named bar frosted only its own
+  empty box, and the page showed through it sharp. Naming the content alone
+  is no better: its picture is drawn over the window's, and a scrolled page
+  would lay its rows across the bar for the length of the fade. So the
+  whole window cross-fades. The bar is the same pixels on both sides of a
+  swap, and the browser's blend of two identical pictures is the picture:
+  it holds still anyway. `TestBrowserTheBarIsGlassAndNothingIsNamed` pins
+  the two together, because a tidy-up that names the bar again passes every
+  test that reads the stylesheet.
+- **The page scrolls under the bar.** There is no strip reserved for it; the
+  page's first card is padded clear of it. The viewport is `cover`, the page
+  runs under the notch and the home indicator, and what must not sit under
+  either keeps clear with `env(safe-area-inset-*)`. Nothing is fixed to the
+  bottom of a phone, where Safari keeps its address bar. That held against
+  the fifth pass too, whose toast floats 92px above the foot of a phone: on
+  a phone it hangs under the bar instead. The browser's toolbar wins for
+  this app; a native one might decide differently.
+- **The account menu** is headed by the linked player's name, or the address
+  where there is none, and "Wordleland · N days"; then the theme as a
+  segmented control, the language as a row that opens its list in place,
+  About, Settings, the admin area and sign out. Settings is not in the
+  mockup, whose menu has no way to the account's own settings; it was kept
+  rather than lose the page. A reader with no account — a share link, or a
+  stranger on the privacy page — has a guest seat in the same place, whose
+  menu says they are viewing as a guest, then the theme, the language and
+  About, and ends in the sign-in button. The sign-in button, the theme track
+  and the language pill that stood in the bar are gone from it.
+- **Every page ends in a footer**: the mark, "Wordleland · N days", Privacy,
+  About and GitHub. An error page drops the count — how much history exists is
+  not for a stranger who typed a wrong address.
+- **The sign-in family has no bar.** Its card sits over a tilted field of
+  score tiles fading into the canvas, with the language, Privacy and GitHub
+  in its footer. The theme is whatever the device has, or whatever was
+  chosen inside; there is no control for it at the door. Sign-in itself is
+  one card, glass so the tiles show through, with the form on a solid half
+  and the group's figures on the other — now including its guess
+  distribution, an aggregate like every other figure there. On a phone it is
+  the form alone.
+- **Transitions are quiet.** 0.2s for a pill lighting or a chevron turning,
+  the page's 0.16s cross-fade, and nothing that springs.
 
-Two places used a strip of tabs above a title: the five admin screens, and
-the roster of everybody on the board above a player's page. Both said the
-same word twice — highlighted in the strip, then as the heading underneath —
-and in both the strip was the half that did not fit. Five admin sections
-wrapped to a second row on a phone; fourteen names scrolled sideways. A
-heading is one line at every width whatever is behind it.
+Five things are drawn differently from the mockups, each for a reason
+measured or stated:
 
-So the heading became the control, and the title that repeated the
-highlighted tab is gone because the heading now carries it. `pill-nav` keeps
-the callers where the row genuinely fits — the activity filters, the grid's
-time spans — and lost the two where it never would.
+- ~~**No eyebrow over a pill row's title.**~~ Reversed by *Every page is a
+  head over cards*, below: every page carries an eyebrow now, so the title
+  stands at one height everywhere again.
+- **The phone's Today has no letter tiles.** The phone mockup spells the
+  day's winner in tiles over the headline. The headline is not always one
+  name — a shared day, nobody yet — and the hero tiles went once already
+  (see *Today is the day's result*).
+- **The phone's form list keeps its ranks in parentheses** rather than an
+  arrow for how far the form rank sits from the overall one: an arrow reads
+  as movement since yesterday, which it is not.
+- **Column widths are the measured ones.** The form list's two figures are
+  72px, not the mockup's 60 and 64: "Snitt 30 d", "Mot snitt" and
+  "Media 30 g" clip below that. The page is 1160px of content — the
+  design's width, since the sweep before merging; it was 1080 — 40px in
+  from the window at a desktop width, and the two lists stand side by side
+  from a 1160px window, as before.
+- **The stat labels on a player's phone head wrap** rather than clipping,
+  and the streak takes the board's own label, "Streak".
 
-One partial draws both cases. They are the same control, differing only in
-what each row carries (a section has an icon and sometimes a count; a player
-has a rank and an average) and in what sits beside the heading (a glyph, or
-initials); two partials would be two things to keep in step. Each is built
-from the list that already existed — `AdminTabs`, and the board — so there is
-still one place that knows what the admin area contains and one that knows
-who plays.
+## Siblings are a row of pills
 
-The heading starts where every other page's heading starts, and that is the
-point of the shape rather than a detail of it. A card whose title is a menu
-had carried a glyph in front of it — a section icon, a player's initials — and
-that pushed the heading 45px past where a card-head puts one, so moving
-between the Leaderboard and Players moved the title. One heading treatment and
-one box around it settles that; the icons stay in the list, where they are
-scanned rather than decorative, and the line under the heading takes the same
-`kicker` treatment every other subtitle has.
+*The admin screens left this pattern in the design's fifth pass: a
+segmented bar of tabs on a wide window, and on a phone a list of the
+sections at `/admin`. The roster still works as below.*
 
-Today is the exception and is meant to be. Every other title answers "where am
-I"; the front page's job is to say what happened today, so the date is its
-kicker and the day's result is its heading, set larger than a page name
-because it is not one. Naming it "Today" above them was tried and taken out
-again: it is a title telling a reader something the rail has already
-highlighted.
+Two places have siblings: the five admin screens, and the roster of
+everybody on the board above a player's page. They were a strip of tabs above
+a title first, and the strip wrapped to a second row on a phone and scrolled
+sideways for fourteen names. Then the title became the control: a heading
+that opened a menu of the rest. That fitted at every width and hid what
+could just be shown — a list you have to open is a list you have to
+remember is there.
 
-The arrows beside the heading are the other half: the section or the player
-next door is one press away without opening the list to find it. They wrap at
-both ends, so neither is ever a disabled control — the ends of five sections
-or fourteen names are not a boundary anybody is trying to respect.
+So they are a row of pills: every sibling always in view, one press to any
+of them. A pill can lead with a rank or a glyph and end with a score tile or
+a count. On a wide window the row runs along the foot of a header card, with
+step arrows beside it that wrap at both ends, so neither is ever a disabled
+control; on a phone the head is a large title on the canvas, and the row
+runs to the window's edges and swipes, with a fade at the right to say
+there is more. `app.js` scrolls the row so the current pill is in view when
+the page arrives — with `scrollTo` on the row, because `scrollIntoView` on
+the pill would scroll the page as well. Without it the row starts at its
+left end, and every pill is still a link.
+
+One partial draws both cases (`switcher`). A section's pill carries its
+glyph and, on Pending, how many senders are waiting — counted on every admin
+screen, since a count only the pending screen shows is a count you have to go
+there to see. A player's pill carries their place on the board and their
+latest result from the last five days: today's once it is in and the one
+before it until then, so the row is not blank every morning, and nothing
+for a player gone longer, whose tile from last month would read as recent.
+Each is built from the list that already existed — `AdminTabs`, and the
+board — so there is one place that knows what the admin area contains and
+one that knows who plays.
+
+The title starts where every other page's title starts — in the page head,
+on the canvas, above the pill row's own card (see *Every page is a head over
+cards*). The glyph a heading once carried in front of it, which pushed it
+45px in, stays gone.
 
 The players view opens on whoever leads the board. It used to open on an empty
 page asking which player to show — the honest answer, at the time, to a view
 with no subject — and in use the question had one answer nearly every time and
-cost a tap to give it. The roster is one press away in the bar either way, and
-the bar now names the player it is showing rather than looking like a control
-nobody has used yet.
+cost a tap to give it. The whole roster is one press away in the row either
+way.
 
 A player's page lives at `/players/{slug}`, not at `/p/{slug}`. The short path
 was the only single-letter segment in the application and the only place the
@@ -601,16 +704,37 @@ with a permanent redirect, under the share prefix as well as without it,
 because player links get pasted into the group chat and a link somebody
 already holds should not die for a rename.
 
-The roster is the case the design set out as the harder one, and the reason
-its rows carry figures at all: fourteen bare names in an arbitrary order is a
-list you have to read, and the same names in the board's order with its
-figures beside them is the leaderboard in miniature, which you can aim at
-before reading. Both figures are withheld below the ranking threshold, as
-they are everywhere else — this menu would otherwise be the one place an
-average over three puzzles slipped out, and the place nobody would think to
-look.
+The roster is the harder case, and the reason its pills carry figures at all:
+fourteen bare names in an arbitrary order is a row you have to read, and the
+same names in the board's order with each place beside them is the
+leaderboard in miniature, which you can aim at before reading. The rank is
+withheld below the ranking threshold, as it is everywhere else — this row
+would otherwise be the one place a place earned over three puzzles slipped
+out, and the place nobody would think to look.
 
 ## Today is the day's result, then what it means
+
+*Since the glass redesign the blocks below are cards of their own on the
+canvas — the day, four callouts each led by a glyph, and the two lists side
+by side at the design's 5:7 — and on a phone the page opens on a large title,
+"Today", over the day's card. That reverses the call recorded under "What
+went" that the page should not name itself: the rail it would have repeated
+is gone, and at a phone's width a page that opens on a sentence reads as a
+page scrolled halfway down. It is presentation only — the headline is still
+the page's `<h1>` — and a wide window still leads with the day.*
+
+*The second pass moved the page's name into the page head (see *Every page
+is a head over cards*), so "Today" is the `<h1>` at every width and the
+day's result is the card's `<h2>`. Before the day's first score (the
+design's 2f) the day's card, the spread and the results list give way to one
+empty card saying nobody has played yet; the form list stays, since it is
+about the last thirty days, and so do the callouts. The still-to-submit
+names open from the progress count under the headline, and the list grows
+the card downward so the headline does not move.*
+
+*The players view with nobody on the board is the same empty card, with no
+pills. It used to redirect to the board path it was handed, which was its
+own address, and looped until the browser gave up.*
 
 The front page opened on a headline, a row of tiles for whoever had won, and
 a wrapping strip of name-and-score pairs. The strip said who had played and
@@ -684,6 +808,303 @@ share, because below that the name had nothing left. Both are measured in
 the browser suite, since nothing that reads the markup can see a name cut
 to one letter.
 
+## Every page is a head over cards
+
+The design's second pass redrew every page on one pattern, and this is it.
+A page opens on a **page head on the canvas** — an eyebrow, the page's name
+as the `<h1>`, a line under it — with the page's tools or a player's figures
+opposite; everything below is **cards**: the pill row, the day, each
+callout, each list. The board was the one exception while it was reworked
+on its own, which the third pass did. The eyebrow carries what used to be a subtitle under the title —
+the puzzle and the date, a player's place and last game, the year on
+Months, the window on the grid — so the title stands at one height on every
+page, which is what the rule against an eyebrow on some pages and not
+others was protecting.
+
+A page with **nothing in it yet** is one card saying so — a glyph, what is
+missing, what will fill it, a row of empty tiles — in place of everything
+the page would draw, rather than each card drawn empty. Today keeps its
+form list under it, which has something to say.
+
+**About** is a dialog, opened from the account menu, the guest's, and the
+footer — the same `<details>` in three places, grouped so one is open at a
+time. On a phone it is a sheet from the bottom with a grabber. Its close
+button needs `app.js` and is hidden without it; the summary closes it
+either way. Its body says what the app does, three facts (it reads the
+group chat; the score is the average with a miss as 7; hard mode is marked)
+and links to Privacy and the source.
+
+**Today** adds a spread — a bar per guess count, today, in the tiles'
+colours, and the group's average against its usual over the previous 90
+puzzles — and a strip for the month's race: who leads, by how much, the top
+three and the way to Months. On a phone the two lists are two tabs over one
+place, a segmented control made of two radio buttons and a stylesheet rule,
+so they switch with no script. A live redraw lands on the results tab.
+
+**Months** opens on the month in a card of its own: who won or leads, by how
+much, and the days left; then **who led each day** as a strip of tiles, one
+colour per leader, from a new `stats.DayLeaders` that scores the month day by
+day with the same rule as the table. The strip is not a set of links: a
+tile's title names the day and the leader, and a day is not a page. The
+table drops the columns the design drops — best run, 3-or-better, the bar
+and the best month — and keeps average, behind, played and misses; the
+season under it is a grid of tiles, a trophy for a month won, a lighter
+tile for a podium. The rule line under the title says a missed day counts
+as 7 only when the board is set to count it that way.
+
+**The grid's columns are the standings** for the window it shows, each
+heading carrying the player's average. It was name order, with the standings
+in a rail beside it, so a column stayed put when the range changed; the
+design folds the rail into the header, and a column now moves with the
+range. That is the design's call and the cost is written down here. The
+legend names the tones, a day not played, and the asterisk.
+
+**Privacy** is a list of five questions, each led by a glyph — what is
+stored, why, who sees it, cookies, how to leave — in one card under the
+page head.
+
+Where the build departs from the mockups, and why:
+
+- **Settings stays in the account menu**, as before.
+- **About counts days, not players.** The mockup's "N players · N days"
+  would tell a share-link guest how big the group is.
+- **About's facts say what the app does**, not the mockup's placeholder
+  wording where that would be inaccurate.
+- **The lead-day strip is not clickable**, above.
+- **Today keeps its overall rank in parentheses and the form note**, which
+  the mockup's rows drop; the callouts stay.
+
+## The third pass: the leaderboard, the Puzzle page, and the cards around them
+
+The design's third pass redrew the leaderboard, added a page per puzzle, and
+filled out Months and a player's page. What was decided on the way:
+
+**The leaderboard is all time by default, with a 90-day switch.** The range,
+the ranking rules and the sort are all links, so none of it needs a script.
+Each rank carries an arrow for how it moved against **the same board a week
+ago, rolling** — the history up to seven puzzles back, over the same range
+ending then — rather than since the month began, which would reset on the
+first and read as nothing for a week. Each name carries **the gap to the
+player above**, measured on the averages as printed, so the line never
+disagrees with the two figures beside it; the leader's says by how much it
+leads.
+
+**The board's streak is days played, a failure included.** It was days
+solved, which a failure broke. The design's note says what the column means
+— "days in a row with a result — a fail still counts" — and a board about
+turning up every day reads better that way; the solving kind is not lost, it
+is "Longest solve streak" in a player's Records beside "Longest play
+streak". Both are computed from the unfiltered history, as streaks always
+have been, and the board shows the whole history's streak even on the
+90-day range, since a range that cut a streak short would report a streak
+nobody has.
+
+**Head to head is two presses and a query parameter.** The ⇄ on a row adds
+that player to `?cmp=`; a second makes the card, a third drops the older
+pick. The card counts the days both played in the range: who needed fewer
+guesses, a miss as 7, how many were level, and by how much the one ahead
+was ahead on average.
+
+**Two columns went with the design**: the last game, which the last five
+already show, and the games in the form window, which "Puzzles" replaced
+with the games in the range. A lapsed player's row says when they last
+played on the line under the name, where a ranked row has its gap.
+
+**One row markup, two layouts.** On a phone the design stacks a row — the
+rank over its arrow, the name over the gap over the last five, the average
+over the form — and the same markup re-flows into that with grid areas
+rather than a second copy of every row. A long name holds its line and
+shortens last; the ⇄ stays put. On a phone the head-to-head card gives each
+player a line of their own, since two long names and a score wrapped the
+score away from its name.
+
+**Every puzzle has a page, `/puzzle/{no}`.** It is not a view in the bar: it
+is reached from a day — Today's results, a date on the grid, a day on a
+player's page — and from the day either side of it. It lists everyone who
+played, best first, with the squares they posted, and says how the group did
+and how hard the day was among the last 90. A day from before grids were
+kept says so and shows the scores alone.
+
+**The grid defaults to 30 days**, as the design has it; it was 90. Pressing a
+name picks out that column and dims the rest — radio buttons and a
+stylesheet, no script: one hidden radio per column plus "none", each head a
+label for its own radio or, while picked, for "none". A stylesheet cannot
+count columns, so the rule tying each radio to its column is written per
+column by the template. `TestBrowserTheGridPicksOutAColumn` pins it, because
+the first version dimmed the picked column too — an id in the generic rule
+out-ranked the per-column ones — and nothing that reads the markup could see
+that.
+
+**A player's page** gains Records and rivals (best month, both streaks, ones
+and twos in the last year, and the two players they fare worst and best
+against over the days both played), the day of the week against the group's,
+and a heatmap of the last year — the last 26 weeks on a phone — whose days,
+like the last thirty's, open a popup with the day's puzzle a press away. The
+weekday averages are withheld below the ranking threshold like every other
+average. The streak left the head for Records, which leaves three figures.
+
+**Months** gains four awards under its headline — most improved on the month
+before, fewest fails, most ones and twos, the longest solving run — among
+the players it ranks; a title shared by more than two goes to "N players".
+The season is the selected month's year, with a switch between years that
+appears only when there is more than one.
+
+Where the build departs from the mockups:
+
+- **The Puzzle page numbers everyone who played**, as the mockup does, while
+  Today still numbers only the players the board ranks.
+- **A miss says "missed"** on the Puzzle page rather than a distance from
+  the player's average, as on Today: a miss is off the scale the average is
+  on.
+- **The leaderboard keeps its unranked players** under a divider, with the
+  reason and when they last played; the mockup shows only the ranked.
+- **The leaderboard's columns still sort** from their heads, drawn as the
+  mockup's plain labels.
+- **Ordinals** ("3rd hardest") are spelled per language in code, English and
+  Swedish only.
+
+## Settings and the admin area, fifth and sixth passes
+
+The design's fifth and sixth passes redrew a reader's Settings and the whole
+admin area, and added a toast and a fuller search. What was decided on the
+way:
+
+**The glass is the design's Frosted, not its Clear.** The bar, its menus, the
+toast, the search overlay and the sign-in card are frosted; the menu recipe
+(`--glass-menu-*`) is the stronger of the two because those pieces carry text.
+
+**Settings is three cards — profile, sign-in, two-step — and every risky act
+asks first, in place.** Generating new recovery codes, rotating the secret
+and turning two-step off each open from a danger-outlined control into a
+danger box inside the card (`?confirm=codes|rotate|totp`), which commits in
+red or cancels. Setting up or rotating is drawn in the same card
+(`?setup=totp`), so the enrolment dialog is gone; the password is still asked
+for, for the reasons under *Authentication*. Fresh codes are shown once, with
+a download that is a `data:` link — no script — and a copy button that
+needs one and is hidden where no clipboard can be written.
+
+**A toast says what just happened, and closing it is a link.** It floats in
+frosted glass over the foot of a wide window and, on a phone, under the bar:
+the foot of a phone is the browser's (see *The navigation floats*). It
+has **Undo only where the earlier state is an address**: a change to the
+leaderboard's ranking. That link carries the query it changed from
+(`?changed=hard&undo=?range=90`), and only a query string is ever followed
+from it. The admin area's toasts have none, for the reason under
+*Deliberately not built*: undoing a discard or an assignment is not a return
+to an address but a second act.
+
+**The admin area has a home, on a phone.** `/admin` is the design's list of
+the five sections, each with a line of state (who is waiting, how many can
+sign in, the last change, the bridge). On a wide window the sections are a
+segmented bar under the page head instead and `/admin` is rarely seen. The
+account menu's admin row goes to Pending while anyone waits and to Settings
+otherwise, and the avatar carries the count of senders waiting everywhere but
+Pending itself.
+
+**A player's editor holds their Signal senders and their login.** A sender
+can be unlinked; a login reset, unlinked, attached from the list of logins
+with no player, or switched off. The design's "Delete user" is **switching
+the login off and unlinking it**: the activity log refers to users by id, so
+deleting one would break the log, and switching off is what an admin means.
+It is never offered on an admin's login. An invitation still waiting can be
+resent or cancelled.
+
+**Add player** (seventh pass) opens the design's New player card in the
+editor's place: a name, an address, and any senders waiting in Pending to
+take onto the board as this player. Creating the player and claiming the
+senders is one transaction, so a claim that fails leaves no player behind.
+The design fills the address in as the name is typed; here it is left
+empty and the server makes it from the name, since filling it live would
+take a script for a convenience. A clash is refused naming who has the
+address, as the design does. The senders are checkboxes rather than the
+design's one choice: a player can post from more than one account.
+
+**Pending is a card per sender**, not a row per result: who they post as,
+their latest tile, how many more are held, a suggestion when their name
+matches a player's, and a native select — which may name **a new player**
+from the name they post as, created on assignment.
+
+**Search finds players, pages and puzzles.** A player's row leads with their
+tile today and ends in their rank and average; a page with its own glyph; a
+number, with or without `#`, finds that puzzle and says how long ago it was.
+An empty query shows the first three of each. The overlay's clear is a
+`<button type="reset">`, so it needs no script; its placeholder is the long
+one on a wide window and "Search" on a phone, picked by the script that
+opens it, since the overlay exists only with one. The bar's own label is
+unchanged.
+
+**The bot's language model is the Signal card's.** `LLM_URL` and
+`LLM_MODEL`, from the replies work on main, shape what the bridge answers,
+so the admin Settings screen groups them with `SIGNAL_*`.
+
+Where the build departs from the mockups:
+
+- **No Undo on the admin area's toasts**, above.
+- **"Delete user" switches the login off**, above.
+- **The invitation keeps its language select**: the invitation, and the
+  account it starts, are in the recipient's language, not the admin's.
+- **Rotating the secret stays danger-toned**, as the design now draws it too.
+
+## The sweep before merging
+
+The last pass rendered the design's own mockup in a browser beside the app,
+page by page at both widths, and measured the differences. What was changed,
+and what was kept on purpose:
+
+- **The page is the design's 1160px of content** with 60px margins at a
+  1280px window, not 1080 with 100: the wide tables were where the room was
+  missing. On a phone the page's 16px is the only margin; an old rule from
+  the rail's days padded `<main>` by 12px more.
+- **The leaderboard** takes the design's 34px head row, its Ranking button
+  (a bordered rectangle on the card colour, the icon green while the
+  ranking is custom), and its 82px phone row. On a phone the "Ranking:"
+  prefix goes, so the range and the button share one line in both
+  languages. The space after ▼ stays: it reads better than the design's
+  "▼0.03".
+- **Head controls stay on one line on a phone** where they can — a label
+  drops before a control wraps (Ranking:, the grid's "Inactive") — and wrap
+  rather than hide one when they cannot.
+- **Months** on a phone draws the four awards as rows of one card, as the
+  design's later pass does. The season's line under a name is two figures,
+  times in the top three and the average place; the running month's
+  "Partial month" line and "failed" (not "fails") stay.
+- **The grid** keeps its own scroll box, writes puzzles as "#1926" and days
+  as "27 Sep", and gives each column a floor so tiles never touch; past
+  that the grid scrolls sideways. Its phone layout is due a redesign.
+- **A player's** trait chip stands beside the name. The retired mark that
+  stood with it is gone from the head: two chips fought for the line, and
+  the roster and the board already say who has left. The eyebrow says when
+  they last played as the design does — today, yesterday, 27 Sep — so it
+  stays one line.
+- **An award's holders are links** to their pages; a count ("3 players")
+  links nowhere.
+- **A link that stays on the page keeps the scroll.** htmx scrolls every
+  boosted swap to the top, which is right for a step to another page and
+  wrong for a change to this one — another player in the roster, the
+  board's range, a ranking rule or a pair to compare, a month from the
+  season, the grid's window, closing a toast, a confirm in Settings. So
+  `app.js` compares the page a swap leaves with the one it lands on — the
+  same path, or the same kind of page under it (`/players/…`,
+  `/puzzle/…`, `/admin/players/…`) — and when they match, swaps with
+  `show:none`. No link says so itself, so a new control gets it for free.
+  It is still the whole body that is swapped, never a reload; the bar
+  holds still as it always has. A step to another page, a player's name in
+  the season included, starts at the top as before.
+- **An unranked player on Today** has a dash in the average column, like
+  every other figure withheld from an unranked player, and the dash opens
+  why — how many puzzles they have and where the board starts ranking. The
+  count it replaced wrapped to two lines.
+- **Focus placed after a swap shows its ring only for the keyboard.** The
+  script puts focus on the pill, tab or ranking row for the page that
+  arrived, so the next Tab moves on from there; after a pointer press it
+  does so quietly, since Safari draws the ring for any focus a script sets
+  and a clicked pill was left circled.
+- **The avatar's badge** is the design's 22px at both widths. It counts
+  senders waiting for now and is named for where it sits, not for
+  pending, since other notifications may use it.
+- **Kept as they are:** Today's green puzzle number in the eyebrow, the
+  Puzzle page's row height and its full month name.
+
 ## Switching pages in place, and what that says about the script rule
 
 AGENTS.md's rule is that script is for what cannot exist without it. This
@@ -723,7 +1144,8 @@ overlay wants a list of hits rather than a page.
 What it costs is a constraint on every enhancement written from here. An
 enhancement that delegates from the document is unaffected; one that holds on
 to a particular element is holding a node that a swap throws away. The ones
-that do — search, the raised outcome, the copy button — register with a
+that do — search, the copy buttons, and (until the fifth pass took it out) the
+raised outcome — register with a
 re-init registry that runs them again after every body swap, and so must be
 safe to run more than once.
 
@@ -763,7 +1185,9 @@ it is.
 
 What did not fit, because the shape is worth knowing where it ends:
 
-- **A dialog is not a swap target.** The enrolment dialog fetches a card
+- **A dialog is not a swap target.** *(Moot since the fifth pass: the
+  enrolment is inline on the settings page and there is no dialog.)* The
+  enrolment dialog fetches a card
   that is a template shared with a standalone page. htmx wants the dialog's
   target on a container the card lands in, and every link inside — whose
   job on the standalone page is to navigate — would then have needed
@@ -796,7 +1220,8 @@ What did not fit, because the shape is worth knowing where it ends:
 - **Forms are boosted too.** The old switcher took links only. Opting every
   form out would have been fighting the tool for a distinction a reader
   cannot see, and the no-script path is a form that posts, as before.
-- **The rail's collapse lost its instant half, and got it back.** The
+- **The rail's collapse lost its instant half, and got it back.** (The
+  rail has since gone; the theme is the one attribute still set ahead.) The
   hand-written version flipped the width on `<html>` before asking the
   server; the htmx move made it one boosted link among the rest, with the
   width arriving on the page, on the theory that on a local network that
@@ -824,6 +1249,10 @@ What did not fit, because the shape is worth knowing where it ends:
 
 ### A switch looks like one
 
+*Superseded in part by the glass redesign: nothing is named any more, and
+the whole window cross-fades — see* The navigation floats. *What follows is
+why the fade exists at all, which still holds.*
+
 Replacing the whole body was the right call, and it had a cost the first
 version did not pay for: a hard cut of everything on screen, which is what a
 reload looks like. Nothing reloaded, and it read as if it had. Every swap is
@@ -849,9 +1278,9 @@ listens for.
   pressed, and a cross-fade that pauses the page for it is motion for an
   event they did not cause. The search overlay's results: `hx-trigger` on
   the input fires on every debounced keystroke, and a document-wide
-  transition on each would freeze the page as you type. The admin
-  settings card's own swap is left transitioning; it is a content change
-  inside the content.
+  transition on each would freeze the page as you type. (The admin
+  settings card had a swap of its own, left transitioning; the fifth pass
+  made rotating the slug an ordinary post and redirect, with a toast.)
 - **`content` is named only inside the shell.** The sign-in and error
   frames render a `<main>` too, and naming it there would morph the
   page well into the sign-in card on sign-out. Those frames cross-fade
@@ -880,7 +1309,7 @@ cancels — and none is a new mechanism. What would be:
 
 - a second htmx-version-specific workaround in `app.js`;
 - an enhancement that has to re-implement something the server renders
-  (the enrolment dialog is already the one island of that);
+  (the enrolment dialog was the one island of that, and has gone);
 - state on `<html>` that is not also a cookie the server reads;
 - an htmx upgrade — 4.x is a rewrite, and the SSE extension pins this to 2.x.
 
@@ -1021,8 +1450,8 @@ one has met all three.
 
 **Tone follows the consequence, not the screen.** The same enrolment control
 is `.btn` when setting a first secret up and `.btn.secondary.danger` when
-replacing one, because only the second costs anything; the submit inside the
-dialog changes with it. A control that is green on one visit and red on the
+replacing one, because only the second costs anything; replacing now asks
+first, like the other two, and the setup it leads to commits in red. A control that is green on one visit and red on the
 next is telling the reader something true.
 
 What is deliberately outside the system: `.link` is a prose link and never
@@ -1035,7 +1464,8 @@ that menu, whatever element they are.
 The two things most likely to rot are held by tests rather than by care:
 `TestEveryControlIsOneOfTheFour` refuses a `<button>` with no control class or
 with `.link` on it, and `TestADestructiveActAsksBeforeItActs` pins the
-open-then-commit pair on both of the acts that have one.
+open-then-commit pair on the acts that have one. The search overlay's clear
+and esc/Cancel are the design's own and outside the four, like About's close.
 
 ## Deliberately not built
 
@@ -1054,10 +1484,14 @@ open-then-commit pair on both of the acts that have one.
 - **Undo on the pending-results screen.** Undoing a discard is impossible once
   the rows are deleted, and undoing an assignment means un-replaying scores
   already on the board.
-- **Admin UI for users, tokens, result corrections and the share slug.** The
-  CLI remains the fallback and the bootstrap path regardless — it is the only
-  thing that works before a user exists.
-- **Activity detail beyond what a row shows** — no filtering by player.
+- **Admin UI for tokens and result corrections.** The share slug has had its
+  rotation on the admin Settings screen for a while, and since the fifth pass
+  a player's editor resets, unlinks, attaches and switches off their login.
+  Creating a user outright is still the CLI's, which remains the fallback and
+  the bootstrap path regardless — it is the only thing that works before a
+  user exists.
+- **Filtering the activity log by player.** It filters by kind, and a row
+  opens to what was recorded.
 - **Groups**, letting one player appear in several. Nothing in the schema
   assumes a single group, so it is purely additive.
 - **Passkeys.** `users.handle` exists from the start specifically so this can
@@ -2040,18 +2474,20 @@ reads, with what it came to — values in force rather than what was typed, so
 a default that is doing the work says so. It changes none of them, and it
 never will: these are read where the process is started, and a screen that
 let an admin type over one would be writing somewhere the next restart does
-not read. A lock icon trails each row rather than heading the table, because
-a row read on its own has to say so too.
+not read. *Since the fifth pass the rows are in the design's four cards —
+the app, Signal (the bot's language model with it), the admin's sign-in, mail
+— each saying how much of it is set, under one line with a lock saying the
+environment is read-only here; the lock no longer trails each row.*
 
 Secrets are reported, never shown: `config.Setting` carries a *kind* — unset,
 a value, a secret, on, off — and the words for those live in the catalogues,
 because this package has no translator and should not grow one.
 
-The two Signal identifiers are masked here and printed whole on Diagnostics.
-That is not a contradiction. Diagnostics exists to be compared by eye against
-what `signal-cli` reports, which is the failure it was built to catch; this
-screen exists to answer "what is configured", and a phone number left on a
-screen nobody is reading it for is personal data with no reason to be there.
+The two Signal identifiers are shown in full here, as on Diagnostics
+(53abcda). They were masked here at first, on the argument that a phone
+number on a screen nobody reads it for is personal data with no reason to
+be there. But only an admin reaches either screen, and an admin already has
+both from Diagnostics; masking one of two screens hid nothing from anyone.
 
 ## The board's languages are files, not a list in code
 
@@ -2060,8 +2496,11 @@ first and sorts the rest, so adding a language is adding a file. What was not
 free is number formatting, which is a table of locale to separators rather
 than a Swedish special case — comma before the fraction, space between
 thousands — so a new language that writes numbers differently adds a row.
-English stays ungrouped, which predates all of this: the numbers it mostly
-formats are puzzle numbers, and `1918` reads better than `1,918`.
+English groups with a comma. It went ungrouped for a long time, because the
+numbers it mostly formatted were puzzle numbers and `1918` reads better than
+`1,918`; those go through `Identifier` now, which never groups in any
+language, so a count can be written the way each language writes one:
+"2,153 puzzles" and "2 153 pussel".
 
 That a language is cheap to add is not a reason to keep one. German, Spanish
 and Italian shipped for a while, for the fun of it, and were taken out again:
@@ -2121,7 +2560,7 @@ what the rule is for.
 **What it asserts is what a reader would notice, not how the script does
 it.** No reload; back goes back; a page starts at the top; the title does
 not move; the dialog stays on the page; nothing in the console. The pages
-are read off the rail and the section bar rather than listed, so a view
+are read off the bar and the pill row rather than listed, so a view
 added later is covered without anyone remembering. That is deliberate: the
 front end is about to change again, and these are the parity net for it —
 they should pass unchanged against a different script doing the same job.
@@ -2163,3 +2602,20 @@ assertions were added ahead of that change and confirmed against the old
 script first: where focus lands after a switch, and that collapsing the
 rail neither reloads nor forgets. A third, that posting a form does not
 reload either, is new behaviour and was added with it.
+
+**The glass redesign took the rail with it, and the net held.** The tests
+that were about the rail itself — its collapse, its width before the reply,
+its name in the view transition — went with it, and the drawer's backdrop
+test became the phone's page menu closing on a press outside it. Everything
+else ran against the new shell once the harness read the bar instead of the
+rail. Five pins were added for what the redesign introduced and a selector
+cannot see: that the glass frosts and nothing is named for the transition
+(the two fail together, which is the point), that the page scrolls under the
+bar, that nothing sits at the bottom of a phone, that the bar fits its window
+in both languages, and that the current pill is in view without the page
+having moved. Each was checked red against the behaviour removed before it
+was trusted green. What none of them can see is how the glass looks — the
+blur, the highlight, the dark theme's shadow. That was looked at in headless
+Chrome at a desktop and a phone width, in both themes; it was not looked at
+in Safari, desktop or iPhone, which is what the design was drawn for and the
+one engine whose backdrop-filter and safe-area handling this most depends on.

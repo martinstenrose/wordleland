@@ -3,6 +3,7 @@ package web
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/martinstenrose/wordleland/internal/config"
 	"github.com/martinstenrose/wordleland/internal/store"
@@ -37,6 +38,9 @@ type settingRow struct {
 	// for is whether anybody has set a thing, and it carries a tag saying
 	// what it is, because unlike them it does have a value in force.
 	Default bool
+
+	// Unset is true when the variable has no value at all.
+	Unset bool
 }
 
 type adminSettingsPage struct {
@@ -63,9 +67,82 @@ type adminSettingsPage struct {
 	Confirming bool
 
 	Env []settingRow
+	// EnvGroups is the same rows in the design's cards: what each part of
+	// the installation needs, and whether it has it.
+	EnvGroups []envGroup
+
+	// ShareBase is the part of the link in front of the slug, drawn quietly
+	// so the slug reads as the thing.
+	ShareBase string
 
 	Notice string
 	Error  string
+}
+
+// envGroup is one card of settings.
+type envGroup struct {
+	Icon  string
+	Title string
+	Rows  []settingRow
+	// State is "all", "some" or "none", and Status says it in words.
+	State  string
+	Status string
+	// Note stands in for the rows when nothing in the group is set.
+	Note string
+}
+
+// envGroups sorts the settings into the design's cards, in its order: the
+// app itself, the Signal bridge (its replies' language model included),
+// the admin's own sign-in, and mail. A
+// setting the grouping does not know goes with the app, so a new one is
+// never left off the screen.
+func envGroups(t translator, rows []settingRow) []envGroup {
+	type def struct{ key, icon string }
+	defs := []def{{"app", "public"}, {"signal", "chat"}, {"admin", "admin_panel_settings"}, {"mail", "mail"}}
+	groupOf := func(name string) string {
+		switch {
+		case strings.HasPrefix(name, "SIGNAL_"), strings.HasPrefix(name, "LLM_"):
+			return "signal"
+		case strings.HasPrefix(name, "SMTP_"):
+			return "mail"
+		case name == "ADMIN_EMAIL", name == "ADMIN_PASSWORD", name == "TOTP_KEY":
+			return "admin"
+		}
+		return "app"
+	}
+	byKey := map[string]*envGroup{}
+	var out []envGroup
+	for _, d := range defs {
+		out = append(out, envGroup{Icon: d.icon, Title: t.T("admin.env.group." + d.key)})
+	}
+	for i, d := range defs {
+		byKey[d.key] = &out[i]
+	}
+	for _, row := range rows {
+		g := byKey[groupOf(row.Name)]
+		g.Rows = append(g.Rows, row)
+	}
+	for i := range out {
+		g := &out[i]
+		set := 0
+		var names []string
+		for _, row := range g.Rows {
+			names = append(names, row.Name)
+			if !row.Unset {
+				set++
+			}
+		}
+		switch {
+		case set == len(g.Rows):
+			g.State, g.Status = "all", t.T("admin.env.configured")
+		case set == 0:
+			g.State, g.Status = "none", t.T("admin.env.notConfigured")
+			g.Note = t.T("admin.env.nothingSet", strings.Join(names, ", "))
+		default:
+			g.State, g.Status = "some", t.T("admin.env.someSet", set, len(g.Rows))
+		}
+	}
+	return out
 }
 
 // handleAdminSettings shows what this installation is configured to do.
@@ -94,6 +171,7 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	default:
 		page.Slug = slug
+		page.ShareBase = strings.TrimPrefix(strings.TrimPrefix(s.cfg.AppURL, "https://"), "http://") + "/share/"
 		page.ShareURL = s.cfg.AppURL + "/share/" + slug + "/"
 		if s.cfg.AppURL != "" {
 			page.CopyURL = page.ShareURL
@@ -101,6 +179,7 @@ func (s *Server) handleAdminSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	page.Env = envRows(page.T, s.cfg.Settings(s.bridgeCfg))
+	page.EnvGroups = envGroups(page.T, page.Env)
 
 	s.render(w, r, http.StatusOK, "admin_settings.html", page)
 }
@@ -123,7 +202,7 @@ func envRows(t translator, settings []config.Setting) []settingRow {
 			// a separate question, and Default above is what answers it.
 			row.Value = t.T("admin.settings.disabled")
 		default:
-			row.Value, row.Muted = t.T("admin.settings.notSet"), true
+			row.Value, row.Muted, row.Unset = t.T("admin.settings.notSet"), true, true
 			// Nothing set and nothing in force: there is no default to name.
 			row.Default = false
 		}

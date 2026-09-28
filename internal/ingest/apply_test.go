@@ -331,3 +331,45 @@ func TestApplyCarriesThePostingTime(t *testing.T) {
 		t.Errorf("replayed posted_at = %v, want %v", stored.PostedAt, posted)
 	}
 }
+
+// The grid goes where the posting time goes: onto the result, and through
+// the wait for a sender nobody has claimed yet.
+func TestApplyCarriesTheGrid(t *testing.T) {
+	t.Parallel()
+
+	db, actor := applyDB(t)
+	ctx := context.Background()
+	alice := mustPlayer(t, db, actor, "Alice", "alice")
+
+	sub := submission("alice", 1890, 2)
+	sub.Grid = "nynnn/ggggg"
+	if _, err := Apply(ctx, db, actor, sub, false); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	stored, err := store.ResultFor(ctx, db, 1890, alice.ID)
+	if err != nil {
+		t.Fatalf("ResultFor: %v", err)
+	}
+	if stored.Grid != "nynnn/ggggg" {
+		t.Errorf("grid = %q, want the submission's", stored.Grid)
+	}
+
+	held := Submission{Source: "signal", ExternalID: "uuid-grid", PuzzleNo: 1890, Solved: false,
+		Grid: "nnnnn/nynnn/nggnn/gggnn/gggng/gggyg"}
+	res, err := Apply(ctx, db, actor, held, false)
+	if err != nil || res.Status != StatusPending {
+		t.Fatalf("Apply for an unknown sender = %+v, %v; want pending", res, err)
+	}
+	bob := mustPlayer(t, db, actor, "Bob", "bob")
+	if _, err := store.LinkIdentity(ctx, db, actor, bob.ID, "signal", "uuid-grid",
+		store.ActionIdentityClaimed, false); err != nil {
+		t.Fatalf("LinkIdentity: %v", err)
+	}
+	stored, err = store.ResultFor(ctx, db, 1890, bob.ID)
+	if err != nil {
+		t.Fatalf("ResultFor after the claim: %v", err)
+	}
+	if stored.Grid != "nnnnn/nynnn/nggnn/gggnn/gggng/gggyg" {
+		t.Errorf("grid after the claim = %q, want the held one", stored.Grid)
+	}
+}

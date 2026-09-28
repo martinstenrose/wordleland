@@ -90,6 +90,10 @@ type Submission struct {
 	// sets it; every other caller leaves it nil, which the store keeps as
 	// "not posted in the group" rather than substituting the time of entry.
 	PostedAt *time.Time
+
+	// Grid is the squares the result was shared with, "" when there are
+	// none. When given it must agree with the score: see Validate.
+	Grid wordle.Grid
 }
 
 // Method reports how the player was named, and refuses a submission that
@@ -131,10 +135,27 @@ func (s Submission) Validate() error {
 		if *s.Guesses < 1 || *s.Guesses > wordle.MaxGuesses {
 			return invalid("guesses must be between 1 and %d", wordle.MaxGuesses)
 		}
-		return nil
+		return s.validGrid()
 	}
 	if s.Guesses != nil {
 		return invalid("guesses must be omitted when solved is false")
+	}
+	return s.validGrid()
+}
+
+// validGrid refuses a grid that does not agree with the score. The parser
+// never hands one over — it drops a grid that disagrees — so this is for the
+// API, where a caller could.
+func (s Submission) validGrid() error {
+	if s.Grid == "" {
+		return nil
+	}
+	guesses := 0
+	if s.Guesses != nil {
+		guesses = *s.Guesses
+	}
+	if !s.Grid.Agrees(s.Solved, guesses) {
+		return invalid("grid does not agree with the score: one row of five g, y or n per guess, joined by /, the last all g on a solve")
 	}
 	return nil
 }
@@ -192,7 +213,7 @@ func applyFromSender(ctx context.Context, db *sql.DB, actor store.Actor,
 		held := store.PendingResult{
 			PuzzleNo: sub.PuzzleNo, Solved: sub.Solved,
 			Guesses: sub.Guesses, HardMode: sub.HardMode,
-			PostedAt: sub.PostedAt,
+			PostedAt: sub.PostedAt, Grid: string(sub.Grid),
 		}
 		if err := store.HoldPendingResult(ctx, db,
 			sub.Source, sub.ExternalID, sub.DisplayHint, held); err != nil {
@@ -251,6 +272,7 @@ func write(ctx context.Context, db *sql.DB, actor store.Actor,
 			Solved:   sub.Solved,
 			HardMode: sub.HardMode,
 			PostedAt: sub.PostedAt,
+			Grid:     string(sub.Grid),
 		}
 
 		if mayReactivate && !player.Active {

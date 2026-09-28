@@ -39,10 +39,10 @@ func TestTodaysFormSpellsOutTheLastFiveInTheDaysOwnChip(t *testing.T) {
 	seedResult(t, srv, p.ID, current, 5, false)
 
 	body := fetchAs(t, srv, "/today", signIn(t, srv, admin.ID)).Body.String()
-	pane := body[strings.Index(body, `class="today-form"`):]
+	pane := body[strings.Index(body, `today-form"`):]
 	pane = pane[:strings.Index(pane, "card-foot")]
 
-	row := regexp.MustCompile(`(?s)<li class="form-row">.*?<span class="form-last-five">(.*?)</span>\s*<span class="form-avg`).FindStringSubmatch(pane)
+	row := regexp.MustCompile(`(?s)<li class="form-row">.*?<span class="form-last-five">(.*?)</span>\s*<span class="form-figures">\s*<span class="form-avg`).FindStringSubmatch(pane)
 	if row == nil {
 		t.Fatal("the form row has no last-five cell between the name and the average")
 	}
@@ -121,12 +121,12 @@ func TestTodayShowsThirtyDayFormWithBothRanks(t *testing.T) {
 		{"/share/" + slug + "/", "/share/" + slug + "/board", "/share/" + slug, nil},
 	} {
 		body := fetchAs(t, srv, surface.path+"?form=7", surface.cookie).Body.String()
-		at := strings.Index(body, `class="today-form"`)
+		at := strings.Index(body, `today-form"`)
 		if at < 0 {
 			t.Fatal("no Today form list")
 		}
 		pane := body[at:]
-		if !strings.Contains(pane, "Form · last 30 days") || strings.Contains(pane, "7 days") || strings.Contains(pane, "form-periods") || !strings.Contains(pane, "form-last-five") {
+		if !strings.Contains(pane, ">Form</h2>") || !strings.Contains(pane, "last five · 30 days") || strings.Contains(pane, "7 days") || strings.Contains(pane, "form-periods") || !strings.Contains(pane, "form-last-five") {
 			t.Error("Today is not fixed to 30-day form with the last five beside it")
 		}
 		if !strings.Contains(pane, `class="form-avg num">3.23`) {
@@ -167,7 +167,7 @@ func TestTodayShowsThirtyDayFormWithBothRanks(t *testing.T) {
 		}
 
 		body = fetchAs(t, srv, surface.path+"?lang=sv", surface.cookie).Body.String()
-		for _, label := range []string{"Form · senaste 30 dagarna", "Formplacering", "Totalplacering", "Dagens resultat"} {
+		for _, label := range []string{"senaste fem · 30 dagar", "Formplacering", "Totalplacering", "Dagens resultat"} {
 			if !strings.Contains(body, label) {
 				t.Errorf("Swedish label missing: %s", label)
 			}

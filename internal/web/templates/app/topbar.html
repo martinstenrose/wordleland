@@ -21,227 +21,288 @@
 </svg>
 {{end}}
 
-{{/* The switchers are links, the drawer and the account menu are <details>.
-     Nothing here needs JavaScript for opening, summary-click closing or
-     exclusivity — those work from HTML and CSS alone, which is the point: a
-     control that only works once a script has run is a control that sometimes
-     does not work. app.js also closes topbar menus when a click lands outside
-     them.
+{{/* The bar: glass pieces floating over the top of the page, with the page
+     scrolling underneath them. Nothing here is a strip across the window —
+     the pieces are the bar, and between them is the page.
 
-     Two kinds of disclosure share this pattern, each exclusive within
-     itself but not with the other — a plain <details> with a name= the
-     browser uses to close the rest of its own group:
-       - name="menu-group": the navigation drawer, the two pickers, the
-         account menu and the board's ranking menu — a choice or an action,
-         not just information. Each has one fixed spot on the page, so it
-         anchors itself in app.css. The group was called "topbar-menu" while
-         every one of them was in the bar; the ranking menu is the first that
-         is not, and a name that says where they live rather than what they
-         are was the wrong half to keep.
-       - name="popup": a trait's explanation, a result cell's detail — read-
-         only information with nothing to choose, and no fixed spot: either
-         can open anywhere on the page. app.js nudges these back on screen
-         when the page is too small for where they land by default — the
-         one script in the project, and strictly an enhancement: with it
-         absent, disabled, or failing to load, every popup still opens,
-         just without the nudge.
-     A menu open and a popup open at once is fine; two menus or two popups
-     open at once is not. A new one joins whichever group it actually is,
-     rather than a third name of its own.
+     Every piece is a link or a <details>. Nothing needs JavaScript to open,
+     to close on a second press, or to close its neighbour — the menus share
+     name="menu-group", so the browser keeps one open at a time — and app.js
+     only adds the outside click and Esc that every menu here gets.
 
-     The theme picker is not among them. It offers three fixed choices and
-     nothing else, so on a wide bar it is simply those three links side by
-     side, and on a narrow one a single link to the next of them — no
-     disclosure to open, and one fewer thing that can be open at a time. */}}
+     A wide window shows every view in the capsule at once, after the mark,
+     which is the way back to Today. A phone's capsule shows the page you are
+     on and opens the rest, because five pages do not fit beside a search
+     button and an avatar at 390px. Both are in the markup and app.css shows
+     one: which applies is the window's width, which the server cannot know.
+     The two list the same views from the same Nav, so neither can go stale
+     without the other.
 
-{{/* Three links in a track on a wide bar; on a narrow one the track gives way
-     to a single link carrying the setting in force, which moves to the next.
-     Both are in the markup and app.css decides which is shown, so neither
-     depends on knowing the viewport server-side. */}}
-{{define "theme-picker"}}
-<div class="theme-track" role="group" aria-label="{{.ThemeLabel}}">
+     The admin area is not among the views: it is one row in the account
+     menu, for the one reader who has it. */}}
+{{define "topbar"}}
+<header class="topbar">
+  <nav class="bar-pages glass" aria-label="{{.T.T "nav.views"}}">
+    <a class="bar-home" href="{{.TodayHref}}" aria-label="{{.T.T "app.name"}}" title="{{.T.T "app.name"}}">{{template "mark" .}}</a>
+    {{if .Nav}}
+      <span class="bar-divider" aria-hidden="true"></span>
+      {{range .Nav}}
+        <a class="bar-page{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>
+          {{codeSymbol .Code 19}}
+          <span>{{.Label}}</span>
+        </a>
+      {{end}}
+    {{end}}
+  </nav>
+
+  {{/* The phone's capsule: where you are, and the rest a press away. Where
+       there is nowhere else to go — a stranger on the privacy page — it is
+       the wordmark and nothing opens. */}}
+  {{$here := .Here}}
+  {{if .Nav}}
+    <details class="bar-menu menu" name="menu-group">
+      <summary class="bar-capsule glass" aria-label="{{.T.T "nav.views"}}: {{$here.Label}}">
+        <span class="bar-capsule-icon">{{if $here.Code}}{{codeSymbol $here.Code 19}}{{else}}{{template "mark" .}}{{end}}</span>
+        <span class="bar-capsule-label">{{$here.Label}}</span>
+        {{symbol "expand_more" 20}}
+      </summary>
+      <div class="menu-panel glass bar-menu-panel">
+        {{range .Nav}}
+          <a class="menu-row{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>
+            {{codeSymbol .Code 21}}
+            <span class="menu-row-label">{{.Label}}</span>
+            <span class="menu-check" aria-hidden="true">{{symbol "check" 20}}</span>
+          </a>
+        {{end}}
+      </div>
+    </details>
+  {{else}}
+    <a class="bar-capsule bar-capsule-home glass" href="{{.TodayHref}}">
+      <span class="bar-capsule-icon">{{template "mark" .}}</span>
+      <span class="bar-capsule-label">{{$here.Label}}</span>
+    </a>
+  {{end}}
+
+  <span class="bar-gap" aria-hidden="true"></span>
+
+  {{if .SearchPath}}
+    {{/* A plain link — every part of search works from this alone, with no
+         script at all. app.js additionally binds ⌘K to open the overlay
+         below instead of navigating; see its header comment. .SearchPath is
+         set for a real session and for the genuine read-only share view, and
+         empty everywhere else — see its field comment in chrome.go — so
+         checking it is both the href and the gate.
+
+         A field on a wide window and a round button on a phone, from one
+         link: the label and the key cap are hidden at the narrow width, and
+         aria-label carries the name either way.
+
+         hx-boost="false": app.js opens the overlay on this press, and htmx
+         would otherwise have fetched the search page first. */}}
+    <a class="bar-search glass" href="{{.SearchPath}}" hx-boost="false" aria-label="{{.T.T "search.title"}}" aria-haspopup="dialog" aria-expanded="false" aria-controls="search-overlay">
+      {{symbol "search" 21}}
+      <span class="bar-search-label">{{.T.T "search.placeholder"}}</span>
+      <kbd class="bar-search-key js-only" aria-hidden="true">⌘K</kbd>
+    </a>
+    {{/* Hidden until app.js opens it; see the script for why this exists at
+         all rather than only as a fetch target. Absent, disabled, or failing
+         to load, this markup is inert and the link above still goes to a
+         working page.
+
+         The fetching is htmx's, on the input: each keystroke, once the typing
+         has paused, asks the same route the link points at for just its
+         results ("?partial=1", see search.go) and puts them in the box below;
+         a reply still in flight when the next keystroke comes is dropped
+         rather than allowed to land late. The path is .SearchPath, so the
+         same markup works under the share prefix. "search-open" is what
+         app.js raises when it shows the overlay, so the empty query's results
+         appear before anything is typed. */}}
+    <div id="search-overlay" class="search-overlay" hidden>
+      <div class="search-overlay-box glass" role="dialog" aria-modal="true" aria-label="{{.T.T "search.title"}}">
+        {{/* A form only so the clear button can be a reset, which needs no
+             script; submitting it is never what happens — Enter follows a
+             result (see app.js). The placeholder is the design's long one,
+             and plain "Search" on a phone, where the long one would clip:
+             app.js picks between them when it opens the overlay, which is
+             the only way this markup is ever seen. */}}
+        <form class="search-overlay-head" role="search" action="{{.SearchPath}}">
+          <span class="search-overlay-field">
+            {{symbol "search" 20}}
+            <input type="search" name="q" class="search-overlay-input" placeholder="{{.T.T "search.overlayPlaceholder"}}" data-placeholder-narrow="{{.T.T "search.title"}}" aria-label="{{.T.T "search.title"}}" autocomplete="off"
+                   hx-get="{{.SearchPath}}?partial=1" hx-trigger="input changed delay:120ms, search-open"
+                   hx-target="next .search-overlay-results" hx-swap="innerHTML transition:false" hx-sync="this:replace">
+            <button type="reset" class="search-clear" aria-label="{{.T.T "search.clear"}}" title="{{.T.T "search.clear"}}">{{symbol "cancel" 18}}</button>
+          </span>
+          {{/* esc on a keyboard, the word on a phone: the same button. */}}
+          <button type="button" class="search-overlay-close"><span class="wide-only">{{.T.T "search.esc"}}</span><span class="narrow-only">{{.T.T "admin.cancel"}}</span></button>
+        </form>
+        <div class="search-overlay-results"></div>
+      </div>
+    </div>
+  {{end}}
+
+  {{if .SignedIn}}
+    <details class="account menu" name="menu-group">
+      <summary class="bar-orb glass" aria-label="{{.T.T "account.menu"}}" title="{{.T.T "account.menu"}}">
+        <span class="bar-initials" aria-hidden="true">{{.Initials}}</span>
+        {{/* Senders waiting, for an admin, except where they are the page. */}}
+        {{if and .PendingCount (ne .AdminTab "pending")}}<span class="avatar-badge num" title="{{.T.TN "pending.waiting" .PendingCount}}">{{.PendingCount}}</span>{{end}}
+      </summary>
+      <div class="menu-panel glass account-menu">
+        <div class="account-who">
+          <span class="avatar" aria-hidden="true">{{.Initials}}</span>
+          <span class="account-id">
+            <span class="account-name">{{.DisplayName}}</span>
+            <span class="account-sub">{{.T.T "app.name"}}{{with .Subtitle}} · {{.}}{{end}}</span>
+          </span>
+        </div>
+        <hr>
+        {{template "preferences" .}}
+        {{template "about" (dict "C" .)}}
+        <a class="menu-row" href="/settings">{{symbol "settings" 20}}<span class="menu-row-label">{{.T.T "nav.settings"}}</span></a>
+        {{if .IsAdmin}}
+          {{/* Two rows, one shown at each width: a wide window goes straight
+               into a section, a phone to the list of them. */}}
+          <a class="menu-row wide-only{{if .AdminTab}} on{{end}}" href="{{.AdminHref}}"{{if .AdminTab}} aria-current="page"{{end}}>{{symbol "admin_panel_settings" 20}}<span class="menu-row-label">{{.T.T "nav.admin"}}</span></a>
+          <a class="menu-row narrow-only{{if .AdminTab}} on{{end}}" href="/admin"{{if .AdminTab}} aria-current="page"{{end}}>{{symbol "admin_panel_settings" 20}}<span class="menu-row-label">{{.T.T "nav.admin"}}</span>{{with .PendingCount}}<span class="admin-tab-badge num">{{.}}</span>{{end}}</a>
+        {{end}}
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+          <button class="menu-row danger" type="submit">{{symbol "logout" 20}}<span class="menu-row-label">{{.T.T "nav.signOut"}}</span></button>
+        </form>
+      </div>
+    </details>
+  {{else if .ReadOnly}}
+    {{/* A reader with no session: the share link, or a stranger on the
+         privacy page. Where the account would be, an empty account glyph;
+         its menu says whose view this is, carries the two preferences a
+         reader has either way and About, and ends on the way in. The
+         language is the one the share link is read in, which is how the
+         group reads the board before anyone has an account (§10). */}}
+    <details class="account guest menu" name="menu-group">
+      <summary class="bar-orb glass" aria-label="{{.T.T "account.guest"}}" title="{{.T.T "account.guest"}}">
+        <span class="guest-seat" aria-hidden="true">{{symbol "account_circle" 24}}</span>
+      </summary>
+      <div class="menu-panel glass account-menu">
+        <div class="account-who guest-who">
+          <span class="account-name">{{.T.T "account.guest"}}</span>
+          <span class="account-sub">{{.T.T "account.guestSub"}}</span>
+        </div>
+        <hr>
+        {{template "preferences" .}}
+        {{template "about" (dict "C" .)}}
+        <a class="btn account-signin" href="/">{{symbol "login" 19}}{{.T.T "nav.signIn"}}</a>
+      </div>
+    </details>
+  {{end}}
+</header>
+{{end}}
+
+{{/* The two preferences every reader has, signed in or not: the theme, as
+     three segments, and the language, as a row that opens its list in place.
+
+     The theme is three links rather than a menu: there are three choices and
+     they all fit, so making a reader open something first would be a press
+     spent on nothing. Theme is per-device, a cookie.
+
+     The language row is a <details> with no name, so opening it leaves the
+     menu it sits in open around it. Language belongs to the account and is
+     written there when a signed-in reader picks one, so it follows them to
+     another device and decides what language their mail arrives in. Each
+     row is the language's own name for itself, and nothing else: a flag is
+     a country, not a language, and at this size two of the ones this app
+     offers are a blue field with a cross on it. */}}
+{{define "preferences"}}
+<p class="menu-kicker">{{.T.T "menu.appearance"}}</p>
+<div class="seg" role="group" aria-label="{{.ThemeLabel}}">
   {{range .Themes}}
-    <a class="theme-opt{{if .On}} on{{end}}" href="{{.Href}}" title="{{.Label}}" aria-label="{{.Label}}"{{if .On}} aria-current="true"{{end}}>
-      {{template "theme-icon" .Code}}
+    <a class="seg-opt{{if .On}} on{{end}}" href="{{.Href}}" title="{{.Label}}" aria-label="{{.Label}}"{{if .On}} aria-current="true"{{end}}>
+      {{codeSymbol .Code 18}}
     </a>
   {{end}}
 </div>
-<a class="menu-btn theme-cycle" href="{{.ThemeNext.Href}}" title="{{.ThemeNext.Label}}" aria-label="{{.ThemeNext.Label}}">
-  {{template "theme-icon" .Theme}}
-</a>
+{{template "language-row" .}}
 {{end}}
 
-{{define "language-picker"}}
-<details class="menu" name="menu-group">
-  <summary class="menu-btn lang-btn" aria-label="{{.LangLabel}}" title="{{.LangLabel}}">
-    {{template "globe-icon" .}}
-    <span class="lang-code">{{.Lang}}</span>
-    {{template "chevron-down" .}}
+{{define "language-row"}}
+<details class="lang-row">
+  <summary class="menu-row" aria-label="{{.LangLabel}}">
+    {{symbol "language" 20}}
+    <span class="menu-row-label">{{.T.T "lang.label"}}</span>
+    <span class="menu-row-value">{{range .Languages}}{{if .On}}{{.Label}}{{end}}{{end}}</span>
+    <span class="lang-chevron">{{symbol "expand_more" 18}}</span>
   </summary>
-  <div class="menu-panel">
-    <p class="kicker">{{.T.T "lang.label"}}</p>
+  <div class="lang-list">
     {{range .Languages}}
-      {{/* The name of the language, in that language, and nothing else.
-           Flags were drawn here and have gone: a flag is a country, not a
-           language, and at 16px two of the ones this app offers are a blue
-           field with a cross on it. The word is never a second look. */}}
-      <a class="menu-row{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>
-        <span>{{.Label}}</span>
-        <span class="menu-check" aria-hidden="true">{{if .On}}✓{{end}}</span>
+      <a class="lang-opt{{if .On}} on{{end}}" href="{{.Href}}" lang="{{.Code}}"{{if .On}} aria-current="true"{{end}}>
+        <span class="menu-row-label">{{.Label}}</span>
+        <span class="menu-check" aria-hidden="true">{{symbol "check" 18}}</span>
       </a>
     {{end}}
   </div>
 </details>
 {{end}}
 
-{{/* The rail, for a screen too narrow to give it a column of its own. It is a
-     <details> for what that element already is: a button that discloses
-     something, with the open state exposed to assistive tech by the browser
-     rather than by an attribute this template would have to keep in step.
-     :target would put "#menu" in the address bar and in the back button; a
-     checkbox and label would not be focusable.
+{{/* What this is, for someone who followed a link into it: About, in the
+     account menu, the guest's, and the footer. A <details> like every other
+     disclosure here, so it opens with no script; the panel is a dialog card
+     fixed over the page — centred on a wide window, a sheet at the foot of a
+     phone's — and the summary becomes the dim behind it, which is what makes
+     clicking away close it.
 
-     When it is open, app.css hangs a dim off the summary covering everything
-     below the bar, so that clicking away closes it — clicking the dim really
-     is clicking the button again, and the button itself stays where it was,
-     showing a cross. What that does not give: Esc does not close a
-     <details>, and focus is free to leave the panel for the page behind it.
-     The panel sits immediately after the summary so that at least the first
-     Tab goes into it. It is not marked up as a dialog, because with focus
-     free to leave it, saying so would be a lie. */}}
-{{define "drawer"}}
-<details class="drawer" name="menu-group">
-  {{/* Both glyphs are in the markup and app.css shows one: which of them
-       applies is the element's own open state, which CSS can read and a
-       template cannot. */}}
-  <summary class="menu-btn drawer-btn" aria-label="{{.T.T "nav.menu"}}" title="{{.T.T "nav.menu"}}">
-    <span class="drawer-shut">{{template "menu-icon" .}}</span>
-    <span class="drawer-open">{{template "close-icon" .}}</span>
-  </summary>
-  <div class="drawer-panel">
-    <nav class="nav-rows" aria-label="{{.T.T "nav.views"}}">{{template "sidebar-rows" .}}</nav>
-    {{template "about" .}}
+     Rendered once in each place it opens from, the way the rail and the
+     drawer once shared their rows. They share name="about", so one is open
+     at a time, and not the menus' name, which would close the menu it opens
+     from, taking the panel with it. The glass the menu is drawn on is
+     painted by a pseudo-element for the same reason: a backdrop-filter on
+     the menu would make it the box this fixed panel is placed in.
+
+     .Link draws the summary as a footer link rather than a menu row. */}}
+{{define "about"}}
+<details class="about{{if .Link}} about-footer{{end}}" name="about">
+  {{if .Link}}
+    <summary class="footer-link">{{.C.T.T "nav.about"}}</summary>
+  {{else}}
+    <summary class="menu-row" title="{{.C.T.T "about.title"}}">
+      {{symbol "info" 20}}
+      <span class="menu-row-label">{{.C.T.T "nav.about"}}</span>
+    </summary>
+  {{end}}
+  <div class="about-panel" role="group" aria-label="{{.C.T.T "about.title"}}">
+    <span class="about-grabber" aria-hidden="true"></span>
+    <div class="about-head">
+      <span class="about-mark">{{template "mark" .C}}</span>
+      <span class="about-id">
+        <span class="about-title">{{.C.T.T "about.title"}}</span>
+        {{with .C.Subtitle}}<span class="about-sub">{{.}}</span>{{end}}
+      </span>
+    </div>
+    <p class="about-body">{{.C.T.T "about.body1"}}</p>
+    <ul class="about-facts">
+      <li>{{symbol "sync" 19}}<span>{{.C.T.T "about.fact.sync"}}</span></li>
+      <li>{{symbol "functions" 19}}<span>{{.C.T.T "about.fact.score"}}</span></li>
+      <li>{{symbol "star" 19}}<span>{{.C.T.T "about.fact.hard"}}</span></li>
+    </ul>
+    <p class="about-note">{{.C.T.T "about.body2"}}</p>
+    <div class="about-links">
+      <a class="about-link" href="/privacy">{{symbol "lock" 18}}{{.C.T.T "footer.privacy"}}</a>
+      {{/* The one link on the site that leaves it. A new tab, because the
+           rest of this panel is about the page behind it and a reader
+           following this is not finished with that page — and rel=noreferrer
+           as well as noopener, for the same reason nothing here is fetched
+           from a third party: where somebody was reading is not GitHub's to
+           know. A link that opens a new tab is one htmx never boosts. */}}
+      <a class="about-link" href="https://github.com/martinstenrose/wordleland"
+         target="_blank" rel="noopener noreferrer">
+        {{.C.T.T "footer.github"}}
+        <span class="visually-hidden">({{.C.T.T "footer.newTab"}})</span>
+        <span class="external-icon">{{symbol "open_in_new" 16}}</span>
+      </a>
+    </div>
+    {{/* Closing is the summary's job — the dim behind the card is it — and
+         this is a second way to reach it for anyone who looks for a button.
+         Without script it does nothing; app.js closes the card. */}}
+    <button class="about-close" type="button" aria-label="{{.C.T.T "action.close"}}" hidden>{{symbol "close" 20}}</button>
   </div>
 </details>
-{{end}}
-
-{{define "topbar"}}
-<header class="topbar">
-  <div class="topbar-lead">
-    {{template "sidebar-brand" .}}
-    {{template "drawer" .}}
-  </div>
-
-  <div class="topbar-search">
-    {{if .SearchPath}}
-      {{/* A plain link — every part of search works from this alone, with
-           no script at all. app.js additionally binds ⌘K to open the
-           overlay below instead of navigating; see its header comment.
-           .SearchPath is set for a real session and for the genuine
-           read-only share view, and empty everywhere else — see its field
-           comment in chrome.go — so checking it is both the href and the
-           gate. */}}
-      {{/* aria-label duplicates the visible label deliberately: the label
-           hides on a narrow screen (see the media query in app.css) and
-           the icon alone would otherwise have no accessible name once
-           it does. */}}
-      {{/* hx-boost="false": app.js opens the overlay on this press, and htmx
-           would otherwise have fetched the search page first. */}}
-      <a class="menu-btn search-btn" href="{{.SearchPath}}" hx-boost="false" aria-label="{{.T.T "search.title"}}" aria-haspopup="dialog" aria-expanded="false" aria-controls="search-overlay">
-        {{template "search-icon" .}}
-        <span class="search-label">{{.T.T "search.placeholder"}}</span>
-        <span class="search-shortcut js-only" aria-hidden="true">⌘K</span>
-      </a>
-      {{/* Hidden until app.js opens it; see the script for why this exists
-           at all rather than only as a fetch target. Absent, disabled, or
-           failing to load, this markup is inert and the link above still
-           goes to a working page.
-
-           The fetching is htmx's, on the input: each keystroke, once the
-           typing has paused, asks the same route the link points at for
-           just its results ("?partial=1", see search.go) and puts them in
-           the box below; a reply still in flight when the next keystroke
-           comes is dropped rather than allowed to land late. The path is
-           .SearchPath, so the same markup works under the share prefix.
-           "search-open" is what app.js raises when it shows the overlay,
-           so the empty query's results appear before anything is typed. */}}
-      <div id="search-overlay" class="search-overlay" hidden>
-        <div class="search-overlay-box" role="dialog" aria-modal="true" aria-label="{{.T.T "search.title"}}">
-          <input type="search" name="q" class="search-overlay-input" placeholder="{{.T.T "search.placeholder"}}" aria-label="{{.T.T "search.title"}}"
-                 hx-get="{{.SearchPath}}?partial=1" hx-trigger="input changed delay:120ms, search-open"
-                 hx-target="next .search-overlay-results" hx-swap="innerHTML transition:false" hx-sync="this:replace" hx-indicator="this">
-          <div class="search-overlay-results"></div>
-        </div>
-      </div>
-    {{end}}
-  </div>
-
-  <div class="topbar-controls">
-    {{/* Both in the bar. Theme is per-device; language belongs to the
-         account and is written there when a signed-in reader picks one, so
-         it follows them to another device and decides what language their
-         mail arrives in. */}}
-    {{template "theme-picker" .}}
-    {{template "language-picker" .}}
-
-    {{if .ReadOnly}}
-      {{/* No account menu here to hold it, and the share link is how the
-           group reads the board before anyone has an account (§10), so the
-           language control stays in the bar rather than disappearing. */}}
-      {{/* aria-label carries the accessible name on its own, since the
-           label text — the only other source of one — hides on a narrow
-           screen where the bar has no room to spare for it. */}}
-      <a class="btn" href="/" aria-label="{{.T.T "nav.signIn"}}">
-        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-          <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 3h4.4A1.6 1.6 0 0120 4.6v14.8A1.6 1.6 0 0118.4 21H14"/>
-            <path d="M10 7.5L14.5 12 10 16.5M14.5 12H3.5"/>
-          </g>
-        </svg>
-        <span class="btn-label">{{.T.T "nav.signIn"}}</span>
-      </a>
-    {{else if .SignedIn}}
-      <details class="account" name="menu-group">
-        <summary aria-label="{{.T.T "account.menu"}}">
-          <span class="avatar" aria-hidden="true">{{.Initials}}</span>
-        </summary>
-        <div class="account-menu">
-          <div class="account-who">
-            <span class="avatar" aria-hidden="true">{{.Initials}}</span>
-            <span class="account-id">
-              <span class="account-name">{{.T.T "account.title"}}</span>
-              <span class="account-email">{{.User.Email}}</span>
-            </span>
-          </div>
-          <hr>
-          <a href="/settings">{{.T.T "nav.settings"}}</a>
-          <hr>
-          <form method="post" action="/logout">
-            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <button class="danger" type="submit">{{.T.T "nav.signOut"}}</button>
-          </form>
-        </div>
-      </details>
-    {{end}}
-  </div>
-</header>
-{{end}}
-
-{{/* The sign-in family's chrome: the wordmark in one corner, the two pickers
-     in the other, and nothing between them. No search, no account menu and no
-     navigation — there is no session yet for any of them to act on — so this
-     is not the top bar with pieces removed but its own, much shorter, row.
-
-     The pickers are the same partials the bar uses, which is the point: a
-     theme or language chosen at the door is the one in force on the other
-     side of it, and there is one definition of each control rather than two
-     that drift. */}}
-{{define "auth-chrome"}}
-<header class="auth-chrome">
-  {{template "sidebar-brand" .}}
-  <div class="auth-controls">
-    {{template "theme-picker" .}}
-    {{template "language-picker" .}}
-  </div>
-</header>
 {{end}}

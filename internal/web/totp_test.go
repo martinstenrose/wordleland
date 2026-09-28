@@ -683,19 +683,21 @@ func TestAPlayerCanTurnTwoFactorOff(t *testing.T) {
 	// The control is an outlined red link that only opens the question —
 	// nothing is turned off by pressing it.
 	page, cookies := getWith(t, srv, "/settings/security", cookies)
-	if !strings.Contains(page.Body.String(), `href="/settings/security?confirm=totp"`) {
+	if !strings.Contains(page.Body.String(), `href="/settings?confirm=totp#two-step"`) {
 		t.Fatal("the security screen does not offer to turn two-factor off")
 	}
 
 	asked, cookies := getWith(t, srv, "/settings/security?confirm=totp", cookies)
 	body := asked.Body.String()
-	if !strings.Contains(body, `class="confirm"`) {
-		t.Error("the question is not asked before the field that answers it")
+	if !strings.Contains(body, `action="/settings/totp/disable" class="danger-box column"`) {
+		t.Error("the question is not asked in the box that answers it")
 	}
 	if !strings.Contains(body, `action="/settings/totp/disable"`) {
 		t.Fatal("the question has no form to answer it with")
 	}
-	if !strings.Contains(body, `class="danger"`) {
+	// Scoped to the form: the page has other red controls — signing out, in
+	// the account menu — and matching the page would pass on any of them.
+	if form, _ := sectionOf(body, `action="/settings/totp/disable"`, "</form>"); !strings.Contains(form, `class="btn danger"`) {
 		t.Error("the control that commits it is not in the danger tone")
 	}
 	csrf := csrfFieldPattern.FindAllStringSubmatch(body, -1)
@@ -775,7 +777,7 @@ func TestAnAdminCannotTurnTwoFactorOff(t *testing.T) {
 	}
 	// The replacement is still offered: an admin changing phones is the
 	// ordinary case, and it is the same enrolment everybody else gets.
-	if !strings.Contains(body, `href="/enroll-totp"`) {
+	if !strings.Contains(body, `href="/settings?confirm=rotate#two-step"`) {
 		t.Error("an admin is not offered a way to rotate their secret")
 	}
 

@@ -1,133 +1,266 @@
 {{define "title"}}{{.T.T "admin.players.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<section class="card card-bar">
-  {{template "switcher" .Section}}
-  {{template "admin-warning" .}}
+{{template "admin-head" .Section}}
+{{/* The roster and the editor side by side, as the design has them: a list
+     to pick from, and the chosen player in a card beside it — on a phone,
+     one or the other. Choosing a player is a link, and every action in the
+     editor is a form of its own, so none of it needs script. */}}
+{{template "admin-warning" .}}
+{{with .NoticeText}}{{template "toast" (dict "Href" $.HereHref "Text" . "T" $.T)}}{{end}}
+{{if .Error}}<p class="note error" role="alert">{{.T.T .Error}}</p>{{end}}
 
-  {{if eq .Notice "saved"}}<p class="note">{{.T.T "admin.saved"}}</p>{{end}}
-  {{if eq .Notice "invited"}}<p class="note">{{.T.T "admin.inviteSent"}}</p>{{end}}
-  {{if .Error}}<p class="note error" role="alert">{{.T.T .Error}}</p>{{end}}
-
-  <div class="admin-split">
-    <div class="admin-list">
-      <div class="admin-row admin-head">
-        <span>{{.T.T "admin.column.name"}}</span>
-        <span class="right">{{.T.T "board.column.games"}}</span>
-        <span class="right">{{.T.T "board.column.average"}}</span>
-        <span>{{.T.T "admin.column.login"}}</span>
-        <span class="right">{{.T.T "admin.column.roster"}}</span>
-      </div>
-      {{range .Rows}}
-        <a class="admin-row{{if .Selected}} on{{end}}" href="{{.Href}}">
-          {{/* No trait badge. A trait is a reading of how somebody plays, and
-               this list is for renaming people, retiring them and attaching
-               logins — none of which it bears on. It also cost the name
-               column the width it needs: at the split layout's narrower end
-               the badge sat on top of the name it was about. */}}
-          <span class="admin-name">
-            <span class="player">{{.Name}}</span>
-          </span>
-          <span class="right num">{{$.T.Integer .Games}}</span>
-          <span class="right num">{{.Average}}</span>
-          <span class="muted small">{{if .LinkedEmail}}{{.LinkedEmail}}{{else}}—{{end}}</span>
-          <span class="right muted small">{{.Status}}</span>
-        </a>
-      {{end}}
+<div class="admin-players{{if or .Selected .New}} editing{{end}}">
+  <section class="card roster-card">
+    <div class="roster-top">
+      <span class="roster-count">{{.T.TN "admin.playerCount" .Count}}</span>
+      <a class="btn small" href="/admin/players?new=1">{{symbol "person_add" 18}}<span>{{.T.T "admin.addPlayer"}}</span></a>
     </div>
+    <div class="roster-row roster-head" aria-hidden="true">
+      <span>{{.T.T "admin.column.name"}}</span>
+      <span class="right">{{.T.T "board.column.games"}}</span>
+      <span class="right">{{.T.T "board.column.average"}}</span>
+      <span class="right">{{.T.T "admin.column.roster"}}</span>
+    </div>
+    {{range .Rows}}
+      <a class="roster-row{{if .Selected}} on{{end}}{{if not .Active}} retired{{end}}" href="{{.Href}}"{{if .Selected}} aria-current="page"{{end}}>
+        <span class="roster-id">
+          <span class="roster-name">{{.Name}}</span>
+          <span class="roster-sub roster-sub-wide">{{.Login}} · {{$.T.T "admin.lastScoreOn" .LastScore}}</span>
+          <span class="roster-sub roster-sub-narrow">{{$.T.TN "player.games" .Games}} · {{.Average}} · {{.Login}}</span>
+        </span>
+        <span class="roster-num num">{{$.T.Integer .Games}}</span>
+        <span class="roster-num num strong">{{.Average}}</span>
+        <span class="roster-status">{{if .Active}}{{symbol "group" 16}}{{else}}{{symbol "bedtime" 16}}{{end}}{{.Status}}<span class="roster-chevron">{{symbol "chevron_right" 18}}</span></span>
+      </a>
+    {{end}}
 
-    {{with .Selected}}
-      <div class="admin-panel">
-        <p class="kicker">{{$.T.T "admin.editPlayer"}}</p>
+    {{with .Orphans}}
+      {{/* A login with no player is a login whose scores go nowhere. Each
+           can be attached to a player without one; the choices open in
+           place, a <details>. */}}
+      <p class="roster-kicker">{{$.T.T "admin.orphans"}}</p>
+      {{range .}}
+        <div class="orphan">
+          <div class="orphan-id">
+            {{symbol "account_circle" 19}}
+            <span class="orphan-text"><span class="orphan-email">{{.Email}}</span><span class="orphan-sub">{{.Sub}}</span></span>
+          </div>
+          {{if .Choices}}
+            <details class="orphan-attach">
+              <summary class="btn secondary small">{{symbol "link" 15}}<span>{{$.T.T "admin.orphan.attach"}}</span></summary>
+              <div class="orphan-choices">
+                {{$id := .ID}}
+                {{range .Choices}}
+                  <form method="post" action="/admin/players/{{.Slug}}/login/attach">
+                    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                    <input type="hidden" name="user_id" value="{{$id}}">
+                    <button class="btn secondary small" type="submit">{{.Name}}</button>
+                  </form>
+                {{end}}
+              </div>
+            </details>
+          {{end}}
+        </div>
+      {{end}}
+    {{end}}
+  </section>
 
-        <form method="post" action="/admin/players/{{.Slug}}" class="form">
-          <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+  {{with .Selected}}
+    <section class="card editor-card">
+      <a class="editor-back" href="/admin/players">{{symbol "chevron_left" 20}}{{$.T.T "admin.allPlayers"}}</a>
+      <div class="editor-head">
+        <span class="editor-avatar" aria-hidden="true">{{.Initial}}</span>
+        <span class="editor-id"><span class="editor-name">{{.Name}}</span><span class="editor-stats">{{.Stats}}</span></span>
+      </div>
 
-          <label for="adm-name">{{$.T.T "admin.field.name"}}</label>
-          <input type="text" id="adm-name" name="name" value="{{.Form.Name}}" required>
-          <p class="hint">{{$.T.T "admin.field.nameHint"}}</p>
-
-          <label for="adm-slug">{{$.T.T "admin.field.slug"}}</label>
-          <span class="slug-field">
-            <span class="slug-base">{{.SlugBase}}</span>
-            <input type="text" id="adm-slug" name="slug" value="{{.Form.Slug}}" required pattern="[a-z0-9-]+">
+      <form method="post" action="/admin/players/{{.Slug}}" class="form settings-form" id="player-form">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <label class="field">
+          <span class="field-label">{{$.T.T "admin.field.name"}}</span>
+          <input type="text" name="name" value="{{.Form.Name}}" required>
+          <span class="field-hint">{{$.T.T "admin.field.nameHint"}}</span>
+        </label>
+        <label class="field">
+          <span class="field-label">{{$.T.T "admin.field.slug"}}</span>
+          <span class="slug-field"><span class="slug-base">{{.SlugBase}}</span><input type="text" name="slug" value="{{.Form.Slug}}" required pattern="[a-z0-9-]+"></span>
+          <span class="field-hint">{{$.T.T "admin.field.slugHint"}}</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" name="active" value="1"{{if .Form.Active}} checked{{end}}>
+          <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>
+          <span class="switch-label">
+            <span class="switch-title">{{$.T.T "admin.field.active"}}</span>
+            <span class="field-hint">{{$.T.T "admin.field.activeHint"}}</span>
           </span>
-          <p class="hint">{{$.T.T "admin.field.slugHint"}}</p>
+        </label>
+      </form>
 
-          <label class="switch">
-            <input type="checkbox" name="active" value="1"{{if .Form.Active}} checked{{end}}>
-            <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>
-            <span class="switch-label">
-              <span>{{$.T.T "admin.field.active"}}</span>
-              <span class="hint">{{$.T.T "admin.field.activeHint"}}</span>
+      <div class="editor-section">
+        <span class="field-label">Signal</span>
+        {{range .Senders}}
+          <div class="editor-box raised">
+            {{symbol "chat" 19}}
+            <span class="editor-box-text">
+              <span class="editor-box-title">{{$.T.T "admin.sender.seenAs" .DisplayHint}}</span>
+              <span class="editor-box-sub mono">{{.ExternalID}}</span>
             </span>
-          </label>
+            <form method="post" action="/admin/players/{{$.Selected.Slug}}/sender/unlink">
+              <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+              <input type="hidden" name="source" value="{{.Source}}">
+              <input type="hidden" name="external_id" value="{{.ExternalID}}">
+              <button class="btn secondary small" type="submit">{{symbol "link_off" 15}}<span>{{$.T.T "admin.unlink"}}</span></button>
+            </form>
+          </div>
+        {{else}}
+          <div class="editor-box dashed">{{symbol "chat_error" 19}}<span class="editor-box-sub">{{$.T.T "admin.sender.none"}}</span></div>
+        {{end}}
+        <span class="field-hint">{{$.T.T "admin.sender.hint" .Name}}</span>
+      </div>
 
-          {{template "stat-list" (dict "Variant" "admin" "Items" .Figures)}}
-
-          <hr>
-
-          <p class="kicker">{{$.T.T "admin.field.login"}}</p>
-          {{if .Linked}}
-            <div class="admin-linked">
-              <span class="avatar" aria-hidden="true">{{.Initials}}</span>
-              <span class="account-id">
-                <span class="account-name">{{.Linked.Email}}</span>
-                <span class="account-email">{{.Role}}{{if .LinkedSince}} · {{$.T.T "admin.since"}} {{.LinkedSince}}{{end}}</span>
+      <div class="editor-section">
+        <span class="field-label">{{$.T.T "settings.signIn"}}</span>
+        {{if .Linked}}
+          <div class="editor-box outlined column">
+            <div class="editor-box-row">
+              <span class="filled">{{symbol "account_circle" 19}}</span>
+              <span class="editor-box-text">
+                <span class="editor-box-title">{{.Linked.Email}}</span>
+                <span class="editor-box-sub">{{.LinkedSub}}</span>
+              </span>
+              {{if .Linked.IsAdmin}}<span class="state-pill">{{symbol "shield_person" 15}}{{$.T.T "settings.role.admin"}}</span>{{end}}
+            </div>
+            <div class="editor-box-actions">
+              <form method="post" action="/admin/players/{{.Slug}}/login/reset">
+                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                <button class="btn secondary small" type="submit">{{symbol "lock_reset" 16}}<span>{{$.T.T "admin.login.reset"}}</span></button>
+              </form>
+              <form method="post" action="/admin/players/{{.Slug}}/login/unlink">
+                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                <button class="btn secondary small" type="submit">{{symbol "link_off" 16}}<span>{{$.T.T "admin.unlink"}}</span></button>
+              </form>
+              {{if and (not .Linked.IsAdmin) (not .ConfirmDisable)}}
+                <a class="btn secondary small danger" href="/admin/players/{{.Slug}}?confirm=disable">{{symbol "delete" 16}}<span>{{$.T.T "admin.login.disable"}}</span></a>
+              {{end}}
+            </div>
+            {{if and .ConfirmDisable (not .Linked.IsAdmin)}}
+              <div class="danger-box column">
+                <p class="danger-box-text">{{$.T.T "admin.login.disableAsk" .Linked.Email .Name}}</p>
+                <form method="post" action="/admin/players/{{.Slug}}/login/disable" class="danger-box-actions">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                  <a class="btn secondary small" href="/admin/players/{{.Slug}}">{{$.T.T "admin.keep"}}</a>
+                  <button class="btn danger small" type="submit">{{$.T.T "admin.login.disable"}}</button>
+                </form>
+              </div>
+            {{end}}
+          </div>
+        {{else if .Pending}}
+          <div class="editor-box outlined column">
+            <div class="editor-box-row">
+              {{symbol "schedule_send" 19}}
+              <span class="editor-box-text">
+                <span class="editor-box-title">{{.Pending.Email}}</span>
+                <span class="editor-box-sub">{{$.T.T "admin.invite.waiting" .PendingSince}}</span>
               </span>
             </div>
-          {{else if .Pending}}
-            <p class="note">{{$.T.T "admin.invitePending" .Pending.Email .PendingUntil}}</p>
-          {{else}}
-            <p class="muted small">{{$.T.T "admin.field.noLogin"}}</p>
-          {{end}}
-
-          {{/* Picking an existing login is hidden until there is a screen
-               for managing users: without one there is no way to see who
-               these accounts are, or to create one to pick. Inviting by
-               email below covers the case that actually comes up. The
-               field is omitted rather than disabled, and the handler
-               treats its absence as "leave the link alone" rather than as
-               an empty selection. */}}
-
-          <div class="actions">
-            <button class="btn" type="submit">{{$.T.T "admin.save"}}</button>
-            <a class="btn secondary" href="/admin/players">{{$.T.T "admin.cancel"}}</a>
-          </div>
-        </form>
-
-        {{if and (not .Linked) .CanInvite}}
-          {{/* Its own form: inviting is a different act from saving the
-               player, and posting them together would send mail whenever
-               somebody renamed a row. */}}
-          <form method="post" action="/admin/players/{{.Slug}}/invite" class="form invite-form">
-            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
-            <label for="adm-invite">{{if .Pending}}{{$.T.T "admin.inviteAgain"}}{{else}}{{$.T.T "admin.inviteBy"}}{{end}}</label>
-            <span class="inline-field">
-              <input type="email" id="adm-invite" name="invite_email"
-                     value="{{if .Pending}}{{.Pending.Email}}{{end}}"
-                     placeholder="{{$.T.T "signin.emailPlaceholder"}}" required>
-              <button type="submit" class="btn secondary">{{$.T.T "admin.invite"}}</button>
-            </span>
-
-            {{/* The language the invitation is written in, and the one the
-                 account starts in. Defaulted rather than taken from the
-                 admin: an admin reading in Swedish does not make the
-                 person they are inviting a Swedish speaker. */}}
-            <label for="adm-invite-lang">{{$.T.T "admin.inviteLanguage"}}</label>
-            <select id="adm-invite-lang" name="locale">
-              {{range $.Languages}}
-                <option value="{{.Code}}"{{if eq .Code $.InviteLocale}} selected{{end}}>{{.Label}}</option>
+            <div class="editor-box-actions">
+              {{if .CanInvite}}
+                <form method="post" action="/admin/players/{{.Slug}}/invite">
+                  <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                  <input type="hidden" name="invite_email" value="{{.Pending.Email}}">
+                  <input type="hidden" name="locale" value="{{.Pending.Locale}}">
+                  <button class="btn secondary small" type="submit">{{symbol "refresh" 16}}<span>{{$.T.T "admin.invite.resend"}}</span></button>
+                </form>
               {{end}}
-            </select>
-            <p class="hint">{{$.T.T "admin.inviteHint"}}</p>
-          </form>
+              <form method="post" action="/admin/players/{{.Slug}}/invite/cancel">
+                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                <button class="btn secondary small danger" type="submit">{{$.T.T "admin.invite.cancel"}}</button>
+              </form>
+            </div>
+          </div>
+        {{else}}
+          <div class="editor-box outlined column">
+            <div class="editor-box-row">{{symbol "person_off" 19}}<span class="editor-box-sub">{{$.T.T "admin.login.noneBody"}}</span></div>
+            {{if .CanInvite}}
+              {{/* Its own form: inviting is a different act from saving the
+                   player, and posting them together would send mail
+                   whenever somebody renamed a row. */}}
+              <form method="post" action="/admin/players/{{.Slug}}/invite" class="form settings-form invite-form">
+                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                <span class="field-row">
+                  <input type="email" name="invite_email" placeholder="{{$.T.T "signin.emailPlaceholder"}}" required aria-label="{{$.T.T "signin.email"}}">
+                  {{/* The invitation's language, and the one the account
+                       starts in: the recipient's, not the admin's. */}}
+                  <select name="locale" aria-label="{{$.T.T "admin.inviteLanguage"}}">
+                    {{range $.Languages}}<option value="{{.Code}}"{{if eq .Code $.InviteLocale}} selected{{end}}>{{.Label}}</option>{{end}}
+                  </select>
+                </span>
+                <div class="actions with-hint">
+                  <button class="btn small" type="submit">{{symbol "send" 17}}<span>{{$.T.T "admin.invite.send"}}</span></button>
+                  <span class="field-hint">{{$.T.T "admin.inviteHint"}}</span>
+                </div>
+              </form>
+            {{end}}
+          </div>
         {{end}}
       </div>
-    {{else}}
-      <div class="admin-panel empty-panel">
-        <p class="muted small">{{.T.T "admin.pickPlayer"}}</p>
+
+      <div class="actions editor-actions">
+        <button class="btn" type="submit" form="player-form">{{$.T.T "admin.save"}}</button>
+        <a class="btn secondary" href="/admin/players">{{$.T.T "admin.cancel"}}</a>
       </div>
-    {{end}}
-  </div>
-</section>
+    </section>
+  {{else}}{{with .New}}
+    {{/* The design's New player card, in the editor's place. The address
+         is left to the server when empty, which makes it from the name;
+         the design fills it in as the name is typed, which would take a
+         script for a convenience. Senders are checkboxes, so one player
+         can take more than one. */}}
+    <section class="card editor-card new-player-card">
+      <a class="editor-back" href="/admin/players">{{symbol "chevron_left" 20}}{{$.T.T "admin.allPlayers"}}</a>
+      <div class="editor-head">
+        <span class="editor-avatar glyph" aria-hidden="true">{{symbol "person_add" 22}}</span>
+        <span class="editor-id"><span class="editor-name">{{$.T.T "admin.new.title"}}</span><span class="editor-stats">{{$.T.T "admin.new.sub"}}</span></span>
+      </div>
+      <form method="post" action="/admin/players" class="form settings-form new-player-form">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <label class="field">
+          <span class="field-label">{{$.T.T "admin.field.name"}}</span>
+          <input type="text" name="name" value="{{.Name}}" required autofocus placeholder="{{$.T.T "admin.new.namePlaceholder"}}">
+        </label>
+        <label class="field">
+          <span class="field-label">{{$.T.T "admin.field.slug"}}</span>
+          <span class="slug-field{{if .SlugError}} invalid{{end}}"><span class="slug-base">…/players/</span><input type="text" name="slug" value="{{.Slug}}" pattern="[a-z0-9-]+" placeholder="karin"{{if .SlugError}} aria-invalid="true"{{end}}></span>
+          <span class="field-hint{{if .SlugError}} error{{end}}">{{if .SlugError}}{{.SlugError}}{{else}}{{$.T.T "admin.new.slugHint"}}{{end}}</span>
+        </label>
+        {{with .Senders}}
+          <fieldset class="new-senders">
+            <legend class="field-label">{{$.T.T "admin.new.senders"}} <span class="muted">{{$.T.T "admin.new.optional"}}</span></legend>
+            {{range .}}
+              <label class="sender-choice">
+                <input type="checkbox" name="sender" value="{{.Source}}:{{.ExternalID}}"{{if .Checked}} checked{{end}}>
+                {{symbol "chat" 19}}
+                <span class="sender-choice-text">
+                  <span class="sender-choice-title">{{if .DisplayHint}}{{$.T.T "admin.sender.seenAs" .DisplayHint}}{{else}}{{.ExternalID}}{{end}}</span>
+                  <span class="sender-choice-sub">{{.Sub}}</span>
+                </span>
+                <span class="sender-choice-check">{{symbol "check_circle" 20}}</span>
+              </label>
+            {{end}}
+            <span class="field-hint">{{$.T.T "admin.new.sendersHint"}}</span>
+          </fieldset>
+        {{end}}
+        <div class="actions editor-actions">
+          <button class="btn" type="submit">{{$.T.T "admin.new.create"}}</button>
+          <a class="btn secondary" href="/admin/players">{{$.T.T "admin.cancel"}}</a>
+        </div>
+      </form>
+    </section>
+  {{else}}
+    <div class="editor-placeholder">
+      {{symbol "touch_app" 28}}
+      <span class="editor-placeholder-title">{{.T.T "admin.pickPlayer"}}</span>
+      <span class="editor-placeholder-sub">{{.T.T "admin.pickPlayerSub"}}</span>
+    </div>
+  {{end}}{{end}}
+</div>
 {{end}}

@@ -19,8 +19,10 @@ type MonthPlayer struct {
 	// failures-as-seven is disabled.
 	Average *float64
 
-	// ThreeOrBetter counts solves in three guesses or fewer.
+	// ThreeOrBetter counts solves in three guesses or fewer, TwoOrBetter
+	// in two or fewer.
 	ThreeOrBetter int
+	TwoOrBetter   int
 	Fails         int
 
 	// BestRun is the longest unbroken run of solved puzzles inside the
@@ -159,6 +161,50 @@ func buildMonth(year int, month time.Month, rows []store.BoardResult,
 	return m
 }
 
+// DayLeaders returns who led month m at the end of each of its days so far,
+// oldest first: one slice per day, holding everyone tied at the front then.
+// A running month has one entry for each day it has had, today included
+// once somebody has played it — the same days m.Days counts.
+//
+// Each day is scored by the rules the month itself is scored by, with the
+// clock stopped at that day's end: the days before it that nobody played
+// count against the absent, and a day still in progress does not. So the
+// last entry of a finished month is its winners.
+func DayLeaders(players []store.Player, results []store.BoardResult, opts Options, m Month) [][]MonthPlayer {
+	byPlayer := make(map[int64]store.Player, len(players))
+	for _, p := range players {
+		byPlayer[p.ID] = p
+	}
+	if opts.HardModeOnly {
+		results = filterHardMode(results)
+	}
+	first := wordle.PuzzleForDate(time.Date(m.Year, m.Month, 1, 0, 0, 0, 0, opts.Now.Location()))
+
+	var rows []store.BoardResult
+	for _, r := range results {
+		if _, ok := byPlayer[r.PlayerID]; ok && r.PuzzleNo >= first && r.PuzzleNo < first+m.Days {
+			rows = append(rows, r)
+		}
+	}
+
+	out := make([][]MonthPlayer, 0, m.Days)
+	for d := 0; d < m.Days; d++ {
+		end := first + d + 1
+		var upTo []store.BoardResult
+		for _, r := range rows {
+			if r.PuzzleNo < end {
+				upTo = append(upTo, r)
+			}
+		}
+		day := opts
+		if next, err := wordle.DateForPuzzle(end); err == nil && next.Before(opts.Now) {
+			day.Now = next
+		}
+		out = append(out, scoreSpan(first, end, upTo, byPlayer, day).Winners)
+	}
+	return out
+}
+
 // scoreSpan scores the puzzles from firstPuzzle up to but not including
 // endPuzzle as one competition. A month is one such span and a week is
 // another; both take the same rules, so a week's podium and a month's are
@@ -229,6 +275,9 @@ func scoreSpan(firstPuzzle, endPuzzle int, rows []store.BoardResult,
 				mp.Fails++
 			case r.Guesses <= 3:
 				mp.ThreeOrBetter++
+				if r.Guesses <= 2 {
+					mp.TwoOrBetter++
+				}
 			}
 		}
 

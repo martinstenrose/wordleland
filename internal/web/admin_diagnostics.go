@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/martinstenrose/wordleland/internal/bridge"
+	"github.com/martinstenrose/wordleland/internal/i18n"
+	"github.com/martinstenrose/wordleland/internal/stats"
 	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/version"
 )
@@ -31,12 +33,32 @@ type diagnosticRow struct {
 type diagnosticsPage struct {
 	chrome
 
-	Rows []diagnosticRow
+	// Status is the bridge in one line, at the top; Stats the four figures
+	// under it; Rows the bridge's details, in the card below them.
+	Status diagStatus
+	Stats  []diagStat
+	Rows   []diagnosticRow
 
 	// Configured is false when no Signal bridge is set up, which is a
 	// deployment choice rather than a problem.
 	Configured bool
 	Warning    string
+}
+
+// diagStatus is the bridge in a sentence, and a dot for how worried to be.
+type diagStatus struct {
+	// Tone is "ok", "warn", "bad" or "off".
+	Tone  string
+	Title string
+	Sub   string
+}
+
+// diagStat is one of the four figures: a glyph, what it is, the figure,
+// a line under it, and a way to act on it when there is one.
+type diagStat struct {
+	Icon, Label, Value, Sub string
+	Tone                    string
+	Href, Link              string
 }
 
 // handleAdminDiagnostics reports whether results are still arriving.
@@ -57,65 +79,17 @@ func (s *Server) handleAdminDiagnostics(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	page.Rows = append(page.Rows, s.freshnessRows(t, fresh, now)...)
 	page.Configured = s.bridge != nil
+	page.Status = s.bridgeStatus(t, now)
+	page.Stats = s.diagStats(r, t, fresh, now)
 	if s.bridge != nil {
-		page.Rows = append(page.Rows, s.bridgeRows(t, s.bridge, now)...)
+		// The first two are the status line's; the rest are details.
+		page.Rows = s.bridgeRows(t, s.bridge, now)[2:]
 	}
-	// Last, not first. The page orders by urgency — freshness ahead of
-	// connection state, because a stale board is the failure that costs
-	// scores — and which build is running is reference rather than a
-	// signal. It is here at all because it was the one question the page
-	// could not answer: an image was deployed, this page was read, and the
-	// container turned out to predate the change being looked for.
-	page.Rows = append(page.Rows, s.versionRow(t))
 
 	page.Warning = s.diagnosticsWarning(t, fresh, now)
 
 	s.render(w, r, http.StatusOK, "admin_diagnostics.html", page)
-}
-
-func (s *Server) versionRow(t translator) diagnosticRow {
-	row := diagnosticRow{Label: t.T("diag.version"), Value: version.String(), Code: true}
-	if !version.Set() {
-		// A local build cannot name its commit, and saying so is honest
-		// rather than alarming: it distinguishes "built here" from a
-		// published image whose stamp went missing.
-		row.Hint = t.T("diag.versionUnstamped")
-	}
-	return row
-}
-
-func (s *Server) freshnessRows(t translator, f store.Freshness, now time.Time) []diagnosticRow {
-	last := diagnosticRow{Label: t.T("diag.lastResult"), Value: t.T("diag.never"), Tone: "warn"}
-	if !f.LastResultAt.IsZero() {
-		last.Value = sinceText(t, f.LastResultAt, now)
-		last.Tone = ""
-		if now.Sub(f.LastResultAt) > staleAfter {
-			last.Tone = "warn"
-			last.Hint = t.T("diag.staleHint")
-		}
-	}
-
-	rows := []diagnosticRow{last}
-
-	puzzle := diagnosticRow{Label: t.T("diag.latestPuzzle"), Value: t.T("diag.none")}
-	if f.LatestPuzzle > 0 {
-		puzzle.Value = t.T("player.puzzle", t.Puzzle(f.LatestPuzzle))
-	}
-	rows = append(rows, puzzle)
-
-	// Held results are the quiet failure: everything works and nothing
-	// reaches the board, because nobody has claimed the sender.
-	if f.PendingResults > 0 {
-		rows = append(rows, diagnosticRow{
-			Label: t.T("diag.pending"),
-			Value: t.TN("diag.pendingCount", f.PendingResults),
-			Tone:  "warn",
-			Hint:  t.T("diag.pendingHint"),
-		})
-	}
-	return rows
 }
 
 func (s *Server) bridgeRows(t translator, b Bridge, now time.Time) []diagnosticRow {
@@ -294,3 +268,60 @@ func (s *Server) diagnosticsWarning(t translator, f store.Freshness, now time.Ti
 }
 
 var _ = bridge.Status{}
+
+// bridgeStatus says in one line whether results can arrive: no bridge, a
+// bridge that is down, one reconnecting, or one running and connected.
+func (s *Server) bridgeStatus(t translator, now time.Time) diagStatus {
+	if s.bridge == nil {
+		return diagStatus{Tone: "off", Title: t.T("diag.status.none"), Sub: t.T("diag.noBridge")}
+	}
+	alive, why := s.bridge.Alive()
+	st := s.bridge.Status()
+	switch {
+	case !alive:
+		return diagStatus{Tone: "bad", Title: t.T("diag.status.down"), Sub: why}
+	case !st.Connected:
+		return diagStatus{Tone: "warn", Title: t.T("diag.status.reconnecting"), Sub: t.T("diag.status.reconnectingSub")}
+	}
+	status := diagStatus{Tone: "ok", Title: t.T("diag.status.ok"), Sub: t.T("diag.status.okSub")}
+	if name := st.Verification.GroupName; name != "" {
+		status.Sub = t.T("diag.status.watching", name) + " " + status.Sub
+	}
+	if !st.Since.IsZero() {
+		status.Sub += " " + t.T("diag.status.since", i18n.ClockTime(st.Since))
+	}
+	return status
+}
+
+// diagStats is the four figures: when a result last arrived, the newest
+// puzzle and how far through it the group is, what is held for senders
+// nobody has claimed, and which build is running.
+func (s *Server) diagStats(r *http.Request, t translator, f store.Freshness, now time.Time) []diagStat {
+	last := diagStat{Icon: "schedule", Label: t.T("diag.lastResult"), Value: t.T("diag.stat.never"), Sub: t.T("diag.stat.noneYet"), Tone: "warn"}
+	if !f.LastResultAt.IsZero() {
+		last.Value, last.Sub, last.Tone = f.LastResultAt.Local().Format("15:04"), sinceText(t, f.LastResultAt, now), ""
+		if now.Sub(f.LastResultAt) > staleAfter {
+			last.Tone, last.Sub = "warn", t.T("diag.staleHint")
+		}
+	}
+
+	puzzle := diagStat{Icon: "tag", Label: t.T("diag.latestPuzzle"), Value: t.T("diag.none")}
+	if f.LatestPuzzle > 0 {
+		puzzle.Value = t.T("player.puzzle", t.Puzzle(f.LatestPuzzle))
+		if _, players, results, _, err := s.boardData(r); err == nil {
+			day := stats.ComputeToday(players, results, f.LatestPuzzle)
+			puzzle.Sub = t.T("diag.stat.soFar", day.FiledCount(), day.Expected())
+		}
+	}
+
+	held := diagStat{Icon: "inbox", Label: t.T("diag.pending"), Value: t.Integer(f.PendingResults), Sub: t.T("diag.stat.heldSub")}
+	if f.PendingResults > 0 {
+		held.Tone, held.Href, held.Link = "warn", "/admin/pending", t.T("diag.stat.review")
+	}
+
+	build := diagStat{Icon: "deployed_code", Label: t.T("diag.version"), Value: version.Short(), Sub: version.String()}
+	if !version.Set() {
+		build.Sub = t.T("diag.versionUnstamped")
+	}
+	return []diagStat{last, puzzle, held, build}
+}

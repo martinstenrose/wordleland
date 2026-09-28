@@ -130,7 +130,7 @@ func TestDiagnosticsLeadsWithFreshness(t *testing.T) {
 	if conn >= 0 && conn < last {
 		t.Error("connection state is shown above freshness; a wrong group is green there and stale here")
 	}
-	if !strings.Contains(body, "Newest puzzle on the board") {
+	if !strings.Contains(body, "Newest puzzle") {
 		t.Error("the page does not say how current the board is")
 	}
 	if strings.Contains(body, "%!") {
@@ -150,11 +150,15 @@ func TestDiagnosticsSurfacesHeldResults(t *testing.T) {
 	holdPending(t, srv, "unclaimed-1", "", 1895, 3)
 
 	body := fetchAs(t, srv, "/admin/diagnostics", session).Body.String()
-	if !strings.Contains(body, "Held for unclaimed senders") {
+	held, ok := sectionOf(body, "HELD", "</section>")
+	if !ok {
+		held, ok = sectionOf(body, ">Held<", "</section>")
+	}
+	if !ok || !strings.Contains(held, "from unclaimed senders") {
 		t.Error("held results are not reported")
 	}
-	if !strings.Contains(body, "2 results") {
-		t.Error("the count of held results is missing")
+	if !strings.Contains(held, `<p class="diag-stat-value num warn">2</p>`) {
+		t.Errorf("the count of held results is missing: %s", held)
 	}
 }
 
@@ -221,7 +225,7 @@ func TestHeldResultsAreNotRaisedOnTheWayIn(t *testing.T) {
 	if !strings.Contains(pending, "waiting") {
 		t.Error("the pending tab does not say how many senders are waiting")
 	}
-	if !strings.Contains(fetchAs(t, srv, "/admin/diagnostics", session).Body.String(), "Held for unclaimed senders") {
+	if !strings.Contains(fetchAs(t, srv, "/admin/diagnostics", session).Body.String(), "from unclaimed senders") {
 		t.Error("diagnostics no longer reports held results")
 	}
 }

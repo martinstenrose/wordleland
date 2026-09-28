@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/martinstenrose/wordleland/internal/wordle"
@@ -39,6 +40,8 @@ type PendingResult struct {
 	// PostedAt is carried through the wait so the replayed result keeps
 	// the time it was posted in the group. See Result.PostedAt.
 	PostedAt *time.Time
+	// Grid is carried the same way. See Result.Grid.
+	Grid string
 }
 
 // ResolveIdentity maps a sender to a player, also returning the identity
@@ -90,16 +93,18 @@ func RefreshDisplayHint(ctx context.Context, q Querier, source, externalID, hint
 func HoldPendingResult(ctx context.Context, q Querier, source, externalID, hint string, r PendingResult) error {
 	if _, err := q.ExecContext(ctx, `
 		INSERT INTO pending_results
-			(source, external_id, display_hint, puzzle_no, solved, guesses, hard_mode, posted_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			(source, external_id, display_hint, puzzle_no, solved, guesses, hard_mode, posted_at, grid)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (source, external_id, puzzle_no) DO UPDATE SET
 			solved       = excluded.solved,
 			guesses      = excluded.guesses,
 			hard_mode    = excluded.hard_mode,
+			grid         = excluded.grid,
 			display_hint = excluded.display_hint,
 			received_at  = CURRENT_TIMESTAMP,
 			posted_at    = COALESCE(pending_results.posted_at, excluded.posted_at)`,
 		source, externalID, nullIfEmpty(hint), r.PuzzleNo, r.Solved, r.Guesses, r.HardMode, r.PostedAt,
+		nullIfEmpty(r.Grid),
 	); err != nil {
 		return fmt.Errorf("hold pending result: %w", err)
 	}
@@ -198,6 +203,20 @@ func LinkIdentity(ctx context.Context, db *sql.DB, actor Actor, playerID int64,
 
 	var summary ReplaySummary
 	err := InTx(ctx, db, func(tx *sql.Tx) error {
+		var err error
+		summary, err = linkIdentityTx(ctx, tx, actor, playerID, source, externalID, action, dryRun)
+		return err
+	})
+	return summary, err
+}
+
+// linkIdentityTx is LinkIdentity inside a transaction the caller holds, so
+// that creating a player and claiming its senders can be one.
+func linkIdentityTx(ctx context.Context, tx *sql.Tx, actor Actor, playerID int64,
+	source, externalID, action string, dryRun bool) (ReplaySummary, error) {
+
+	var summary ReplaySummary
+	err := func() error {
 		if _, _, err := ResolveIdentity(ctx, tx, source, externalID); err == nil {
 			return ErrIdentityTaken
 		} else if !errors.Is(err, ErrIdentityNotFound) {
@@ -242,6 +261,7 @@ func LinkIdentity(ctx context.Context, db *sql.DB, actor Actor, playerID int64,
 				Solved:   held.Solved,
 				HardMode: held.HardMode,
 				PostedAt: held.PostedAt,
+				Grid:     held.Grid,
 			}
 
 			if dryRun {
@@ -305,8 +325,49 @@ func LinkIdentity(ctx context.Context, db *sql.DB, actor Actor, playerID int64,
 			"source": source, "external_id": externalID,
 			"replayed": summary.Replayed, "updated": summary.Updated, "skipped": summary.Skipped,
 		})
-	})
+	}()
 	return summary, err
+}
+
+// Sender names a Signal (or other) identity by where it posts from.
+type Sender struct {
+	Source, ExternalID string
+}
+
+// CreatePlayerForSenders creates a player and claims each sender for them,
+// replaying what was held — all of it or none: a claim that fails leaves
+// no player behind. An empty slug is derived from the name, as in
+// CreatePlayer; an explicit one is refused if invalid or taken.
+func CreatePlayerForSenders(ctx context.Context, db *sql.DB, actor Actor, name, slug string, senders []Sender) (Player, ReplaySummary, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return Player{}, ReplaySummary{}, errors.New("player name is empty")
+	}
+	if slug != "" && !ValidSlug(slug) {
+		return Player{}, ReplaySummary{}, ErrInvalidSlug
+	}
+	var player Player
+	var total ReplaySummary
+	err := InTx(ctx, db, func(tx *sql.Tx) error {
+		var err error
+		if player, err = CreatePlayerTx(ctx, tx, actor, name, slug); err != nil {
+			return err
+		}
+		for _, sender := range senders {
+			summary, err := linkIdentityTx(ctx, tx, actor, player.ID, sender.Source, sender.ExternalID, ActionIdentityClaimed, false)
+			if err != nil {
+				return err
+			}
+			total.Replayed += summary.Replayed
+			total.Updated += summary.Updated
+			total.Skipped += summary.Skipped
+		}
+		return nil
+	})
+	if err != nil {
+		return Player{}, ReplaySummary{}, err
+	}
+	return player, total, nil
 }
 
 // ClaimedIdentity is one player_identities row, joined to the player it maps
@@ -489,7 +550,7 @@ func ReassignIdentity(ctx context.Context, db *sql.DB, actor Actor,
 // pendingResultsFor reads what is held for a sender, and the latest hint.
 func pendingResultsFor(ctx context.Context, q Querier, source, externalID string) ([]PendingResult, string, error) {
 	rows, err := q.QueryContext(ctx, `
-		SELECT puzzle_no, solved, guesses, hard_mode, posted_at, COALESCE(display_hint, '')
+		SELECT puzzle_no, solved, guesses, hard_mode, posted_at, COALESCE(grid, ''), COALESCE(display_hint, '')
 		FROM pending_results
 		WHERE source = ? AND external_id = ?
 		ORDER BY puzzle_no`, source, externalID)
@@ -507,7 +568,7 @@ func pendingResultsFor(ctx context.Context, q Querier, source, externalID string
 			r        PendingResult
 			rowsHint string
 		)
-		if err := rows.Scan(&r.PuzzleNo, &r.Solved, &r.Guesses, &r.HardMode, &r.PostedAt, &rowsHint); err != nil {
+		if err := rows.Scan(&r.PuzzleNo, &r.Solved, &r.Guesses, &r.HardMode, &r.PostedAt, &r.Grid, &rowsHint); err != nil {
 			return nil, "", fmt.Errorf("scan held result: %w", err)
 		}
 		if rowsHint != "" {
@@ -562,4 +623,24 @@ func DeleteExpiredPendingResults(ctx context.Context, q Querier, olderThan time.
 // PendingResultsFor reads what is held for a sender.
 func PendingResultsFor(ctx context.Context, q Querier, source, externalID string) ([]PendingResult, string, error) {
 	return pendingResultsFor(ctx, q, source, externalID)
+}
+
+// UnlinkIdentity takes a sender away from the player it was claimed for. The
+// sender's next result is held as pending again, to be assigned afresh; the
+// results it already filed stay where they are, their identity cleared by the
+// schema's ON DELETE SET NULL.
+func UnlinkIdentity(ctx context.Context, db *sql.DB, actor Actor, playerID int64, source, externalID string) error {
+	return InTx(ctx, db, func(tx *sql.Tx) error {
+		res, err := tx.ExecContext(ctx,
+			`DELETE FROM player_identities WHERE player_id = ? AND source = ? AND external_id = ?`,
+			playerID, source, externalID)
+		if err != nil {
+			return fmt.Errorf("unlink identity: %w", err)
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return ErrIdentityNotFound
+		}
+		return LogActivity(ctx, tx, actor, ActionIdentityUnlinked, SubjectPlayer, &playerID,
+			map[string]any{"source": source, "external_id": externalID})
+	})
 }

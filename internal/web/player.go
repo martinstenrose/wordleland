@@ -46,6 +46,9 @@ type scoreCell struct {
 	HardMode bool
 	// Tone drives the colour ramp: 1 is the strongest, 6 and X the faintest.
 	Tone int
+	// Popup is what the day opens: see popupFor. Filled in on the player's
+	// page only, where the strip's days open one.
+	Popup dayPopup
 }
 
 // distributionBar is one bucket of the guess distribution.
@@ -89,10 +92,18 @@ type playerPage struct {
 	// them: the same shape the month view uses for its winner.
 	Stats []playerStat
 
-	Calendar     []calendarDay
-	CalendarRows int
+	// Heat is the last year, a week per column; HeatLabels names the month
+	// each column starts, where one does.
+	Heat       []calendarDay
+	HeatLabels []heatLabel
+
+	Records     []recordRow
+	Weekdays    []weekdayBar
+	WeekdayNote string
 
 	MonthRanks     []monthRank
+	RankRules      []rankRule
+	WinsNote       string
 	RankPath       template.HTML
 	RankPathDashed template.HTML
 
@@ -135,8 +146,8 @@ type chartGridline struct {
 // handlePlayers renders the players view with nobody named, which means the
 // player at the top of the board. It exists so the nav has somewhere to
 // point: the detail panel is the view, and the picker swaps who is in it.
-func (s *Server) handlePlayers(w http.ResponseWriter, r *http.Request, prefix, boardPath string, readOnly bool) {
-	board, _, _, _, err := s.boardData(r)
+func (s *Server) handlePlayers(w http.ResponseWriter, r *http.Request, prefix string, readOnly bool) {
+	board, _, results, _, err := s.boardData(r)
 	if err != nil {
 		s.logger.Error("build board", "error", err)
 		s.renderError(w, r, http.StatusInternalServerError)
@@ -144,9 +155,12 @@ func (s *Server) handlePlayers(w http.ResponseWriter, r *http.Request, prefix, b
 	}
 
 	if len(board.Ranked) == 0 && len(board.Unranked) == 0 {
-		// Nobody to show. The board's own empty state says why, so send the
-		// reader there rather than inventing a second one.
-		http.Redirect(w, r, boardPath, http.StatusSeeOther)
+		// Nobody to open on, so the view says so where it stands. It used to
+		// redirect to the view's own address, which is itself, until the
+		// browser gave up.
+		ch := s.newChrome(w, r, prefix, viewPlayers, readOnly)
+		ch.Section = ch.playerSwitcher(board, results, prefix, nil)
+		s.render(w, r, http.StatusOK, "players.html", ch)
 		return
 	}
 
@@ -205,8 +219,24 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, pref
 
 		Distribution: distributionBars(player, t),
 		Recent:       recentCells(player, results, board.CurrentPuzzle, t),
-		Calendar:     buildCalendar(ch.T, results, player.ID),
-		CalendarRows: weekdays,
+	}
+	days := newDayTable(results)
+	byPuzzle := map[int]store.BoardResult{}
+	for _, res := range results {
+		if res.PlayerID == player.ID {
+			byPuzzle[res.PuzzleNo] = res
+		}
+	}
+	for i, c := range page.Recent {
+		if res, ok := byPuzzle[c.PuzzleNo]; ok {
+			page.Recent[i].Popup = popupFor(t, days, res, prefix)
+		}
+	}
+	page.Heat, page.HeatLabels = buildHeatmap(t, days, results, player.ID, board.CurrentPuzzle, prefix)
+	// Averages by weekday are averages, withheld below the ranking threshold
+	// like every other one on the page.
+	if player.Ranked() {
+		page.Weekdays, page.WeekdayNote = playerWeekdays(t, player, results, board.CurrentPuzzle)
 	}
 
 	// Ranked against the whole roster, not against themselves: a month
@@ -218,12 +248,18 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, pref
 		HardModeOnly:  query.HardModeOnly,
 		Now:           now,
 	})
-	ranks, path, dashedPath := buildMonthRanks(months, player.ID, now, t)
+	page.Records = playerRecords(t, player, board, months, results, now)
+	ranks, rules, path, dashedPath, won := buildMonthRanks(months, player.ID, now, t)
 	page.MonthRanks = ranks
+	page.RankRules = rules
+	page.WinsNote = t.T("player.noWins")
+	if won > 0 {
+		page.WinsNote = t.TN("player.monthsWon", won)
+	}
 	page.RankPath = template.HTML(path)
 	page.RankPathDashed = template.HTML(dashedPath)
 
-	page.Section = ch.playerSwitcher(board, prefix, &player)
+	page.Section = ch.playerSwitcher(board, results, prefix, &player)
 
 	page.DeltaText, page.DeltaClass = formatDelta(t, player.Delta)
 
@@ -231,15 +267,12 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, pref
 	if player.Ranked() {
 		rank = "#" + t.Integer(player.Rank)
 	}
-	streak := "—"
-	if player.CurrentStreak > 0 {
-		streak = t.Integer(player.CurrentStreak)
-	}
+	// Three, as the design has it: the streak moved to Records and rivals,
+	// where it stands beside the longest and the solving kind.
 	page.Stats = []playerStat{
 		{Label: t.T("board.column.form"), Value: formatScore(t, player.Form)},
 		{Label: t.T("board.column.average"), Value: formatScore(t, player.Average)},
-		{Label: t.T("player.currentStreak"), Value: streak},
-		{Label: t.T("board.column.rank"), Value: rank},
+		{Label: t.T("player.stat.rank"), Value: rank},
 	}
 
 	// The derived figures are withheld below the ranking threshold, on this
@@ -249,6 +282,14 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, pref
 		page.DeltaText, page.DeltaClass = "", "level"
 		page.Stats[0].Value, page.Stats[1].Value = "—", "—"
 	}
+
+	// The figures sit in the head, beside the name, for a player with any
+	// games to have figures of.
+	if player.Games > 0 {
+		page.Section.Stats = page.Stats
+	}
+	// The trait stands beside the name, as a chip.
+	page.Section.Trait, page.Section.Why = page.Trait, page.Why
 
 	// The chart is suppressed for unranked players, but why differs and the
 	// page has to say the right one: someone with sixty games who stopped in
@@ -409,14 +450,6 @@ func percent(part, whole int) int {
 	return int(float64(part)/float64(whole)*100 + 0.5)
 }
 
-// Calendar geometry: a week per column, a weekday per row, as the design
-// draws it.
-const (
-	calendarCell = 13
-	calendarGap  = 3
-	weekdays     = 7
-)
-
 // calendarDay is one square in the heat grid.
 type calendarDay struct {
 	// Filled is false for the padding squares before the first day and
@@ -431,92 +464,35 @@ type calendarDay struct {
 	// when, and what it took. The square itself is blank, so unlike the
 	// recent strip's cells this popup carries the result as well.
 	Detail string
-}
-
-// buildCalendar lays a player's history out as weeks by weekdays.
-//
-// The grid starts on the Monday of the first week played, so every column is
-// a whole week and the rows line up as weekdays throughout. Days before that
-// Monday and after the last result are padding rather than absences.
-func buildCalendar(t translator, results []store.BoardResult, playerID int64) []calendarDay {
-	byDay := make(map[string]store.BoardResult)
-	var first, last time.Time
-	for _, r := range results {
-		if r.PlayerID != playerID {
-			continue
-		}
-		day := r.Date.Format(time.DateOnly)
-		byDay[day] = r
-		if first.IsZero() || r.Date.Before(first) {
-			first = r.Date
-		}
-		if r.Date.After(last) {
-			last = r.Date
-		}
-	}
-	if first.IsZero() {
-		return nil
-	}
-
-	// Monday is weekday 1 in Go's numbering, with Sunday at 0.
-	offset := (int(first.Weekday()) + 6) % 7
-	start := first.AddDate(0, 0, -offset)
-
-	var days []calendarDay
-	for d := start; !d.After(last); d = d.AddDate(0, 0, 1) {
-		day := calendarDay{Filled: !d.Before(first)}
-		if r, ok := byDay[d.Format(time.DateOnly)]; ok {
-			day.Played = true
-			day.Tone = int(worstScore)
-			if r.Solved {
-				day.Tone = r.Guesses
-			}
-			day.Detail = puzzleDate(t, r.PuzzleNo, d.Format(time.DateOnly)) + " · " + guessesText(t, r)
-		} else if day.Filled {
-			day.Title = d.Format(time.DateOnly)
-		}
-		days = append(days, day)
-	}
-	return days
-}
-
-// guessesText says what a result took, for a popup that has room for words
-// where the tile it hangs off has room only for a digit.
-func guessesText(t translator, r store.BoardResult) string {
-	if !r.Solved {
-		return t.T("player.notSolved")
-	}
-	return t.TN("player.guesses", r.Guesses)
+	// Popup is what a played day opens.
+	Popup dayPopup
 }
 
 // monthRank is one point on the rank-by-month chart.
 type monthRank struct {
-	Label  string
-	Rank   int
-	Of     int
-	X      string
-	Y      string
-	LabelY string
+	Label string
+	Rank  int
+	Of    int
+	// X and Y place the point in the plot's units, for the line; Left and
+	// Top in shares of its box, for the dot and the month's name.
+	X, Y      string
+	Left, Top string
 }
 
-// rankChartHeight bounds the plot; ranks are drawn best at the top.
-const (
-	rankChartWidth  = 300.0
-	rankChartHeight = 96.0
-)
-
-// buildMonthRanks finds a player's placing in each month they were ranked.
+// buildMonthRanks finds a player's placing in each of the last months they
+// were ranked in, laid out as the design draws it: a rule per place down the
+// left, best at the top, a dot per month and the month's name under it.
 //
 // Months with no score under the selected rules are skipped rather than
 // plotted as a gap: there was no rank to have, and drawing one would invent
 // a placing.
 //
-// It returns the point data plus two path strings: path covers every
-// segment up to the most recent completed month, and dashedPath, when
-// non-empty, is the single trailing segment into a month still being
-// played — its rank can still move, so the line into it is drawn dashed
-// rather than as a finished result.
-func buildMonthRanks(months []stats.Month, playerID int64, now time.Time, t translator) (points []monthRank, path, dashedPath string) {
+// Positions are shares of the plot's box, so the dots and labels, which are
+// markup, sit on the line, which is a stretched SVG. path covers every
+// segment up to the most recent completed month; dashedPath, when non-empty,
+// is the one trailing segment into a month still being played, whose rank
+// can still move.
+func buildMonthRanks(months []stats.Month, playerID int64, now time.Time, t translator) (points []monthRank, rules []rankRule, path, dashedPath string, won int) {
 	lastComplete := true
 	for i := len(months) - 1; i >= 0; i-- {
 		m := months[i]
@@ -525,35 +501,38 @@ func buildMonthRanks(months []stats.Month, playerID int64, now time.Time, t tran
 				continue
 			}
 			points = append(points, monthRank{
-				Label: t.T("month." + strconv.Itoa(int(m.Month)))[:3],
+				Label: shortMonthName(t, m.Month),
 				Rank:  p.Rank,
 				Of:    len(m.Ranked),
 			})
 			lastComplete = m.Complete(now)
+			if p.Rank == 1 && lastComplete {
+				won++
+			}
 		}
+	}
+	if len(points) > rankMonths {
+		points = points[len(points)-rankMonths:]
 	}
 	if len(points) < 2 {
-		return nil, "", ""
+		return nil, nil, "", "", won
 	}
 
-	worst := 1
+	worst := 2
 	for _, p := range points {
-		if p.Of > worst {
-			worst = p.Of
-		}
+		worst = max(worst, p.Of)
 	}
-
+	// In the plot's own units, the design's: 320 wide, 160 tall, the rules
+	// from 8 to 128 and the dots from 36 across.
+	yOf := func(rank int) float64 { return 8 + float64(rank-1)*120/float64(worst-1) }
+	for r := 1; r <= worst; r++ {
+		rules = append(rules, rankRule{Label: t.Integer(r), Y: fmtF(yOf(r)), Top: fmtPct(yOf(r) / 160)})
+	}
 	for i := range points {
-		x := 0.0
-		if len(points) > 1 {
-			x = float64(i) / float64(len(points)-1) * rankChartWidth
-		}
-		// Rank 1 sits at the top; the scale runs to the largest field size
-		// any of these months had.
-		y := float64(points[i].Rank-1) / float64(worst) * rankChartHeight
-		points[i].X = strconv.FormatFloat(x, 'f', 1, 64)
-		points[i].Y = strconv.FormatFloat(y, 'f', 1, 64)
-		points[i].LabelY = strconv.FormatFloat(y-9, 'f', 1, 64)
+		x := 36 + float64(i)*276/float64(len(points)-1)
+		y := yOf(points[i].Rank)
+		points[i].X, points[i].Y = fmtF(x), fmtF(y)
+		points[i].Left, points[i].Top = fmtPct(x/320), fmtPct(y/160)
 	}
 
 	splitAt := len(points) - 1
@@ -564,8 +543,21 @@ func buildMonthRanks(months []stats.Month, playerID int64, now time.Time, t tran
 	if splitAt < len(points)-1 {
 		dashedPath = rankPath(points[splitAt:])
 	}
-	return points, path, dashedPath
+	return points, rules, path, dashedPath, won
 }
+
+// rankMonths is how many months the chart shows at most.
+const rankMonths = 9
+
+// rankRule is one place's rule on the rank chart.
+type rankRule struct {
+	Label string
+	Y     string
+	Top   string
+}
+
+func fmtF(v float64) string   { return strconv.FormatFloat(v, 'f', 1, 64) }
+func fmtPct(v float64) string { return strconv.FormatFloat(v*100, 'f', 2, 64) + "%" }
 
 // rankPath renders a sequence of already-positioned points as a single SVG
 // path: one straight segment per consecutive pair.

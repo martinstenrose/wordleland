@@ -1,24 +1,36 @@
 {{define "title"}}{{.T.T "privacy.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<section class="card">
-  <div class="card-head">
-    <h1>{{.T.T "privacy.title"}}</h1>
-    <p class="kicker">{{.T.T "privacy.intro"}}</p>
+{{/* What this installation keeps and why: the page head with the intro as
+     its line, then a card of five questions, each a glyph and a heading
+     beside its answer on a wide window, above it on a phone. */}}
+<header class="page-head">
+  <div class="page-head-id">
+    <p class="page-eyebrow">{{.T.T "app.name"}}</p>
+    <h1 class="page-title">{{.T.T "privacy.title"}}</h1>
+    <p class="page-sub">{{.T.T "privacy.intro"}}</p>
   </div>
+</header>
 
-  <h2 class="section">{{.T.T "privacy.stored.heading"}}</h2>
-  <p>{{.T.T "privacy.stored.body"}}</p>
-
-  <h2 class="section">{{.T.T "privacy.why.heading"}}</h2>
-  <p>{{.T.T "privacy.why.body"}}</p>
-
-  <h2 class="section">{{.T.T "privacy.who.heading"}}</h2>
-  <p>{{.T.T "privacy.who.body"}}</p>
-
-  <h2 class="section">{{.T.T "privacy.cookies.heading"}}</h2>
-  <p>{{.T.T "privacy.cookies.body"}}</p>
-
-  <h2 class="section">{{.T.T "privacy.removal.heading"}}</h2>
-  <p>{{.T.T "privacy.removal.body"}}</p>
+<section class="card privacy-card">
+  <div class="privacy-row">
+    <h2 class="privacy-q"><span class="privacy-icon">{{symbol "database" 18}}</span>{{.T.T "privacy.stored.heading"}}</h2>
+    <p>{{.T.T "privacy.stored.body"}}</p>
+  </div>
+  <div class="privacy-row">
+    <h2 class="privacy-q"><span class="privacy-icon">{{symbol "help" 18}}</span>{{.T.T "privacy.why.heading"}}</h2>
+    <p>{{.T.T "privacy.why.body"}}</p>
+  </div>
+  <div class="privacy-row">
+    <h2 class="privacy-q"><span class="privacy-icon">{{symbol "visibility" 18}}</span>{{.T.T "privacy.who.heading"}}</h2>
+    <p>{{.T.T "privacy.who.body"}}</p>
+  </div>
+  <div class="privacy-row">
+    <h2 class="privacy-q"><span class="privacy-icon">{{symbol "cookie" 18}}</span>{{.T.T "privacy.cookies.heading"}}</h2>
+    <p>{{.T.T "privacy.cookies.body"}}</p>
+  </div>
+  <div class="privacy-row">
+    <h2 class="privacy-q"><span class="privacy-icon">{{symbol "logout" 18}}</span>{{.T.T "privacy.removal.heading"}}</h2>
+    <p>{{.T.T "privacy.removal.body"}}</p>
+  </div>
 </section>
 {{end}}

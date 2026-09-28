@@ -71,6 +71,8 @@ func TestValidate(t *testing.T) {
 		{"solved in one", Submission{PuzzleNo: 1, Solved: true, Guesses: ptr(1)}},
 		{"solved in six", Submission{PuzzleNo: 1, Solved: true, Guesses: ptr(6)}},
 		{"failed", Submission{PuzzleNo: 1, Solved: false}},
+		{"solved with its grid", Submission{PuzzleNo: 1, Solved: true, Guesses: ptr(2), Grid: "nynnn/ggggg"}},
+		{"failed with its grid", Submission{PuzzleNo: 1, Solved: false, Grid: "nnnnn/nnnnn/nnnnn/nnnnn/nnnnn/yyyyy"}},
 	}
 	for _, tt := range ok {
 		t.Run(tt.name, func(t *testing.T) {
@@ -91,6 +93,10 @@ func TestValidate(t *testing.T) {
 		{"solved in zero", Submission{PuzzleNo: 1, Solved: true, Guesses: ptr(0)}, "between 1 and 6"},
 		{"solved in seven", Submission{PuzzleNo: 1, Solved: true, Guesses: ptr(7)}, "between 1 and 6"},
 		{"failed with a count", Submission{PuzzleNo: 1, Solved: false, Guesses: ptr(7)}, "omitted"},
+		{"a grid a row short", Submission{PuzzleNo: 1, Solved: true, Guesses: ptr(3), Grid: "nynnn/ggggg"}, "grid"},
+		{"a grid that does not end green", Submission{PuzzleNo: 1, Solved: true, Guesses: ptr(2), Grid: "nynnn/gggyg"}, "grid"},
+		{"a miss whose grid wins", Submission{PuzzleNo: 1, Solved: false, Grid: "nnnnn/nnnnn/nnnnn/nnnnn/nnnnn/ggggg"}, "grid"},
+		{"a grid in emoji", Submission{PuzzleNo: 1, Solved: true, Guesses: ptr(1), Grid: "🟩🟩🟩🟩🟩"}, "grid"},
 	}
 	for _, tt := range bad {
 		t.Run(tt.name, func(t *testing.T) {

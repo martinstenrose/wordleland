@@ -25,6 +25,11 @@ type Summary struct {
 
 	// FiledToday counts results for the given puzzle.
 	FiledToday int
+
+	// Distribution counts solved results by guesses: Distribution[0] is
+	// solved in one, Distribution[5] in six. A miss is in Games and in none
+	// of these.
+	Distribution [6]int
 }
 
 // GroupSummary aggregates in SQL rather than reading the history into
@@ -56,6 +61,25 @@ func GroupSummary(ctx context.Context, q Querier, currentPuzzle int) (Summary, e
 	if err := q.QueryRowContext(ctx,
 		`SELECT count(*) FROM players WHERE active`).Scan(&s.Players); err != nil {
 		return Summary{}, fmt.Errorf("count players: %w", err)
+	}
+
+	rows, err := q.QueryContext(ctx,
+		`SELECT guesses, count(*) FROM results WHERE solved GROUP BY guesses`)
+	if err != nil {
+		return Summary{}, fmt.Errorf("count guesses: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var guesses, n int
+		if err := rows.Scan(&guesses, &n); err != nil {
+			return Summary{}, fmt.Errorf("scan guesses: %w", err)
+		}
+		if guesses >= 1 && guesses <= len(s.Distribution) {
+			s.Distribution[guesses-1] = n
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return Summary{}, fmt.Errorf("count guesses: %w", err)
 	}
 	return s, nil
 }

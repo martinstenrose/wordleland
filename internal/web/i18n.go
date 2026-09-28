@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/martinstenrose/wordleland/internal/i18n"
@@ -54,6 +55,17 @@ func (t translator) TN(key string, n int) string {
 	return t.T(key+form, n)
 }
 
+// TP is TN for a plural sentence that carries more than its count: the form
+// is picked by n, and the arguments are passed as given, n among them
+// wherever the sentence puts it.
+func (t translator) TP(key string, n int, args ...any) string {
+	form := ".other"
+	if n == 1 {
+		form = ".one"
+	}
+	return t.T(key+form, args...)
+}
+
 func (t translator) T(key string, args ...any) string {
 	format, ok := t.strings[key]
 	if !ok {
@@ -90,6 +102,32 @@ func (t translator) Integer(value int) string {
 // i18n.Identifier.
 func (t translator) Puzzle(value int) string {
 	return i18n.Identifier(value)
+}
+
+// Ordinal renders a place — "3rd", "3:e" — the way the reader's
+// language writes one. The forms are few and fixed, so they are spelled out
+// here rather than as catalogue entries per number.
+func (t translator) Ordinal(n int) string {
+	num := strconv.Itoa(n)
+	switch strings.SplitN(t.locale, "-", 2)[0] {
+	case "sv":
+		if (n%10 == 1 || n%10 == 2) && n%100 != 11 && n%100 != 12 {
+			return num + ":a"
+		}
+		return num + ":e"
+	}
+	if n%100 >= 11 && n%100 <= 13 {
+		return num + "th"
+	}
+	switch n % 10 {
+	case 1:
+		return num + "st"
+	case 2:
+		return num + "nd"
+	case 3:
+		return num + "rd"
+	}
+	return num + "th"
 }
 
 func (t translator) Decimal(value float64, places int) string {

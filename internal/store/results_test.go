@@ -315,3 +315,55 @@ func TestPostedAtFillsARowThatHadNone(t *testing.T) {
 		t.Errorf("posted_at = %v, want %v", stored.PostedAt, posted)
 	}
 }
+
+// A grid is replaced by a newer one, kept when a later write brings none but
+// leaves the score as it was, and dropped when the score changes without one:
+// the squares drawn for a 4 must not sit beside the 3 a correction made of it.
+func TestAGridIsKeptOnlyWhileItsScoreStands(t *testing.T) {
+	t.Parallel()
+
+	db, playerID, adminID, _ := resultsFixture(t)
+	ctx := context.Background()
+	grid := func() string {
+		t.Helper()
+		stored, err := ResultFor(ctx, db, 1890, playerID)
+		if err != nil {
+			t.Fatalf("ResultFor: %v", err)
+		}
+		return stored.Grid
+	}
+
+	r := sampleResult(playerID, 1890, 2)
+	r.Grid = "nynnn/ggggg"
+	if _, _, err := UpsertResult(ctx, db, r, nil, nil); err != nil {
+		t.Fatalf("first write: %v", err)
+	}
+	if got := grid(); got != "nynnn/ggggg" {
+		t.Fatalf("grid = %q after a write with one", got)
+	}
+
+	// The same score again, with no grid: a re-post through the API.
+	if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 2), nil, nil); err != nil {
+		t.Fatalf("re-post: %v", err)
+	}
+	if got := grid(); got != "nynnn/ggggg" {
+		t.Errorf("grid = %q after the same score without one, want it kept", got)
+	}
+
+	// A newer grid replaces it.
+	r.Grid = "nnynn/ggggg"
+	if _, _, err := UpsertResult(ctx, db, r, nil, nil); err != nil {
+		t.Fatalf("new grid: %v", err)
+	}
+	if got := grid(); got != "nnynn/ggggg" {
+		t.Errorf("grid = %q, want the newer one", got)
+	}
+
+	// A correction by hand to another score drops it.
+	if _, _, err := UpsertResult(ctx, db, sampleResult(playerID, 1890, 3), &adminID, nil); err != nil {
+		t.Fatalf("correction: %v", err)
+	}
+	if got := grid(); got != "" {
+		t.Errorf("grid = %q after the score changed, want none", got)
+	}
+}

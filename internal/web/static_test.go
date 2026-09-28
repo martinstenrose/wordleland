@@ -73,7 +73,7 @@ func TestStaticAssetsAreCachedByContent(t *testing.T) {
 	// The font is named by a literal URL in app.css, which cannot carry a
 	// digest, so it is immutable on its path: the convention is to rename a
 	// font file rather than change one in place.
-	font := getStatic(t, srv, "/static/fonts/manrope-variable.ttf", nil)
+	font := getStatic(t, srv, "/static/fonts/inter-variable.woff2", nil)
 	if font.Code != http.StatusOK {
 		t.Fatalf("GET the font = %d", font.Code)
 	}

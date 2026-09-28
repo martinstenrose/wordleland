@@ -1,127 +1,113 @@
 {{define "title"}}{{.T.T "months.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<section class="card">
-  <div class="card-head">
-    <div>
-      <h1>{{.T.T "months.title"}}</h1>
-      <p class="kicker">{{.T.T "months.rule"}}{{if .Query.CountXAsSeven}} · {{.T.T "months.rule.missed"}}{{end}}</p>
-    </div>
-    {{if .Range}}<p class="kicker">{{.Range}}</p>{{end}}
+{{/* The months: the page head, a row of months to choose from, the chosen
+     month's own card — who is ahead or won, by how much, and who led at the
+     end of each day — its table, and the season across every month. */}}
+<header class="page-head">
+  <div class="page-head-id">
+    {{with .Year}}<p class="page-eyebrow">{{.}}</p>{{end}}
+    <h1 class="page-title">{{.T.T "nav.view.months"}}</h1>
+    {{with .Rule}}<p class="page-sub">{{.}}</p>{{end}}
   </div>
+</header>
 
-  {{if .Empty}}
-    <p class="empty">{{.T.T "board.empty"}}</p>
-  {{else}}
+{{if .Empty}}
+  {{template "page-empty" (dict "Icon" "calendar_month" "Title" (.T.T "months.empty.title") "Body" (.T.T "months.empty.body"))}}
+{{else}}
 
-  <ol class="month-chips">
-    {{range .Chips}}
-      <li>
-        <a class="month-chip{{if .On}} on{{end}}" href="{{.Href}}">
-          <span class="month-chip-head">{{.Short}} · {{.Note}}</span>
-          <span class="month-chip-win">
-            <span class="month-winner">{{.Winners}}</span>
-            <span class="num">{{.Average}}</span>
-          </span>
+<section class="card pill-card">
+  <div class="pill-row">
+    <nav class="pills" aria-label="{{.T.T "nav.view.months"}}">
+      {{range .Chips}}
+        <a class="pill month-pill{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>
+          {{if .Running}}<span class="month-running-dot" aria-hidden="true"></span>{{end}}
+          <span class="pill-label month-pill-name">{{.Short}}</span>
+          <span class="month-pill-who">{{.Winners}} <span class="num">{{.Average}}</span></span>
         </a>
+      {{end}}
+    </nav>
+  </div>
+</section>
+
+<section class="card month-hero">
+  <div class="month-hero-main">
+    <p class="month-eyebrow{{if .Running}} running{{end}}">{{.Eyebrow}}</p>
+    <h2 class="month-lead">{{.Headline}}</h2>
+    {{with .Sub}}<p class="month-sub">{{.}}</p>{{end}}
+    <p class="month-meta">{{.Meta}}</p>
+  </div>
+  {{if .LeadDays}}
+    {{/* Who led at the end of each day, a square each, in the colour of the
+         leader; the three who led longest have a colour each and named in the
+         legend, anybody else the muted one. A day still to come is an empty
+         square. Each names its day and its leader on hover. */}}
+    <div class="month-leads">
+      <p class="month-leads-head"><span>{{.T.T "months.whoLed"}}</span><span class="month-leads-note">{{.LeadNote}}</span></p>
+      <ol class="month-lead-days">
+        {{range .LeadDays}}<li class="lead-day{{if .Tone}} lead-{{.Tone}}{{end}}" title="{{.Title}}"></li>{{end}}
+      </ol>
+      <ul class="month-lead-legend">
+        {{range .LeadLegend}}<li><span class="lead-dot lead-{{.Tone}}" aria-hidden="true"></span><b>{{.Name}}</b><span class="muted">{{.Days}}</span></li>{{end}}
+      </ul>
+    </div>
+  {{end}}
+  {{if .DayBar}}
+    {{/* A phone's version of the strip, for a month still running: how far
+         through it is, today marked. */}}
+    <div class="month-daybar">
+      <ol class="month-daybar-days" aria-hidden="true">{{range .DayBar}}<li class="daybar-{{.}}"></li>{{end}}</ol>
+      <span class="month-daybar-label num">{{.DayLabel}}</span>
+    </div>
+  {{end}}
+</section>
+
+{{with .Awards}}
+  {{/* Four smaller titles for the month, each a card: who climbed most,
+       who failed least, who had the most ones and twos, and the longest
+       run without an X. On a phone the four are rows of one card instead,
+       as the design draws them there: the glyph in a tinted square, the
+       title with the winner at its end, and what they did under it. */}}
+  <section class="month-awards" aria-label="{{$.T.T "months.awards"}}">
+    {{range .}}
+      <div class="card month-award">
+        <p class="month-award-title"><span class="filled">{{symbol .Icon 17}}</span><span>{{.Title}}</span></p>
+        <p class="month-award-who">{{range .Who}}{{if .Href}}<a href="{{.Href}}">{{.Text}}</a>{{else}}{{.Text}}{{end}}{{end}}</p>
+        <p class="month-award-what">{{.What}}</p>
+      </div>
+    {{end}}
+  </section>
+{{end}}
+
+<section class="card month-table">
+  <div class="month-row head" aria-hidden="true">
+    <span>{{.T.T "board.column.rank"}}</span>
+    <span>{{.T.T "board.column.player"}}</span>
+    <span class="right">{{.T.T "board.column.average"}}</span>
+    <span class="right">{{.T.T "months.behind"}}</span>
+    <span class="right">{{.T.T "months.played"}}</span>
+    <span class="right">{{.T.T "months.fails"}}</span>
+  </div>
+  <ol class="month-rows">
+    {{range .Rows}}
+      <li class="month-row">
+        <span class="pill-rank num{{if .Winner}} top{{end}}">{{$.T.Integer .Rank}}</span>
+        <span class="month-name">
+          <span class="month-name-line">
+            <a class="player" href="{{.Href}}">{{.Name}}</a>
+            {{if .Winner}}<span class="month-lead-icon filled" title="{{if $.Running}}{{$.T.T "months.medal.leading"}}{{else}}{{$.T.T "months.medal.winner"}}{{end}}">{{if $.Running}}{{symbol "trending_up" 16}}{{else}}{{symbol "trophy" 16}}{{end}}</span>{{end}}
+          </span>
+          <span class="month-name-meta">{{$.T.T "months.playedFails" .Played .Fails}}</span>
+        </span>
+        <span class="month-avg">
+          <span class="num">{{.Average}}</span>
+          <span class="month-behind-phone num">{{.Behind}}</span>
+        </span>
+        <span class="right num muted month-wide">{{.Behind}}</span>
+        <span class="right num month-wide">{{.Played}}</span>
+        <span class="right num month-wide{{if .Fails}} month-fails{{else}} muted{{end}}">{{$.T.Integer .Fails}}</span>
       </li>
     {{end}}
   </ol>
-
-  <div class="month-head">
-    <div class="month-head-main">
-      <p class="kicker accent">{{.Label}} · {{.WinnerLabel}}{{if .Progress}} · {{.Progress}}{{end}}</p>
-      <p class="month-winner-name">{{if .WinnerNames}}{{.WinnerNames}}{{else}}{{.T.T "months.noWinner"}}{{end}}</p>
-      {{if .WinnerLine}}<p class="muted">{{.WinnerLine}}</p>{{end}}
-      <p class="muted small">{{.PartialNote}} · {{.T.T "months.groupAverage"}} {{.GroupAverage}}</p>
-    </div>
-    {{if .WinnerStats}}{{template "stat-list" (dict "Variant" "figure" "Items" .WinnerStats)}}{{end}}
-  </div>
-
-  <div class="table-scroll">
-  <table class="board months-table">
-    <thead>
-      <tr>
-        <th class="rank-col">{{.T.T "board.column.rank"}}</th>
-        <th>{{.T.T "board.column.player"}}</th>
-        {{/* Carries the same class as its cells: the mobile rule hides
-             this column, and a header without the class would stay while
-             the rows below it went, shifting everything by one. */}}
-        <th class="bar-cell"></th>
-        <th class="right">{{.T.T "board.column.average"}}</th>
-        <th class="right">{{.T.T "board.column.games"}}</th>
-        <th class="right">{{.T.T "months.threeOrBetter"}}</th>
-        <th class="right">{{.T.T "months.fails"}}</th>
-        <th class="right">{{.T.T "months.bestRun"}}</th>
-      </tr>
-    </thead>
-    <tbody>
-      {{range .Rows}}
-        <tr>
-          <td class="rank-col num muted">{{$.T.Integer .Rank}}</td>
-          <td>
-            {{/* The chip names the place in words, at every width. The class
-                 separates a win from a second place so the two can be told
-                 apart by colour as well as by the word — the brand hue for
-                 a win, the palette's second for the runner-up. */}}
-            <span class="admin-name">
-              <a class="player" href="{{.Href}}">{{.Name}}</a>
-              {{if .Medal}}<span class="medal{{if .Winner}} win{{end}}">{{.Medal}}</span>{{end}}
-            </span>
-          </td>
-          <td class="bar-cell">{{template "progress-bar" (dict "Percent" .BarPercent "Win" .Winner "Compact" true)}}</td>
-          <td class="right num strong">{{.Average}}</td>
-          <td class="right num muted">{{$.T.Integer .Games}}</td>
-          <td class="right num muted">{{$.T.Integer .ThreeOrBetter}}</td>
-          <td class="right num muted">{{$.T.Integer .Fails}}</td>
-          <td class="right num muted">{{$.T.Integer .BestRun}}</td>
-        </tr>
-      {{end}}
-    </tbody>
-  </table>
-  </div>
-
-  {{if .Season}}
-    <div class="season">
-      <div class="season-head">
-        <span>{{.T.T "months.season"}}</span>
-        <span class="muted small">{{.T.TN "months.seasonSpan" .SeasonDays}}</span>
-      </div>
-      <div class="table-scroll">
-      <table class="board season-table">
-        <thead>
-          <tr>
-            <th>{{.T.T "board.column.player"}}</th>
-            <th class="right">{{.T.T "months.wins"}}</th>
-            <th class="right">{{.T.T "months.topThree"}}</th>
-            <th class="right">{{.T.T "months.bestMonth"}}</th>
-            {{range .SeasonMonths}}<th class="right mark-col">{{.}}</th>{{end}}
-          </tr>
-        </thead>
-        <tbody>
-          {{range .Season}}
-            <tr>
-              <td>
-                <span class="admin-name">
-                  <a class="player" href="{{.Href}}">{{.Name}}</a>
-                    </span>
-              </td>
-              <td class="right num strong">{{$.T.Integer .Wins}}</td>
-              <td class="right num muted">{{$.T.Integer .Podiums}}</td>
-              <td class="right num muted">{{.Best}}</td>
-              {{range .Marks}}
-                <td class="right mark-col">
-                  <span class="mark-cell{{if .Won}} won{{end}}{{if .Podium}} podium{{end}}{{if .Running}} running{{end}}" title="{{.Title}}">{{.Label}}</span>
-                </td>
-              {{end}}
-            </tr>
-          {{end}}
-        </tbody>
-      </table>
-      </div>
-      <p class="card-foot"><span>{{.T.T "months.seasonNote"}}</span></p>
-    </div>
-  {{end}}
-
   {{if .Thin}}
     <div class="month-thin">
       <p class="kicker">{{.T.T "months.playedNotRanked"}}</p>
@@ -132,7 +118,52 @@
       </ul>
     </div>
   {{end}}
-
-  {{end}}
 </section>
+
+{{if .Season}}
+  <section class="card season-card">
+    <div class="season-head">
+      <h2 class="today-list-title">{{.SeasonTitle}}</h2>
+      {{with .SeasonYears}}
+        <nav class="head-seg season-years" aria-label="{{$.T.T "months.seasonYears"}}">
+          {{range .}}<a class="{{if .On}}on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
+        </nav>
+      {{end}}
+      <span class="today-list-hint">{{.SeasonHint}}</span>
+    </div>
+    {{with .SeasonLine}}<p class="season-line filled">{{symbol "workspace_premium" 17}}<span>{{.}}</span></p>{{end}}
+    {{/* A grid of places: a row per player, a column per month, the month
+         open on the page outlined. A win carries a trophy, the top three the
+         accent's wash, a month still running an outline. Every tile is the
+         way to its month, and like every link that stays on the page it
+         keeps the scroll (see app.js). */}}
+    <div class="season-grid" style="--months: {{len .SeasonCols}}">
+      <div class="season-row season-cols">
+        <span></span>
+        {{range .SeasonCols}}<a class="season-col{{if .On}} on{{end}}" href="{{.Href}}">{{.Label}}</a>{{end}}
+        <span class="right season-wins-head">{{.T.T "months.wins"}}</span>
+      </div>
+      {{range .Season}}
+        <div class="season-row">
+          <span class="season-name">
+            <a class="player" href="{{.Href}}">{{.Name}}</a>
+            {{with .Summary}}<span class="season-summary">{{.}}</span>{{end}}
+          </span>
+          {{range .Marks}}
+            <a class="season-tile{{if .Running}} running{{else if .Won}} won{{else if .Podium}} podium{{end}}{{if .On}} on{{end}}" href="{{.Href}}" title="{{.Title}}">{{if and .Won (not .Running)}}<span class="filled">{{symbol "trophy" 13}}</span>{{else}}{{.Label}}{{end}}</a>
+          {{end}}
+          <span class="season-wins num{{if .Wins}} some{{end}}"><span class="season-wins-icon filled">{{symbol "trophy" 15}}</span>{{$.T.Integer .Wins}}</span>
+        </div>
+      {{end}}
+    </div>
+    <ul class="season-legend">
+      <li><span class="season-tile won"></span>{{.T.T "months.legend.won"}}</li>
+      <li><span class="season-tile podium"></span>{{.T.T "months.topThree"}}</li>
+      <li><span class="season-tile"></span>{{.T.T "months.legend.other"}}</li>
+      <li><span class="season-tile running"></span>{{.T.T "months.legend.running"}}</li>
+    </ul>
+  </section>
+{{end}}
+
+{{end}}
 {{end}}

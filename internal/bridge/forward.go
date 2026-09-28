@@ -442,6 +442,7 @@ func (f *filer) file(ctx context.Context, result wordle.Result, m Message) {
 		PuzzleNo:    result.PuzzleNo,
 		Solved:      result.Solved,
 		HardMode:    result.HardMode,
+		Grid:        result.Grid,
 		Via:         SourceSignal,
 	}
 	if result.Solved {

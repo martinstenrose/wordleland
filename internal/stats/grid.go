@@ -8,9 +8,10 @@ import (
 	"github.com/martinstenrose/wordleland/internal/store"
 )
 
-// GridSpan is the default range: recent enough to read, with the whole
-// history a click away. The design offers exactly these two.
-const GridSpan = 90
+// GridSpan is the default range: a month, recent enough to read on a phone
+// without scrolling far, with the whole history a click away. The design
+// offers exactly these two; it was 90 until the design's second pass.
+const GridSpan = 30
 
 // GridCell is one player's outcome on one day. The zero value is "did not
 // play", which is the absence of a result rather than a score of nothing.
@@ -197,11 +198,11 @@ func ComputeGrid(board Board, results []store.BoardResult, opts Options, showIna
 // GridRanking is the same columns in finishing order for the window the
 // grid covers.
 //
-// The grid itself stays alphabetical — see Grid.Players for why — but the
-// rail beside it is a leaderboard, and a leaderboard that is not in order
-// is just a list. Splitting the two orders means the reader can find a
-// person in the grid and read the standings next to it without either
-// moving when the range changes.
+// The web view draws its columns in this order, each heading carrying the
+// player's average, so the header reads as the standings. That costs what
+// the alphabetical order bought: a player's column moves when the range
+// changes. It used to be kept alphabetical beside a separate standings
+// rail; the redesign folded the two together.
 //
 // Unranked players keep the alphabetical order they arrived in and sit at
 // the end: they have no place to sort into.

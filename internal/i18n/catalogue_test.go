@@ -108,8 +108,7 @@ func TestEveryLocaleNamesItself(t *testing.T) {
 // A puzzle number names a puzzle; it does not count anything. Grouping its
 // digits invites the eye to read a magnitude out of a name — "#1 918" in
 // Swedish — and nobody writes a house number or a flight number that way
-// either. English arrived here by having no grouping to apply; Swedish gets
-// it on purpose.
+// either. Both languages group a quantity, and neither groups this.
 func TestAnIdentifierIsNeverGrouped(t *testing.T) {
 	for _, locale := range []string{"en", "sv"} {
 		if got := Identifier(1918); got != "1918" {
@@ -120,5 +119,8 @@ func TestAnIdentifierIsNeverGrouped(t *testing.T) {
 	// blanket retreat from locale-aware numbers.
 	if got := Integer("sv", 1918); got != "1 918" {
 		t.Errorf("Integer(\"sv\", 1918) = %q, want a grouped quantity", got)
+	}
+	if got := Integer("en", 1918); got != "1,918" {
+		t.Errorf("Integer(\"en\", 1918) = %q, want a grouped quantity", got)
 	}
 }

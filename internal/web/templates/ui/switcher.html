@@ -1,64 +1,74 @@
-{{/* A card's section bar, in which the heading is the control that changes
-     it. See the switcher type in switcher.go for what it replaces and why.
+{{/* The head of a page with siblings, and the row of pills that moves between
+     them. See the switcher type in switcher.go for what it replaces and why.
 
-     The heading starts on the card's own gutter, exactly where a card-head's
-     <h1> starts, so that moving between a page with one of these and a page
-     with an ordinary heading does not move the title. That is why the glyph
-     the bar used to carry — a section icon, a player's initials — is gone:
-     it pushed the title 45px in, and it said nothing the icons in the list
-     below do not say where they are actually useful, which is scanning.
+     The head is the page head every page has — an eyebrow, the title, the
+     line under it, on the canvas rather than in a card — with a player's
+     figures opposite the name. The pills are a card of their own under it,
+     on the ground a step down from a card's, with the step arrows beside
+     them on a wide window; on a phone the row swipes, with a fade at its
+     right edge to say there is more.
 
-     The step arrows are the other half: the section or the player next door
-     is one press away, without opening the list to find it. They are links,
-     so they work with no script at all, and they sit outside the <summary>
-     because inside it every press would also toggle the menu.
+     Every pill and both arrows are links to the page they name, so all of it
+     works with no script. app.js scrolls the row so the current pill is in
+     view when the page arrives — a row that starts at its left end would
+     otherwise hide the player you asked for at the far end of fourteen.
 
-     A <details> in the shared "menu-group", so it opens, closes on a second
-     press, and closes when another menu opens — all from the markup. Every
-     row is a link to the page it names; app.js only adds the outside-click
-     dismissal every other menu already gets.
-
-     The heading really is the <h1>: the page has no other title, and a
-     summary may carry heading content. Data: the switcher type. */}}
+     The heading really is the <h1>: the page has no other title. Data: the
+     switcher type. */}}
 {{define "switcher"}}
-<div class="switcher-bar">
-  <details class="switcher menu" name="menu-group"{{if .Open}} open{{end}}>
-    <summary class="switcher-title">
-      <span class="switcher-id">
-        <span class="switcher-line">
-          <h1 class="switcher-label">{{.Label}}</h1>
-          {{template "chevron-down" .}}
-        </span>
-        {{if .Hint}}<span class="kicker switcher-hint">{{.Hint}}{{if .HintWide}}<span class="switcher-hint-wide">{{.HintWide}}</span>{{end}}</span>{{end}}
-      </span>
-      {{if .Badge}}
-        <span class="switcher-badges">{{template "badge" (dict "Label" .Badge "On" true)}}</span>
-      {{end}}
-    </summary>
-
-    <div class="switcher-panel">
+<header class="page-head">
+  <div class="page-head-id">
+    {{with .Eyebrow}}<p class="page-eyebrow">{{.}}</p>{{end}}
+    {{if .Trait}}
+      <div class="page-title-line">
+        <h1 class="page-title">{{.Label}}</h1>
+        <span class="page-title-marks">{{template "trait" .}}</span>
+      </div>
+    {{else}}
+      <h1 class="page-title">{{.Label}}</h1>
+    {{end}}
+    {{with .Sub}}<p class="page-sub">{{.}}</p>{{end}}
+  </div>
+  {{with .Stats}}
+    <dl class="head-stats">
+      {{range .}}<div class="head-stat"><dt>{{.Label}}</dt><dd class="num">{{.Value}}</dd></div>{{end}}
+    </dl>
+  {{end}}
+</header>
+{{if .Items}}
+<section class="card pill-card">
+  <div class="pill-row">
+    <nav class="pills" aria-label="{{.NavLabel}}">
       {{range .Items}}
-        <a class="menu-row switcher-row{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>
-          {{if .Rank}}<span class="switcher-rank">{{.Rank}}</span>{{end}}
-          {{if .Code}}<span class="switcher-icon">{{template "section-icon" .Code}}</span>{{end}}
-          <span class="switcher-row-label">{{.Label}}</span>
-          {{if .Avg}}<span class="switcher-avg num">{{.Avg}}</span>{{end}}
-          {{if .Badge}}<span class="switcher-row-badge">{{.Badge}}</span>{{end}}
-          <span class="menu-check" aria-hidden="true">{{if .On}}✓{{end}}</span>
+        <a class="pill{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>
+          {{if .Rank}}<span class="pill-rank num{{if .Top}} top{{end}}">{{.Rank}}</span>{{end}}
+          {{if .Icon}}{{symbol .Icon 19}}{{end}}
+          <span class="pill-label">{{.Label}}</span>
+          {{if .Tile}}<span class="cell t{{.Tone}} pill-tile">{{.Tile}}</span>{{end}}
+          {{if .Badge}}<span class="pill-count num">{{.Badge}}</span>{{end}}
         </a>
       {{end}}
-    </div>
-  </details>
+    </nav>
+    {{if .NextHref}}
+      <span class="pill-steps">
+        <a class="pill-step" href="{{.PrevHref}}" aria-label="{{.PrevLabel}}" title="{{.PrevLabel}}">{{symbol "chevron_left" 20}}</a>
+        <a class="pill-step" href="{{.NextHref}}" aria-label="{{.NextLabel}}" title="{{.NextLabel}}">{{symbol "chevron_right" 20}}</a>
+      </span>
+    {{end}}
+  </div>
+</section>
+{{end}}
+{{end}}
 
-  {{if .NextHref}}
-    <span class="switcher-steps">
-      <a class="switcher-step" href="{{.PrevHref}}" aria-label="{{.PrevLabel}}" title="{{.PrevLabel}}">
-        {{template "chevron-left" .}}
-      </a>
-      <a class="switcher-step" href="{{.NextHref}}" aria-label="{{.NextLabel}}" title="{{.NextLabel}}">
-        {{template "chevron-right" .}}
-      </a>
-    </span>
-  {{end}}
-</div>
+{{/* A page with nothing in it yet, in place of everything the page would
+     show: a glyph in the accent's wash, what is missing, what will fill
+     it, and a row of empty tiles for the scores to come. Data: {Icon, Title,
+     Body string}. */}}
+{{define "page-empty"}}
+<section class="card page-empty">
+  <span class="page-empty-icon">{{symbol .Icon 28}}</span>
+  <h2 class="page-empty-title">{{.Title}}</h2>
+  <p class="page-empty-body">{{.Body}}</p>
+  <span class="page-empty-tiles" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></span>
+</section>
 {{end}}

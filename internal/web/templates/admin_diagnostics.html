@@ -1,25 +1,40 @@
 {{define "title"}}{{.T.T "diag.title"}} — {{.T.T "app.name"}}{{end}}
 {{define "content"}}
-<section class="card card-bar">
-  {{template "switcher" .Section}}
+{{template "admin-head" .Section}}
+{{/* Whether results can arrive and whether they are: the bridge in one
+     line, four figures — the last result, the newest puzzle, what is held,
+     which build — and the bridge's details under them. */}}
+<section class="card diag-status">
+  <span class="diag-dot {{.Status.Tone}}" aria-hidden="true"></span>
+  <span class="diag-status-text">
+    <span class="diag-status-title">{{.Status.Title}}</span>
+    <span class="diag-status-sub">{{.Status.Sub}}</span>
+  </span>
+</section>
 
-  {{if not .Configured}}
-    {{/* Not a fault: a deployment can serve the board and have results
-         entered by hand or imported. Said plainly so it does not read as
-         something broken. */}}
-    <p class="note">{{.T.T "diag.noBridge"}}</p>
+<div class="diag-stats">
+  {{range .Stats}}
+    <section class="card diag-stat">
+      <p class="diag-stat-label">{{symbol .Icon 18}}<span>{{.Label}}</span></p>
+      <p class="diag-stat-value num{{with .Tone}} {{.}}{{end}}">{{.Value}}</p>
+      {{with .Sub}}<p class="diag-stat-sub">{{.}}</p>{{end}}
+      {{with .Href}}<a class="diag-stat-link" href="{{.}}">{{$.T.T "diag.stat.review"}} ›</a>{{end}}
+    </section>
   {{end}}
+</div>
 
-  <dl class="detail-fields">
+{{if .Rows}}
+  <section class="card diag-details">
+    <h2 class="diag-details-title">{{.T.T "diag.details"}}</h2>
     {{range .Rows}}
-      <div>
-        <dt>{{.Label}}</dt>
-        <dd>
+      <div class="diag-row">
+        <span class="diag-row-label">{{.Label}}</span>
+        <span class="diag-row-value">
           <span class="diag-value{{if .Tone}} {{.Tone}}{{end}}">{{if .Code}}<code>{{.Value}}</code>{{else}}{{.Value}}{{end}}</span>
-          {{if .Hint}}<span class="diag-hint">{{.Hint}}</span>{{end}}
-        </dd>
+          {{with .Hint}}<span class="diag-hint">{{.}}</span>{{end}}
+        </span>
       </div>
     {{end}}
-  </dl>
-</section>
+  </section>
+{{end}}
 {{end}}

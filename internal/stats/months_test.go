@@ -474,3 +474,38 @@ func TestRecentRanksTheLastDaysUnderTheMonthsRules(t *testing.T) {
 		t.Errorf("steady's average = %v, want 3", *m.Ranked[1].Average)
 	}
 }
+
+// Who led a month is scored day by day by the month's own rules, so the last
+// day of a finished month is led by its winner, and a lead taken early and
+// lost shows as a change of leader.
+func TestDayLeadersFollowTheMonthDayByDay(t *testing.T) {
+	t.Parallel()
+
+	players := []store.Player{player(1, "early"), player(2, "steady")}
+	date, _ := wordle.DateForPuzzle(1871)
+	first := wordle.PuzzleForDate(time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location()))
+	end := wordle.PuzzleForDate(time.Date(date.Year(), date.Month()+1, 1, 0, 0, 0, 0, date.Location()))
+
+	// "early" opens with two 2s and then plays 6s; "steady" plays 4s
+	// throughout. Early leads the first days and steady takes over.
+	results := run(1, first, first+1, 2, false)
+	results = append(results, run(1, first+2, end-1, 6, false)...)
+	results = append(results, run(2, first, end-1, 4, false)...)
+
+	opts := DefaultOptions(today(t))
+	m := monthOf(t, ComputeMonths(players, results, opts), date.Year(), date.Month())
+	leaders := DayLeaders(players, results, opts, m)
+	if len(leaders) != m.Days {
+		t.Fatalf("%d days of leaders, want %d", len(leaders), m.Days)
+	}
+	if got := slugs(leaders[0]); len(got) != 1 || got[0] != "early" {
+		t.Errorf("day 1 led by %v, want early", got)
+	}
+	last := slugs(leaders[len(leaders)-1])
+	if want := slugs(m.Winners); len(last) != len(want) || last[0] != want[0] {
+		t.Errorf("the last day is led by %v, but the month was won by %v", last, want)
+	}
+	if last[0] != "steady" {
+		t.Errorf("the month ends led by %v, want steady", last)
+	}
+}

@@ -46,10 +46,10 @@ var onPageChange = (function () {
   return register;
 })();
 
-// Progressive enhancements for native <details> controls: dismiss topbar
+// Progressive enhancements for native <details> controls: dismiss the bar's
 // menus on outside clicks, close any popup on Esc, and nudge informational
 // popups back on screen. Opening, summary-click closing and exclusivity
-// still work without JS. Topbar menus keep their fixed CSS positioning.
+// still work without JS. The bar's menus keep their fixed CSS positioning.
 (function () {
   "use strict";
 
@@ -63,13 +63,13 @@ var onPageChange = (function () {
     });
   });
 
-  // The <details> that open over the page: the topbar menus and drawer,
-  // the Help panel, and the popups on board cells. Other disclosures open
+  // The <details> that open over the page: the bar's menus, the Help
+  // panel, and the popups on board cells. Other disclosures open
   // in the flow of the page and stay as the reader left them.
   var POPUPS = 'details[name="menu-group"][open], details[name="about"][open], details[name="popup"][open]';
 
   // Esc closes one popup per press, the innermost first: Help opened from
-  // inside the drawer goes, and the drawer stays for the next press. Later
+  // inside the account menu goes, and the menu stays for the next press. Later
   // in document order is deeper, since a nested one follows its parent.
   // Focus that was inside goes back to the summary, so it is not lost to
   // the top of the page with the panel it was in.
@@ -174,10 +174,56 @@ var onPageChange = (function () {
   );
 })();
 
+// About's close button.
+//
+// The About card is a <details>, and what closes it with no script is the
+// dim behind it, which is its own summary stretched over the page. A card
+// with no visible way out reads as stuck, so this shows the button the card
+// carries hidden and has it close the card. Absent, disabled or failing to
+// load, the button stays hidden and the dim still closes the card.
+(function () {
+  "use strict";
+
+  document.addEventListener("click", function (event) {
+    var button = event.target.closest && event.target.closest(".about-close");
+    if (!button) return;
+    var about = button.closest("details.about");
+    if (!about) return;
+    about.open = false;
+    about.querySelector(":scope > summary").focus({ preventScroll: true });
+  });
+  onPageChange(function () {
+    document.querySelectorAll(".about-close").forEach(function (button) { button.hidden = false; });
+  });
+})();
+
+// The pill row keeps the pill for this page in view.
+//
+// A roster of fourteen, or the admin area's five tabs on a phone, is a row wider
+// than the window, and it arrives scrolled to its left end — so the player
+// you asked for can be off the right edge of the row that is meant to show
+// you where you are. This scrolls the row, and only the row, to put the
+// current pill in the middle of it, once per page. scrollTo on the row
+// rather than scrollIntoView on the pill, which would scroll the page as
+// well. Absent, disabled or failing to load, the row is the same row,
+// scrolled to its start, and every pill in it is still a link.
+(function () {
+  "use strict";
+
+  onPageChange(function () {
+    document.querySelectorAll(".pills, .admin-tabs").forEach(function (row) {
+      var pill = row.querySelector(".pill.on, .admin-tab.on");
+      if (!pill || row.scrollWidth <= row.clientWidth) return;
+      var left = pill.offsetLeft - (row.clientWidth - pill.offsetWidth) / 2;
+      row.scrollTo({ left: Math.max(0, left), behavior: "instant" });
+    });
+  });
+})();
+
 // The ⌘K command palette. It exists only because opening an overlay on a
 // keystroke, and moving a selection through it with arrow keys, cannot be
 // done from HTML and CSS alone — everything else about search does not
-// need this file. The topbar's search link (see topbar.html) already goes
+// need this file. The bar's search link (see topbar.html) already goes
 // to a working search page with no script at all — /search signed in,
 // /share/<slug>/search on the read-only view. The fetching is htmx's, as
 // attributes on the overlay's input: each pause in the typing asks that
@@ -195,10 +241,16 @@ var onPageChange = (function () {
   var overlay = null;
   var button, input, results;
 
+  // The design's long placeholder clips on a phone, where it is just
+  // "Search"; see topbar.html.
+  var narrow = window.matchMedia("(max-width: 860px)");
+
   function open() {
     button.setAttribute("aria-expanded", "true");
     overlay.hidden = false;
     input.value = "";
+    if (!input.dataset.placeholderWide) input.dataset.placeholderWide = input.placeholder;
+    input.placeholder = narrow.matches ? input.dataset.placeholderNarrow : input.dataset.placeholderWide;
     // The input's hx-trigger names this event; htmx fetches the results for
     // an empty query, as it would for a keystroke.
     if (window.htmx) htmx.trigger(input, "search-open");
@@ -225,7 +277,7 @@ var onPageChange = (function () {
 
   onPageChange(function () {
     overlay = document.getElementById("search-overlay");
-    button = document.querySelector(".search-btn");
+    button = document.querySelector(".bar-search");
     if (!overlay || !button) {
       overlay = null;
       return;
@@ -240,6 +292,24 @@ var onPageChange = (function () {
 
     overlay.addEventListener("click", function (event) {
       if (event.target === overlay) close(); // The backdrop, not the box inside it.
+    });
+    overlay.querySelector(".search-overlay-close").addEventListener("click", close);
+
+    // The clear button is a reset, which empties the field but raises no
+    // input event; ask for the empty query's results as typing would.
+    var form = overlay.querySelector("form");
+    form.addEventListener("reset", function () {
+      setTimeout(function () {
+        if (window.htmx) htmx.trigger(input, "search-open");
+        input.focus();
+      }, 0);
+    });
+    form.addEventListener("submit", function (event) { event.preventDefault(); });
+
+    // A lone result is the one Enter takes, so it shows as chosen.
+    results.addEventListener("htmx:afterSwap", function () {
+      var links = results.querySelectorAll("a");
+      if (links.length === 1) links[0].classList.add("current");
     });
 
     // Arrow keys move a .current marker among the rendered result links;
@@ -268,369 +338,44 @@ var onPageChange = (function () {
   });
 })();
 
-// Raising an outcome to the middle of the screen.
-//
-// A change that lands somewhere else — a confirmation mailed to an address
-// you are not reading, a password that just signed you out everywhere — is
-// worth more than a line at the top of a page you were not looking at. The
-// design asks for that as a centred panel, and this is it.
-//
-// The whole of the feature is already on the page without this file: the
-// action posts, the server redirects, and the outcome renders as a note where
-// notes go. Absent, disabled, or failing to load, that note is what a reader
-// gets, and it says the same thing. Only the outcome of something done is
-// raised — a rejected form's message stays beside the field it is about,
-// which is where it can actually be acted on.
-//
-// Esc, the backdrop and the button all close it. It is marked up as a dialog
-// here rather than in the template because only here is it one: focus moves
-// into it, and comes back to where it was when it closes.
-(function () {
-  "use strict";
-
-  // A page switched in may carry an outcome of its own to raise.
-  onPageChange(function () {
-    var note = document.querySelector("[data-raise]");
-    if (!note) return;
-
-    var returnTo = document.activeElement;
-
-    var backdrop = document.createElement("div");
-    backdrop.className = "raised-backdrop";
-
-    var panel = document.createElement("div");
-    panel.className = "raised-panel";
-    panel.setAttribute("role", "dialog");
-    panel.setAttribute("aria-modal", "true");
-
-    var body = document.createElement("p");
-    body.className = "raised-body";
-    body.textContent = note.textContent.trim();
-
-    var close = document.createElement("button");
-    close.type = "button";
-    // The dialog's one control, and it does the thing: the filled accent,
-    // like any other. See the controls block in app.css.
-    close.className = "btn raised-close";
-    // The template carries the word, so this file holds no copy of its own and
-    // needs no knowledge of which language the page is in.
-    close.textContent = note.dataset.raise;
-
-    panel.appendChild(body);
-    panel.appendChild(close);
-    backdrop.appendChild(panel);
-
-    // The note goes, rather than staying behind the panel saying the same thing
-    // twice to a screen reader.
-    note.remove();
-    document.body.appendChild(backdrop);
-    close.focus();
-
-    function dismiss() {
-      backdrop.remove();
-      document.removeEventListener("keydown", onKey);
-      if (returnTo && document.contains(returnTo) && returnTo.focus) returnTo.focus();
-    }
-
-    function onKey(event) {
-      if (event.key === "Escape") dismiss();
-    }
-
-    close.addEventListener("click", dismiss);
-    backdrop.addEventListener("click", function (event) {
-      if (event.target === backdrop) dismiss();
-    });
-    document.addEventListener("keydown", onKey);
-  });
-})();
-
-// The share slug's copy button.
+// Copy buttons: the share link on the admin area's Settings, a fresh set of
+// recovery codes on a reader's own.
 //
 // Copying cannot exist without a script at all: a clipboard cannot be written
-// to from markup. That is why the button is built here rather than rendered
-// and then wired up — it exists exactly when it works, and a page served over
-// plain http to anything but localhost, which has no navigator.clipboard,
-// gets no button instead of a dead one.
-//
-// Rotating the slug is not here. It is three links and a form that work
-// with no script, and the attributes on the share section in
-// admin_settings.html have htmx swap the card in place at each step. What
-// that leaves for this file is that a rotation replaces the slug, and the
-// button carries the address of the slug it was built for — so the button
-// is built again after any swap that is not the whole body, the registry
-// covering the rest.
+// to from markup. So the button is in the markup hidden, carrying what it
+// copies and the word it says once it has, and this shows it only where a
+// clipboard can be written — a page served over plain http to anything but
+// localhost has no navigator.clipboard, and gets no button instead of a dead
+// one.
 (function () {
   "use strict";
 
-  // Rebuilt after every swap: the row is new markup carrying a new address.
-  function mountCopy() {
-    var row = document.querySelector("[data-copy]");
-    if (!row) return; // No link yet, or no APP_URL to make it absolute with.
-    if (row.querySelector("button")) return; // Already mounted on this row.
+  function mount() {
     if (!navigator.clipboard || !navigator.clipboard.writeText) return;
-
-    var button = document.createElement("button");
-    button.type = "button";
-    // Filled accent: copying the link is safe and is what somebody is here
-    // for. The control beside it rotates the slug and is toned for that.
-    button.className = "btn";
-    button.textContent = row.dataset.copyLabel;
-    // First in the row: copying is what somebody is usually here to do, and
-    // the control beside it rotates the slug for everybody in the group.
-    row.insertBefore(button, row.firstChild);
-
-    var revert;
-    button.addEventListener("click", function () {
-      navigator.clipboard.writeText(row.dataset.copy).then(function () {
-        button.textContent = row.dataset.copiedLabel;
-        // Said, then taken back: a button stuck reading "Copied" is a button
-        // that looks pressed rather than one that can be pressed again.
-        clearTimeout(revert);
-        revert = setTimeout(function () {
-          button.textContent = row.dataset.copyLabel;
-        }, 2000);
-      }).catch(function () {
-        // Refused — a permissions policy, or a window that is not focused.
-        // The slug is still on the page to read, so say nothing.
-      });
+    document.querySelectorAll("button[data-copy-text][hidden]").forEach(function (button) {
+      button.hidden = false;
     });
   }
-
-  onPageChange(mountCopy);
-  document.addEventListener("htmx:afterSettle", function (event) {
-    if (event.detail.target !== document.body) mountCopy();
-  });
-})();
-
-// A page that is really a step, shown over the page that asked for it.
-//
-// Setting up a two-factor key is one screen with a form on it, and the
-// settings screen sends people to it. As a page of its own it takes the whole
-// window for a job that belongs to the screen behind it, and coming back
-// means a second navigation — so with a script it opens over that screen
-// instead, and the whole exchange happens there: the code, the password, a
-// rejected code, and finally the recovery codes, which are shown once and are
-// worth showing where the reader is already looking.
-//
-// The link is a link the whole time. With this file absent, disabled, or
-// failing at any step, following it goes to the page, which is the page this
-// is fetching anyway — the server renders the same card either way, and asks
-// only to be spared the frame around it.
-//
-// It is a dialog and is built as one here rather than marked up as one in the
-// template, for the reason the raised outcome above is: only here is it true.
-// Focus moves in, is held inside while it is open, and goes back to the
-// control that opened it when it closes.
-//
-// This is the one enhancement that keeps its own requests rather than
-// handing them to htmx, and htmx never sees inside it. htmx wants a
-// dialog's target on a container the card lands in, and the card is a
-// template shared with the standalone page, whose links must go on
-// navigating the page — so each of them would have needed attributes undoing
-// the container's, and the form's Cancel sits inside the form. Instead the
-// card is inserted here and never handed to htmx.process, so nothing in it
-// is boosted: every press inside is this file's, and the whole exchange
-// stays where it was written. The link that opens it says hx-boost="false"
-// in settings.html so htmx leaves that press to this file too.
-(function () {
-  "use strict";
-
-  if (!window.fetch) return; // Without it the link is still the whole feature.
-
-  var FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-  var backdrop = null;
-  var panel = null;
-  var openedBy = null;
-  // The word for the close button, taken from the link that opened the
-  // dialog so this file holds no copy of it in any language.
-  var closeLabel = "";
-  // Whether anything inside the dialog changed the account, and so whether
-  // the page behind it is now out of date.
-  var changed = false;
-
-  function focusables() {
-    return Array.prototype.filter.call(panel.querySelectorAll(FOCUSABLE), function (el) {
-      return el.getClientRects().length;
-    });
-  }
-
-  function onKey(event) {
-    if (!backdrop) return;
-    if (event.key === "Escape") {
-      close();
-      return;
-    }
-    if (event.key !== "Tab") return;
-
-    // Held inside: without this, Tab walks out of a dialog into the page it
-    // is drawn over, which for a password field is worse than untidy.
-    var items = focusables();
-    if (!items.length) return;
-    var first = items[0];
-    var last = items[items.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  }
-
-  function close() {
-    if (!backdrop) return;
-    backdrop.remove();
-    backdrop = null;
-    panel = null;
-    document.removeEventListener("keydown", onKey);
-    document.documentElement.style.overflow = "";
-    if (openedBy && document.contains(openedBy) && openedBy.focus) openedBy.focus();
-
-    // The account is not what it was: the badge, the code count and the
-    // control's own wording all belong to the state that just changed.
-    if (changed) {
-      changed = false;
-      if (refreshPage) refreshPage();
-      else window.location.reload();
-    }
-  }
-
-  // draw puts a fetched card in the panel and aims focus at its first field.
-  // The card is the dialog itself — it is already a bordered, padded box —
-  // rather than a card drawn inside a second one.
-  function draw(html) {
-    var wrapper = document.createElement("div");
-    wrapper.innerHTML = html;
-    var card = wrapper.querySelector("section");
-    if (!card) return false;
-
-    card.classList.add("modal-card");
-    card.setAttribute("role", "dialog");
-    card.setAttribute("aria-modal", "true");
-
-    var shut = document.createElement("button");
-    shut.type = "button";
-    shut.className = "modal-close";
-    // The template carries the word, so this file holds no copy of its own
-    // and needs no knowledge of which language the page is in.
-    shut.setAttribute("aria-label", closeLabel);
-    shut.textContent = "\u00d7";
-    shut.addEventListener("click", close);
-    card.insertBefore(shut, card.firstChild);
-
-    if (panel) panel.replaceWith(card);
-    else backdrop.appendChild(card);
-    panel = card;
-
-    var items = focusables();
-    // The close button is items[0] and is not what somebody came here to
-    // use; the field after it is.
-    (items[1] || items[0] || card).focus({ preventScroll: true });
-    return true;
-  }
-
-  function open(url) {
-    fetch(url + (url.indexOf("?") === -1 ? "?" : "&") + "partial=1", {
-      credentials: "same-origin",
-      headers: { Accept: "text/html" },
-    })
-      .then(function (response) { return response.ok ? response.text() : null; })
-      .then(function (html) {
-        if (html === null) {
-          window.location.href = url;
-          return;
-        }
-        backdrop = document.createElement("div");
-        backdrop.className = "raised-backdrop";
-        backdrop.addEventListener("click", function (event) {
-          if (event.target === backdrop) close();
-        });
-        document.body.appendChild(backdrop);
-        if (!draw(html)) {
-          backdrop.remove();
-          backdrop = null;
-          window.location.href = url;
-          return;
-        }
-        document.addEventListener("keydown", onKey);
-        // The page behind must not scroll under a dialog drawn over it.
-        document.documentElement.style.overflow = "hidden";
-      })
-      .catch(function () { window.location.href = url; });
-  }
-
-  // Should the body be swapped under an open dialog — a live update, say —
-  // the dialog goes with it, and only the state kept here needs forgetting.
-  document.addEventListener("htmx:afterSettle", function (event) {
-    if (event.detail.target !== document.body || !backdrop) return;
-    backdrop = null;
-    panel = null;
-    changed = false;
-    document.removeEventListener("keydown", onKey);
-    document.documentElement.style.overflow = "";
-  });
 
   document.addEventListener("click", function (event) {
-    if (event.defaultPrevented) return;
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-      return;
-    }
-
-    // A link inside the dialog is a way out of it — "back to settings", or
-    // the button under the recovery codes. Both mean "done here", and the
-    // page behind is the page they name.
-    if (panel && panel.contains(event.target)) {
-      var inside = event.target.closest("a[href]");
-      if (inside) {
-        event.preventDefault();
-        close();
-      }
-      return;
-    }
-
-    var link = event.target.closest("a[data-modal]");
-    if (!link) return;
-    event.preventDefault();
-    openedBy = link;
-    closeLabel = link.dataset.modalClose || "";
-    changed = false;
-    open(link.href);
+    var button = event.target.closest("button[data-copy-text]");
+    if (!button) return;
+    var label = button.querySelector("span") || button;
+    var was = label.textContent;
+    navigator.clipboard.writeText(button.dataset.copyText).then(function () {
+      label.textContent = button.dataset.copiedLabel;
+      // Said, then taken back: a button stuck reading "Copied" looks
+      // pressed rather than like one that can be pressed again.
+      clearTimeout(button._revert);
+      button._revert = setTimeout(function () { label.textContent = was; }, 2000);
+    }).catch(function () {
+      // Refused — a permissions policy, or a window that is not focused.
+      // What it copies is still on the page to read, so say nothing.
+    });
   });
 
-  // Every form in the dialog stays in it: what comes back is either the same
-  // card carrying its own error, or the next step of the same exchange.
-  document.addEventListener("submit", function (event) {
-    if (!panel || !panel.contains(event.target)) return;
-    var form = event.target.closest("form");
-    if (!form) return;
-    event.preventDefault();
-
-    var action = form.getAttribute("action") || window.location.pathname;
-    // URLSearchParams, not the FormData itself: that posts multipart, which
-    // Go's ParseForm does not read, and every field arrives empty.
-    fetch(action + (action.indexOf("?") === -1 ? "?" : "&") + "partial=1", {
-      method: "POST",
-      body: new URLSearchParams(new FormData(form)),
-      credentials: "same-origin",
-      headers: { Accept: "text/html" },
-    })
-      .then(function (response) {
-        return response.text().then(function (html) {
-          return { html: html, ok: response.ok };
-        });
-      })
-      .then(function (result) {
-        // A rejected form comes back as the same card with its message on
-        // it; a 200 is the step after this one, and the only step after this
-        // one is the account having changed.
-        if (result.ok) changed = true;
-        if (!draw(result.html)) {
-          window.location.href = action;
-        }
-      })
-      .catch(function () { form.submit(); });
-  });
+  onPageChange(mount);
+  document.addEventListener("htmx:afterSettle", mount);
 })();
 
 // The live stream and the browser's own page cache.
@@ -675,9 +420,9 @@ var onPageChange = (function () {
 // Every link and form in the application is boosted — <body hx-boost="true">
 // in base.html — so following one fetches the page and puts its body in
 // place of this one. The whole body, as docs/decisions.md asks: an error
-// page arrives without the rail, a theme link arrives with the theme, and a
+// page arrives without the bar, a theme link arrives with the theme, and a
 // page reached this way is the server's own rendering of that URL. htmx
-// does the fetching, the swapping, the history and the scroll. Six things
+// does the fetching, the swapping, the history and the scroll. Seven things
 // are outside its reach and live here.
 (function () {
   "use strict";
@@ -685,7 +430,7 @@ var onPageChange = (function () {
   if (!window.htmx || !window.DOMParser) return; // Without them every link is still a link.
 
   // 1. The attributes the server decides for the whole document — the
-  // reader's language, their theme, the rail's width — sit on <html>, which
+  // reader's language and their theme — sit on <html>, which
   // a body swap never touches. Following a theme link is an ordinary
   // navigation, so this is how the theme actually changes.
   document.addEventListener("htmx:beforeSwap", function (event) {
@@ -693,7 +438,7 @@ var onPageChange = (function () {
     if (detail.target !== document.body || !detail.xhr) return;
     var incoming = new DOMParser().parseFromString(detail.xhr.responseText, "text/html").documentElement;
     var root = document.documentElement;
-    ["lang", "data-theme", "data-sidebar"].forEach(function (name) {
+    ["lang", "data-theme"].forEach(function (name) {
       var value = incoming.getAttribute(name);
       if (value === null) root.removeAttribute(name);
       else root.setAttribute(name, value);
@@ -741,6 +486,23 @@ var onPageChange = (function () {
     main.addEventListener("blur", function () { main.removeAttribute("tabindex"); }, { once: true });
   }
 
+  // Focus placed after a swap is for the keyboard: the next Tab or arrow
+  // moves on from where the reader is. A press with a mouse or a finger
+  // needs the same place but not the ring — Safari draws one for any focus
+  // a script sets, and a pill left circled after a click reads as a fault.
+  // So the last kind of input decides, and focus set after a pointer press
+  // is marked quiet until it leaves (see .focus-quiet in app.css).
+  var pointerLast = false;
+  document.addEventListener("pointerdown", function () { pointerLast = true; }, true);
+  document.addEventListener("keydown", function () { pointerLast = false; }, true);
+  function placeFocus(el) {
+    if (pointerLast) {
+      el.classList.add("focus-quiet");
+      el.addEventListener("blur", function () { el.classList.remove("focus-quiet"); }, { once: true });
+    }
+    el.focus({ preventScroll: true, focusVisible: !pointerLast });
+  }
+
   // Where focus goes instead, for the three controls that are a place in the
   // page rather than a step out of it. Each returns false if the page that
   // arrived does not have what it was looking for, and the main region takes
@@ -757,35 +519,40 @@ var onPageChange = (function () {
         if (!menu) return false;
         menu.open = true;
         var row = menu.querySelectorAll(".ranking-panel a")[index];
-        if (row) row.focus({ preventScroll: true });
+        if (row) placeFocus(row);
         return true;
       };
     }
-    if (link.closest(".switcher-panel")) {
-      // The roster, and the admin area's section bar. The reader asked for a
-      // page, not for the list again, so the menu stays shut and the bar —
-      // which is the control they just used — keeps the focus.
+    if (link.closest(".pill-row, .admin-tabs")) {
+      // A pill or a step arrow beside the roster, or one of the admin
+      // area's tabs. The one for the page that arrived keeps the focus, so
+      // the next arrow key or Tab moves on from where the reader is rather
+      // than from the top of the page.
       return function () {
-        var bar = document.querySelector("details.switcher > summary");
-        if (!bar) return false;
-        bar.focus({ preventScroll: true });
+        var pill = document.querySelector(".pills .pill.on, .admin-tabs .admin-tab.on");
+        if (!pill) return false;
+        placeFocus(pill);
         return true;
       };
     }
-    if (link.closest(".sidebar, .drawer")) {
-      // A rail row: the same row in the new rail, so the next Tab is the next
-      // view rather than the top of the page.
+    if (link.closest(".bar-pages, .bar-menu")) {
+      // A page in the bar: the same page in the new bar, so the next Tab is
+      // the next view rather than the top of the page. The phone's menu
+      // arrives shut, which is right — the reader asked for a page — so
+      // there the capsule that opens it keeps the focus instead.
       var href = link.getAttribute("href");
       return function () {
-        // The rail and the drawer render the same rows, and whichever of the
-        // two this width does not use is hidden — focusing a hidden element
-        // silently does nothing, which would leave focus on the body.
-        var rows = document.querySelectorAll(".sidebar a[href], .drawer a[href]");
-        for (var i = 0; i < rows.length; i++) {
-          if (rows[i].getAttribute("href") === href && rows[i].getClientRects().length) {
-            rows[i].focus({ preventScroll: true });
+        var pages = document.querySelectorAll(".bar-pages a[href]");
+        for (var i = 0; i < pages.length; i++) {
+          if (pages[i].getAttribute("href") === href && pages[i].getClientRects().length) {
+            placeFocus(pages[i]);
             return true;
           }
+        }
+        var capsule = document.querySelector(".bar-menu > summary");
+        if (capsule && capsule.getClientRects().length) {
+          placeFocus(capsule);
+          return true;
         }
         return false;
       };
@@ -835,25 +602,20 @@ var onPageChange = (function () {
     if (path) window.location.href = path;
   });
 
-  // 5. The instant half of a control whose whole effect is an attribute on
-  // <html>: the rail's width, and the theme. Each is a link back to this
-  // URL with ?sidebar= or ?theme= set — urlWith in chrome.go is the one
-  // place that builds them — and the page that comes back carries the new
-  // value, which item 1 copies across. That is correct and, on a local
-  // network, quick. But the rail's width transition runs on the node the
-  // swap is about to throw away, and the node that replaces it arrives
-  // already at its new width, so the motion went with the round trip even
-  // where the latency did not. So the attribute is set here, at the press,
-  // off the parameter the link already carries, and the reply confirms it:
-  // a page that arrives overwrites it (item 1), and a request that ends
-  // with no page — the network gone, a 204, a press superseded by the next
-  // — puts back what was there. Only these two: their values are the
-  // stylesheet's to act on. The language stays with the page, because an
-  // <html lang> claiming a language its words are not yet in misleads
-  // exactly the reader that consults it. Without script, each link is
-  // still the link, and the server still decides the width.
+  // 5. The instant half of the theme, whose whole effect is an attribute on
+  // <html>. A theme link is a link back to this URL with ?theme= set —
+  // urlWith in chrome.go builds it — and the page that comes back carries
+  // the new value, which item 1 copies across. That is correct and, on a
+  // local network, quick; but the reader pressed a segment and should see
+  // the page turn over at the press, not when the reply lands. So the
+  // attribute is set here, at the press, off the parameter the link already
+  // carries, and the reply confirms it: a page that arrives overwrites it
+  // (item 1), and a request that ends with no page — the network gone, a
+  // 204, a press superseded by the next — puts back what was there. The
+  // language stays with the page, because an <html lang> claiming a
+  // language its words are not yet in misleads exactly the reader that
+  // consults it. Without script, each link is still the link.
   var ahead = {
-    sidebar: { attr: "data-sidebar", values: ["wide", "narrow"] },
     theme: { attr: "data-theme", values: ["system", "light", "dark"] }
   };
   // What was set ahead of a reply still in flight: { attr, was, xhr }.
@@ -872,8 +634,8 @@ var onPageChange = (function () {
       var rule = ahead[name];
       var value = params.get(name);
       if (value === null || rule.values.indexOf(value) < 0) return;
-      // A link carries the whole query, so a theme link on a page already
-      // at ?sidebar=narrow says both; only what actually changes is set.
+      // A link carries the whole query, so a link on a page already at
+      // ?theme=dark says so too; only what actually changes is set.
       var was = root.getAttribute(rule.attr);
       if (value === was) return;
       root.setAttribute(rule.attr, value);
@@ -904,5 +666,31 @@ var onPageChange = (function () {
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       event.preventDefault();
     }
+  });
+
+  // 7. A link that stays on the page keeps the reader where they are.
+  // htmx scrolls a boosted swap to the top, which is right for a step to
+  // another page and wrong for a change to this one: another player in the
+  // roster, the range or a rule on the board, a pair to compare, a month
+  // from the season, the grid's window. Those swap the page and leave the
+  // scroll alone. "The same page" is the same view — the same path, or
+  // the same kind of page under it (/players/…, /puzzle/…, an admin
+  // section's players) — read off the addresses either side of the swap,
+  // so no link has to say so itself.
+  function pageOf(href) {
+    var path;
+    try { path = new URL(href, window.location.href).pathname; } catch (e) { return null; }
+    path = path.replace(/^\/share\/[^/]+/, "").replace(/\/+$/, "") || "/today";
+    var parts = path.split("/");
+    if (parts[1] === "players" || parts[1] === "puzzle") return parts[1];
+    if (parts[1] === "admin" && parts[2] === "players") return "admin/players";
+    return path;
+  }
+  document.addEventListener("htmx:beforeSwap", function (event) {
+    var detail = event.detail;
+    if (detail.target !== document.body || !detail.xhr || !detail.requestConfig || !detail.requestConfig.boosted) return;
+    var landed = detail.xhr.responseURL || (detail.pathInfo && detail.pathInfo.finalRequestPath);
+    if (!landed || pageOf(landed) !== pageOf(window.location.href)) return;
+    detail.swapOverride = "innerHTML show:none";
   });
 })();

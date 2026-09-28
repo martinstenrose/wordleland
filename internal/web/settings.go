@@ -2,9 +2,13 @@ package web
 
 import (
 	"errors"
+	"html/template"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/skip2/go-qrcode"
 
 	"github.com/martinstenrose/wordleland/internal/auth"
 	"github.com/martinstenrose/wordleland/internal/store"
@@ -21,12 +25,6 @@ type settingsPage struct {
 	Verified     bool
 	Role         string
 
-	// Tab is which of the three sections is showing. The other two are not
-	// rendered at all rather than hidden in CSS: they are separate pages
-	// that happen to share a card, and a password field in the markup of a
-	// page nobody asked for is a password field a manager may still fill.
-	Tab string
-
 	HasTOTP bool
 	// TOTPRequired marks an admin, for whom two-factor is not optional.
 	TOTPRequired bool
@@ -34,6 +32,9 @@ type settingsPage struct {
 	// first press only changes what the page shows, so the risk is read
 	// before anything is typed into the field that commits it.
 	ConfirmDisable bool
+	// Confirm is which of the two-step card's questions is open: "codes",
+	// "rotate" or "totp". Each is asked in the card before anything is done.
+	Confirm string
 
 	// RecoveryLeft is how many unused codes remain, so somebody running
 	// low finds out before it is the thing locking them out.
@@ -46,6 +47,47 @@ type settingsPage struct {
 
 	// Form holds what was submitted when something was rejected.
 	Form settingsForm
+
+	// Setup is an authenticator being set up in the two-step card: the
+	// secret as a QR code and as text, and the form that proves it was
+	// scanned. Nil unless the reader asked for it.
+	Setup *totpSetup
+
+	// Codes are a fresh set of recovery codes, shown once in the two-step
+	// card; Enrolling says they finish a setup rather than replace a set.
+	Codes     []string
+	Enrolling bool
+	// CodesText and CodesFile are the same codes for the copy button and
+	// the download link.
+	CodesText string
+	CodesFile template.URL
+}
+
+// NoticeText is what the toast says for the outcome in ?notice=.
+func (p settingsPage) NoticeText() string {
+	switch p.Notice {
+	case "name":
+		return p.T.T("settings.saved.name")
+	case "email":
+		return p.T.T("settings.saved.email")
+	case "totp-off":
+		return p.T.T("settings.totp.disabled")
+	case "totp-on":
+		return p.T.T("settings.totp.enabled")
+	case "codes":
+		return p.T.T("settings.recovery.stored")
+	}
+	return p.T.T("admin.saved")
+}
+
+// totpSetup is an authenticator being set up inline on the settings page.
+type totpSetup struct {
+	QRCode template.URL
+	// Secret is grouped in fours for typing by hand.
+	Secret string
+	// Replacing asks for the password too: see handleEnrolTOTPSubmit.
+	Replacing bool
+	Error     string
 }
 
 type settingsForm struct {
@@ -53,19 +95,111 @@ type settingsForm struct {
 	Email string
 }
 
-// The three tabs, in the order the design puts them. The codes are also the
-// last path segment of the two tabs that have one, so a tab is named the same
-// way everywhere it appears.
-const (
-	settingsProfile  = "profile"
-	settingsAccount  = "account"
-	settingsSecurity = "security"
-)
-
-// handleSettings shows the signed-in reader's own account.
+// handleSettings shows the signed-in reader's own account: one page of three
+// cards, as the design has it. /settings/account and /settings/security are
+// the addresses the tabs it replaced had, and show the same page.
+//
+// ?setup=totp opens an authenticator's setup in the two-step card, issuing a
+// fresh pending secret each time it is asked for — the enrolment page's own
+// rule, which is what makes a mis-scanned code recoverable by asking again.
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	user, _ := authenticated(r)
+	if r.URL.Query().Get("setup") == "totp" {
+		setup, err := s.newTOTPSetup(r, user)
+		if err != nil {
+			s.logger.Error("start authenticator setup", "error", err)
+			s.renderError(w, r, http.StatusInternalServerError)
+			return
+		}
+		s.renderSettingsStatus(w, r, user, "", "", settingsForm{}, 0, func(p *settingsPage) { p.Setup = setup })
+		return
+	}
 	s.renderSettings(w, r, user, r.URL.Query().Get("notice"), "", settingsForm{})
+}
+
+// newTOTPSetup issues a pending secret and draws it for the two-step card.
+func (s *Server) newTOTPSetup(r *http.Request, user store.User) (*totpSetup, error) {
+	secret, uri, err := auth.GenerateTOTPSecret(user.Email)
+	if err != nil {
+		return nil, err
+	}
+	sealed, err := s.cipher.Encrypt([]byte(secret))
+	if err != nil {
+		return nil, err
+	}
+	if err := store.SetPendingTOTPSecret(r.Context(), s.db, user.ID, sealed); err != nil {
+		return nil, err
+	}
+	return drawTOTPSetup(secret, uri, user.HasTOTP)
+}
+
+// pendingTOTPSetup draws the secret already pending, for a setup sent back
+// with an error: the reader keeps the code they have just scanned.
+func (s *Server) pendingTOTPSetup(r *http.Request, user store.User) (*totpSetup, error) {
+	sealed, err := store.PendingTOTPSecret(r.Context(), s.db, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	secret, err := s.cipher.Decrypt(sealed)
+	if err != nil {
+		return nil, err
+	}
+	_, uri, err := auth.RebuildTOTPURI(string(secret), user.Email)
+	if err != nil {
+		return nil, err
+	}
+	return drawTOTPSetup(string(secret), uri, user.HasTOTP)
+}
+
+func drawTOTPSetup(secret, uri string, replacing bool) (*totpSetup, error) {
+	png, err := qrcode.Encode(uri, qrcode.Medium, 256)
+	if err != nil {
+		return nil, err
+	}
+	var grouped []string
+	for i := 0; i < len(secret); i += 4 {
+		grouped = append(grouped, secret[i:min(i+4, len(secret))])
+	}
+	return &totpSetup{QRCode: qrDataURI(png), Secret: strings.Join(grouped, " "), Replacing: replacing}, nil
+}
+
+// fromSettings reports whether an enrolment form was posted from the
+// settings page's two-step card rather than the standalone enrolment page,
+// so its answer goes back to where it was asked.
+func fromSettings(r *http.Request) bool { return r.PostFormValue("from") == "settings" }
+
+// renderSettingsSetup sends a setup back to the settings page with an
+// error, keeping the pending secret.
+func (s *Server) renderSettingsSetup(w http.ResponseWriter, r *http.Request, status int, message string) {
+	user, _ := userFrom(r)
+	setup, err := s.pendingTOTPSetup(r, user)
+	if err != nil {
+		http.Redirect(w, r, "/settings?setup=totp#two-step", http.StatusSeeOther)
+		return
+	}
+	setup.Error = message
+	s.renderSettingsStatus(w, r, user, "", "", settingsForm{}, status, func(p *settingsPage) { p.Setup = setup })
+}
+
+// renderSettingsCodes shows a fresh set of recovery codes in the two-step
+// card, issuing them.
+func (s *Server) renderSettingsCodes(w http.ResponseWriter, r *http.Request, user store.User, enrolling bool) {
+	codes, err := store.ReplaceRecoveryCodes(r.Context(), s.db, store.PlayerActor(user.ID), user.ID)
+	if err != nil {
+		s.logger.Error("issue recovery codes", "error", err)
+		s.renderError(w, r, http.StatusInternalServerError)
+		return
+	}
+	// Read again: enrolment has just switched two-step on.
+	if fresh, err := store.UserByID(r.Context(), s.db, user.ID); err == nil {
+		user = fresh
+	}
+	text := strings.Join(codes, "\n") + "\n"
+	s.renderSettingsStatus(w, r, user, "", "", settingsForm{}, http.StatusOK, func(p *settingsPage) {
+		p.Codes, p.Enrolling = codes, enrolling
+		p.CodesText = text
+		p.CodesFile = template.URL("data:text/plain;charset=utf-8," + url.PathEscape(text))
+	})
 }
 
 // handleSettingsTOTPDisable turns two-factor off at the account's own request.
@@ -122,38 +256,19 @@ func (s *Server) handleSettingsTOTPDisable(w http.ResponseWriter, r *http.Reques
 	}
 	s.limiter.Reset("settings-password:user:" + strconv.FormatInt(user.ID, 10))
 
-	http.Redirect(w, r, "/settings/security?notice=totp-off", http.StatusSeeOther)
-}
-
-// settingsTabFor is which of the three a request belongs to, read from its
-// path rather than passed down.
-//
-// That is what keeps a rejected form on the tab it was submitted from: every
-// one of the dozen renderSettings calls below is a rejection re-rendering the
-// page, and threading a tab through all of them would be a dozen chances to
-// pass the wrong one. The path already knows.
-func settingsTabFor(path string) string {
-	switch path {
-	case "/settings/account", "/settings/email", "/settings/password":
-		return settingsAccount
-	case "/settings/security", "/settings/recovery-codes", "/settings/totp/disable":
-		return settingsSecurity
-	default:
-		return settingsProfile
-	}
-}
-
-// SettingsTabs feeds the sub-nav inside the settings card.
-func (p settingsPage) SettingsTabs() []chromeOpt {
-	return []chromeOpt{
-		{Code: settingsProfile, Label: p.T.T("settings.profile"), Href: "/settings", On: p.Tab == settingsProfile},
-		{Code: settingsAccount, Label: p.T.T("settings.tab.account"), Href: "/settings/account", On: p.Tab == settingsAccount},
-		{Code: settingsSecurity, Label: p.T.T("settings.tab.security"), Href: "/settings/security", On: p.Tab == settingsSecurity},
-	}
+	http.Redirect(w, r, "/settings?notice=totp-off#two-step", http.StatusSeeOther)
 }
 
 func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, user store.User, notice, errKey string, form settingsForm) {
 	s.renderSettingsStatus(w, r, user, notice, errKey, form, 0)
+}
+
+// settingsChrome is the chrome every settings screen shares, naming the page
+// for the phone's bar, which shows where you are.
+func (s *Server) settingsChrome(w http.ResponseWriter, r *http.Request) chrome {
+	c := s.newChrome(w, r, "", "", false)
+	c.Page = chromeOpt{Code: "settings", Label: c.T.T("nav.settings"), Href: "/settings", On: true}
+	return c
 }
 
 // renderSettingsStatus is renderSettings with the response code chosen by
@@ -162,10 +277,9 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, user sto
 // Only the rate limiter needs it. Being throttled is a 429 because the
 // answer is to wait, not the 422 that every other rejected settings form
 // gets, which means the form itself is wrong.
-func (s *Server) renderSettingsStatus(w http.ResponseWriter, r *http.Request, user store.User, notice, errKey string, form settingsForm, status int) {
+func (s *Server) renderSettingsStatus(w http.ResponseWriter, r *http.Request, user store.User, notice, errKey string, form settingsForm, status int, extra ...func(*settingsPage)) {
 	page := settingsPage{
-		chrome:       s.newChrome(w, r, "", "", false),
-		Tab:          settingsTabFor(r.URL.Path),
+		chrome:       s.settingsChrome(w, r),
 		Email:        user.Email,
 		Verified:     user.EmailVerifiedAt != nil,
 		HasTOTP:      user.HasTOTP,
@@ -175,6 +289,12 @@ func (s *Server) renderSettingsStatus(w http.ResponseWriter, r *http.Request, us
 		Form:         form,
 	}
 	page.ConfirmDisable = user.HasTOTP && !user.IsAdmin && r.URL.Query().Get("confirm") == "totp"
+	if user.HasTOTP {
+		switch c := r.URL.Query().Get("confirm"); c {
+		case "codes", "rotate", "totp":
+			page.Confirm = c
+		}
+	}
 	if user.PendingEmail != nil {
 		page.PendingEmail = *user.PendingEmail
 	}
@@ -207,6 +327,10 @@ func (s *Server) renderSettingsStatus(w http.ResponseWriter, r *http.Request, us
 	}
 	if page.Form.Email == "" {
 		page.Form.Email = user.Email
+	}
+
+	for _, f := range extra {
+		f(&page)
 	}
 
 	if !s.issueChromeToken(w, r, &page.chrome) {
@@ -249,7 +373,7 @@ func (s *Server) handleSettingsName(w http.ResponseWriter, r *http.Request) {
 		s.renderSettings(w, r, user, "", "settings.error.failed", settingsForm{Name: name})
 		return
 	}
-	http.Redirect(w, r, "/settings?notice=name", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings?notice=name#profile", http.StatusSeeOther)
 }
 
 // handleSettingsEmail starts a change of address.
@@ -289,7 +413,7 @@ func (s *Server) handleSettingsEmail(w http.ResponseWriter, r *http.Request) {
 		s.renderSettings(w, r, user, "", "settings.error.failed", settingsForm{Email: email})
 		return
 	}
-	http.Redirect(w, r, "/settings/account?notice=email", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings?notice=email#sign-in", http.StatusSeeOther)
 }
 
 // handleSettingsPassword changes the password, current one first.
