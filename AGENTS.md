@@ -112,6 +112,18 @@ made against — self-hosted, no managed database, mail optional. "A
 deployment with no mail server is supported" is the useful half; naming the
 machine is the half that should not be public.
 
+## Starting a task
+
+**Start from a fresh `origin/main` unless told otherwise.** Before reading
+code or making a change, `git fetch origin` and branch from `origin/main`
+(`git switch -c <branch> origin/main`, or a worktree based on it) — not
+from whatever branch or stale `main` the checkout happens to be on. Code
+read from an old HEAD answers the question about a repository that no
+longer exists, and a branch cut from one carries someone else's unmerged
+work into the pull request. If the task names a branch or a pull request
+to continue, fetch and use that instead, rebased onto `origin/main` only
+if asked.
+
 ## Contributing
 
 Branch naming, commit message conventions, and "every commit builds on its
