@@ -324,7 +324,10 @@ func TestThePlacingModelIsReadyWithoutCapabilities(t *testing.T) {
 	srv := httptest.NewServer(mux) // no /api/show: a 404
 	t.Cleanup(srv.Close)
 	o := NewOllama(srv.URL, "qwen2.5:3b")
-	o.Prepare(context.Background(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	// Bounded: held back, Prepare would try again for ever.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	o.Prepare(ctx, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if !o.Ready() {
 		t.Error("the placing model was held back by a server that cannot show capabilities")
 	}
