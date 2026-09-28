@@ -132,7 +132,7 @@
 
 {{define "footer-links"}}
 <span class="footer-links">
-  <a class="footer-link" href="/privacy">{{.T.T "footer.privacy"}}</a>
+  <a class="footer-link" href="{{.PrivacyHref}}">{{.T.T "footer.privacy"}}</a>
   {{if eq .Frame "app"}}{{template "about" (dict "C" . "Link" true)}}{{end}}
   {{/* Away from the site, so a new tab — see the About panel's copy of this
        link in topbar.html for why. The arrow leaving its box is the visible
