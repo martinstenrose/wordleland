@@ -58,6 +58,46 @@ func TestPrivacyPageForASignedInReader(t *testing.T) {
 	}
 }
 
+// A reader who came in by the share link and opened the privacy notice
+// stays in the share view: its views, its search, and a wordmark back to
+// the shared Today. /privacy would have put them in the signed-out chrome,
+// with no search and a wordmark that leads to a sign-in page they have no
+// account for.
+func TestPrivacyPageUnderTheShareLink(t *testing.T) {
+	t.Parallel()
+
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+	prefix := "/share/" + slug
+
+	if body := fetchAs(t, srv, prefix+"/", nil).Body.String(); !strings.Contains(body, `href="`+prefix+`/privacy"`) {
+		t.Error("the shared Today does not link to the share view's privacy notice")
+	}
+
+	res := fetchAs(t, srv, prefix+"/privacy", nil)
+	if res.Code != http.StatusOK {
+		t.Fatalf("GET %s/privacy = %d, want 200", prefix, res.Code)
+	}
+	body := res.Body.String()
+	if !strings.Contains(body, `<a class="bar-home" href="`+prefix+`/"`) {
+		t.Error("the brand does not lead back to the shared Today")
+	}
+	if !strings.Contains(body, `<a class="bar-search glass" href="`+prefix+`/search"`) {
+		t.Error("no search control under the share link")
+	}
+	if !strings.Contains(body, `href="`+prefix+`/board"`) {
+		t.Error("the share view's views are missing")
+	}
+	// Not href="/": the guest menu's sign-in button is on every share page,
+	// deliberately. The wordmark is what must not lead there.
+	for _, leak := range []string{`href="/today"`, `href="/privacy"`, `action="/logout"`} {
+		if strings.Contains(body, leak) {
+			t.Errorf("the shared privacy notice links out of the share view: %s", leak)
+		}
+	}
+}
+
 func TestPrivacyPageIsPublic(t *testing.T) {
 	t.Parallel()
 

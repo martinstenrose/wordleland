@@ -113,7 +113,7 @@ func (s *Server) routes() http.Handler {
 
 	// Linked from the footer on every page, so it sits outside
 	// authentication like the rest of the pages a stranger can reach.
-	mux.HandleFunc("GET /privacy", s.handlePrivacy)
+	mux.HandleFunc("GET /privacy", s.handlePrivacyPage)
 
 	// Outside the login surface entirely: protected by its own bearer token,
 	// for scripts and curl. The bridge no longer comes through here — it
