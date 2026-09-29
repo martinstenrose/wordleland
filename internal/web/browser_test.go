@@ -1142,13 +1142,50 @@ func TestBrowserTheBarIsGlassAndNothingIsNamed(t *testing.T) {
 	for _, sel := range []string{".bar-pages", ".bar-search", "details.account > summary"} {
 		filter := p.String(fmt.Sprintf(`(() => { const s = getComputedStyle(document.querySelector(%q), "::before");
 			return s.backdropFilter || s.webkitBackdropFilter || ""; })()`, sel))
-		if !strings.Contains(filter, "blur(16px)") {
+		if !strings.Contains(filter, "blur(") {
 			t.Errorf("%s is not frosted: backdrop-filter %q", sel, filter)
 		}
 	}
 	// And the bar is its pieces: nothing behind them across the window.
 	if bg := p.String(`getComputedStyle(document.querySelector(".topbar")).backgroundColor`); bg != "rgba(0, 0, 0, 0)" {
 		t.Errorf("the bar has a ground of its own, %s, where the page should show through", bg)
+	}
+}
+
+// Nothing fixed spans the top of the window. A full-width fixed layer there
+// — a scroll edge band behind the bar was one — turned the area under an
+// iPhone's clock solid in Safari, where the page should run up under it.
+// The bar's pieces are inset from both edges, so they are not one. Asked of
+// every element and its two pseudo-elements, scrolled, on a phone and a
+// wide window.
+func TestBrowserNothingFixedSpansTheTopOfTheWindow(t *testing.T) {
+	site := newSite(t)
+	for _, width := range []int{phoneWidth, desktopWidth} {
+		p := site.open(newBrowser(t), width)
+		p.Viewport(width, 360, width < 500)
+		p.Navigate(site.base + "/leaderboard")
+		p.Eval(`window.scrollTo(0, 120); true`)
+		p.WaitFor(`window.scrollY >= 100`)
+		spans := p.Strings(`(() => {
+			const W = document.documentElement.clientWidth, out = [];
+			for (const el of document.querySelectorAll("body *")) {
+				if (!el.checkVisibility()) continue;
+				for (const pseudo of [null, "::before", "::after"]) {
+					const s = getComputedStyle(el, pseudo);
+					if (s.position !== "fixed" || s.display === "none" || (pseudo && s.content === "none")) continue;
+					const left = parseFloat(s.left), top = parseFloat(s.top);
+					const w = pseudo ? parseFloat(s.width) : el.getBoundingClientRect().width;
+					const y = pseudo ? top : el.getBoundingClientRect().top;
+					if (w >= W - 1 && (pseudo ? left <= 0 : el.getBoundingClientRect().left <= 0) && y < 100) {
+						out.push(el.tagName.toLowerCase() + "." + el.className + (pseudo || ""));
+					}
+				}
+			}
+			return out;
+		})()`)
+		if len(spans) > 0 {
+			t.Errorf("width %d: fixed across the top of the window, where Safari fills the status bar with it: %v", width, spans)
+		}
 	}
 }
 

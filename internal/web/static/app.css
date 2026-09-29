@@ -110,21 +110,27 @@
   /* The ground a row of pills sits on: a step down from a card's. */
   --color-rail: oklch(.215 .013 65);
 
-  /* Liquid Glass, and only for what floats — the design's glass() recipe,
-     value for value, in its two strengths. The bar's pieces are the design's
-     "Frosted" setting: a light fill and a 16px blur, a hairline of light
-     round them, a highlight along the top and a soft shadow under. A menu,
-     and the sign-in card, are frosted harder: text sits on them and has to
-     read over whatever the page has under it. */
-  --glass-bg: rgba(46, 42, 38, .44);
-  --glass-border: .5px solid rgba(255, 255, 255, .16);
-  --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, .16), inset 0 -1px 0 rgba(0, 0, 0, .3), 0 10px 30px rgba(0, 0, 0, .45);
-  --glass-filter: blur(16px) saturate(190%);
-  --glass-menu-bg: rgba(44, 40, 36, .62);
-  --glass-menu-border: .5px solid rgba(255, 255, 255, .14);
-  --glass-menu-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 8px 28px rgba(0, 0, 0, .35);
-  --glass-menu-filter: blur(28px) saturate(190%);
-  --glass-hover: rgba(255, 255, 255, .1);
+  /* Liquid Glass, and only for what floats, after Apple's material in its
+     two strengths, as Safari's toolbar draws it — measured off
+     screenshots of it in both themes. The bar's pieces are the clear one:
+     a thin, neutral fill the page shows through, a hairline round it and,
+     just inside that, light caught along the edge that fades within a
+     pixel or two (`--glass-rim`, soft inset shadows, so it follows the
+     curve). In the dark theme the light sits along the top and bottom and
+     the ends stay dark; in the light theme it runs all the way round, with
+     the faintest shade inside the two ends. A menu, and the sign-in card,
+     are frosted harder: text sits on them and has to read over whatever
+     the page has under it. */
+  --glass-bg: linear-gradient(to bottom, rgba(255, 255, 255, .03), rgba(255, 255, 255, 0)), rgba(78, 78, 78, .45);
+  --glass-border: .5px solid rgba(0, 0, 0, .6);
+  --glass-rim: inset 0 1px 1.5px rgba(255, 255, 255, .26), inset 0 -1px 1.5px rgba(255, 255, 255, .2);
+  --glass-shadow: 0 6px 22px rgba(0, 0, 0, .32), 0 1px 3px rgba(0, 0, 0, .22);
+  --glass-filter: blur(12px) saturate(160%);
+  --glass-menu-bg: linear-gradient(to bottom, rgba(255, 255, 255, .03), rgba(255, 255, 255, 0)), rgba(58, 58, 58, .72);
+  --glass-menu-border: .5px solid rgba(0, 0, 0, .6);
+  --glass-menu-shadow: inset 0 1px 1px rgba(255, 255, 255, .08), 0 10px 32px rgba(0, 0, 0, .38);
+  --glass-menu-filter: blur(30px) saturate(180%);
+  --glass-hover: rgba(255, 255, 255, .12);
   --scrim: rgba(0, 0, 0, .4);
   --search-well: rgba(255, 255, 255, .1);
 
@@ -207,6 +213,9 @@
   /* The glass bar's own changes — a page pill lighting, a chevron turning.
      Short and quiet, never a spring. */
   --transition-quiet: .2s ease;
+  /* The one spring: a piece of glass swelling under a press and settling
+     back, the way the material answers a touch. */
+  --transition-press: .32s cubic-bezier(.3, 1.6, .5, 1);
   /* How long a page takes to become the next one — the view transition
      every swap runs, see "Switching pages" below. The browser pauses
      rendering for the whole of it, so longer is not smoother past the
@@ -272,13 +281,15 @@
   --color-track: oklch(.94 .008 65);
   --color-seg: oklch(.995 .004 65);
   --color-rail: oklch(.975 .006 65);
-  --glass-bg: rgba(255, 253, 250, .46);
-  --glass-border: .5px solid rgba(255, 255, 255, .9);
-  --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 -1px 1px rgba(0, 0, 0, .04), 0 10px 30px rgba(60, 40, 20, .12), 0 1px 3px rgba(60, 40, 20, .08);
-  --glass-menu-bg: rgba(255, 253, 250, .66);
-  --glass-menu-border: .5px solid rgba(255, 255, 255, .55);
-  --glass-menu-shadow: inset 0 1px 0 rgba(255, 255, 255, .8), 0 8px 28px rgba(60, 40, 20, .1);
-  --glass-hover: rgba(0, 0, 0, .055);
+  --glass-bg: linear-gradient(to bottom, rgba(255, 255, 255, .5), rgba(255, 255, 255, .38)), rgba(250, 250, 250, .3);
+  --glass-border: .5px solid rgba(0, 0, 0, .15);
+  --glass-rim: inset 0 0 1px 1px rgba(255, 255, 255, .95), inset 16px 0 14px -12px rgba(0, 0, 0, .035), inset -16px 0 14px -12px rgba(0, 0, 0, .035);
+  --glass-shadow: 0 6px 22px rgba(0, 0, 0, .08), 0 1px 3px rgba(0, 0, 0, .06);
+  --glass-filter: blur(12px) saturate(170%);
+  --glass-menu-bg: linear-gradient(to bottom, rgba(255, 255, 255, .5), rgba(255, 255, 255, .4)), rgba(248, 248, 248, .5);
+  --glass-menu-border: .5px solid rgba(0, 0, 0, .12);
+  --glass-menu-shadow: inset 0 1px 1px rgba(255, 255, 255, .8), 0 10px 32px rgba(0, 0, 0, .1);
+  --glass-hover: rgba(0, 0, 0, .06);
   --scrim: rgba(40, 30, 20, .18);
   --search-well: rgba(118, 108, 96, .12);
 }
@@ -343,13 +354,15 @@
     --color-track: oklch(.94 .008 65);
     --color-seg: oklch(.995 .004 65);
     --color-rail: oklch(.975 .006 65);
-    --glass-bg: rgba(255, 253, 250, .46);
-    --glass-border: .5px solid rgba(255, 255, 255, .9);
-    --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, .95), inset 0 -1px 1px rgba(0, 0, 0, .04), 0 10px 30px rgba(60, 40, 20, .12), 0 1px 3px rgba(60, 40, 20, .08);
-    --glass-menu-bg: rgba(255, 253, 250, .66);
-    --glass-menu-border: .5px solid rgba(255, 255, 255, .55);
-    --glass-menu-shadow: inset 0 1px 0 rgba(255, 255, 255, .8), 0 8px 28px rgba(60, 40, 20, .1);
-    --glass-hover: rgba(0, 0, 0, .055);
+    --glass-bg: linear-gradient(to bottom, rgba(255, 255, 255, .5), rgba(255, 255, 255, .38)), rgba(250, 250, 250, .3);
+    --glass-border: .5px solid rgba(0, 0, 0, .15);
+    --glass-rim: inset 0 0 1px 1px rgba(255, 255, 255, .95), inset 16px 0 14px -12px rgba(0, 0, 0, .035), inset -16px 0 14px -12px rgba(0, 0, 0, .035);
+    --glass-shadow: 0 6px 22px rgba(0, 0, 0, .08), 0 1px 3px rgba(0, 0, 0, .06);
+    --glass-filter: blur(12px) saturate(170%);
+    --glass-menu-bg: linear-gradient(to bottom, rgba(255, 255, 255, .5), rgba(255, 255, 255, .4)), rgba(248, 248, 248, .5);
+    --glass-menu-border: .5px solid rgba(0, 0, 0, .12);
+    --glass-menu-shadow: inset 0 1px 1px rgba(255, 255, 255, .8), 0 10px 32px rgba(0, 0, 0, .1);
+    --glass-hover: rgba(0, 0, 0, .06);
     --scrim: rgba(40, 30, 20, .18);
     --search-well: rgba(118, 108, 96, .12);
   }
@@ -410,12 +423,39 @@ body {
   backdrop-filter: var(--glass-filter);
   pointer-events: none;
 }
+/* The rim: light caught just inside the hairline, drawn as inset
+   shadows so it follows the curve and fades rather than stopping. On a
+   pseudo-element over the frosting, because an inset shadow on the piece
+   itself is painted under its ::before and the fill would cover it. */
+.glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--glass-rim);
+  pointer-events: none;
+}
 /* The frosted strength: a menu, and the sign-in card, carry text. */
 .menu-panel.glass, .toast.glass, .search-overlay-box.glass, .signin { border: var(--glass-menu-border); box-shadow: var(--glass-menu-shadow); }
 .menu-panel.glass::before, .toast.glass::before, .search-overlay-box.glass::before, .signin::before {
   background: var(--glass-menu-bg);
   -webkit-backdrop-filter: var(--glass-menu-filter);
   backdrop-filter: var(--glass-menu-filter);
+}
+
+/* A reader who asked the system for less transparency gets the glass made
+   solid — the surface a card is, with the hairline kept — and one who
+   asked for more contrast gets a firmer edge. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass::before, .signin::before {
+    background: var(--color-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (prefers-contrast: more) {
+  .glass, .signin { border: 1px solid var(--color-text-40); }
+  .glass::after { display: none; }
 }
 
 /* A glyph with a filled form fills on whatever is current. See symbol()
@@ -451,6 +491,19 @@ body {
 }
 .topbar > * { pointer-events: auto; }
 .bar-gap { flex: 1; pointer-events: none; }
+
+/* A press on a piece of the bar swells it a little and lets it spring back
+   — the material answering the touch, before the page does. */
+.bar-capsule, .bar-orb, .bar-search {
+  transition: transform var(--transition-press);
+}
+.bar-capsule:active, .bar-orb:active, .bar-search:active { transform: scale(1.06); }
+.bar-menu[open] > .bar-capsule, .account[open] > .bar-orb { transform: scale(1.02); }
+@media (prefers-reduced-motion: reduce) {
+  .bar-capsule, .bar-orb, .bar-search { transition: none; }
+  .bar-capsule:active, .bar-orb:active, .bar-search:active,
+  .bar-menu[open] > .bar-capsule, .account[open] > .bar-orb { transform: none; }
+}
 
 /* A wide window's capsule: the mark, which is the way back to Today, a
    hairline, and every view. */

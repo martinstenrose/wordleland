@@ -632,7 +632,9 @@ and built from them here.
   distribution, an aggregate like every other figure there. On a phone it is
   the form alone.
 - **Transitions are quiet.** 0.2s for a pill lighting or a chevron turning,
-  the page's 0.16s cross-fade, and nothing that springs.
+  the page's 0.16s cross-fade. The one spring is a press on a piece of the
+  bar, which swells it a little and lets it settle, the way Apple's glass
+  answers a touch; reduced motion turns it off.
 
 Five things are drawn differently from the mockups, each for a reason
 measured or stated:
@@ -977,9 +979,27 @@ The design's fifth and sixth passes redrew a reader's Settings and the whole
 admin area, and added a toast and a fuller search. What was decided on the
 way:
 
-**The glass is the design's Frosted, not its Clear.** The bar, its menus, the
-toast, the search overlay and the sign-in card are frosted; the menu recipe
-(`--glass-menu-*`) is the stronger of the two because those pieces carry text.
+**The glass follows Apple's Liquid Glass, in two strengths.** The bar's
+pieces are the clear one: a thin neutral fill, the page behind saturated
+rather than tinted, a hairline with light caught just inside it and a soft
+shadow — matched against screenshots of Safari's toolbar in both themes. The first cut was the design's Frosted — a warm, heavier fill with a
+flat hairline — and read as a tinted panel beside Safari's own toolbar on
+the same screen. The menus, the toast, the search overlay and the sign-in
+card stay frosted (`--glass-menu-*`) because they carry text. Reduced
+transparency makes the glass solid; increased contrast trades the rim for a
+firm border.
+
+There is no scroll edge of our own — no band across the window behind the
+bar to soften what scrolls under it. One was tried, and on an iPhone the
+area under the clock turned solid rather than showing the page run up
+under it, even with the band starting below the status bar. Nothing else
+was fixed across the width of the window there, so the band was the
+cause; the likeliest mechanism, not confirmed, is Safari taking a
+full-width fixed layer at the top for a page header and filling the
+status bar with it. Safari draws its own soft edge under the status bar
+when nothing claims it, which is the look wanted anyway. Nothing fixed
+spans the top of the window, and
+`TestBrowserNothingFixedSpansTheTopOfTheWindow` holds it there.
 
 **Settings is three cards — profile, sign-in, two-step — and every risky act
 asks first, in place.** Generating new recovery codes, rotating the secret
