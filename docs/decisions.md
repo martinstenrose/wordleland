@@ -2236,6 +2236,17 @@ The prompt grew from about 900 tokens to 1,500. On a model whose server
 can reuse its work on the fixed part of a prompt, that is read once, not
 per question; the asker and any quoted post stay after it.
 
+**A message that asks two things is two requests from one call.** "Who
+leads, and is my streak still going?" used to be answered half. The
+request gains `also`: up to two further requests of the same shape, one
+level deep, from the same call to the model; each is answered in turn and
+the answers go out as one post. A tool-calling agent could do the same by
+looking each part up, but that costs a round of the model per lookup and
+a round to finish, which on a CPU is the minute per answer this section
+already turned down. A greeting or a thank-you among the further requests
+is dropped, a repeated one is kept once, and a thank-you ahead of a
+question gives way to it.
+
 ## CI and security scanning
 
 **CodeQL's `go/log-injection` alerts on `internal/web` are false positives,

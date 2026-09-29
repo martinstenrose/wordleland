@@ -199,6 +199,10 @@ type Request struct {
 	Puzzle int `json:"puzzle"`
 	// Scores are a what-if question's results that have not happened.
 	Scores []Hypothetical `json:"scores"`
+	// Also are the further questions of a message that asks more than
+	// one — "who leads, and is my streak still going?" — each answered in
+	// turn in the same post.
+	Also []Request `json:"also"`
 }
 
 // Hypothetical is one made-up result: a player and their guesses, 1 to 6,
@@ -355,12 +359,22 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
 			keepUnanswered(ctx, db, logger, question)
 			return fmt.Errorf("interpret question: %w", err)
 		}
+		also := make([]string, 0, len(req.Also))
+		for _, a := range req.Also {
+			also = append(also, string(a.Kind))
+		}
 		logger.Info("answering a question in the group",
-			"kind", req.Kind, "span", req.Span, "days", req.Days, "named_player", req.Player != "")
+			"kind", req.Kind, "span", req.Span, "days", req.Days, "named_player", req.Player != "",
+			"also", strings.Join(also, ","))
 		if req.Kind == KindUnknown {
 			keepUnanswered(ctx, db, logger, question)
 		}
 
-		return send(ctx, answer(t, req, asker, players, results, time.Now()))
+		now := time.Now()
+		answers := []string{answer(t, req, asker, players, results, now)}
+		for _, a := range req.Also {
+			answers = append(answers, answer(t, a, asker, players, results, now))
+		}
+		return send(ctx, strings.Join(answers, "\n\n"))
 	}
 }
