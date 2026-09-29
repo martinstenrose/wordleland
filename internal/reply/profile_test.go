@@ -52,7 +52,7 @@ func TestAProfile(t *testing.T) {
 				"Svit: 10 i rad nu, 10 som bäst.\n" +
 				"Resultat: 1×1, 0×2, 0×3, 74×4, 0×5, 0×6, 3×X.\n" +
 				"Form: 4,10 de senaste 30 pusslen.\n" +
-				"🏆 Bo: 1 månadsvinster."},
+				"🏆 Bo: 1 månadsvinst."},
 		{"en", Request{Kind: KindProfile, Player: "Cid"}, "Cid Larsson hasn't posted a result yet."},
 		{"sv", Request{Kind: KindHistory, Player: "Alma"},
 			"📚 Alma, månad för månad:\n" +

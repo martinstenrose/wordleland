@@ -82,8 +82,12 @@ func TestMonthlyWins(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 	got = answer(translator(t, "en"), Request{Kind: KindWins, Player: "Bo"}, nil, players, results, now)
-	if got != "Bo: 1 monthly wins." {
+	if got != "Bo: 1 monthly win." {
 		t.Errorf("got %q", got)
+	}
+	got = answer(translator(t, "sv"), Request{Kind: KindWins, Player: "Cid"}, nil, players, results, now)
+	if got != "Cid Larsson: 0 månadsvinster." {
+		t.Errorf("none is plural: got %q", got)
 	}
 }
 
