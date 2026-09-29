@@ -2247,6 +2247,18 @@ already turned down. A greeting or a thank-you among the further requests
 is dropped, a repeated one is kept once, and a thank-you ahead of a
 question gives way to it.
 
+**Models are compared by a placing test, not by impression.** Choosing
+between qwen2.5, qwen3, qwen3.5 and gemma4 kept coming down to reports
+from elsewhere and a question or two in the group. `wordleland
+placing-test` asks a model 48 fixed questions and scores how many it
+places as they should be, comparing only the fields each question is
+about — "vem leder?" is right whatever span it gets, a versus is right
+with its two players in either order. The roster, the day and the asker
+are made up and fixed, so every expected name and date is known, and it
+runs without the database. A unit test holds that every kind has a
+question and that each question's own answer would pass, so a miss is
+the model's, not the test's.
+
 ## CI and security scanning
 
 **CodeQL's `go/log-injection` alerts on `internal/web` are false positives,

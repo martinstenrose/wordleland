@@ -59,8 +59,9 @@ Global flags come before the noun; a verb's own flags come after it:
   wordleland --as you@example.tld player update --player martin --active=false
 
 Commands:
-  serve     run the server, and the Signal bridge when configured
-  version   print the running build
+  serve         run the server, and the Signal bridge when configured
+  version       print the running build
+  placing-test  ask a model fixed questions and score how it places them
 
 Nouns:
   user      create, reset-password, reset-2fa, disable, enable
@@ -124,6 +125,12 @@ func run(args []string, out io.Writer) error {
 	if rest[0] == "version" {
 		fmt.Fprintln(out, version.String())
 		return nil
+	}
+
+	// The same for placing-test: it talks to the model server, and a
+	// deployment trying models may not have a database worth opening.
+	if rest[0] == "placing-test" {
+		return runPlacingTest(ctx, rest[1:], out)
 	}
 
 	// help belongs up here for the same reason, and did not have it: the

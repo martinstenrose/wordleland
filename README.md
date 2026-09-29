@@ -211,6 +211,20 @@ Read it with:
 docker compose exec app /wordleland questions list
 ```
 
+**Trying another model** is measured, not guessed. `placing-test` asks a
+model 48 fixed questions — every kind, mostly in Swedish, two-in-one
+questions among them — and reports each one it placed wrongly, a score,
+and how long a question took. The first question's time against the
+median says whether the server reuses its work on the fixed instructions.
+Several models are compared in one run, and one the server lacks is
+pulled first:
+
+```sh
+docker compose exec app /wordleland placing-test --model qwen3:4b,gemma4:e4b
+```
+
+It uses a made-up roster and date, and never touches the database.
+
 **Replying to one of the bot's posts** works too: tap the bot's name into a
 reply to a daily recap and ask "what does 'points' mean here?", "vad fick
 Bo den dagen?", "why is Bo behind?". The bot's own post travels with the
