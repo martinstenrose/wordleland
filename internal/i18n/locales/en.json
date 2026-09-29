@@ -751,6 +751,7 @@
   "reply.wins.then": "Then %s.",
   "reply.wins.none": "No month has been won yet.",
   "reply.wins.player": "%s: %d monthly wins.",
+  "reply.wins.player.single": "%s: 1 monthly win.",
   "reply.last": "%s: %s brings up the rear on %s on average.",
   "reply.last.tie": "%s: %s share the bottom spot on %s.",
   "reply.last.none": "%s: too few have played most of the days to name a last place.",
