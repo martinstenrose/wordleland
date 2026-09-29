@@ -191,7 +191,9 @@ reads the question and turns it into one of these requests:
   month is scored, hard mode, form, who is ranked), and what the bot knows:
   the scores, never the words.
 
-That is all the model does. The figures come from the
+A message that asks more than one thing — "vem leder, och har jag
+svit?" — becomes up to three requests, each answered in turn in the same
+post. That is all the model does. The figures come from the
 same code the board runs, and every sentence — the rule explanations
 included — from the same catalogues the announcements use, so the model can
 misread a question but cannot get a number or a rule wrong. "What can you

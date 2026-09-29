@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -240,9 +241,8 @@ func (o *Ollama) pull(ctx context.Context) error {
 // model is constrained to a Request rather than asked nicely for one. The
 // enums are the Kind and Span constants; a value outside them cannot be
 // produced, and the parse below still checks.
-var requestSchema = map[string]any{
-	"type": "object",
-	"properties": map[string]any{
+var requestSchema = func() map[string]any {
+	one := map[string]any{
 		"kind":     map[string]any{"type": "string", "enum": enum(Kinds)},
 		"span":     map[string]any{"type": "string", "enum": enum(Spans)},
 		"days":     map[string]any{"type": "integer"},
@@ -263,10 +263,25 @@ var requestSchema = map[string]any{
 			},
 			"required": []string{"player", "guesses"},
 		}},
-	},
-	"required": []string{"kind", "span", "days", "worst", "player", "other", "topic", "date", "puzzle",
-		"month", "guesses", "orbetter", "scores"},
-}
+	}
+	required := []string{"kind", "span", "days", "worst", "player", "other", "topic", "date", "puzzle",
+		"month", "guesses", "orbetter", "scores"}
+	// The further questions of a message that asks more than one: each a
+	// request of the same shape, one level deep.
+	top := map[string]any{"also": map[string]any{
+		"type":     "array",
+		"maxItems": maxAlso,
+		"items":    map[string]any{"type": "object", "properties": one, "required": required},
+	}}
+	for k, v := range one {
+		top[k] = v
+	}
+	return map[string]any{
+		"type":       "object",
+		"properties": top,
+		"required":   append(slices.Clone(required), "also"),
+	}
+}()
 
 // enum is a list of constants as the schema's strings.
 func enum[T ~string](values []T) []string {
@@ -338,6 +353,10 @@ func (o *Ollama) Interpret(ctx context.Context, p Prompt) (Request, error) {
 // than all time. A year; beyond it the board's own table is the answer.
 const maxSpanDays = 366
 
+// maxAlso is how many further questions one message may carry: three
+// answers in one post is already a lot of chat.
+const maxAlso = 2
+
 // parseRequest reads what the model wrote, and treats anything outside the
 // known values as a question it did not understand rather than an error:
 // the group gets the help line, and nothing is logged as broken.
@@ -346,6 +365,42 @@ func parseRequest(content string) (Request, error) {
 	if err := json.Unmarshal([]byte(strings.TrimSpace(content)), &r); err != nil {
 		return Request{}, fmt.Errorf("model did not answer with a request: %w", err)
 	}
+	also := r.Also
+	r = normalise(r)
+	for _, a := range also {
+		a = normalise(a)
+		switch a.Kind {
+		case KindUnknown, KindHelp, KindThanks:
+			// Not a further question: a greeting or a thank-you alongside
+			// the real one says nothing an answer could.
+			continue
+		}
+		duplicate := reflect.DeepEqual(a, r)
+		for _, kept := range r.Also {
+			duplicate = duplicate || reflect.DeepEqual(a, kept)
+		}
+		if !duplicate && len(r.Also) < maxAlso {
+			r.Also = append(r.Also, a)
+		}
+	}
+	switch r.Kind {
+	case KindUnknown, KindHelp, KindThanks:
+		// "Tack! Och vem leder?": the question is what gets answered.
+		if len(r.Also) > 0 {
+			rest := r.Also[1:]
+			r = r.Also[0]
+			if len(rest) > 0 {
+				r.Also = rest
+			}
+		}
+	}
+	return r, nil
+}
+
+// normalise keeps what a request says only where it means something, one
+// request at a time; further questions are the caller's.
+func normalise(r Request) Request {
+	r.Also = nil
 	if !slices.Contains(Kinds, r.Kind) {
 		r.Kind = KindUnknown
 	}
@@ -438,7 +493,7 @@ func parseRequest(content string) (Request, error) {
 		}
 	}
 	r.Scores = scores
-	return r, nil
+	return r
 }
 
 // spanned are the kinds a span, and a named month, apply to.
@@ -539,6 +594,10 @@ Fields:
   ("Wordle 1900"), that number; otherwise 0.
 - scores: when kind is "whatif", each made-up result as {"player", "guesses"},
   guesses 1 to 6 or 7 for an X ("om jag får en 6:a" is the asker, 6); otherwise [].
+- also: when the message asks more than one thing ("vem leder, och har jag
+  svit?", "how did I do yesterday and who is in form?"), the first question
+  goes in the fields above and each further one here as its own request with
+  the same fields, at most 2. Otherwise [].
 `)
 	// Last, and in this order, what changes: today and the players once a
 	// day at most, the asker and the quoted post with every question. The
