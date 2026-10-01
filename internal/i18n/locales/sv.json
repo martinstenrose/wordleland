@@ -588,6 +588,7 @@
   "activity.column.when": "När",
   "activity.detail.title": "Händelse",
   "activity.detail.subject": "Spelare",
+  "activity.detail.grid": "Rutnät",
   "activity.detail.score": "Resultat",
   "activity.detail.name": "Visningsnamn",
   "activity.detail.slug": "Slug",

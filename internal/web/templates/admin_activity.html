@@ -29,6 +29,7 @@
             <dt>{{$.T.T "activity.field.type"}}</dt><dd>{{.Tag}}</dd>
             <dt>{{$.T.T "activity.field.by"}}</dt><dd>{{.Actor}}</dd>
             <dt>{{$.T.T "activity.field.when"}}</dt><dd>{{.When}}</dd>
+            {{with .Grid}}<dt>{{$.T.T "activity.detail.grid"}}</dt><dd>{{template "pattern" (dict "Grid" . "Size" "lg")}}</dd>{{end}}
           </dl>
           {{with .JSON}}
             <p class="activity-kicker">{{$.T.T "activity.recorded"}}</p>
