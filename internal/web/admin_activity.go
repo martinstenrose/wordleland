@@ -34,6 +34,10 @@ type activityRow struct {
 	ActorIcon string
 	Clock     string
 	JSON      string
+
+	// Grid is the squares a result was filed with, drawn beside the
+	// scoreline when opened; "" when the entry carries none.
+	Grid string
 }
 
 // activityDay is the rows of one day, under its name.
@@ -225,6 +229,7 @@ func (s *Server) activityRowFor(e store.Event, t translator) activityRow {
 		if line := scorelineFrom(detail); line != "" {
 			row.Detail += " · " + line
 		}
+		row.Grid = detailString(detail, "grid")
 	}
 	return row
 }

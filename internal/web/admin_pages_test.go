@@ -393,6 +393,53 @@ func TestActivityDetailShowsAResultChange(t *testing.T) {
 	}
 }
 
+// A result filed with its squares shows them in the log, opened in place
+// and on the row's own page, where a re-post that brought different squares
+// shows the ones it replaced as well. The squares were stored on the result
+// but left out of the entry, so the log could not show them.
+func TestActivityShowsAResultsGrid(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	srv := testServer(t)
+	seedBoard(t, srv)
+	_, session := adminSession(t, srv)
+	player, err := store.PlayerBySlug(ctx, srv.db, "harda")
+	if err != nil {
+		t.Fatalf("PlayerBySlug: %v", err)
+	}
+
+	date, _ := wordle.DateForPuzzle(1503)
+	for _, grid := range []string{"nynnn/ggggg", "nnnnn/nnynn/ggggg"} {
+		n := strings.Count(grid, "/") + 1
+		r := store.Result{PuzzleNo: 1503, Date: date, PlayerID: player.ID, Guesses: &n, Solved: true, Grid: grid}
+		outcome, previous, err := store.UpsertResult(ctx, srv.db, r, nil, nil)
+		if err != nil {
+			t.Fatalf("UpsertResult: %v", err)
+		}
+		action := store.ActionResultCreated
+		if outcome == store.OutcomeUpdated {
+			action = store.ActionResultUpdated
+		}
+		if err := store.LogResultActivityVia(ctx, srv.db, store.SystemActor(),
+			action, player.ID, r, previous, bridge.SourceSignal); err != nil {
+			t.Fatalf("LogResultActivityVia: %v", err)
+		}
+	}
+
+	pattern := `<span class="pattern pattern-lg"`
+	list := fetchAs(t, srv, "/admin/activity?kind=results", session).Body.String()
+	if got := strings.Count(list, pattern); got != 2 {
+		t.Errorf("the log draws %d grids, want one per entry", got)
+	}
+
+	href := regexp.MustCompile(`/admin/activity/(\d+)`).FindString(list)
+	body := fetchAs(t, srv, href, session).Body.String()
+	if got := strings.Count(body, pattern); got != 2 {
+		t.Errorf("the re-post's page draws %d grids, want the new one and the one it replaced", got)
+	}
+}
+
 // A rename shows both names, which is the whole reason to open the row.
 func TestActivityDetailShowsARename(t *testing.T) {
 	t.Parallel()

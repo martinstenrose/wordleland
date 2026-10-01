@@ -588,6 +588,7 @@
   "activity.column.when": "When",
   "activity.detail.title": "Activity",
   "activity.detail.subject": "Player",
+  "activity.detail.grid": "Grid",
   "activity.detail.score": "Score",
   "activity.detail.name": "Display name",
   "activity.detail.slug": "Slug",

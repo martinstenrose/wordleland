@@ -21,6 +21,10 @@ type detailField struct {
 	Label string
 	From  string
 	To    string
+
+	// Grid marks From and To as stored grids, drawn as squares rather than
+	// as the letters they are kept in.
+	Grid bool
 }
 
 // Changed reports whether the field records a transition rather than a
@@ -102,12 +106,21 @@ func detailFields(event store.Event, detail map[string]any, t translator) []deta
 			}
 			fields = append(fields, f)
 		}
+		// The squares as a change of their own: a correction can keep the
+		// score and still bring different squares, or drop them.
+		f := detailField{Label: t.T("activity.detail.grid"), To: detailString(detail, "grid"), Grid: true}
+		if prev, ok := detail["previous"].(map[string]any); ok {
+			f.From = detailString(prev, "grid")
+		}
+		if f.From != "" || f.To != "" {
+			fields = append(fields, f)
+		}
 	}
 
 	for _, key := range sortedKeys(detail) {
 		switch key {
-		case "previous", "puzzle_no", "solved", "guesses", "hard_mode":
-			// Already said above, as a scoreline.
+		case "previous", "puzzle_no", "solved", "guesses", "hard_mode", "grid":
+			// Already said above, as a scoreline and its squares.
 			continue
 		}
 		value := detail[key]

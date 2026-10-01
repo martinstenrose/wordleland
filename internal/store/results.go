@@ -154,6 +154,11 @@ func ResultFor(ctx context.Context, q Querier, puzzleNo int, playerID int64) (*R
 // activityDetailFor describes a result change, carrying the previous value on an
 // overwrite. That is what makes the log a correction trail rather than a list
 // of events.
+//
+// The grid is the one the write brought, so it is absent from a write that
+// carried none even where UpsertResult kept the stored one; the previous
+// grid is there on an overwrite, and on a deletion it is the only record of
+// the squares left.
 func activityDetailFor(r Result, previous *Result) map[string]any {
 	detail := map[string]any{
 		"puzzle_no": r.PuzzleNo,
@@ -163,10 +168,16 @@ func activityDetailFor(r Result, previous *Result) map[string]any {
 	if r.Guesses != nil {
 		detail["guesses"] = *r.Guesses
 	}
+	if r.Grid != "" {
+		detail["grid"] = r.Grid
+	}
 	if previous != nil {
 		prev := map[string]any{"solved": previous.Solved, "hard_mode": previous.HardMode}
 		if previous.Guesses != nil {
 			prev["guesses"] = *previous.Guesses
+		}
+		if previous.Grid != "" {
+			prev["grid"] = previous.Grid
 		}
 		if previous.EnteredBy != nil {
 			prev["entered_by"] = *previous.EnteredBy
