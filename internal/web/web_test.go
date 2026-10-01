@@ -666,7 +666,7 @@ func TestFaviconIsServed(t *testing.T) {
 
 	// And every page points at them.
 	page := fetchAs(t, srv, "/", nil).Body.String()
-	for _, want := range []string{`rel="icon" type="image/svg+xml"`, `rel="apple-touch-icon"`} {
+	for _, want := range []string{`rel="icon" type="image/svg+xml"`, `rel="apple-touch-icon"`, `name="format-detection" content="telephone=no"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the page does not declare %s", want)
 		}
