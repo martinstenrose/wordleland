@@ -119,17 +119,52 @@ func TestThinPlayerGetsScoresRatherThanCharts(t *testing.T) {
 	if strings.Contains(page, `class="chart"`) {
 		t.Error("a chart rendered for a player with too little history")
 	}
-	// Never ranked, so no months to plot: the panel stays, saying why it
-	// is empty, rather than leaving a hole in the grid.
-	if strings.Contains(page, `class="rank-chart"`) {
-		t.Error("a rank-by-month chart rendered for a player never ranked")
-	}
-	if !strings.Contains(page, "Rank by month") || !strings.Contains(page, "Not enough months yet") {
-		t.Error("the rank-by-month panel does not explain why it is empty")
-	}
 	// The individual results are still there.
 	if !strings.Contains(page, `class="strip"`) {
 		t.Error("the raw results are missing")
+	}
+}
+
+// A player with a rank in only one month has no line to draw: the panel
+// stays, saying why it is empty, rather than leaving a hole in the grid.
+//
+// Not "thin" from seedBoard: their last four days cross into a new month
+// on the first three days of one, which is two months with a rank. This
+// player's games stay inside the current month whatever today is.
+func TestOneMonthPlayerGetsNoRankChart(t *testing.T) {
+	t.Parallel()
+
+	srv := testServer(t)
+	seedBoard(t, srv)
+	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
+
+	ctx := context.Background()
+	p, err := store.CreatePlayer(ctx, srv.db, store.SystemActor(), "Fresh", "fresh")
+	if err != nil {
+		t.Fatalf("CreatePlayer: %v", err)
+	}
+	now := time.Now()
+	current := wordle.PuzzleForDate(now)
+	first := max(current-3, wordle.PuzzleForDate(time.Date(now.Year(), now.Month(), 1, 12, 0, 0, 0, now.Location())))
+	for puzzle := first; puzzle <= current; puzzle++ {
+		date, err := wordle.DateForPuzzle(puzzle)
+		if err != nil {
+			t.Fatalf("DateForPuzzle: %v", err)
+		}
+		g := 3
+		if _, _, err := store.UpsertResult(ctx, srv.db, store.Result{
+			PuzzleNo: puzzle, Date: date, PlayerID: p.ID, Guesses: &g, Solved: true,
+		}, nil, nil); err != nil {
+			t.Fatalf("UpsertResult: %v", err)
+		}
+	}
+
+	page := withoutRoster(fetch(t, srv, "/share/"+slug+"/players/fresh").Body.String())
+	if strings.Contains(page, `class="rank-plot"`) {
+		t.Error("a rank-by-month chart rendered for a player ranked in one month")
+	}
+	if !strings.Contains(page, "Rank by month") || !strings.Contains(page, "Not enough months yet") {
+		t.Error("the rank-by-month panel does not explain why it is empty")
 	}
 }
 
