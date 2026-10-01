@@ -6,7 +6,9 @@
 
 Self-hosted Wordle tracker for a group of friends. Results arrive
 automatically from a Signal group; manual entry and admin correction are
-also supported.
+also supported, and a player signed in to a linked login can correct their
+own scores from the Puzzle page — every such correction is shown to the
+group under their name and kept in the activity log.
 
 `docs/decisions.md` explains why things are the way they are and wins wherever this file and it
 disagree. This file covers running the thing.
