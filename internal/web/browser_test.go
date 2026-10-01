@@ -1265,6 +1265,36 @@ func TestBrowserTheBottomOfAPhoneIsEmpty(t *testing.T) {
 	}
 }
 
+// A toast's close is a finger's width, and pressing it twice stays on the
+// page. On a phone the toast hangs over the admin head, where the way back
+// to the admin area is: the second press, or one that lands as the toast
+// goes, falls on whatever is under the close, and that must not be a link
+// stretched across the row past its words.
+func TestBrowserClosingAToastStaysOnThePage(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), phoneWidth)
+	p.Navigate(site.base + "/admin/players/harda?notice=invited")
+	got := p.String(`(() => { const r = document.querySelector(".toast-close").getBoundingClientRect();
+		return [r.width, r.height, r.left + r.width / 2, r.top + r.height / 2].map(Math.round).join(" "); })()`)
+	var w, h, x, y int
+	fmt.Sscan(got, &w, &h, &x, &y)
+	if w < 44 || h < 44 {
+		t.Errorf("the toast's close is %dx%d, want at least 44x44", w, h)
+	}
+	p.ClickAt(x, y)
+	p.WaitFor(`!document.querySelector(".toast")`)
+	// The swap's view transition covers the page until it ends, and a
+	// press before then hits nothing; wait for the page to be under the
+	// finger again.
+	p.WaitFor(fmt.Sprintf(`document.elementFromPoint(%d, %d) !== document.documentElement`, x, y))
+	p.ClickAt(x, y)
+	// Long enough for a link's swap to have landed, had it been one.
+	time.Sleep(300 * time.Millisecond)
+	if path := p.String(`location.pathname`); path != "/admin/players/harda" {
+		t.Errorf("pressing where the close was took the page to %s", path)
+	}
+}
+
 // The bar fits its window in every language: the capsule of pages and the
 // search control never meet, and the account stays on screen. The labels
 // are the page names in both languages, and "Topplista" is not
