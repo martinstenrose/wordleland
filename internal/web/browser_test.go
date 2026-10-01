@@ -796,6 +796,26 @@ func TestBrowserOpeningTheMissingListLeavesTheHeadlineStill(t *testing.T) {
 	}
 }
 
+// On a phone the month's headline goes through to Months wherever it is
+// pressed, not only on its chevron.
+//
+// A player's report: the chevron alone was too small a target for a thumb.
+// The press is at the headline's text, the part furthest from the chevron.
+func TestBrowserTheMonthsHeadlineIsOneTarget(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), phoneWidth)
+	p.Navigate(site.base + "/today")
+	if p.Number(`document.querySelectorAll(".today-standing .standing-line").length`) == 0 {
+		t.Fatal("no month's headline on /today to press")
+	}
+	want := p.String(`document.querySelector(".standing-go").getAttribute("href")`)
+
+	x := int(p.Number(`(r => r.left + 4)(document.querySelector(".standing-line").getBoundingClientRect())`))
+	y := int(p.Number(`(r => r.top + r.height / 2)(document.querySelector(".standing-line").getBoundingClientRect())`))
+	p.ClickAt(x, y)
+	p.WaitFor(fmt.Sprintf(`location.pathname === %q || location.pathname.startsWith(%q + "/")`, want, want))
+}
+
 // The About panel covers what is under it.
 //
 // It is drawn from inside the account menu, which floats over the page as
