@@ -1005,6 +1005,14 @@ body > .site-footer {
   .about-grabber { display: block; align-self: center; width: 36px; height: 5px; margin: -8px 0 4px; border-radius: 3px; background: var(--color-border); }
   .about-close { top: 32px; right: 20px; }
 }
+/* Opened from a menu, About takes the menu's place: the menu is hidden
+   while the card is up — the card is what the reader asked for, and a
+   menu left floating under the dim is one more thing to dismiss. It stays
+   open underneath, because closing it would take the card with it; app.js
+   closes it when the card closes. With no script, closing the card brings
+   the menu back as it was. */
+.menu:has(> .menu-panel .about[open]) > .menu-panel { visibility: hidden; }
+.menu .about[open] > summary::after, .menu .about-panel { visibility: visible; }
 /* In the footer the summary is a link among links. */
 .about-footer { display: inline; }
 .about-footer > summary { display: inline; }
