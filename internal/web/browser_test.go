@@ -865,7 +865,8 @@ func TestBrowserTheAboutPanelCoversThePage(t *testing.T) {
 }
 
 // Esc closes a popup, one per press and the innermost first, and focus
-// that was inside it lands back on what opened it.
+// that was inside it lands back on what opened it. About opened from the
+// account menu closes the menu with it.
 //
 // A <details> opens and closes with no script, but not from the keyboard
 // without first finding its summary again — which, for Help drawn over the
@@ -883,20 +884,27 @@ func TestBrowserEscClosesPopupsInnermostFirst(t *testing.T) {
 	p.WaitFor(helpOpen)
 	p.Eval(`document.querySelector(".account-menu .about-link").focus(); true`)
 
-	p.Press("Escape", "Escape", 0)
-	p.WaitFor(`!` + helpOpen)
-	if p.Eval(menuOpen) != true {
-		t.Errorf("Esc closed the account menu along with the Help panel inside it")
-	}
-	if p.Eval(`document.activeElement === document.querySelector(".account-menu details.about > summary")`) != true {
-		t.Errorf("closing Help did not put focus back on its summary")
+	if p.Eval(`getComputedStyle(document.querySelector(".account-menu")).visibility`) != "hidden" {
+		t.Errorf("the account menu still shows under the About panel")
 	}
 
+	// About takes the menu it opened from with it, and focus lands on the
+	// menu's summary rather than being lost with the menu.
 	p.Press("Escape", "Escape", 0)
+	p.WaitFor(`!` + helpOpen)
 	p.WaitFor(`!` + menuOpen)
+	if p.Eval(`document.activeElement === document.querySelector("details.account > summary")`) != true {
+		t.Errorf("closing About did not put focus back on the account menu's summary")
+	}
 	if path := p.Path(); path != "/leaderboard" {
 		t.Errorf("Esc navigated to %s", path)
 	}
+
+	// An open menu with no About in it closes on Esc as before.
+	p.Click("details.account > summary")
+	p.WaitFor(menuOpen)
+	p.Press("Escape", "Escape", 0)
+	p.WaitFor(`!` + menuOpen)
 }
 
 // No view raises a console error or an uncaught exception.
