@@ -752,6 +752,7 @@
   "reply.wins.then": "Sedan %s.",
   "reply.wins.none": "Ingen månad har vunnits än.",
   "reply.wins.player": "%s: %d månadsvinster.",
+  "reply.wins.player.single": "%s: 1 månadsvinst.",
   "reply.last": "%s: %s är jumbo på %s i snitt.",
   "reply.last.tie": "%s: %s delar jumboplatsen på %s.",
   "reply.last.none": "%s: för få har spelat de flesta dagarna för att utse en jumbo.",

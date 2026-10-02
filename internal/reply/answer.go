@@ -127,10 +127,10 @@ func wins(t i18n.Translator, req Request, asker *store.Player,
 		}
 		for _, row := range season.Rows {
 			if row.ID == p.ID {
-				return t.T("reply.wins.player", p.Name, row.Wins)
+				return winsOf(t, p.Name, row.Wins)
 			}
 		}
-		return t.T("reply.wins.player", p.Name, 0)
+		return winsOf(t, p.Name, 0)
 	}
 
 	best := 0
@@ -157,6 +157,14 @@ func wins(t i18n.Translator, req Request, asker *store.Player,
 		line += " " + t.T("reply.wins.then", strings.Join(rest, ", "))
 	}
 	return line
+}
+
+// winsOf is a player's month wins, one of them in the singular.
+func winsOf(t i18n.Translator, name string, wins int) string {
+	if wins == 1 {
+		return t.T("reply.wins.player.single", name)
+	}
+	return t.T("reply.wins.player", name, wins)
 }
 
 // rules is one catalogue text per topic. The texts describe what
