@@ -39,6 +39,10 @@ func whatIf(t i18n.Translator, req Request, players []store.Player,
 			for _, p := range players {
 				all = append(all, p.Name)
 			}
+			if h.Player == Asker {
+				// "Om jag får en 2:a" from somebody who is not a player.
+				return t.T("reply.standing.who", joinNames(t, all))
+			}
 			return t.T("reply.player.unknown", h.Player, joinNames(t, all))
 		}
 		scores = append(scores, made{p, h.Guesses})

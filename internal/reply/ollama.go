@@ -484,7 +484,7 @@ func normalise(r Request) Request {
 	default:
 		r.Worst = false
 	}
-	r.Player = strings.TrimSpace(r.Player)
+	r.Player = pronoun(strings.TrimSpace(r.Player))
 	switch r.Kind {
 	case KindLeader, KindToday, KindRules, KindThanks, KindHelp, KindUnknown,
 		KindWhatIf, KindDay, KindPuzzles, KindRecords, KindGroup:
@@ -492,7 +492,13 @@ func normalise(r Request) Request {
 		// a field in, which it does for a message that asks nothing.
 		r.Player = ""
 	}
-	r.Other = strings.TrimSpace(r.Other)
+	if r.Player == Group && r.Kind != KindCount {
+		r.Player = ""
+	}
+	r.Other = pronoun(strings.TrimSpace(r.Other))
+	if r.Other == Group {
+		r.Other = ""
+	}
 	if r.Kind != KindVersus || strings.EqualFold(r.Other, r.Player) {
 		r.Other = ""
 	}
@@ -502,7 +508,7 @@ func normalise(r Request) Request {
 	var scores []Hypothetical
 	seen := map[string]bool{}
 	for _, h := range r.Scores {
-		h.Player = strings.TrimSpace(h.Player)
+		h.Player = pronoun(strings.TrimSpace(h.Player))
 		// One result per player: a day has one, and a second is the
 		// model repeating itself. The first is the one asked about.
 		key := strings.ToLower(h.Player)
@@ -513,6 +519,33 @@ func normalise(r Request) Request {
 	}
 	r.Scores = scores
 	return r
+}
+
+// The model writes a pronoun where a name should be often enough — "me"
+// for "how many 2s do I have", "vi" for the group — that it is read here
+// rather than answered with "I don't know me". The asker's are read as
+// Asker and filled in with their name once known; the group's only mean
+// something to a count, and elsewhere name nobody.
+const (
+	Asker = "me"
+	Group = "group"
+)
+
+var (
+	askerWords = []string{"me", "i", "myself", "jag", "mig", "mej", "själv"}
+	groupWords = []string{"group", "we", "us", "everyone", "everybody", "vi", "oss", "gruppen", "alla"}
+)
+
+// pronoun is a player field with a pronoun read as Asker or Group, and any
+// other name as it was.
+func pronoun(name string) string {
+	switch lower := strings.ToLower(name); {
+	case slices.Contains(askerWords, lower):
+		return Asker
+	case slices.Contains(groupWords, lower):
+		return Group
+	}
+	return name
 }
 
 // spanned are the kinds a span, and a named month, apply to.
@@ -560,8 +593,9 @@ Fields:
   gets a 6 tomorrow and Alma a 3, who leads?", "om jag får en 2:a idag?";
   "count" for how many times a player has scored a given number or failed
   ("hur många 2:or har jag?", "how often does Bo fail?", "do I have any 1s?"),
-  who has the most or fewest of a score, or a player's whole distribution —
-  never a streak ("svit", "i rad"), which is "streak";
+  who has the most or fewest of a score, a player's whole distribution, or the
+  whole group's total ("hur många 2:or har vi?", player "group") — never a
+  streak ("svit", "i rad"), which is "streak";
   "versus" for two players compared, head to head ("how do I stand against
   Bo?", "vem är bäst av Alma och Bo?", "Alma vs Bo");
   "daywins" for who most often has the best score of the day, days won ("vem
@@ -623,7 +657,8 @@ Fields:
   today's date (a month without a year is the most recent one that has
   happened); otherwise "".
 - guesses: when kind is "count", the score asked about: 1 to 6, 7 for a failure
-  (X), 0 for the whole distribution; otherwise 0.
+  (X), 0 for the whole distribution ("2:or", "tvåor", "en 2:a" are 2; "X",
+  "missar", "fails" are 7); otherwise 0.
 - orbetter: true when a "count" question asks for that score or better ("3 or
   better", "3 eller bättre"); otherwise false.
 - date: when kind is "score", "day" or "whatif", the day asked about as

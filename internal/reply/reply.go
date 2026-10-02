@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -391,12 +392,46 @@ func placeAndAnswer(ctx context.Context, db *sql.DB, t i18n.Translator, interp I
 	case err != nil:
 		return Request{}, "", fmt.Errorf("%w: %w", errNotPlaced, err)
 	}
+	req = withAsker(req, asker)
 	now := time.Now()
 	answers := []string{answer(t, req, asker, players, results, now)}
 	for _, a := range req.Also {
 		answers = append(answers, answer(t, a, asker, players, results, now))
 	}
 	return req, strings.Join(answers, "\n\n"), nil
+}
+
+// withAsker fills the asker's name in where the model wrote a pronoun for
+// them, in the request and everything it carries. With nobody asking, the
+// pronoun stays, and the answer asks who is meant.
+func withAsker(req Request, asker *store.Player) Request {
+	if asker == nil {
+		return req
+	}
+	name := asker.Name
+	if req.Player == Asker {
+		req.Player = name
+	}
+	if req.Other == Asker {
+		req.Other = name
+	}
+	if len(req.Scores) > 0 {
+		scores := slices.Clone(req.Scores)
+		for i := range scores {
+			if scores[i].Player == Asker {
+				scores[i].Player = name
+			}
+		}
+		req.Scores = scores
+	}
+	if len(req.Also) > 0 {
+		also := make([]Request, len(req.Also))
+		for i, a := range req.Also {
+			also[i] = withAsker(a, asker)
+		}
+		req.Also = also
+	}
+	return req
 }
 
 // Ask places and answers one question as the bot would for the player

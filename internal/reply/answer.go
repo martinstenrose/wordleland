@@ -513,7 +513,7 @@ func whom(t i18n.Translator, req Request, asker *store.Player, players []store.P
 	for _, p := range players {
 		all = append(all, p.Name)
 	}
-	if req.Player == "" {
+	if req.Player == "" || req.Player == Asker {
 		if asker != nil {
 			return *asker, true, ""
 		}
