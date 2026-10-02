@@ -61,19 +61,19 @@ Global flags come before the noun; a verb's own flags come after it:
 Commands:
   serve         run the server, and the Signal bridge when configured
   version       print the running build
+  backfill      import history from the spreadsheet
   placing-test  ask a model fixed questions and score how it places them
 
 Nouns:
-  user      create, reset-password, reset-2fa, disable, enable
-  player    add, update, link, unlink, list
-  identity  pending, claim, discard, add, list, reassign
-  results   set, unset
-  token     create, list, revoke
-  backfill  import history from the spreadsheet
-  slug      show, rotate
-  activity  list, show
-  questions list — what the Signal bot could not answer, kept 30 days
-  demo      seed, tick, clear — synthetic data for a staging instance (DEMO_MODE=true)
+  user          logins to the web UI
+  player        the people on the scoreboard
+  identity      which sender's results belong to which player
+  results       record or correct a day's result
+  token         ingest tokens
+  slug          the read-only share link
+  activity      the log of every change
+  questions     what the Signal bot could not answer, kept 30 days
+  demo          synthetic data for a staging instance (DEMO_MODE=true)
 
 Global flags:
   --db <path>      database path (default %s)
