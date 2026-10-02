@@ -38,7 +38,7 @@ services:
       - data:/data
 
   signal-cli-rest-api:
-    image: bbernhard/signal-cli-rest-api:0.100
+    image: bbernhard/signal-cli-rest-api:latest
     restart: unless-stopped
     environment:
       MODE: json-rpc
@@ -53,7 +53,7 @@ services:
   # app does not depend on it — it keeps looking for the model until it
   # appears — so removing the service breaks nothing else.
   ollama:
-    image: ollama/ollama:0.34.4
+    image: ollama/ollama:latest
     restart: unless-stopped
     environment:
       # Keep the model loaded between questions. A CPU takes seconds to

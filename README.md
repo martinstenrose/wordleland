@@ -417,10 +417,12 @@ download different content under a familiar name. The repository's update
 scanning cannot protect a deployment from that supply-chain risk.
 
 The `wordleland` image is built and published by this repository.
-`signal-cli-rest-api` is different: it is an off-the-shelf third-party image,
-not source this project builds or controls. Its provenance, release process
-and tag integrity belong to that upstream publisher, so an operator must
-assess and pin it separately when the deployment requires that guarantee.
+`signal-cli-rest-api` and `ollama` are different: they are off-the-shelf
+third-party images, not source this project builds or controls, and the
+example follows their `latest` rather than a version it would have to keep
+up to date. Their provenance, release process and tag integrity belong to
+their upstream publishers, so an operator must assess and pin them
+separately when the deployment requires that guarantee.
 
 An operator who requires reproducible, immutable deployments should override
 each image with a registry digest, in the form
