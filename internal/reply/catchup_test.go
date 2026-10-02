@@ -151,3 +151,19 @@ func TestWhoWinsAMonth(t *testing.T) {
 		t.Errorf("a catch-up question lost its month: %+v", got)
 	}
 }
+
+// "Vem vann juni?" placed as a tally of titles but with June named is still
+// a question about June, and gets June's result.
+func TestAMonthNamedWithWinsIsThatMonth(t *testing.T) {
+	t.Parallel()
+	players, results := seasonFixture(t)
+	now := fixtureNow()
+	tr := translator(t, "sv")
+	got := answer(tr, Request{Kind: KindWins, Player: "Bo", Month: "2026-08"}, &bo, players, results, now)
+	if want := answer(tr, Request{Kind: KindLeader, Span: SpanMonth, Month: "2026-08"}, nil, players, results, now); got != want {
+		t.Errorf("got %q, want August's result %q", got, want)
+	}
+	if got, _ := parseRequest(`{"kind":"wins","span":"month","month":"2026-08"}`); got.Month != "2026-08" {
+		t.Errorf("a wins question lost its month: %+v", got)
+	}
+}

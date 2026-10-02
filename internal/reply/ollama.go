@@ -516,7 +516,7 @@ func normalise(r Request) Request {
 }
 
 // spanned are the kinds a span, and a named month, apply to.
-var spanned = []Kind{KindLeader, KindStanding, KindVersus, KindPuzzles, KindDayWins, KindCatchup}
+var spanned = []Kind{KindLeader, KindStanding, KindVersus, KindPuzzles, KindDayWins, KindCatchup, KindWins}
 
 // maxHypotheticals bounds a what-if question: more results than players
 // is the model inventing them.
@@ -531,7 +531,9 @@ func systemPrompt(p Prompt) string {
 	b.WriteString("The question may be in any language. Answer with the JSON only.\n\n")
 	b.WriteString(`
 Fields:
-- kind: "leader" for who is leading, winning, best, on top, or the ranking;
+- kind: "leader" for who is leading, winning, best, on top, or the ranking, and
+  who won a past month ("vem vann juni?", "vem vann förra månaden?", with
+  month set);
   "standing" for how one particular player is doing, their place or average —
   or, with no player, the whole table: everyone's standing, "ställningen",
   "the standings", "how is everyone doing";
@@ -544,7 +546,8 @@ Fields:
   "day" for everyone's results on one day, and how hard that puzzle was ("how
   did everyone do yesterday?", "vad fick alla igår?", "was today's hard?");
   "wins" for counting titles: who has won the most months, how many months a
-  player has won ("hur många månader har Bo vunnit?") — not who wins a month;
+  player has won ("hur många månader har Bo vunnit?") — not who won or wins a
+  particular month, and never the asker unless they ask about themselves;
   "catchup" for whether somebody can still win or catch up this month, how far
   behind they are, what they need to win, whether the leader is safe ("kan Bo
   komma ikapp?", "can I still win?", "is Alma safe?"), and who will win the
