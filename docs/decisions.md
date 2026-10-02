@@ -2270,7 +2270,7 @@ question gives way to it.
 **Models are compared by a placing test, not by impression.** Choosing
 between qwen2.5, qwen3, qwen3.5 and gemma4 kept coming down to reports
 from elsewhere and a question or two in the group. `wordleland
-placing-test` asks a model 48 fixed questions and scores how many it
+placing-test` asks a model a fixed set of questions and scores how many it
 places as they should be, comparing only the fields each question is
 about — "vem leder?" is right whatever span it gets, a versus is right
 with its two players in either order. The roster, the day and the asker

@@ -45,6 +45,7 @@ var PlacingCases = []PlacingCase{
 	{"har Bo någon svit igång?", Request{Kind: KindStreak, Player: "Bo"}, "player"},
 	{"vem har längst svit?", Request{Kind: KindStreak}, "player"},
 	{"vem har inte postat idag?", Request{Kind: KindToday}, ""},
+	{"vem är kvar att svara idag?", Request{Kind: KindToday}, ""},
 	{"vad fick Bo igår?", Request{Kind: KindScore, Player: "Bo", Date: "2026-09-14"}, "player date"},
 	{"vad fick jag på Wordle 1900?", Request{Kind: KindScore, Player: "Alma", Date: "2026-09-01"}, "player date"},
 	{"vad fick alla igår?", Request{Kind: KindDay, Date: "2026-09-14"}, "date"},
