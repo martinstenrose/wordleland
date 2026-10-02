@@ -67,6 +67,19 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 	case KindWeekday:
 		return weekday(t, req, asker, players, results, now)
 	case KindForm:
+		switch req.Span {
+		case SpanWeek, SpanLastWeek, SpanDays:
+			// "Best form this week" is best over this week: form is
+			// otherwise the board's own window, which a span overrides.
+			if req.Player == "" {
+				over := req
+				over.Kind = KindLeader
+				return leader(t, over, players, results, now)
+			}
+			over := req
+			over.Kind = KindStanding
+			return standing(t, over, asker, players, results, now)
+		}
 		return form(t, req, asker, players, results, now)
 	case KindSteady:
 		return steady(t, req, asker, players, results, now)

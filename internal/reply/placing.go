@@ -69,6 +69,7 @@ var PlacingCases = []PlacingCase{
 	{"vem är bäst av Cid och Dana?", Request{Kind: KindVersus, Player: "Cid", Other: "Dana"}, "pair"},
 	{"vem vinner flest dagar?", Request{Kind: KindDayWins}, "player"},
 	{"vem är i form just nu?", Request{Kind: KindForm}, "worst player"},
+	{"vem har bäst form den här veckan?", Request{Kind: KindForm, Span: SpanWeek}, "span player"},
 	{"vem är i sämst form?", Request{Kind: KindForm, Worst: true}, "worst player"},
 	{"vem är stabilast?", Request{Kind: KindSteady}, "player"},
 	{"vilket var det svåraste pusslet i augusti?", Request{Kind: KindPuzzles, Month: "2026-08"}, "month worst"},
