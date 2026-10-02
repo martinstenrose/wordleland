@@ -393,10 +393,11 @@ func TestActivityDetailShowsAResultChange(t *testing.T) {
 	}
 }
 
-// A result filed with its squares shows them in the log, opened in place
-// and on the row's own page, where a re-post that brought different squares
-// shows the ones it replaced as well. The squares were stored on the result
-// but left out of the entry, so the log could not show them.
+// A result filed with its squares has them in the stored detail the log
+// shows, and a re-post that brought different squares keeps the ones it
+// replaced. The squares were stored on the result but left out of the
+// entry. They are left as JSON, not drawn: the score is what the log is read
+// for.
 func TestActivityShowsAResultsGrid(t *testing.T) {
 	t.Parallel()
 
@@ -427,16 +428,21 @@ func TestActivityShowsAResultsGrid(t *testing.T) {
 		}
 	}
 
-	pattern := `<span class="pattern pattern-lg"`
 	list := fetchAs(t, srv, "/admin/activity?kind=results", session).Body.String()
-	if got := strings.Count(list, pattern); got != 2 {
-		t.Errorf("the log draws %d grids, want one per entry", got)
+	for _, want := range []string{
+		`&#34;grid&#34;: &#34;nynnn/ggggg&#34;`,
+		`&#34;grid&#34;: &#34;nnnnn/nnynn/ggggg&#34;`,
+	} {
+		if !strings.Contains(list, want) {
+			t.Errorf("the log's stored detail lacks %s", want)
+		}
 	}
-
-	href := regexp.MustCompile(`/admin/activity/(\d+)`).FindString(list)
-	body := fetchAs(t, srv, href, session).Body.String()
-	if got := strings.Count(body, pattern); got != 2 {
-		t.Errorf("the re-post's page draws %d grids, want the new one and the one it replaced", got)
+	// The re-post's entry carries both grids, so the first is there twice.
+	if got := strings.Count(list, `nynnn/ggggg`); got != 2 {
+		t.Errorf("the replaced grid appears %d times, want 2", got)
+	}
+	if strings.Contains(list, `class="pattern`) {
+		t.Error("the log draws the squares; the stored detail is enough")
 	}
 }
 
