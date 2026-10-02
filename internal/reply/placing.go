@@ -53,6 +53,8 @@ var PlacingCases = []PlacingCase{
 	{"vem har vunnit flest månader?", Request{Kind: KindWins}, "player"},
 	{"kan Bo fortfarande vinna månaden?", Request{Kind: KindCatchup, Player: "Bo"}, "player"},
 	{"kan någon komma ikapp mig?", Request{Kind: KindCatchup}, ""},
+	{"vem vinner september?", Request{Kind: KindCatchup}, ""},
+	{"hur många månader har Bo vunnit?", Request{Kind: KindWins, Player: "Bo"}, "player"},
 	{"om jag får en 2:a imorgon, leder jag då?",
 		Request{Kind: KindWhatIf, Date: "2026-09-16", Scores: []Hypothetical{{"Alma", 2}}}, "date scores"},
 	{"om Bo får ett X och Cid en 3:a idag, vem leder då?",
