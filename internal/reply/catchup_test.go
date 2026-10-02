@@ -1,6 +1,7 @@
 package reply
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -128,5 +129,25 @@ func TestCatchupForSomebodyWhoHasNotPlayedTheMonth(t *testing.T) {
 	got := answer(translator(t, "en"), Request{Kind: KindCatchup, Player: "Cid"}, nil, players, results, fixtureNow())
 	if got != "Cid Larsson hasn't played in September yet." {
 		t.Errorf("got %q", got)
+	}
+}
+
+// "Who wins August?" once August is over is answered with its winner, as
+// "who won August?" is; the month still running gets the race.
+func TestWhoWinsAMonth(t *testing.T) {
+	t.Parallel()
+	players, results := seasonFixture(t)
+	now := fixtureNow()
+	tr := translator(t, "sv")
+	closed := answer(tr, Request{Kind: KindCatchup, Month: "2026-08"}, nil, players, results, now)
+	if won := answer(tr, Request{Kind: KindLeader, Span: SpanMonth, Month: "2026-08"}, nil, players, results, now); closed != won || !strings.HasPrefix(closed, "🏆") {
+		t.Errorf("a closed month: got %q, want its winner %q", closed, won)
+	}
+	running := answer(tr, Request{Kind: KindCatchup, Month: "2026-09"}, nil, players, results, now)
+	if race := answer(tr, Request{Kind: KindCatchup}, nil, players, results, now); running != race {
+		t.Errorf("the running month: got %q, want the race %q", running, race)
+	}
+	if got, _ := parseRequest(`{"kind":"catchup","span":"month","month":"2026-08"}`); got.Month != "2026-08" {
+		t.Errorf("a catch-up question lost its month: %+v", got)
 	}
 }

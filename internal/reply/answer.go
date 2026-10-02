@@ -35,6 +35,13 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 	case KindWins:
 		return wins(t, req, asker, players, results, now)
 	case KindCatchup:
+		if req.Month != "" && closedMonth(req, now) {
+			// "Who wins September?" once September is over has an
+			// answer, not a race: its winner.
+			won := req
+			won.Kind, won.Span, won.Player, won.Worst = KindLeader, SpanMonth, "", false
+			return leader(t, won, players, results, now)
+		}
 		return catchup(t, req, asker, players, results, now)
 	case KindCount:
 		return count(t, req, asker, players, results, now)

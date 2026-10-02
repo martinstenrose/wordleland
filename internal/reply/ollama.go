@@ -497,7 +497,7 @@ func normalise(r Request) Request {
 }
 
 // spanned are the kinds a span, and a named month, apply to.
-var spanned = []Kind{KindLeader, KindStanding, KindVersus, KindPuzzles, KindDayWins}
+var spanned = []Kind{KindLeader, KindStanding, KindVersus, KindPuzzles, KindDayWins, KindCatchup}
 
 // maxHypotheticals bounds a what-if question: more results than players
 // is the model inventing them.
@@ -524,11 +524,13 @@ Fields:
   "what did Bo get yesterday", "what did I get on Wordle 1900");
   "day" for everyone's results on one day, and how hard that puzzle was ("how
   did everyone do yesterday?", "vad fick alla igår?", "was today's hard?");
-  "wins" for who has won the most months, monthly wins, titles;
+  "wins" for counting titles: who has won the most months, how many months a
+  player has won ("hur många månader har Bo vunnit?") — not who wins a month;
   "catchup" for whether somebody can still win or catch up this month, how far
   behind they are, what they need to win, whether the leader is safe ("kan Bo
-  komma ikapp?", "can I still win?", "is Alma safe?") — not who is left to
-  post today, which is "today";
+  komma ikapp?", "can I still win?", "is Alma safe?"), and who will win the
+  month ("vem vinner månaden?", "vem vinner september?", with month set when
+  one is named) — not who is left to post today, which is "today";
   "whatif" for what would happen if somebody got a particular score: "if Bo
   gets a 6 tomorrow and Alma a 3, who leads?", "om jag får en 2:a idag?";
   "count" for how many times a player has scored a given number or failed
