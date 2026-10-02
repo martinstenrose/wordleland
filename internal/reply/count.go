@@ -37,6 +37,30 @@ func count(t i18n.Translator, req Request, asker *store.Player,
 		}
 		return n
 	}
+	if req.Player == Group {
+		// "Hur många 2:or har vi?": the group's total.
+		games := 0
+		var dist [7]int
+		for _, p := range all {
+			games += p.Games
+			for i, n := range p.Distribution {
+				dist[i] += n
+			}
+		}
+		if games == 0 {
+			return t.T("reply.group.none")
+		}
+		if req.Guesses == 0 {
+			return t.T("reply.count.group.all", games, distribution(dist))
+		}
+		n := of(stats.Player{Distribution: dist})
+		share := int(math.Round(100 * float64(n) / float64(games)))
+		if req.OrBetter {
+			return t.T("reply.count.group.orBetter", n, req.Guesses, games, share)
+		}
+		return t.T("reply.count.group", n, t.T("reply.guess."+strconv.Itoa(req.Guesses)), games, share)
+	}
+
 	if req.OrBetter {
 		if req.Player == "" {
 			who, n := holders(all, of)

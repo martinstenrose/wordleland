@@ -91,3 +91,13 @@ func TestRunPlacingScoresEachQuestion(t *testing.T) {
 		t.Errorf("placed: %v %v %v", results[0].Placed(), results[1].Placed(), results[2].Placed())
 	}
 }
+
+// A model that writes "me" for the asker placed the question right: the bot
+// reads it as the asker.
+func TestPlacingReadsMeAsTheAsker(t *testing.T) {
+	t.Parallel()
+	c := PlacingCase{Want: Request{Kind: KindCount, Player: "Alma", Guesses: 2}, Check: "player guesses"}
+	if m := placingMisses(c, Request{Kind: KindCount, Player: Asker, Guesses: 2}); len(m) != 0 {
+		t.Errorf("\"me\" for the asker missed: %v", m)
+	}
+}

@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/martinstenrose/wordleland/internal/store"
 )
 
 // The placing test asks a model a fixed set of questions and scores how
@@ -64,6 +66,7 @@ var PlacingCases = []PlacingCase{
 	{"hur många tvåor har jag?", Request{Kind: KindCount, Player: "Alma", Guesses: 2}, "player guesses orbetter"},
 	{"how many 1s does Bo have?", Request{Kind: KindCount, Player: "Bo", Guesses: 1}, "player guesses"},
 	{"vem har flest X?", Request{Kind: KindCount, Guesses: 7}, "player guesses worst"},
+	{"hur många 2:or har vi hittills?", Request{Kind: KindCount, Player: Group, Guesses: 2}, "player guesses"},
 	{"vem har minst antal X?", Request{Kind: KindCount, Guesses: 7, Worst: true}, "player guesses worst"},
 	{"hur många 3 eller bättre har Dana?", Request{Kind: KindCount, Player: "Dana", Guesses: 3, OrBetter: true}, "player guesses orbetter"},
 	{"hur står jag mot Bo?", Request{Kind: KindVersus, Player: "Bo"}, "pair"},
@@ -132,8 +135,10 @@ func RunPlacing(ctx context.Context, interp Interpreter, cases []PlacingCase, re
 	return out
 }
 
-// placingMisses compares the kind, and the fields the case names.
+// placingMisses compares the kind, and the fields the case names. A
+// pronoun for the asker counts as the asker's name, as the bot reads it.
 func placingMisses(c PlacingCase, got Request) []string {
+	got = withAsker(got, &store.Player{Name: placingAsker})
 	want := c.Want
 	var misses []string
 	miss := func(field string, g, w any) {
