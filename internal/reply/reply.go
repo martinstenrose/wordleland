@@ -306,15 +306,6 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
 			return send(ctx, t.T("reply.help"))
 		}
 
-		players, err := store.ListPlayers(ctx, db)
-		if err != nil {
-			return fmt.Errorf("list players: %w", err)
-		}
-		results, err := store.ResultsForBoard(ctx, db)
-		if err != nil {
-			return fmt.Errorf("read results: %w", err)
-		}
-
 		// The asker is known when their Signal identity has been claimed
 		// for a player, which is what lets "how am I doing" mean anything.
 		// Unclaimed is ordinary — a member who has never posted a result —
@@ -327,37 +318,20 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
 			return fmt.Errorf("resolve asker: %w", err)
 		}
 
-		names := make([]string, 0, len(players))
-		for _, p := range players {
-			names = append(names, p.Name)
-		}
-		prompt := Prompt{Question: question, Players: names, Today: time.Now()}
-		if asker != nil {
-			prompt.Asker = asker.Name
-		}
-		if quoted = strings.TrimSpace(quoted); quoted != "" {
-			prompt.Context = quoted
-			if m := puzzleInPost.FindStringSubmatch(quoted); m != nil {
-				if puzzle, err := strconv.Atoi(m[1]); err == nil {
-					if date, err := wordle.DateForPuzzle(puzzle); err == nil {
-						prompt.ContextDate = date.Format(DateLayout)
-					}
-				}
-			}
-		}
-
-		req, err := interp.Interpret(ctx, prompt)
+		req, text, err := placeAndAnswer(ctx, db, t, interp, asker, question, quoted)
 		switch {
 		case errors.Is(err, ErrNotReady):
 			return send(ctx, t.T("reply.notready"))
-		case err != nil:
+		case errors.Is(err, errNotPlaced):
 			// Best effort, and the model's failure is what is reported
 			// whether or not the apology lands: it is the thing to fix.
 			// Kept with the unplaced questions: whatever it was, the bot
 			// did not answer it.
 			_ = send(ctx, t.T("reply.failed"))
 			keepUnanswered(ctx, db, logger, question)
-			return fmt.Errorf("interpret question: %w", err)
+			return err
+		case err != nil:
+			return err
 		}
 		also := make([]string, 0, len(req.Also))
 		for _, a := range req.Also {
@@ -369,12 +343,82 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
 		if req.Kind == KindUnknown {
 			keepUnanswered(ctx, db, logger, question)
 		}
-
-		now := time.Now()
-		answers := []string{answer(t, req, asker, players, results, now)}
-		for _, a := range req.Also {
-			answers = append(answers, answer(t, a, asker, players, results, now))
-		}
-		return send(ctx, strings.Join(answers, "\n\n"))
+		return send(ctx, text)
 	}
+}
+
+// errNotPlaced is the model failing to place a question at all, as distinct
+// from placing it as unknown.
+var errNotPlaced = errors.New("interpret question")
+
+// placeAndAnswer is the bot's work on one question, short of posting it:
+// the model places it, and the history answers it. It reads and writes
+// nothing else, so the bot and `wordleland ask` give the same answer.
+func placeAndAnswer(ctx context.Context, db *sql.DB, t i18n.Translator, interp Interpreter,
+	asker *store.Player, question, quoted string) (Request, string, error) {
+
+	players, err := store.ListPlayers(ctx, db)
+	if err != nil {
+		return Request{}, "", fmt.Errorf("list players: %w", err)
+	}
+	results, err := store.ResultsForBoard(ctx, db)
+	if err != nil {
+		return Request{}, "", fmt.Errorf("read results: %w", err)
+	}
+	names := make([]string, 0, len(players))
+	for _, p := range players {
+		names = append(names, p.Name)
+	}
+	prompt := Prompt{Question: question, Players: names, Today: time.Now()}
+	if asker != nil {
+		prompt.Asker = asker.Name
+	}
+	if quoted = strings.TrimSpace(quoted); quoted != "" {
+		prompt.Context = quoted
+		if m := puzzleInPost.FindStringSubmatch(quoted); m != nil {
+			if puzzle, err := strconv.Atoi(m[1]); err == nil {
+				if date, err := wordle.DateForPuzzle(puzzle); err == nil {
+					prompt.ContextDate = date.Format(DateLayout)
+				}
+			}
+		}
+	}
+
+	req, err := interp.Interpret(ctx, prompt)
+	switch {
+	case errors.Is(err, ErrNotReady):
+		return Request{}, "", err
+	case err != nil:
+		return Request{}, "", fmt.Errorf("%w: %w", errNotPlaced, err)
+	}
+	now := time.Now()
+	answers := []string{answer(t, req, asker, players, results, now)}
+	for _, a := range req.Also {
+		answers = append(answers, answer(t, a, asker, players, results, now))
+	}
+	return req, strings.Join(answers, "\n\n"), nil
+}
+
+// Ask places and answers one question as the bot would for the player
+// named — nobody, when the name is empty — and returns the request and
+// the answer rather than posting anything. Nothing is written either: a
+// question it could not place is not kept, since whoever runs this is
+// trying the bot out, not asking the group.
+func Ask(ctx context.Context, db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
+	player, question string) (Request, string, error) {
+
+	t := i18n.NewTranslator(cats, locale)
+	var asker *store.Player
+	if player != "" {
+		players, err := store.ListPlayers(ctx, db)
+		if err != nil {
+			return Request{}, "", fmt.Errorf("list players: %w", err)
+		}
+		p, ok := findPlayer(player, players)
+		if !ok {
+			return Request{}, "", fmt.Errorf("no player %q", player)
+		}
+		asker = &p
+	}
+	return placeAndAnswer(ctx, db, t, interp, asker, strings.TrimSpace(question), "")
 }
