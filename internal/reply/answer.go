@@ -33,6 +33,13 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 	case KindScore:
 		return score(t, req, asker, players, results, now)
 	case KindWins:
+		if req.Month != "" {
+			// A month named is that month's result, not a tally of titles:
+			// "vem vann juni?" read as wins is still a question about June.
+			won := req
+			won.Kind, won.Span, won.Player, won.Worst = KindLeader, SpanMonth, "", false
+			return leader(t, won, players, results, now)
+		}
 		return wins(t, req, asker, players, results, now)
 	case KindCatchup:
 		if req.Month != "" && closedMonth(req, now) {

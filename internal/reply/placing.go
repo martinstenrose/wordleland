@@ -40,6 +40,7 @@ var PlacingCases = []PlacingCase{
 	{"vem var jumbo förra veckan?", Request{Kind: KindLeader, Span: SpanLastWeek, Worst: true}, "span worst"},
 	{"vem har bäst snitt de senaste 14 dagarna?", Request{Kind: KindLeader, Span: SpanDays, Days: 14}, "span days"},
 	{"vem vann augusti?", Request{Kind: KindLeader, Month: "2026-08"}, "month"},
+	{"vem vann juni?", Request{Kind: KindLeader, Month: "2026-06"}, "month"},
 	{"hur går det för mig?", Request{Kind: KindStanding, Player: "Alma"}, "player"},
 	{"ställningen", Request{Kind: KindStanding}, "player"},
 	{"har Bo någon svit igång?", Request{Kind: KindStreak, Player: "Bo"}, "player"},
