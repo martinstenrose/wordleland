@@ -88,7 +88,24 @@ func newBrowser(t *testing.T) *browser {
 	if path == "" {
 		t.Skip("no Chrome found; set WORDLELAND_CHROME to point at one")
 	}
+	port, err := startChrome(t, path, chromeStartTimeout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &browser{t: t, port: port}
+}
 
+// chromeStartTimeout is how long a Chrome gets to answer. A warm one takes
+// well under a second, but the first start on a fresh CI runner has been
+// seen to take more than 15. The wait only runs this long when Chrome is
+// alive and silent: one that exits is reported as soon as it does.
+const chromeStartTimeout = 60 * time.Second
+
+// startChrome starts the Chrome at path, killed when the test ends, and
+// returns its DevTools port once the endpoint answers. An error carries the
+// tail of what Chrome wrote to stderr, which is where it says why.
+func startChrome(t *testing.T, path string, timeout time.Duration) (int, error) {
+	t.Helper()
 	port := freePort(t)
 	cmd := exec.Command(path,
 		"--headless=new",
@@ -101,29 +118,60 @@ func newBrowser(t *testing.T) *browser {
 		fmt.Sprintf("--remote-debugging-port=%d", port),
 		"about:blank",
 	)
-	cmd.Stdout, cmd.Stderr = io.Discard, io.Discard
+	stderr := &tailBuffer{max: 2048}
+	cmd.Stdout, cmd.Stderr = io.Discard, stderr
 	if err := cmd.Start(); err != nil {
-		t.Fatalf("start chrome: %v", err)
+		return 0, fmt.Errorf("start chrome: %v", err)
 	}
+	exited := make(chan error, 1)
+	go func() { exited <- cmd.Wait() }()
 	t.Cleanup(func() {
 		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
+		<-exited
 	})
 
 	// Ready when the DevTools endpoint answers.
-	deadline := time.Now().Add(15 * time.Second)
+	url := fmt.Sprintf("http://127.0.0.1:%d/json/version", port)
+	deadline := time.After(timeout)
 	for {
-		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/json/version", port))
+		resp, err := http.Get(url)
 		if err == nil {
 			resp.Body.Close()
-			break
+			return port, nil
 		}
-		if time.Now().After(deadline) {
-			t.Fatalf("chrome did not come up on port %d: %v", port, err)
+		select {
+		case werr := <-exited:
+			exited <- werr // for the cleanup
+			return 0, fmt.Errorf("chrome exited before answering on port %d (%v); stderr:\n%s", port, werr, stderr)
+		case <-deadline:
+			return 0, fmt.Errorf("chrome did not come up on port %d within %v: %v; stderr:\n%s", port, timeout, err, stderr)
+		case <-time.After(50 * time.Millisecond):
 		}
-		time.Sleep(50 * time.Millisecond)
 	}
-	return &browser{t: t, port: port}
+}
+
+// tailBuffer keeps the last max bytes written to it. Chrome logs freely to
+// stderr while it runs; only the end is worth putting in a failure.
+type tailBuffer struct {
+	mu  sync.Mutex
+	max int
+	b   []byte
+}
+
+func (w *tailBuffer) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.b = append(w.b, p...)
+	if over := len(w.b) - w.max; over > 0 {
+		w.b = w.b[over:]
+	}
+	return len(p), nil
+}
+
+func (w *tailBuffer) String() string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return string(w.b)
 }
 
 func freePort(t *testing.T) int {
@@ -134,6 +182,29 @@ func freePort(t *testing.T) int {
 	}
 	defer l.Close()
 	return l.Addr().(*net.TCPAddr).Port
+}
+
+// A Chrome that dies on start is reported at once, with what it said,
+// rather than after the whole start timeout.
+func TestBrowserAChromeThatExitsIsReportedAtOnce(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the stand-in Chrome is a shell script")
+	}
+	fake := t.TempDir() + "/chrome"
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\necho 'no display, giving up' >&2\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	began := time.Now()
+	_, err := startChrome(t, fake, chromeStartTimeout)
+	if err == nil {
+		t.Fatal("a Chrome that exited was reported as started")
+	}
+	if took := time.Since(began); took > 10*time.Second {
+		t.Errorf("the exit took %v to report; it should not wait out the timeout", took)
+	}
+	if !strings.Contains(err.Error(), "no display, giving up") {
+		t.Errorf("the error does not carry Chrome's stderr: %v", err)
+	}
 }
 
 // ---- A page ---------------------------------------------------------------
