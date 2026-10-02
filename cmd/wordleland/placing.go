@@ -67,6 +67,10 @@ func placingTestOne(ctx context.Context, out io.Writer, url, model string, all b
 	fmt.Fprintf(out, "%s: asking %d questions as %s, on %s…\n", model, len(reply.PlacingCases),
 		reply.PlacingPrompt("").Asker, reply.PlacingToday.Format("Monday 2 January 2006"))
 
+	// The server's own timings, one per question in order: the questions
+	// are asked one at a time.
+	var usage []reply.Usage
+	o.OnUsage = func(u reply.Usage) { usage = append(usage, u) }
 	results := reply.RunPlacing(ctx, o, reply.PlacingCases, func(r reply.PlacingResult) {
 		switch {
 		case r.Err != nil:
@@ -89,10 +93,54 @@ func placingTestOne(ctx context.Context, out io.Writer, url, model string, all b
 		}
 		took = append(took, r.Took)
 	}
+	verdict, short := cacheVerdict(usage)
 	summary := fmt.Sprintf("%s: %d of %d placed (%d%%), %s", model, placed, len(results),
 		100*placed/max(len(results), 1), timing(took))
+	if short != "" {
+		summary += ", " + short
+	}
 	fmt.Fprintln(out, summary)
+	if verdict != "" {
+		fmt.Fprintln(out, "  "+verdict)
+	}
 	return summary, nil
+}
+
+// cacheVerdict reads the server's timings for whether it reuses its work on
+// the instructions, which are the same for every question: the first
+// question reads them all, and with reuse every later one reads only its
+// own few words. A later median at a quarter of the first or less is reuse;
+// a bot answering in seconds rather than tens of them depends on it.
+//
+// The first question may find the instructions already read — the bot
+// starts its prompt with the same ones, and so did a run a minute ago —
+// and then every question is quick. Reading the whole prompt in under a
+// second is beyond a CPU without reuse, so that is reuse too.
+func cacheVerdict(usage []reply.Usage) (string, string) {
+	if len(usage) < 2 {
+		return "", ""
+	}
+	first := usage[0].Reading
+	reading := make([]time.Duration, 0, len(usage)-1)
+	writing := make([]time.Duration, 0, len(usage)-1)
+	for _, u := range usage[1:] {
+		reading = append(reading, u.Reading)
+		writing = append(writing, u.Writing)
+	}
+	slices.Sort(reading)
+	slices.Sort(writing)
+	after, write := reading[len(reading)/2], writing[len(writing)/2]
+	switch {
+	case first < time.Second && after < time.Second:
+		return fmt.Sprintf("Prompt cache: works — every question read its prompt in under a second (the first %.1f s), the instructions already read by an earlier question. Writing: median %.1f s.",
+			first.Seconds(), write.Seconds()), "cache works"
+	case after*4 <= first:
+		return fmt.Sprintf("Prompt cache: works — reading the prompt took %.1f s the first time and %.1f s after (median). Writing: median %.1f s.",
+			first.Seconds(), after.Seconds(), write.Seconds()), "cache works"
+	default:
+		return fmt.Sprintf("Prompt cache: not working — reading the prompt took %.1f s the first time and still %.1f s after (median), so every question reads the instructions again. Writing: median %.1f s.",
+			first.Seconds(), after.Seconds(), write.Seconds()), "no cache"
+	}
 }
 
 // readyModel gets a model ready as the bot does — pulled when the server

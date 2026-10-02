@@ -36,6 +36,19 @@ type Ollama struct {
 	// reply is not worth the wait. Only for a model that says so, since an
 	// older server may refuse the setting for one that does not.
 	thinks atomic.Bool
+
+	// OnUsage, when set, is told what the server reports of each placing
+	// call. The placing test sets it to see whether the server reuses its
+	// work on the instructions; the bot leaves it nil. Set before the
+	// first call and not after.
+	OnUsage func(Usage)
+}
+
+// Usage is what the server reports of one call: how long it took to read
+// the prompt, and to write the answer. Reading is what a server that
+// reuses its work on a prompt's unchanged start saves.
+type Usage struct {
+	Reading, Writing time.Duration
 }
 
 // Timeouts for the two shapes of call. A question is short and its answer
@@ -339,12 +352,18 @@ func (o *Ollama) Interpret(ctx context.Context, p Prompt) (Request, error) {
 			Content string `json:"content"`
 		} `json:"message"`
 		Error string `json:"error"`
+		// Nanoseconds, as the server reports them.
+		PromptEvalDuration int64 `json:"prompt_eval_duration"`
+		EvalDuration       int64 `json:"eval_duration"`
 	}
 	if err := o.do(req, &chat); err != nil {
 		return Request{}, fmt.Errorf("ask model: %w", err)
 	}
 	if chat.Error != "" {
 		return Request{}, fmt.Errorf("ask model: %s", chat.Error)
+	}
+	if o.OnUsage != nil {
+		o.OnUsage(Usage{Reading: time.Duration(chat.PromptEvalDuration), Writing: time.Duration(chat.EvalDuration)})
 	}
 	return parseRequest(withoutThinking(chat.Message.Content))
 }
