@@ -41,7 +41,7 @@ func TestANamedPastMonth(t *testing.T) {
 		t.Errorf("august, sv: %q", got)
 	}
 	got = answer(translator(t, "en"), Request{Kind: KindStanding, Span: SpanMonth, Month: "2026-07", Player: "Bo"}, nil, players, results, now)
-	if got != "Bo: place 2 of 2 (July), 4.00 on average over 31 games." {
+	if got != "Bo: place 2 of 2 (July), 4.00 on average over 31 games. 100 points behind Alma." {
 		t.Errorf("standing in july: %q", got)
 	}
 	got = answer(translator(t, "en"), Request{Kind: KindLeader, Span: SpanMonth, Month: "2026-06"}, nil, players, results, now)

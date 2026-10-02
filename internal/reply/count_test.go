@@ -107,7 +107,7 @@ func TestPronounsForTheGroupAndTheAsker(t *testing.T) {
 		{`{"kind":"count","span":"all","player":"gruppen","guesses":3,"orbetter":true}`, "Gruppen: 15 resultat på 3 eller bättre av 30 spel (50 %)."},
 		{`{"kind":"count","span":"all","player":"we"}`, "Gruppen över 30 spel: 0×1, 0×2, 15×3, 14×4, 0×5, 0×6, 1×X."},
 		{`{"kind":"count","span":"all","player":"me","guesses":3}`, "Alma: 15 3:or av 15 spel (100 %)."},
-		{`{"kind":"streak","span":"all","player":"jag"}`, "Alma: 15 dagar i rad nu, som bäst 15."},
+		{`{"kind":"streak","span":"all","player":"jag"}`, "Du har 15 dagar i rad nu, som bäst 15."},
 		{`{"kind":"streak","span":"all","player":"vi"}`, "🔥 Längsta pågående svit: Alma, 15 dagar."},
 	} {
 		req, err := parseRequest(tc.content)

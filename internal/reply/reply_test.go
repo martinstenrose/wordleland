@@ -111,7 +111,7 @@ func TestAnswersAboutTheAsker(t *testing.T) {
 	if err := answer(context.Background(), senderUUID, "how am I doing this week?", "", nil); err != nil {
 		t.Fatalf("answer: %v", err)
 	}
-	if got := c.last(t); !strings.HasPrefix(got, "Bo: place 2 of 2 (the last 7 days), 4.00 on average over 7 games.") {
+	if got := c.last(t); !strings.HasPrefix(got, "You're in place 2 of 2 (the last 7 days), 4.00 on average over 7 games.") {
 		t.Errorf("got %q", got)
 	}
 }

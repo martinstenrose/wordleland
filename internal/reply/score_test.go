@@ -25,7 +25,7 @@ func TestScoreOnADay(t *testing.T) {
 		{name: "the day Bo failed", req: Request{Kind: KindScore, Player: "Bo", Date: failed.Format(DateLayout)},
 			want: "Bo, 5 September: X — not solved."},
 		{name: "the asker, today", req: Request{Kind: KindScore}, asker: &alma,
-			want: "Alma, 15 September: 3/6."},
+			want: "You got 3/6 on 15 September."},
 		{name: "a day before the history", req: Request{Kind: KindScore, Player: "Alma", Date: "2026-07-05"},
 			want: "Alma has no result for 5 July."},
 		{name: "a day still to come", req: Request{Kind: KindScore, Player: "Alma", Date: "2026-09-20"},
