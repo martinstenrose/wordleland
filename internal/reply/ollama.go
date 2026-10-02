@@ -599,6 +599,9 @@ Fields:
 - player: the player the question is about, spelled exactly as in the list —
   the asker's own name when they ask about themselves — otherwise "". Always ""
   when the message asks nothing about anyone.
+  A question that asks who ("vem", "who", "vilka") is about the whole group:
+  player is "" whoever is asking ("vem har bäst form?", "vem vann juni?") —
+  unless it names players itself ("vem är bäst av Alma och Bo?").
 - other: when kind is "versus", the second player; "" when the asker compares
   themselves with the player in "player".
 - topic: when kind is "rules", which rule: "miss" (a missed day), "average" (the

@@ -1,6 +1,7 @@
 package reply
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/martinstenrose/wordleland/internal/store"
@@ -76,5 +77,28 @@ func TestSteadiness(t *testing.T) {
 	if got, want := answer(translator(t, "en"), Request{Kind: KindSteady, Player: "Cid"}, nil, players, results, now),
 		"🎯 Cid Larsson: give or take 2.00 guesses — 3 of 3 for steadiness."; got != want {
 		t.Errorf("got %q\nwant %q", got, want)
+	}
+}
+
+// Form with a span is the ranking over that span: "best form this week" is
+// best this week, and a player's form this week is their standing in it.
+func TestFormOverASpan(t *testing.T) {
+	t.Parallel()
+	players, results := formFixture(t)
+	now := fixtureNow()
+	tr := translator(t, "sv")
+	for _, tc := range []struct{ form, want Request }{
+		{Request{Kind: KindForm, Span: SpanWeek}, Request{Kind: KindLeader, Span: SpanWeek}},
+		{Request{Kind: KindForm, Span: SpanLastWeek, Worst: true}, Request{Kind: KindLeader, Span: SpanLastWeek, Worst: true}},
+		{Request{Kind: KindForm, Span: SpanDays, Days: 14, Player: "Bo"}, Request{Kind: KindStanding, Span: SpanDays, Days: 14, Player: "Bo"}},
+	} {
+		got := answer(tr, tc.form, nil, players, results, now)
+		if want := answer(tr, tc.want, nil, players, results, now); got != want {
+			t.Errorf("%+v: got %q, want %q", tc.form, got, want)
+		}
+	}
+	// The month is form's own default span, and keeps the form answer.
+	if got := answer(tr, Request{Kind: KindForm, Span: SpanMonth}, nil, players, results, now); !strings.HasPrefix(got, "🔥") {
+		t.Errorf("form over the month: %q", got)
 	}
 }
