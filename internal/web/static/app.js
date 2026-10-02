@@ -68,8 +68,8 @@ var onPageChange = (function () {
   // in the flow of the page and stay as the reader left them.
   var POPUPS = 'details[name="menu-group"][open], details[name="about"][open], details[name="popup"][open]';
 
-  // Esc closes one popup per press, the innermost first: Help opened from
-  // inside the account menu goes, and the menu stays for the next press. Later
+  // Esc closes one popup per press, the innermost first (About, opened from
+  // the account menu, takes the menu with it — see below). Later
   // in document order is deeper, since a nested one follows its parent.
   // Focus that was inside goes back to the summary, so it is not lost to
   // the top of the page with the panel it was in.
@@ -192,6 +192,26 @@ var onPageChange = (function () {
     about.open = false;
     about.querySelector(":scope > summary").focus({ preventScroll: true });
   });
+
+  // About opened from a menu closes the menu when it closes, by whatever
+  // means — the button, the dim or Esc. app.css hid the menu while the card
+  // was up, so the reader is back on the page, not in a menu they left.
+  // Focus that would be lost with the menu goes to the menu's own summary.
+  // Absent, the menu reappears when the card closes and closes as any
+  // menu does.
+  document.addEventListener(
+    "toggle",
+    function (event) {
+      var about = event.target;
+      if (about.tagName !== "DETAILS" || !about.classList.contains("about") || about.open) return;
+      var menu = about.parentElement && about.parentElement.closest("details.menu[open]");
+      if (!menu) return;
+      var hadFocus = menu.contains(document.activeElement);
+      menu.open = false;
+      if (hadFocus) menu.querySelector(":scope > summary").focus({ preventScroll: true });
+    },
+    true
+  );
   onPageChange(function () {
     document.querySelectorAll(".about-close").forEach(function (button) { button.hidden = false; });
   });

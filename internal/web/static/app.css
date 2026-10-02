@@ -1005,6 +1005,14 @@ body > .site-footer {
   .about-grabber { display: block; align-self: center; width: 36px; height: 5px; margin: -8px 0 4px; border-radius: 3px; background: var(--color-border); }
   .about-close { top: 32px; right: 20px; }
 }
+/* Opened from a menu, About takes the menu's place: the menu is hidden
+   while the card is up — the card is what the reader asked for, and a
+   menu left floating under the dim is one more thing to dismiss. It stays
+   open underneath, because closing it would take the card with it; app.js
+   closes it when the card closes. With no script, closing the card brings
+   the menu back as it was. */
+.menu:has(> .menu-panel .about[open]) > .menu-panel { visibility: hidden; }
+.menu .about[open] > summary::after, .menu .about-panel { visibility: visible; }
 /* In the footer the summary is a link among links. */
 .about-footer { display: inline; }
 .about-footer > summary { display: inline; }
@@ -3232,7 +3240,9 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 }
 .toast-text { flex: 1; min-width: 0; }
 .toast-undo { padding: 4px 6px; font-weight: 700; color: var(--color-accent); text-decoration: none; }
-.toast-close { display: grid; place-items: center; color: var(--color-muted); }
+/* A finger's width, 44px, drawn into the toast's padding so the toast is
+   no taller for it. */
+.toast-close { display: grid; place-items: center; flex: none; width: 44px; height: 44px; margin: -12px -10px; color: var(--color-muted); }
 .toast-close:hover { color: var(--color-text); }
 /* On a phone the toast hangs under the bar instead: the foot of the window
    is the browser's toolbar, and nothing is fixed there (see "The navigation
@@ -4151,7 +4161,9 @@ form.danger-box { margin: 0; }
   .narrow-only { display: flex; }
   .admin-tabs { display: none; }
 }
-.page-back { align-items: center; margin-left: -5px; color: var(--color-accent); text-decoration: none; }
+/* As wide as its words: the head is a column that would stretch it across
+   the row, and on a phone a toast's close hangs over the far end of it. */
+.page-back { align-self: flex-start; max-width: 100%; align-items: center; margin-left: -5px; color: var(--color-accent); text-decoration: none; }
 
 details.account > summary { position: relative; }
 /* The avatar's badge: a count of what waits for the reader — senders to

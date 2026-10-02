@@ -865,7 +865,8 @@ func TestBrowserTheAboutPanelCoversThePage(t *testing.T) {
 }
 
 // Esc closes a popup, one per press and the innermost first, and focus
-// that was inside it lands back on what opened it.
+// that was inside it lands back on what opened it. About opened from the
+// account menu closes the menu with it.
 //
 // A <details> opens and closes with no script, but not from the keyboard
 // without first finding its summary again — which, for Help drawn over the
@@ -883,20 +884,27 @@ func TestBrowserEscClosesPopupsInnermostFirst(t *testing.T) {
 	p.WaitFor(helpOpen)
 	p.Eval(`document.querySelector(".account-menu .about-link").focus(); true`)
 
-	p.Press("Escape", "Escape", 0)
-	p.WaitFor(`!` + helpOpen)
-	if p.Eval(menuOpen) != true {
-		t.Errorf("Esc closed the account menu along with the Help panel inside it")
-	}
-	if p.Eval(`document.activeElement === document.querySelector(".account-menu details.about > summary")`) != true {
-		t.Errorf("closing Help did not put focus back on its summary")
+	if p.Eval(`getComputedStyle(document.querySelector(".account-menu")).visibility`) != "hidden" {
+		t.Errorf("the account menu still shows under the About panel")
 	}
 
+	// About takes the menu it opened from with it, and focus lands on the
+	// menu's summary rather than being lost with the menu.
 	p.Press("Escape", "Escape", 0)
+	p.WaitFor(`!` + helpOpen)
 	p.WaitFor(`!` + menuOpen)
+	if p.Eval(`document.activeElement === document.querySelector("details.account > summary")`) != true {
+		t.Errorf("closing About did not put focus back on the account menu's summary")
+	}
 	if path := p.Path(); path != "/leaderboard" {
 		t.Errorf("Esc navigated to %s", path)
 	}
+
+	// An open menu with no About in it closes on Esc as before.
+	p.Click("details.account > summary")
+	p.WaitFor(menuOpen)
+	p.Press("Escape", "Escape", 0)
+	p.WaitFor(`!` + menuOpen)
 }
 
 // No view raises a console error or an uncaught exception.
@@ -1254,6 +1262,36 @@ func TestBrowserTheBottomOfAPhoneIsEmpty(t *testing.T) {
 		if len(pinned) > 0 {
 			t.Errorf("%s pins %v to the bottom of a phone", path, pinned)
 		}
+	}
+}
+
+// A toast's close is a finger's width, and pressing it twice stays on the
+// page. On a phone the toast hangs over the admin head, where the way back
+// to the admin area is: the second press, or one that lands as the toast
+// goes, falls on whatever is under the close, and that must not be a link
+// stretched across the row past its words.
+func TestBrowserClosingAToastStaysOnThePage(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), phoneWidth)
+	p.Navigate(site.base + "/admin/players/harda?notice=invited")
+	got := p.String(`(() => { const r = document.querySelector(".toast-close").getBoundingClientRect();
+		return [r.width, r.height, r.left + r.width / 2, r.top + r.height / 2].map(Math.round).join(" "); })()`)
+	var w, h, x, y int
+	fmt.Sscan(got, &w, &h, &x, &y)
+	if w < 44 || h < 44 {
+		t.Errorf("the toast's close is %dx%d, want at least 44x44", w, h)
+	}
+	p.ClickAt(x, y)
+	p.WaitFor(`!document.querySelector(".toast")`)
+	// The swap's view transition covers the page until it ends, and a
+	// press before then hits nothing; wait for the page to be under the
+	// finger again.
+	p.WaitFor(fmt.Sprintf(`document.elementFromPoint(%d, %d) !== document.documentElement`, x, y))
+	p.ClickAt(x, y)
+	// Long enough for a link's swap to have landed, had it been one.
+	time.Sleep(300 * time.Millisecond)
+	if path := p.String(`location.pathname`); path != "/admin/players/harda" {
+		t.Errorf("pressing where the close was took the page to %s", path)
 	}
 }
 
