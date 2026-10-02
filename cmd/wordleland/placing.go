@@ -60,13 +60,9 @@ func runPlacingTest(ctx context.Context, args []string, out io.Writer) error {
 }
 
 func placingTestOne(ctx context.Context, out io.Writer, url, model string, all bool, wait time.Duration) (string, error) {
-	fmt.Fprintf(out, "%s: getting the model ready (a missing one is pulled first)…\n", model)
-	o := reply.NewOllama(url, model)
-	pctx, cancel := context.WithTimeout(ctx, wait)
-	o.Prepare(pctx, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	cancel()
-	if !o.Ready() {
-		return "", fmt.Errorf("%s: the model is not ready at %s after %s; is the server up, and the name right?", model, url, wait)
+	o, err := readyModel(ctx, out, url, model, wait)
+	if err != nil {
+		return "", err
 	}
 	fmt.Fprintf(out, "%s: asking %d questions as %s, on %s…\n", model, len(reply.PlacingCases),
 		reply.PlacingPrompt("").Asker, reply.PlacingToday.Format("Monday 2 January 2006"))
@@ -97,6 +93,20 @@ func placingTestOne(ctx context.Context, out io.Writer, url, model string, all b
 		100*placed/max(len(results), 1), timing(took))
 	fmt.Fprintln(out, summary)
 	return summary, nil
+}
+
+// readyModel gets a model ready as the bot does — pulled when the server
+// lacks it, thinking turned off — or says why it could not within wait.
+func readyModel(ctx context.Context, out io.Writer, url, model string, wait time.Duration) (*reply.Ollama, error) {
+	fmt.Fprintf(out, "%s: getting the model ready (a missing one is pulled first)…\n", model)
+	o := reply.NewOllama(url, model)
+	pctx, cancel := context.WithTimeout(ctx, wait)
+	defer cancel()
+	o.Prepare(pctx, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if !o.Ready() {
+		return nil, fmt.Errorf("%s: the model is not ready at %s after %s; is the server up, and the name right?", model, url, wait)
+	}
+	return o, nil
 }
 
 // timing is the median question and the first: the first also reads the

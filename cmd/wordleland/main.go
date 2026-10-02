@@ -73,6 +73,7 @@ Nouns:
   slug          the read-only share link
   activity      the log of every change
   questions     what the Signal bot could not answer, kept 30 days
+  ask           what the Signal bot would answer, printed here and never posted
   demo          synthetic data for a staging instance (DEMO_MODE=true)
 
 Global flags:
@@ -174,6 +175,8 @@ func run(args []string, out io.Writer) error {
 		return runActivity(e, verbArgs)
 	case "questions":
 		return runQuestions(e, verbArgs)
+	case "ask":
+		return runAsk(e, verbArgs)
 	case "demo":
 		return runDemo(e, verbArgs)
 	case "help", "-h", "--help":

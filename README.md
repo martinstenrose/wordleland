@@ -225,6 +225,18 @@ docker compose exec app /wordleland placing-test --model qwen3:4b,gemma4:e4b
 
 It uses a made-up roster and date, and never touches the database.
 
+**Trying a question out** without asking the group: `ask` puts one
+question to the bot as a player would — the real database, model and
+answer — and prints how it was placed and what the bot would post. Nothing
+is posted, and a question it could not place is not kept:
+
+```sh
+docker compose exec app /wordleland ask --player Martin "vem är kvar att svara idag?"
+```
+
+Without `--player` the question is asked by nobody in particular, so "I"
+and "me" mean nobody, as for a member whose Signal account is not linked.
+
 **Replying to one of the bot's posts** works too: tap the bot's name into a
 reply to a daily recap and ask "what does 'points' mean here?", "vad fick
 Bo den dagen?", "why is Bo behind?". The bot's own post travels with the
