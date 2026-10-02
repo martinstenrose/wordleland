@@ -50,6 +50,11 @@ func TestAskAnswersAsAPlayer(t *testing.T) {
 	if !strings.Contains(out, "Martin, ") || !strings.Contains(out, ": 3/6.") {
 		t.Errorf("not answered as Martin:\n%s", out)
 	}
+	// A follow-up is asked after the question before, and both are shown.
+	if out := c.mustRun("", "ask", "--url", url, "--model", "test:1b", "--player", "martin", "--after", "vem leder?", "och Bo?"); strings.Count(out, "placed as:") != 2 ||
+		!strings.Contains(out, "vem leder?\n") || !strings.Contains(out, "och Bo?\n") {
+		t.Errorf("--after does not ask both:\n%s", out)
+	}
 	if out := c.mustRun("", "ask", "--url", url, "--model", "test:1b", "vad fick jag?"); !strings.Contains(out, "Who do you mean?") {
 		t.Errorf("without --player there is no \"me\":\n%s", out)
 	}

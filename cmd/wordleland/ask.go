@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -18,6 +17,7 @@ import (
 func runAsk(e *env, args []string) error {
 	fs := flagSet(e, "ask")
 	player := fs.String("player", "", "ask as this `player`, so \"I\" and \"me\" mean them")
+	after := fs.String("after", "", "ask this `question` first, so the one given can follow on from it")
 	model := fs.String("model", envOrDefault("LLM_MODEL", config.DefaultLLMModel), "the `model` to ask")
 	url := fs.String("url", envOrDefault("LLM_URL", config.DefaultLLMURL), "the model server's `URL`")
 	locale := fs.String("locale", envOrDefault("SIGNAL_LOCALE", i18n.Default), "the `language` to answer in")
@@ -38,65 +38,29 @@ func runAsk(e *env, args []string) error {
 		return err
 	}
 
+	var previous *reply.Request
+	if earlier := strings.TrimSpace(*after); earlier != "" {
+		req, err := askOne(e, cats, *locale, o, *player, nil, earlier)
+		if err != nil {
+			return err
+		}
+		previous = &req
+		fmt.Fprintln(e.out)
+	}
+	_, err = askOne(e, cats, *locale, o, *player, previous, question)
+	return err
+}
+
+// askOne asks one question and prints how it was placed and the answer.
+func askOne(e *env, cats i18n.Catalogues, locale string, interp reply.Interpreter, player string,
+	previous *reply.Request, question string) (reply.Request, error) {
+
 	start := time.Now()
-	req, text, err := reply.Ask(e.ctx, e.db, cats, *locale, o, *player, question)
+	req, text, err := reply.Ask(e.ctx, e.db, cats, locale, interp, player, previous, question)
 	if err != nil {
-		return err
+		return reply.Request{}, err
 	}
-	fmt.Fprintf(e.out, "placed as: %s (%.1f s)\n\n%s\n", describe(req), time.Since(start).Seconds(), text)
-	return nil
-}
-
-// describe is a request as JSON with only the fields that say something,
-// further questions included, so "placed as" reads at a glance.
-func describe(req reply.Request) string {
-	raw, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Sprintf("%+v", req)
-	}
-	var fields any
-	if err := json.Unmarshal(raw, &fields); err != nil {
-		return string(raw)
-	}
-	out, _ := json.Marshal(pruned(fields))
-	return string(out)
-}
-
-// pruned drops the zero values from decoded JSON, at every depth, and
-// reports nil for a value that says nothing at all.
-func pruned(v any) any {
-	switch v := v.(type) {
-	case map[string]any:
-		for k, field := range v {
-			if p := pruned(field); p == nil {
-				delete(v, k)
-			} else {
-				v[k] = p
-			}
-		}
-		return v
-	case []any:
-		if len(v) == 0 {
-			return nil
-		}
-		for i, item := range v {
-			v[i] = pruned(item)
-		}
-		return v
-	case string:
-		if v == "" {
-			return nil
-		}
-	case float64:
-		if v == 0 {
-			return nil
-		}
-	case bool:
-		if !v {
-			return nil
-		}
-	case nil:
-		return nil
-	}
-	return v
+	fmt.Fprintf(e.out, "%s\nplaced as: %s (%.1f s)\n\n%s\n", question, reply.Describe(req),
+		time.Since(start).Seconds(), text)
+	return req, nil
 }
