@@ -23,23 +23,13 @@
         <div>
           <dt>{{.Label}}</dt>
           <dd>
-            {{if .Grid}}
-              {{/* A grid that was dropped has a before and no after: the
-                   arrow then points at nothing, which is what is left. */}}
-              {{if .Changed}}
-                <span class="detail-from">{{template "pattern" (dict "Grid" .From "Size" "lg")}}</span>
-                <span class="detail-arrow" aria-hidden="true">→</span>
-              {{end}}
-              <span class="detail-to">{{template "pattern" (dict "Grid" .To "Size" "lg")}}</span>
-            {{else}}
-              {{if .Changed}}
-                {{/* The arrow only where there is a before. A standing value
-                     drawn as a transition would invent one. */}}
-                <span class="detail-from">{{.From}}</span>
-                <span class="detail-arrow" aria-hidden="true">→</span>
-              {{end}}
-              <span class="detail-to">{{.To}}</span>
+            {{if .Changed}}
+              {{/* The arrow only where there is a before. A standing value
+                   drawn as a transition would invent one. */}}
+              <span class="detail-from">{{.From}}</span>
+              <span class="detail-arrow" aria-hidden="true">→</span>
             {{end}}
+            <span class="detail-to">{{.To}}</span>
           </dd>
         </div>
       {{end}}
