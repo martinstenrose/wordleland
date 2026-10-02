@@ -19,7 +19,7 @@ func TestAMessageThatAsksTwoThingsGetsBothAnswers(t *testing.T) {
 		t.Fatal(err)
 	}
 	parts := strings.Split(c.last(t), "\n\n")
-	if len(parts) != 2 || !strings.HasPrefix(parts[0], "📊") || !strings.HasPrefix(parts[1], "Bo: ") {
+	if len(parts) != 2 || !strings.HasPrefix(parts[0], "📊") || !strings.HasPrefix(parts[1], "You're on ") {
 		t.Errorf("got %q, want the leader and then Bo's streak", c.last(t))
 	}
 }

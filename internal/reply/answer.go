@@ -23,7 +23,7 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 
 	switch req.Kind {
 	case KindLeader:
-		return leader(t, req, players, results, now)
+		return leader(t, req, asker, players, results, now)
 	case KindStanding:
 		return standing(t, req, asker, players, results, now)
 	case KindStreak:
@@ -38,7 +38,7 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 			// "vem vann juni?" read as wins is still a question about June.
 			won := req
 			won.Kind, won.Span, won.Player, won.Worst = KindLeader, SpanMonth, "", false
-			return leader(t, won, players, results, now)
+			return leader(t, won, nil, players, results, now)
 		}
 		return wins(t, req, asker, players, results, now)
 	case KindCatchup:
@@ -47,7 +47,7 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 			// answer, not a race: its winner.
 			won := req
 			won.Kind, won.Span, won.Player, won.Worst = KindLeader, SpanMonth, "", false
-			return leader(t, won, players, results, now)
+			return leader(t, won, nil, players, results, now)
 		}
 		return catchup(t, req, asker, players, results, now)
 	case KindCount:
@@ -74,7 +74,7 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 			if req.Player == "" {
 				over := req
 				over.Kind = KindLeader
-				return leader(t, over, players, results, now)
+				return leader(t, over, asker, players, results, now)
 			}
 			over := req
 			over.Kind = KindStanding
@@ -94,15 +94,22 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 	case KindRules:
 		return rules(t, req)
 	case KindThanks:
-		return t.T("reply.thanks")
+		return t.Vary("reply.thanks")
 	case KindHelp:
 		return t.T("reply.help")
 	default:
 		// Short, because this is a chat: what the bot can do is one
 		// question away, and listing it after every misread reads as
 		// the bot lecturing the room.
-		return t.T("reply.unknown")
+		return t.Vary("reply.unknown")
 	}
+}
+
+// isAsker says the player an answer is about is the one asking, who is
+// answered as "you" rather than with their own name back, as a person in
+// the chat would.
+func isAsker(p store.Player, asker *store.Player) bool {
+	return asker != nil && asker.ID == p.ID
 }
 
 // score is one player's result on one day, looked up in the history rather
@@ -124,18 +131,28 @@ func score(t i18n.Translator, req Request, asker *store.Player,
 	if puzzle > wordle.PuzzleForDate(now) {
 		return t.T("reply.score.future", label)
 	}
+	you := isAsker(p, asker)
 	for _, r := range results {
 		if r.PlayerID != p.ID || r.PuzzleNo != puzzle {
 			continue
 		}
 		switch {
+		case !r.Solved && you:
+			return t.T("reply.score.failed.you", label)
 		case !r.Solved:
 			return t.T("reply.score.failed", p.Name, label)
+		case r.HardMode && you:
+			return t.T("reply.score.hard.you", r.Guesses, label)
 		case r.HardMode:
 			return t.T("reply.score.hard", p.Name, label, r.Guesses)
+		case you:
+			return t.T("reply.score.solved.you", r.Guesses, label)
 		default:
 			return t.T("reply.score.solved", p.Name, label, r.Guesses)
 		}
+	}
+	if you {
+		return t.T("reply.score.none.you", label)
 	}
 	return t.T("reply.score.none", p.Name, label)
 }
@@ -154,10 +171,10 @@ func wins(t i18n.Translator, req Request, asker *store.Player,
 		}
 		for _, row := range season.Rows {
 			if row.ID == p.ID {
-				return winsOf(t, p.Name, row.Wins)
+				return winsOf(t, p.Name, row.Wins, isAsker(p, asker))
 			}
 		}
-		return winsOf(t, p.Name, 0)
+		return winsOf(t, p.Name, 0, isAsker(p, asker))
 	}
 
 	best := 0
@@ -186,10 +203,16 @@ func wins(t i18n.Translator, req Request, asker *store.Player,
 	return line
 }
 
-// winsOf is a player's month wins, one of them in the singular.
-func winsOf(t i18n.Translator, name string, wins int) string {
-	if wins == 1 {
+// winsOf is a player's month wins, one of them in the singular, said to
+// them when they asked about themselves.
+func winsOf(t i18n.Translator, name string, wins int, you bool) string {
+	switch {
+	case wins == 1 && you:
+		return t.T("reply.wins.player.single.you")
+	case wins == 1:
 		return t.T("reply.wins.player.single", name)
+	case you:
+		return t.T("reply.wins.player.you", wins)
 	}
 	return t.T("reply.wins.player", name, wins)
 }
@@ -314,7 +337,7 @@ func boardAsStanding(b stats.Board) stats.Month {
 // leader mirrors internal/announce's month line, with the span's label in
 // place of the month's, so the answer to "who is leading" reads exactly as
 // the daily recap's standing does.
-func leader(t i18n.Translator, req Request, players []store.Player,
+func leader(t i18n.Translator, req Request, asker *store.Player, players []store.Player,
 	results []store.BoardResult, now time.Time) string {
 
 	span, m := standingOver(t, req, players, results, now)
@@ -341,16 +364,55 @@ func leader(t i18n.Translator, req Request, players []store.Player,
 			return "🏆 " + t.T("announce.line.alone", leaders, avg, m.Days)
 		}
 	}
+	var line string
 	switch {
 	case len(m.Winners) > 1:
-		return "📊 " + t.T("announce.daily.month.tie", label, leaders, avg)
+		line = "📊 " + t.T("announce.daily.month.tie", label, leaders, avg)
 	case m.Margin != nil:
 		points := int(math.Round(*m.Margin * 100))
-		return "📊 " + t.T("announce.daily.month.margin", label, leaders, avg,
+		line = "📊 " + t.T("announce.daily.month.margin", label, leaders, avg,
 			points, joinNames(t, names(runnersUp(m))))
 	default:
-		return "📊 " + t.T("announce.daily.month.alone", label, leaders, avg)
+		line = "📊 " + t.T("announce.daily.month.alone", label, leaders, avg)
 	}
+	if req.Span == SpanMonth && req.Month == "" {
+		if aside := raceAside(t, m, asker, now); aside != "" {
+			line += " " + aside
+		}
+	}
+	return line
+}
+
+// tightPoints is a lead small enough to call the race close: a tenth of a
+// guess on average, which one bad day undoes.
+const tightPoints = 10
+
+// raceAside is the one remark an answer about the month's lead allows
+// itself, the first of these that is true: the asker is the one leading,
+// the lead is tight with days still to play, or today settles it. What it
+// says is what the line above it already shows, said as a person would.
+func raceAside(t i18n.Translator, m stats.Month, asker *store.Player, now time.Time) string {
+	for _, w := range m.Winners {
+		if asker != nil && w.ID == asker.ID {
+			if len(m.Winners) > 1 {
+				return t.T("reply.leader.you.tie")
+			}
+			return t.T("reply.leader.you")
+		}
+	}
+	left := daysInMonth(now) - now.Day()
+	switch {
+	case left == 0:
+		return t.T("reply.leader.lastDay")
+	case len(m.Winners) == 1 && m.Margin != nil && int(math.Round(*m.Margin*100)) <= tightPoints:
+		return t.Vary("reply.leader.close", left)
+	}
+	return ""
+}
+
+// daysInMonth is how many days the month of now has.
+func daysInMonth(now time.Time) int {
+	return time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, now.Location()).Day()
 }
 
 // regularShare is the share of a span's days a player must have played to
@@ -410,13 +472,66 @@ func standing(t i18n.Translator, req Request, asker *store.Player,
 		return text
 	}
 	label, m := standingOver(t, req, players, results, now)
+	you := isAsker(p, asker)
 	for _, mp := range m.Ranked {
-		if mp.ID == p.ID {
-			return t.T("reply.standing", p.Name, mp.Rank, len(m.Ranked), label,
+		if mp.ID != p.ID {
+			continue
+		}
+		var line string
+		if you {
+			line = t.T("reply.standing.you", mp.Rank, len(m.Ranked), label, t.Decimal(*mp.Average, 2), mp.Games)
+		} else {
+			line = t.T("reply.standing", p.Name, mp.Rank, len(m.Ranked), label,
 				t.Decimal(*mp.Average, 2), mp.Games)
 		}
+		if gap := gapLine(t, m, mp); gap != "" {
+			line += " " + gap
+		}
+		return line
+	}
+	if you {
+		return t.T("reply.standing.none.you", label)
 	}
 	return t.T("reply.standing.none", p.Name, label)
+}
+
+// gapLine is how far a player is from the place that matters to them: the
+// lead over whoever is next for a leader, the company of a shared lead,
+// and for anybody else the points to the place just above. A place is a
+// number; the gap is what makes it read as a race.
+func gapLine(t i18n.Translator, m stats.Month, mp stats.MonthPlayer) string {
+	if len(m.Winners) > 0 && *mp.Average == *m.Winners[0].Average {
+		var others []string
+		for _, w := range m.Winners {
+			if w.ID != mp.ID {
+				others = append(others, w.Name)
+			}
+		}
+		switch {
+		case len(others) > 0:
+			return t.T("reply.standing.level", joinNames(t, others))
+		case m.Margin != nil:
+			return t.T("reply.standing.clear", int(math.Round(*m.Margin*100)), joinNames(t, names(runnersUp(m))))
+		}
+		return ""
+	}
+	// The place above is everyone on the best average still worse than
+	// the leader's and better than this player's.
+	var above []string
+	var aboveAvg float64
+	for _, o := range m.Ranked {
+		if *o.Average >= *mp.Average {
+			break
+		}
+		if len(above) == 0 || *o.Average != aboveAvg {
+			above, aboveAvg = nil, *o.Average
+		}
+		above = append(above, o.Name)
+	}
+	if len(above) == 0 {
+		return ""
+	}
+	return t.T("reply.standing.behind", int(math.Round((*mp.Average-aboveAvg)*100)), joinNames(t, above))
 }
 
 // streak reads the board, whose streaks are computed from the unfiltered
@@ -434,12 +549,16 @@ func streak(t i18n.Translator, req Request, asker *store.Player,
 		if !ok {
 			return text
 		}
+		current, longest := 0, 0
 		for _, bp := range all {
 			if bp.ID == p.ID {
-				return t.T("reply.streak.player", p.Name, bp.CurrentStreak, bp.LongestStreak)
+				current, longest = bp.CurrentStreak, bp.LongestStreak
 			}
 		}
-		return t.T("reply.streak.player", p.Name, 0, 0)
+		if isAsker(p, asker) {
+			return t.T("reply.streak.player.you", current, longest)
+		}
+		return t.T("reply.streak.player", p.Name, current, longest)
 	}
 
 	current, currentDays := holders(all, func(p stats.Player) int { return p.CurrentStreak })
