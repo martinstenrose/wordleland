@@ -531,18 +531,21 @@ func systemPrompt(p Prompt) string {
 	b.WriteString("The question may be in any language. Answer with the JSON only.\n\n")
 	b.WriteString(`
 Fields:
-- kind: "leader" for who is leading, winning, best, on top, or the ranking, and
+- kind: "leader" for who is leading, winning, best, on top, or the ranking ("vem
+  ligger etta?", "vem toppar?"), and
   who won a past month ("vem vann juni?", "vem vann förra månaden?", with
   month set);
-  "standing" for how one particular player is doing, their place or average —
+  "standing" for how one particular player is doing, their place or average
+  ("hur ligger jag till?", "var ligger Bo?") —
   or, with no player, the whole table: everyone's standing, "ställningen",
   "the standings", "how is everyone doing";
-  "streak" for streaks or runs of solved days in a row;
+  "streak" for streaks or runs of solved days in a row ("svit", "i rad": "vem
+  har flest dagar i rad?", "hur lång är min svit?") — not a count of scores;
   "today" for today's puzzle, who has posted, who is missing or left to post,
   the best score today ("vem är kvar att svara idag?", "vilka har inte spelat
   än?", "vem saknas?", "har alla postat?");
   "score" for one player's result on one particular day ("my score on July 5",
-  "what did Bo get yesterday", "what did I get on Wordle 1900");
+  "what did Bo get yesterday", "vad fick Bo i onsdags?");
   "day" for everyone's results on one day, and how hard that puzzle was ("how
   did everyone do yesterday?", "vad fick alla igår?", "was today's hard?");
   "wins" for counting titles: who has won the most months, how many months a
@@ -557,25 +560,32 @@ Fields:
   gets a 6 tomorrow and Alma a 3, who leads?", "om jag får en 2:a idag?";
   "count" for how many times a player has scored a given number or failed
   ("hur många 2:or har jag?", "how often does Bo fail?", "do I have any 1s?"),
-  who has the most or fewest of a score, or a player's whole distribution;
+  who has the most or fewest of a score, or a player's whole distribution —
+  never a streak ("svit", "i rad"), which is "streak";
   "versus" for two players compared, head to head ("how do I stand against
   Bo?", "vem är bäst av Alma och Bo?", "Alma vs Bo");
-  "daywins" for who most often has the best score of the day, days won;
-  "form" for who is in form, hot, improving, in a slump, playing well lately;
-  "steady" for who is most consistent, steady, reliable, or unpredictable;
+  "daywins" for who most often has the best score of the day, days won ("vem
+  har vunnit flest dagar?");
+  "form" for who is in form, hot, improving, in a slump, playing well lately
+  ("vem spelar bäst just nu?", "vem är het?");
+  "steady" for who is most consistent, steady, reliable, or unpredictable ("vem
+  är jämnast?");
   "puzzles" for the hardest or easiest puzzle or day ("vilket var det svåraste
   ordet i augusti?");
-  "weekday" for which day of the week is hardest or best, for the group or a player;
+  "weekday" for which day of the week is hardest or best, for the group or a
+  player ("är söndagar svårast?");
   "profile" for everything about one player: "tell me about Bo", "berätta om
   mig", "roast Alma", "what do you know about me?";
-  "history" for one player's months, month by month, their best month;
+  "history" for one player's months, month by month, their best month ("vilken
+  var min bästa månad?");
   "records" for the group's records, all-time bests, "rekorden";
   "group" for the group as a whole: how many play, how many games, the group's
-  average;
-  "habits" for who usually posts first or last, or when somebody usually posts;
+  average ("hur många spelare är vi?");
+  "habits" for who usually posts first or last, or when somebody usually posts
+  ("vem postar sist?");
   "rules" for what something means or how it is counted — a miss, points, the
   average, a streak, how the month is scored, hard mode, form, who is ranked —
-  or what the bot knows (the words, a starting word);
+  or what the bot knows (the words, a starting word) ("vad betyder punkter?");
   "help" for asking what the bot can do, how to use it, or which questions it
   answers ("what can you do?", "vad kan du?", "help", "hjälp");
   "thanks" for thanks, praise or a compliment that asks nothing ("tack",
