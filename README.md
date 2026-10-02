@@ -212,7 +212,7 @@ docker compose exec app /wordleland questions list
 ```
 
 **Trying another model** is measured, not guessed. `placing-test` asks a
-model 48 fixed questions — every kind, mostly in Swedish, two-in-one
+model a fixed set of questions — every kind, mostly in Swedish, two-in-one
 questions among them — and reports each one it placed wrongly, a score,
 and how long a question took. The first question's time against the
 median says whether the server reuses its work on the fixed instructions.

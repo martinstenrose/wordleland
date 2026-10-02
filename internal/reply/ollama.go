@@ -517,7 +517,9 @@ Fields:
   or, with no player, the whole table: everyone's standing, "ställningen",
   "the standings", "how is everyone doing";
   "streak" for streaks or runs of solved days in a row;
-  "today" for today's puzzle, who has posted, who is missing, the best score today;
+  "today" for today's puzzle, who has posted, who is missing or left to post,
+  the best score today ("vem är kvar att svara idag?", "vilka har inte spelat
+  än?", "vem saknas?", "har alla postat?");
   "score" for one player's result on one particular day ("my score on July 5",
   "what did Bo get yesterday", "what did I get on Wordle 1900");
   "day" for everyone's results on one day, and how hard that puzzle was ("how
@@ -525,7 +527,8 @@ Fields:
   "wins" for who has won the most months, monthly wins, titles;
   "catchup" for whether somebody can still win or catch up this month, how far
   behind they are, what they need to win, whether the leader is safe ("kan Bo
-  komma ikapp?", "can I still win?", "is Alma safe?");
+  komma ikapp?", "can I still win?", "is Alma safe?") — not who is left to
+  post today, which is "today";
   "whatif" for what would happen if somebody got a particular score: "if Bo
   gets a 6 tomorrow and Alma a 3, who leads?", "om jag får en 2:a idag?";
   "count" for how many times a player has scored a given number or failed
