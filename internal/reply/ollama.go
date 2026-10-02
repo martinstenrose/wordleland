@@ -268,6 +268,8 @@ var requestSchema = func() map[string]any {
 		"month":    map[string]any{"type": "string"},
 		"guesses":  map[string]any{"type": "integer"},
 		"orbetter": map[string]any{"type": "boolean"},
+		// Not required: a tone left out is a question asked plainly.
+		"tone": map[string]any{"type": "string", "enum": enum(Tones)},
 		"scores": map[string]any{"type": "array", "items": map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -388,6 +390,8 @@ func parseRequest(content string) (Request, error) {
 	r = normalise(r)
 	for _, a := range also {
 		a = normalise(a)
+		// How the message was said is the message's, given once.
+		a.Tone = ""
 		switch a.Kind {
 		case KindUnknown, KindHelp, KindThanks:
 			// Not a further question: a greeting or a thank-you alongside
@@ -406,8 +410,9 @@ func parseRequest(content string) (Request, error) {
 	case KindUnknown, KindHelp, KindThanks:
 		// "Tack! Och vem leder?": the question is what gets answered.
 		if len(r.Also) > 0 {
-			rest := r.Also[1:]
+			rest, tone := r.Also[1:], r.Tone
 			r = r.Also[0]
+			r.Tone = tone
 			if len(rest) > 0 {
 				r.Also = rest
 			}
@@ -518,6 +523,12 @@ func normalise(r Request) Request {
 		}
 	}
 	r.Scores = scores
+	switch r.Tone {
+	case ToneBoast, ToneWorried, ToneTease:
+	default:
+		// Plain, or anything else: no line in kind.
+		r.Tone = ""
+	}
 	return r
 }
 
@@ -669,6 +680,12 @@ Fields:
   ("Wordle 1900"), that number; otherwise 0.
 - scores: when kind is "whatif", each made-up result as {"player", "guesses"},
   guesses 1 to 6 or 7 for an X ("om jag får en 6:a" is the asker, 6); otherwise [].
+- tone: how the message is said. "boast" when the asker brags or fishes for
+  praise about their own results ("jag är väl bäst, va? 😎", "I'm crushing you
+  all"); "worried" when the asker sounds nervous about how they are doing
+  ("leder jag fortfarande? 😅", "är det kört för mig?"); "tease" when the
+  message pokes fun at another player ("hur dåligt går det för Bo egentligen?
+  😂"); otherwise "plain". The tone never changes the kind or the other fields.
 - also: when the message asks more than one thing ("vem leder, och har jag
   svit?", "how did I do yesterday and who is in form?"), the first question
   goes in the fields above and each further one here as its own request with

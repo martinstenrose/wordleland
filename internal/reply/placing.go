@@ -76,6 +76,11 @@ var PlacingCases = []PlacingCase{
 	{"vem har bäst form den här veckan?", Request{Kind: KindForm, Span: SpanWeek}, "span player"},
 	{"vem är i sämst form?", Request{Kind: KindForm, Worst: true}, "worst player"},
 	{"vem är stabilast?", Request{Kind: KindSteady}, "player"},
+	// How it was said, besides what was asked.
+	{"jag är väl bäst den här månaden, va? 😎", Request{Kind: KindLeader, Tone: ToneBoast}, "tone"},
+	{"är det kört för mig den här månaden? 😬", Request{Kind: KindCatchup, Player: "Alma", Tone: ToneWorried}, "player tone"},
+	{"haha hur dåligt går det för Bo egentligen? 😂", Request{Kind: KindStanding, Player: "Bo", Tone: ToneTease}, "player tone"},
+	{"hur går det för Cid?", Request{Kind: KindStanding, Player: "Cid"}, "player tone"},
 	{"vilket var det svåraste pusslet i augusti?", Request{Kind: KindPuzzles, Month: "2026-08"}, "month worst"},
 	{"vilket var det lättaste ordet den här månaden?", Request{Kind: KindPuzzles, Worst: true}, "worst"},
 	{"vilken veckodag är svårast?", Request{Kind: KindWeekday}, "player"},
@@ -200,6 +205,10 @@ func placingMisses(c PlacingCase, got Request) []string {
 		case "also":
 			if g, w := alsoKey(got), alsoKey(want); g != w {
 				miss(field, g, w)
+			}
+		case "tone":
+			if got.Tone != want.Tone {
+				miss(field, quoted(string(got.Tone)), quoted(string(want.Tone)))
 			}
 		}
 	}

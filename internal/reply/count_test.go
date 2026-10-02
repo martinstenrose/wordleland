@@ -90,6 +90,11 @@ func TestThePromptDescribesEveryKindAndSpan(t *testing.T) {
 			t.Errorf("the prompt never mentions span %q", s)
 		}
 	}
+	for _, tone := range Tones {
+		if !strings.Contains(prompt, `"`+string(tone)+`"`) {
+			t.Errorf("the prompt never mentions tone %q", tone)
+		}
+	}
 }
 
 // "Hur många 2:or har vi?" is the group's total, and a pronoun for the

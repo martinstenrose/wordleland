@@ -2253,6 +2253,18 @@ the records?"). Each became a kind with its own answer:
 has gone quiet, for the reason the recaps never tease a missed day: a
 result somebody posted is theirs to be teased about, not posting is not.
 
+**The model reads how a question was said, too.** "Jag är väl bäst, va?
+😎" and "är det kört för mig? 😬" got the same flat figures as "vem
+leder?". A request now carries a tone — boast, worried, tease, or plain —
+which a small model reads as well as it reads the kind, and the answer
+opens with one line in kind. The line is the catalogue's and is chosen by
+how the race stands, so it is as true as the figures: "Bold claim." only
+for somebody not on top, "No need to worry." only for somebody who is. A
+tease about another player gets "Be nice." whatever the figures. Tone
+changes no figure and no other field; a question about something other
+than the race gets no line for a brag or a worry, since there is nothing
+to measure it against.
+
 **One list of kinds feeds the schema and the parse.** The schema's enum
 and parseRequest's check were two lists that had to be kept equal; a
 test now also fails when the prompt does not mention a kind or a span.
