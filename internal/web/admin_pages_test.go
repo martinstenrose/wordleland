@@ -336,9 +336,10 @@ func TestActivityLogNamesUserSubjects(t *testing.T) {
 	}
 }
 
-// A row opens what it actually changed. The scoreline is the point for a
-// result: "Score corrected" without the score says nothing.
-func TestActivityDetailShowsAResultChange(t *testing.T) {
+// A correction shows the score it stored on the row, and the one it
+// replaced in the stored detail: "Score corrected" without the score says
+// nothing.
+func TestActivityShowsAResultChange(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -372,24 +373,18 @@ func TestActivityDetailShowsAResultChange(t *testing.T) {
 		}
 	}
 
-	list := fetchAs(t, srv, "/admin/activity?kind=results", session).Body.String()
-	href := regexp.MustCompile(`/admin/activity/(\d+)`).FindString(list)
-	if href == "" {
-		t.Fatal("no row links to its detail")
-	}
-
-	body := fetchAs(t, srv, href, session).Body.String()
+	body := fetchAs(t, srv, "/admin/activity?kind=results", session).Body.String()
 	if !strings.Contains(body, "5/6") {
-		t.Error("the detail does not show the score that was stored")
+		t.Error("the log does not show the score that was stored")
 	}
-	if !strings.Contains(body, "4/6") {
-		t.Error("the detail does not show the score it replaced")
+	if !strings.Contains(body, `&#34;previous&#34;: {`) || !strings.Contains(body, `&#34;guesses&#34;: 4`) {
+		t.Error("the log does not show the score it replaced")
 	}
 	if !strings.Contains(body, player.Slug) {
-		t.Errorf("the detail does not name the player %q", player.Slug)
+		t.Errorf("the log does not name the player %q", player.Slug)
 	}
 	if strings.Contains(body, "%!") {
-		t.Error("the detail renders a formatting error")
+		t.Error("the log renders a formatting error")
 	}
 }
 
@@ -446,8 +441,8 @@ func TestActivityShowsAResultsGrid(t *testing.T) {
 	}
 }
 
-// A rename shows both names, which is the whole reason to open the row.
-func TestActivityDetailShowsARename(t *testing.T) {
+// A rename shows both names in the stored detail.
+func TestActivityShowsARename(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
@@ -459,37 +454,33 @@ func TestActivityDetailShowsARename(t *testing.T) {
 		t.Fatalf("rename = %d", rec.Code)
 	}
 
-	list := fetchAs(t, srv, "/admin/activity?kind=players", session).Body.String()
-	href := regexp.MustCompile(`/admin/activity/(\d+)`).FindString(list)
-	body := fetchAs(t, srv, href, session).Body.String()
-
+	body := fetchAs(t, srv, "/admin/activity?kind=players", session).Body.String()
 	if !strings.Contains(body, "Renamed") {
-		t.Error("the detail does not show the new name")
+		t.Error("the log does not show the new name")
 	}
 	if !strings.Contains(body, "Harda") {
-		t.Error("the detail does not show the name it replaced")
+		t.Error("the log does not show the name it replaced")
 	}
 }
 
-// The detail is admin-only and bounded to what the log surfaces, or it
-// becomes a way to read rows the list deliberately filters out.
-func TestActivityDetailIsGuarded(t *testing.T) {
+// A row opens in place to everything recorded, so there is no page of its
+// own to link to: it showed nothing the opened row does not.
+func TestActivityHasNoPageOfItsOwn(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
 	seedBoard(t, srv)
-	member := seedLogin(t, srv, "member@example.tld", false)
-	memberSession := signIn(t, srv, member.ID)
 	_, session := adminSession(t, srv)
 
-	if got := fetchAs(t, srv, "/admin/activity/1", memberSession).Code; got != http.StatusNotFound {
-		t.Errorf("as a member = %d, want 404", got)
+	if rec := postAdmin(t, srv, "/admin/players/harda",
+		url.Values{"name": {"Renamed"}, "slug": {"harda"}, "active": {"1"}}, session); rec.Code != http.StatusSeeOther {
+		t.Fatalf("rename = %d", rec.Code)
 	}
-	if got := fetchAs(t, srv, "/admin/activity/999999", session).Code; got != http.StatusNotFound {
-		t.Errorf("unknown id = %d, want 404", got)
+	if list := fetchAs(t, srv, "/admin/activity", session).Body.String(); regexp.MustCompile(`/admin/activity/\d`).MatchString(list) {
+		t.Error("a row still links to a page of its own")
 	}
-	if got := fetchAs(t, srv, "/admin/activity/not-a-number", session).Code; got != http.StatusNotFound {
-		t.Errorf("non-numeric id = %d, want 404", got)
+	if got := fetchAs(t, srv, "/admin/activity/1", session).Code; got != http.StatusNotFound {
+		t.Errorf("GET /admin/activity/1 = %d, want 404", got)
 	}
 }
 

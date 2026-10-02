@@ -84,7 +84,6 @@ func (s *Server) routes() http.Handler {
 
 	mux.HandleFunc("GET /admin/activity", s.requireAdmin(s.handleAdminActivity))
 	mux.HandleFunc("GET /admin/diagnostics", s.requireAdmin(s.handleAdminDiagnostics))
-	mux.HandleFunc("GET /admin/activity/{id}", s.requireAdmin(s.handleAdminActivityDetail))
 	mux.HandleFunc("GET /admin/pending", s.requireAdmin(s.handleAdminPending))
 	mux.HandleFunc("POST /admin/pending/assign", s.requireAdmin(s.handleAdminPendingAssign))
 	mux.HandleFunc("POST /admin/pending/discard", s.requireAdmin(s.handleAdminPendingDiscard))

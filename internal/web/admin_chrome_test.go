@@ -348,13 +348,6 @@ func TestEveryAdminScreenCarriesTheSectionBar(t *testing.T) {
 		"/admin/diagnostics": "Diagnostics",
 	}
 
-	// And the detail, which reports the section it was opened from while
-	// keeping its own heading below the bar.
-	list := fetchAs(t, srv, "/admin/activity", session).Body.String()
-	if href := regexp.MustCompile(`/admin/activity/(\d+)`).FindString(list); href != "" {
-		screens[href] = "Activity log"
-	}
-
 	for path, section := range screens {
 		body := fetchAs(t, srv, path, session).Body.String()
 		if n := strings.Count(body, `<nav class="admin-tabs"`); n != 1 {

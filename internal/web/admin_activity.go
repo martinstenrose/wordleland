@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 	"github.com/martinstenrose/wordleland/internal/bridge"
 	"github.com/martinstenrose/wordleland/internal/i18n"
 	"github.com/martinstenrose/wordleland/internal/store"
+	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
 // activityLimit bounds the page. The log grows with every write, and an
@@ -16,9 +18,6 @@ import (
 const activityLimit = 120
 
 type activityRow struct {
-	// Href opens the detail behind the row, on a page of its own.
-	Href string
-
 	Kind  string
 	Tag   string
 	Text  string
@@ -155,7 +154,6 @@ func (s *Server) activityRowFor(e store.Event, t translator) activityRow {
 		Tag:   t.T("activity.tag." + e.Kind),
 		When:  absoluteTime(e.At),
 		Text:  t.T("activity.action." + e.Action),
-		Href:  "/admin/activity/" + strconv.FormatInt(e.ID, 10),
 		Icon:  activityFilterIcons[e.Kind],
 		Clock: e.At.Local().Format("15:04"),
 		JSON:  indentJSON(e.Detail),
@@ -275,4 +273,48 @@ func sinceText(t translator, when time.Time, now time.Time) string {
 	default:
 		return t.TN("activity.daysAgo", days)
 	}
+}
+
+// scorelineFrom renders a result the way the group writes it.
+func scorelineFrom(detail map[string]any) string {
+	solved, ok := detail["solved"].(bool)
+	if !ok {
+		return ""
+	}
+	guesses := "X"
+	if solved {
+		n, ok := detail["guesses"].(float64)
+		if !ok {
+			return ""
+		}
+		guesses = strconv.Itoa(int(n))
+	}
+	line := guesses + "/" + strconv.Itoa(wordle.MaxGuesses)
+	if hard, _ := detail["hard_mode"].(bool); hard {
+		line += "*"
+	}
+	return line
+}
+
+// indentJSON pretty-prints the stored detail, leaving it untouched when it
+// will not parse — the point of showing it raw is that it is what is
+// stored, so a value that is not valid JSON must still be visible.
+func indentJSON(raw string) string {
+	var out bytes.Buffer
+	if err := json.Indent(&out, []byte(raw), "", "  "); err != nil {
+		return raw
+	}
+	return out.String()
+}
+
+// absoluteTime spells a timestamp out, and is the only place that decides
+// how.
+//
+// Local, because the reader wants the deployment's clock rather than
+// whatever offset happened to be stored — a row written before TZ was set,
+// or on the other side of a DST change, still reads correctly. And the
+// offset is printed, because "09:15" alone leaves an admin comparing this
+// against a Signal timestamp with no way to tell CEST from UTC.
+func absoluteTime(at time.Time) string {
+	return i18n.Timestamp(at)
 }

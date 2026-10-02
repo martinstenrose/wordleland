@@ -299,7 +299,7 @@ func TestInvitedUserIsNotAnAdmin(t *testing.T) {
 	// something they are being told they cannot have.
 	for _, path := range []string{
 		"/admin/players", "/admin/players/harda",
-		"/admin/pending", "/admin/activity", "/admin/activity/1",
+		"/admin/pending", "/admin/activity",
 	} {
 		if got := fetchAs(t, srv, path, session).Code; got != http.StatusNotFound {
 			t.Errorf("GET %s as an invited user = %d, want 404", path, got)

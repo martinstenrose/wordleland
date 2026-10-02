@@ -296,7 +296,7 @@ func ListActivity(ctx context.Context, q Querier, kind string, limit int) ([]Eve
 	return events, total, rows.Err()
 }
 
-// ActivityEvent reads one event by id, for the detail behind a row.
+// ActivityEvent reads one event by id, for the CLI's `activity show`.
 func ActivityEvent(ctx context.Context, q Querier, id int64) (Event, error) {
 	var e Event
 	err := q.QueryRowContext(ctx, activitySelect+`
