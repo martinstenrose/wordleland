@@ -88,11 +88,17 @@ func TestTheModelIsToldOnlyNamesAndTheDate(t *testing.T) {
 	if seen.Context != "" || seen.ContextDate != "" {
 		t.Errorf("context = %q/%q on a question that replies to nothing", seen.Context, seen.ContextDate)
 	}
+	if seen.Previous != nil {
+		t.Errorf("previous = %+v on the first question asked", seen.Previous)
+	}
 	// The Prompt type is the contract: a new field here is a new thing the
 	// model is told, and this test is where that is decided. Context is the
 	// bot's own post when the question replies to one — words this app
-	// wrote — and ContextDate the day that post is about.
-	_ = Prompt{Question: "", Asker: "", Players: nil, Today: seen.Today, Context: "", ContextDate: ""}
+	// wrote — and ContextDate the day that post is about. Previous is the
+	// request the last question became: kinds, spans and players' names,
+	// never the words of the question or who asked it.
+	_ = Prompt{Question: "", Asker: "", Players: nil, Today: seen.Today, Context: "", ContextDate: "",
+		Previous: nil}
 }
 
 // A question asked as a reply to one of the bot's posts brings that post

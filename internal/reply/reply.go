@@ -23,6 +23,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/martinstenrose/wordleland/internal/bridge"
@@ -239,6 +240,65 @@ type Prompt struct {
 	// the post names a puzzle. Worked out here, not by the model: a puzzle
 	// number is a date by arithmetic, and the model would only guess.
 	ContextDate string
+
+	// Previous is the last question the bot answered in the group, as the
+	// request it became, when that was minutes ago: what "and Bo?" or
+	// "och förra månaden?" follows on from. The request only — what was
+	// asked, about whom, over which span — never the words of the
+	// question, nor who asked it.
+	Previous *Request
+}
+
+// followUpWindow is how long a question stays the one a follow-up follows.
+// A chat moves on; "and Bo?" an hour later is about something else.
+const followUpWindow = 10 * time.Minute
+
+// lastAnswered is the bot's memory of the group's conversation: the last
+// question it answered, and when. One for the group rather than one per
+// member, because a follow-up is as often somebody else's — "och jag
+// då?" — as the asker's own.
+type lastAnswered struct {
+	mu  sync.Mutex
+	req Request
+	at  time.Time
+}
+
+// recall is the request a follow-up asked now would follow, or nil.
+func (l *lastAnswered) recall(now time.Time) *Request {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.at.IsZero() || now.Sub(l.at) > followUpWindow {
+		return nil
+	}
+	req := l.req
+	return &req
+}
+
+// remember keeps an answered request as the one to follow. A thank-you,
+// a help request or a question the bot could not place is no question to
+// follow on from, and leaves the one before it standing.
+func (l *lastAnswered) remember(req Request, now time.Time) {
+	if followed := followable(req); followed != nil {
+		l.mu.Lock()
+		l.req, l.at = *followed, now
+		l.mu.Unlock()
+	}
+}
+
+// followable is the part of a request a follow-up follows: the last
+// question it answered, since "and Bo?" after "who leads, and is my
+// streak going?" is about the streak. Nil for a request that answered no
+// question.
+func followable(req Request) *Request {
+	if len(req.Also) > 0 {
+		req = req.Also[len(req.Also)-1]
+	}
+	req.Also = nil
+	switch req.Kind {
+	case KindUnknown, KindHelp, KindThanks:
+		return nil
+	}
+	return &req
 }
 
 // keepUnanswered records a question the bot could not place, so a kind
@@ -285,6 +345,9 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
 
 	t := i18n.NewTranslator(cats, locale)
 
+	// The question a follow-up asked next would follow on from.
+	var last lastAnswered
+
 	return func(ctx context.Context, senderUUID, question, quoted string, mentioned []string) error {
 		// Each mention is a placeholder in the text standing for an
 		// account. The bot's own becomes nothing — it is the address, not
@@ -319,7 +382,7 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
 			return fmt.Errorf("resolve asker: %w", err)
 		}
 
-		req, text, err := placeAndAnswer(ctx, db, t, interp, asker, question, quoted)
+		req, text, err := placeAndAnswer(ctx, db, t, interp, asker, question, quoted, last.recall(time.Now()))
 		switch {
 		case errors.Is(err, ErrNotReady):
 			return send(ctx, t.T("reply.notready"))
@@ -344,6 +407,7 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
 		if req.Kind == KindUnknown {
 			keepUnanswered(ctx, db, logger, question)
 		}
+		last.remember(req, time.Now())
 		return send(ctx, text)
 	}
 }
@@ -355,8 +419,9 @@ var errNotPlaced = errors.New("interpret question")
 // placeAndAnswer is the bot's work on one question, short of posting it:
 // the model places it, and the history answers it. It reads and writes
 // nothing else, so the bot and `wordleland ask` give the same answer.
+// previous is the request the question may follow on from, or nil.
 func placeAndAnswer(ctx context.Context, db *sql.DB, t i18n.Translator, interp Interpreter,
-	asker *store.Player, question, quoted string) (Request, string, error) {
+	asker *store.Player, question, quoted string, previous *Request) (Request, string, error) {
 
 	players, err := store.ListPlayers(ctx, db)
 	if err != nil {
@@ -371,6 +436,9 @@ func placeAndAnswer(ctx context.Context, db *sql.DB, t i18n.Translator, interp I
 		names = append(names, p.Name)
 	}
 	prompt := Prompt{Question: question, Players: names, Today: time.Now()}
+	if previous != nil {
+		prompt.Previous = followable(*previous)
+	}
 	if asker != nil {
 		prompt.Asker = asker.Name
 	}
@@ -436,11 +504,12 @@ func withAsker(req Request, asker *store.Player) Request {
 
 // Ask places and answers one question as the bot would for the player
 // named — nobody, when the name is empty — and returns the request and
-// the answer rather than posting anything. Nothing is written either: a
-// question it could not place is not kept, since whoever runs this is
-// trying the bot out, not asking the group.
+// the answer rather than posting anything. previous is the request of a
+// question asked just before, for trying a follow-up, or nil. Nothing is
+// written either: a question it could not place is not kept, since
+// whoever runs this is trying the bot out, not asking the group.
 func Ask(ctx context.Context, db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
-	player, question string) (Request, string, error) {
+	player string, previous *Request, question string) (Request, string, error) {
 
 	t := i18n.NewTranslator(cats, locale)
 	var asker *store.Player
@@ -455,5 +524,5 @@ func Ask(ctx context.Context, db *sql.DB, cats i18n.Catalogues, locale string, i
 		}
 		asker = &p
 	}
-	return placeAndAnswer(ctx, db, t, interp, asker, strings.TrimSpace(question), "")
+	return placeAndAnswer(ctx, db, t, interp, asker, strings.TrimSpace(question), "", previous)
 }
