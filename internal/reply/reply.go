@@ -283,7 +283,9 @@ var ErrNotReady = errors.New("the language model is not ready yet")
 func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
 	send func(ctx context.Context, text string) error, logger *slog.Logger) func(context.Context, string, string, string, []string) error {
 
-	t := i18n.NewTranslator(cats, locale)
+	// Rotating, so a line written more than one way is said in its next
+	// wording each time the group hears it.
+	t := i18n.NewTranslator(cats, locale).Rotating()
 
 	return func(ctx context.Context, senderUUID, question, quoted string, mentioned []string) error {
 		// Each mention is a placeholder in the text standing for an
@@ -328,7 +330,7 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
 			// whether or not the apology lands: it is the thing to fix.
 			// Kept with the unplaced questions: whatever it was, the bot
 			// did not answer it.
-			_ = send(ctx, t.T("reply.failed"))
+			_ = send(ctx, t.Vary("reply.failed"))
 			keepUnanswered(ctx, db, logger, question)
 			return err
 		case err != nil:

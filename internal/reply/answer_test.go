@@ -102,7 +102,12 @@ func TestAnswers(t *testing.T) {
 			// "How am I doing" — the model names the asker, by the prompt.
 			name: "the asker's own standing", asker: &bo,
 			req:  Request{Kind: KindStanding, Span: SpanMonth, Player: "Bo"},
-			want: "Bo: place 2 of 2 (September), 4.20 on average over 15 games.",
+			want: "You're in place 2 of 2 (September), 4.20 on average over 15 games. 120 points behind Alma.",
+		},
+		{
+			name: "somebody else's standing", asker: &alma,
+			req:  Request{Kind: KindStanding, Span: SpanMonth, Player: "Bo"},
+			want: "Bo: place 2 of 2 (September), 4.20 on average over 15 games. 120 points behind Alma.",
 		},
 		{
 			name: "a first name for a full one",

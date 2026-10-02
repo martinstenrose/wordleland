@@ -2334,6 +2334,19 @@ runs without the database. A unit test holds that every kind has a
 question and that each question's own answer would pass, so a miss is
 the model's, not the test's.
 
+**An answer talks like somebody in the chat, still in the catalogue's
+words.** Three things made answers read as a printout. The asker heard
+their own name read back ("Bo: place 2 of 2"); asked about themselves
+they are now answered as "you". A place was a bare number; a standing
+now says the gap that makes it a race — points clear, level with whom,
+points behind whom — and the month's lead gets the one remark that is
+true, the first of: the asker is the leader, the race is within a tenth
+of a guess with days to go, today settles it. And a stock line came out
+the same every time; a line may now be written more than one way
+("key", "key.2", …), and the bot says the next wording each time. Every
+wording is still written by hand and true whichever is said, and a test
+translator always says the first, so answers stay pinned.
+
 ## CI and security scanning
 
 **CodeQL's `go/log-injection` alerts on `internal/web` are false positives,

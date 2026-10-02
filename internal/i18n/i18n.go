@@ -19,7 +19,9 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
+	"sync"
 )
 
 // localeFS holds one JSON file per locale.
@@ -81,6 +83,15 @@ type Translator struct {
 	Locale   string
 	strings  Catalogue
 	fallback Catalogue
+	// turns is where Vary keeps its place, shared by every copy of a
+	// Translator made with Rotating; nil for one that never rotates.
+	turns *turns
+}
+
+// turns is the next variant to say for each key.
+type turns struct {
+	mu   sync.Mutex
+	next map[string]int
 }
 
 // NewTranslator builds a Translator for locale, falling back to Default
@@ -106,6 +117,38 @@ func (t Translator) T(key string, args ...any) string {
 		return format
 	}
 	return Sprintf(t.Locale, format, args...)
+}
+
+// Rotating is the translator with a memory for Vary, so a line said with
+// it comes out in its next wording each time. Copies share the memory.
+func (t Translator) Rotating() Translator {
+	t.turns = &turns{next: map[string]int{}}
+	return t
+}
+
+// Vary is T for a line written more than one way: key, then "key.2",
+// "key.3" and on for as long as the locale has them, each said in turn so
+// the same words do not come twice running. Without Rotating it is always
+// key itself, which is what a test pins.
+func (t Translator) Vary(key string, args ...any) string {
+	if t.turns == nil {
+		return t.T(key, args...)
+	}
+	count := 1
+	for {
+		if _, ok := t.strings[key+"."+strconv.Itoa(count+1)]; !ok {
+			break
+		}
+		count++
+	}
+	t.turns.mu.Lock()
+	n := t.turns.next[key] % count
+	t.turns.next[key] = n + 1
+	t.turns.mu.Unlock()
+	if n == 0 {
+		return t.T(key, args...)
+	}
+	return t.T(key+"."+strconv.Itoa(n+1), args...)
 }
 
 func (t Translator) Integer(value int) string {

@@ -87,7 +87,7 @@ func profile(t i18n.Translator, req Request, asker *store.Player,
 	season := stats.ComputeSeason(stats.ComputeMonths(players, results, stats.DefaultOptions(now)), now)
 	for _, row := range season.Rows {
 		if row.ID == p.ID && row.Wins > 0 {
-			lines = append(lines, "🏆 "+winsOf(t, p.Name, row.Wins))
+			lines = append(lines, "🏆 "+winsOf(t, p.Name, row.Wins, false))
 		}
 	}
 	return strings.Join(lines, "\n")
