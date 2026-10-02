@@ -214,9 +214,11 @@ docker compose exec app /wordleland questions list
 **Trying another model** is measured, not guessed. `placing-test` asks a
 model a fixed set of questions — every kind, mostly in Swedish, two-in-one
 questions among them — and reports each one it placed wrongly, a score,
-and how long a question took. The first question's time against the
-median says whether the server reuses its work on the fixed instructions.
-Several models are compared in one run, and one the server lacks is
+and how long a question took. It also says whether the prompt cache
+works — whether the server reads the fixed instructions once and then
+only each question — from the server's own timings: the first question's
+reading against the rest. Without it every answer waits tens of seconds
+on a CPU. Several models are compared in one run, and one the server lacks is
 pulled first:
 
 ```sh
