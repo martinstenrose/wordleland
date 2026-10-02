@@ -50,13 +50,16 @@ jobs:
             Its head commit is ${{ github.event.pull_request.head.sha }}.
 
             Use the gh CLI for GitHub (`gh pr view`, `gh pr diff`); do not use web fetch.
-            Read AGENTS.md and any CLAUDE.md in the repository root or in a
-            directory the PR touches: they are the project's rules.
+            The project's rules are in its agent instructions (AGENTS.md, and
+            any CLAUDE.md in the repository root or in a directory the PR
+            touches) and its documentation (README.md and docs/). Read them.
 
             1. Read the PR's title, description and diff.
             2. Look for issues, in parallel subagents where it helps:
-               - rule violations: a change that breaks a rule in AGENTS.md or
-                 CLAUDE.md, where you can quote the rule;
+               - rule violations: a change that breaks a rule in the agent
+                 instructions or the documentation, where you can quote the rule;
+               - stale documentation: README.md or docs/ saying something the
+                 change makes untrue, where you can quote the sentence;
                - bugs: code that will not compile, or that gives wrong results
                  whatever the input, or a security problem in the changed lines.
                Only high-signal issues. Do not flag style, nitpicks, pre-existing
@@ -77,7 +80,7 @@ jobs:
 
                Reviewed at <short head sha>.
 
-               Then either "No issues found. Checked for bugs and AGENTS.md / CLAUDE.md compliance."
+               Then either "No issues found. Checked for bugs and compliance with documentation and agent instructions."
                or a numbered list of the issues, one line each, linking to the
                code as https://github.com/${{ github.repository }}/blob/<full head sha>/<path>#L<start>-L<end>.
 
