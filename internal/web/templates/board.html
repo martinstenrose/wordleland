@@ -20,8 +20,9 @@
       {{range .Ranges}}<a class="{{if .On}}on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
     </nav>
     {{/* The rules, as one menu: which games count, and what a result is
-         worth. Every row flips one rule and keeps the rest of the query. */}}
-    <details class="menu ranking" name="menu-group">
+         worth. Every row flips one rule and keeps the rest of the query,
+         and the board it leads to arrives with the menu open. */}}
+    <details class="menu ranking" name="menu-group"{{if .Ranking.Open}} open{{end}}>
       <summary class="menu-btn ranking-btn{{if .Ranking.Custom}} custom{{end}}" aria-label="{{.T.T "board.ranking.label"}}: {{.Ranking.State}}">
         {{symbol "tune" 17}}
         {{/* Dropped on a phone, where the range and this share one row. */}}

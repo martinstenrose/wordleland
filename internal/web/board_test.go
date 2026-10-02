@@ -815,36 +815,55 @@ func TestPartialNeverSurvivesIntoALink(t *testing.T) {
 	}
 }
 
-// Every change to the ranking says what it did, with a way back: the link
-// carries the query it changes from, and the toast's Undo goes there. The
-// note belongs to that one change, so no link on the page carries it on.
-func TestARankingChangeLeavesAToastWithUndo(t *testing.T) {
+// A rule in the ranking menu leads to a board with the menu still open and
+// no toast: the menu shows what changed, and the row is the way back. The
+// reset, which can change several rules and takes its own button away,
+// leaves a toast whose Undo goes back to the board as it was. Either belongs
+// to that one change, so no link on the page carries it on.
+func TestARankingChangeKeepsTheMenuOpen(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
+	const openMenu = `<details class="menu ranking" name="menu-group" open>`
 
 	board := fetchAs(t, srv, "/leaderboard?range=90", session).Body.String()
+	if strings.Contains(board, openMenu) {
+		t.Error("the menu is open on a board nobody changed")
+	}
 	link := regexp.MustCompile(`href="(/leaderboard\?[^"]*changed=hard[^"]*)"`).FindStringSubmatch(board)
 	if link == nil {
 		t.Fatal("the hard-mode row does not mark its link as a change")
 	}
-	href := html.UnescapeString(link[1])
-
-	after := fetchAs(t, srv, href, session).Body.String()
-	if !strings.Contains(after, "Counting hard-mode games only.") {
-		t.Error("the change left no toast saying what it did")
+	after := fetchAs(t, srv, html.UnescapeString(link[1]), session).Body.String()
+	if !strings.Contains(after, openMenu) {
+		t.Error("a rule changed from the menu arrives with the menu shut")
 	}
-	if !strings.Contains(after, `<a class="toast-undo" href="/leaderboard?range=90">`) {
+	if strings.Contains(after, `class="toast`) {
+		t.Error("a rule changed from the menu leaves a toast")
+	}
+	if strings.Contains(after, "changed=hard&amp;changed=") || strings.Contains(after, "changed=reset&amp;changed=") {
+		t.Error("a link on the changed board carries the change on")
+	}
+
+	reset := regexp.MustCompile(`href="(/leaderboard\?[^"]*changed=reset[^"]*)"`).FindStringSubmatch(after)
+	if reset == nil {
+		t.Fatal("the reset does not mark its link as a change")
+	}
+	back := fetchAs(t, srv, html.UnescapeString(reset[1]), session).Body.String()
+	if !strings.Contains(back, "Ranking back to default.") {
+		t.Error("the reset left no toast saying what it did")
+	}
+	if !strings.Contains(back, `<a class="toast-undo" href="/leaderboard?mode=hard&amp;range=90">`) {
 		t.Error("the toast's Undo does not go back to the board as it was")
 	}
-	if !strings.Contains(after, `<a class="toast-close" href="/leaderboard?mode=hard&amp;range=90"`) {
+	if !strings.Contains(back, `<a class="toast-close" href="/leaderboard?range=90"`) {
 		t.Error("the toast's close does not go to the same board without the note")
 	}
 
 	for _, bad := range []string{"https://example.tld", "//example.tld"} {
-		body := fetchAs(t, srv, "/leaderboard?changed=hard&undo="+url.QueryEscape(bad), session).Body.String()
+		body := fetchAs(t, srv, "/leaderboard?changed=reset&undo="+url.QueryEscape(bad), session).Body.String()
 		if strings.Contains(body, `href="`+bad) || strings.Contains(body, `href="/leaderboard`+bad) {
 			t.Errorf("undo=%s was followed rather than ignored", bad)
 		}

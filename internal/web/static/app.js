@@ -467,6 +467,15 @@ var onPageChange = (function () {
     // reply is confirmed or corrected by the lines above, and there is
     // nothing left to put back.
     if (detail.shouldSwap !== false) settleAhead(detail.xhr);
+    // A page can arrive with a menu open — the board after a rule pressed
+    // in its ranking menu (board.go's ruleLink). htmx puts the new body in
+    // before it takes the old one out, and a <details name> opening while
+    // another of its name is open shuts itself, as an accordion does. The
+    // departing menus stop being a group: they look the same until they
+    // are gone, which also keeps the cross-fade from fading a menu out.
+    if (detail.shouldSwap !== false) {
+      document.querySelectorAll("details[name][open]").forEach(function (d) { d.removeAttribute("name"); });
+    }
   });
 
   // And the address. htmx (2.0.10) decides whether a boosted swap pushes
@@ -530,14 +539,13 @@ var onPageChange = (function () {
   function focusRule(link) {
     var ranking = link.closest(".ranking-panel");
     if (ranking) {
-      // A board reached by following this link arrives with its menu shut,
-      // which is right for a link. Here the menu was open and the reader may
-      // well have a second rule to set.
+      // The board arrives with the menu open (board.go's ruleLink), and the
+      // reader may well have a second rule to set, so the row they chose
+      // keeps the focus.
       var index = Array.prototype.indexOf.call(ranking.querySelectorAll("a"), link);
       return function () {
         var menu = document.querySelector("details.ranking");
-        if (!menu) return false;
-        menu.open = true;
+        if (!menu || !menu.open) return false;
         var row = menu.querySelectorAll(".ranking-panel a")[index];
         if (row) placeFocus(row);
         return true;
