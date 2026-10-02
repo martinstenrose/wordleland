@@ -1321,7 +1321,7 @@ func TestBrowserThePageScrollsUnderTheBar(t *testing.T) {
 func TestBrowserTheBottomOfAPhoneIsEmpty(t *testing.T) {
 	site := newSite(t)
 	p := site.open(newBrowser(t), phoneWidth)
-	for _, path := range []string{"/today", "/leaderboard", "/players", "/admin/pending", "/leaderboard?changed=hard&undo=&mode=hard"} {
+	for _, path := range []string{"/today", "/leaderboard", "/players", "/admin/pending", "/leaderboard?changed=reset&undo=%3Fmode%3Dhard"} {
 		p.Navigate(site.base + path)
 		pinned := p.Strings(`[...document.querySelectorAll("body *")].filter(el => {
 			const s = getComputedStyle(el);
@@ -1652,6 +1652,30 @@ func TestBrowserTheGridPicksOutAColumn(t *testing.T) {
 	p.Click(`th.gc-0 label.hi-off`)
 	if got := read(); len(got.Second) != 1 || got.Second[0] != "1" {
 		t.Errorf("pressing the name again left the columns at %+v, want them all back", got)
+	}
+}
+
+// A rule pressed in the ranking menu swaps in a board whose menu is already
+// open. Reopened by script once the swap had settled, the panel was shut in
+// the page the cross-fade faded to, so it faded out and popped back in.
+func TestBrowserARankingRuleKeepsTheMenuOpenThroughTheSwap(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), phoneWidth)
+	p.Navigate(site.base + "/leaderboard")
+	p.Eval(`document.querySelector("details.ranking").open = true;
+		document.querySelector("main").__stale = true;
+		document.addEventListener("htmx:afterSwap", () => {
+			const menu = document.querySelector("details.ranking");
+			window.__openOnSwap = !!(menu && menu.open);
+		}, { once: true }); true`)
+	p.Click(".ranking-panel a:not(.on)")
+	p.WaitFor(`!(document.querySelector("main") || {}).__stale`)
+	p.WaitFor(`window.__openOnSwap !== undefined`)
+	if p.Eval(`window.__openOnSwap`) != true {
+		t.Error("the board swapped in with the ranking menu shut")
+	}
+	if p.Eval(`!!document.querySelector(".toast")`) != false {
+		t.Error("a rule changed from the menu left a toast")
 	}
 }
 

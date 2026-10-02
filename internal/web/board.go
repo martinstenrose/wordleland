@@ -20,8 +20,8 @@ import (
 type boardPage struct {
 	chrome
 
-	// Toast says what a change to the ranking just did, with its way back;
-	// nil when the page was not reached by one. See boardChange.
+	// Toast says the ranking is back to default, with the way back to how it
+	// was; nil when the page was not reached by the reset. See boardChange.
 	Toast *boardToast
 
 	Board stats.Board
@@ -243,9 +243,12 @@ type rankingMenu struct {
 	// puts them all back.
 	Custom    bool
 	ResetHref string
+	// Open is set when the page was reached from the menu itself, which
+	// then arrives open. See ruleLink.
+	Open bool
 }
 
-func rankingMenuFor(t translator, q boardQuery, boardPath string) rankingMenu {
+func rankingMenuFor(t translator, q boardQuery, boardPath string, open bool) rankingMenu {
 	state := t.T("board.ranking.custom")
 	switch {
 	case q.IsDefault():
@@ -257,12 +260,13 @@ func rankingMenuFor(t translator, q boardQuery, boardPath string) rankingMenu {
 	menu := rankingMenu{
 		State:  state,
 		Custom: !q.IsDefault(),
+		Open:   open,
 		Groups: []rankingGroup{{
 			Kicker: t.T("board.ranking.games"),
 			Rows: []rankingRow{{
 				Label: t.T("board.ranking.hardOnly"),
 				Hint:  t.T("board.ranking.hardOnlyHint"),
-				Href:  changeLink(boardPath+q.HardModeHref(), "hard", q.Href()),
+				Href:  ruleLink(boardPath+q.HardModeHref(), "hard"),
 				On:    q.HardModeOnly,
 			}},
 		}, {
@@ -270,12 +274,12 @@ func rankingMenuFor(t translator, q boardQuery, boardPath string) rankingMenu {
 			Rows: []rankingRow{{
 				Label: t.T("board.toggle.countX"),
 				Hint:  t.T("board.ranking.countXHint"),
-				Href:  changeLink(boardPath+q.CountXHref(), "failed", q.Href()),
+				Href:  ruleLink(boardPath+q.CountXHref(), "failed"),
 				On:    q.CountXAsSeven,
 			}, {
 				Label: t.T("board.toggle.countMissed"),
 				Hint:  t.T("board.ranking.countMissedHint"),
-				Href:  changeLink(boardPath+q.CountMissedHref(), "missed", q.Href()),
+				Href:  ruleLink(boardPath+q.CountMissedHref(), "missed"),
 				On:    q.CountMissed,
 			}},
 		}},
@@ -284,25 +288,44 @@ func rankingMenuFor(t translator, q boardQuery, boardPath string) rankingMenu {
 		menu.ResetHref = boardPath + q.with(func(n *boardQuery) {
 			n.HardModeOnly, n.CountXAsSeven, n.CountMissed = false, true, false
 		})
-		menu.ResetHref = changeLink(menu.ResetHref, "reset", q.Href())
+		menu.ResetHref = resetLink(menu.ResetHref, q.Href())
 	}
 	return menu
 }
 
-// boardToast is the note a change to the ranking leaves: what it did, and
-// a link back to how it was. Close is the same board without the note.
+// boardToast is the note the reset leaves: what it did, and a link back to
+// how it was. Close is the same board without the note.
 type boardToast struct {
 	Text, Undo, Close string
 }
 
-// changeLink marks a control's link as a change, carrying the query it
-// changes from (back, "" or "?…") so the page it lands on can offer Undo.
-// The design has a toast with Undo after every ranking change; there is
-// no script to remember the earlier state, so the link does.
-func changeLink(href, code, back string) string {
+// ruleLink marks a link in the ranking menu, so the board it lands on
+// arrives with the menu open: the reader may well have a second rule to
+// set. Rendering it open matters with a script too — a board that arrived
+// with the menu shut and had it reopened afterwards faded the panel out
+// through the page's cross-fade and back in once it had finished.
+//
+// A rule has no toast: the open menu already shows what changed, and the
+// row that changed it is the way back.
+func ruleLink(href, code string) string {
 	v := url.Values{}
 	v.Set("changed", code)
+	return withQuery(href, v)
+}
+
+// resetLink is ruleLink for the reset, which also carries the query it
+// changes from (back, "" or "?…") so the board can offer Undo: the reset
+// can change several rules at once and takes its own button away, so
+// there is no one row to press to get back. There is no script to
+// remember the earlier state, so the link does.
+func resetLink(href, back string) string {
+	v := url.Values{}
+	v.Set("changed", "reset")
 	v.Set("undo", back)
+	return withQuery(href, v)
+}
+
+func withQuery(href string, v url.Values) string {
 	switch {
 	case strings.HasSuffix(href, "?"):
 		return href + v.Encode()
@@ -312,29 +335,14 @@ func changeLink(href, code, back string) string {
 	return href + "?" + v.Encode()
 }
 
-// boardChange words the toast for a change that has just been made, from
-// the state it produced. undo is only ever a query string: anything else in
-// it is ignored rather than followed.
-func boardChange(t translator, changed, undo string, q boardQuery, boardPath string, recent bool) *boardToast {
-	var key string
-	switch changed {
-	case "hard":
-		key = map[bool]string{true: "board.toast.hardOn", false: "board.toast.hardOff"}[q.HardModeOnly]
-	case "failed":
-		key = map[bool]string{true: "board.toast.failedOn", false: "board.toast.failedOff"}[q.CountXAsSeven]
-	case "missed":
-		key = map[bool]string{true: "board.toast.missedOn", false: "board.toast.missedOff"}[q.CountMissed]
-	case "reset":
-		key = "board.toast.reset"
-	case "range":
-		if recent {
-			return &boardToast{Text: t.T("board.toast.recent", boardRecent), Undo: undoHref(boardPath, undo), Close: boardPath + q.Href()}
-		}
-		key = "board.toast.allTime"
-	default:
+// boardChange words the toast for the reset, which is the only change to
+// the ranking that leaves one. undo is only ever a query string: anything
+// else in it is ignored rather than followed.
+func boardChange(t translator, changed, undo string, q boardQuery, boardPath string) *boardToast {
+	if changed != "reset" {
 		return nil
 	}
-	return &boardToast{Text: t.T(key), Undo: undoHref(boardPath, undo), Close: boardPath + q.Href()}
+	return &boardToast{Text: t.T("board.toast.reset"), Undo: undoHref(boardPath, undo), Close: boardPath + q.Href()}
 }
 
 // undoHref is the board at an earlier query, or "" when undo is not one.
@@ -414,8 +422,9 @@ const moveWindow = 7
 func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boardPath string, readOnly bool) {
 	changed, undo := r.URL.Query().Get("changed"), r.URL.Query().Get("undo")
 	if changed != "" || undo != "" {
-		// Read once, then gone from every link this page builds: the toast
-		// belongs to the change that led here, not to the next one.
+		// Read once, then gone from every link this page builds: the open
+		// menu and the toast belong to the change that led here, not to the
+		// next one.
 		clean := r.URL.Query()
 		clean.Del("changed")
 		clean.Del("undo")
@@ -480,8 +489,8 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boa
 		Prefix:     prefix,
 		BoardPath:  boardPath,
 		Query:      query,
-		Ranking:    rankingMenuFor(t, query, boardPath),
-		Toast:      boardChange(t, changed, undo, query, boardPath, r.URL.Query().Get("range") == strconv.Itoa(boardRecent)),
+		Ranking:    rankingMenuFor(t, query, boardPath, changed != ""),
+		Toast:      boardChange(t, changed, undo, query, boardPath),
 		GroupPath:  template.HTML(sparkPath(full.GroupSeries, sparkWidth, sparkHeight, 0)),
 		MinGames:   stats.MinGames,
 		FormWindow: stats.FormWindow,
@@ -498,10 +507,10 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boa
 	}
 	back := query.Href()
 	page.Ranges = []chromeOpt{
-		{Label: t.T("board.range.all"), Href: changeLink(withoutParam(r, "range"), "range", back), On: !recent},
-		{Label: t.T("board.range.recent", boardRecent), Href: changeLink(urlWith(r, "range", strconv.Itoa(boardRecent)), "range", back), On: recent},
+		{Label: t.T("board.range.all"), Href: withoutParam(r, "range"), On: !recent},
+		{Label: t.T("board.range.recent", boardRecent), Href: urlWith(r, "range", strconv.Itoa(boardRecent)), On: recent},
 	}
-	// The one already in force goes nowhere new, so it says nothing either.
+	// The one already in force goes nowhere new: the board as it is.
 	for i := range page.Ranges {
 		if page.Ranges[i].On {
 			page.Ranges[i].Href = boardPath + back

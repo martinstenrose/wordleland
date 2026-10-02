@@ -1014,12 +1014,18 @@ needs one and is hidden where no clipboard can be written.
 **A toast says what just happened, and closing it is a link.** It floats in
 frosted glass over the foot of a wide window and, on a phone, under the bar:
 the foot of a phone is the browser's (see *The navigation floats*). It
-has **Undo only where the earlier state is an address**: a change to the
-leaderboard's ranking. That link carries the query it changed from
-(`?changed=hard&undo=?range=90`), and only a query string is ever followed
+has **Undo only where the earlier state is an address**: the leaderboard's
+"Back to default". That link carries the query it changed from
+(`?changed=reset&undo=?mode=hard`), and only a query string is ever followed
 from it. The admin area's toasts have none, for the reason under
 *Deliberately not built*: undoing a discard or an assignment is not a return
 to an address but a second act.
+
+The design also had a toast after each single rule in the ranking menu and
+after the range, and they were dropped: the board arrives with the menu
+still open, so the menu itself shows what changed and the row just pressed
+is the way back, and the range is a segmented pair. The reset is different
+— it can change several rules at once and takes its own button with it.
 
 **The admin area has a home, on a phone.** `/admin` is the design's list of
 the five sections, each with a line of state (who is waiting, how many can
@@ -1068,6 +1074,7 @@ so the admin Settings screen groups them with `SIGNAL_*`.
 Where the build departs from the mockups:
 
 - **No Undo on the admin area's toasts**, above.
+- **No toast after a single ranking rule or the range**, above.
 - **"Delete user" switches the login off**, above.
 - **The invitation keeps its language select**: the invitation, and the
   account it starts, are in the recipient's language, not the admin's.
