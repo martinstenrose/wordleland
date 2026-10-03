@@ -74,3 +74,26 @@ func TestTheSchemaNestsOneLevel(t *testing.T) {
 		t.Errorf("further questions are not requests of their own, bounded: %v", also)
 	}
 }
+
+// Only the kind is required, at either level: every other field the model
+// writes is time on a CPU, and one left out means what its zero value
+// means.
+func TestTheSchemaRequiresOnlyTheKind(t *testing.T) {
+	t.Parallel()
+	also := requestSchema["properties"].(map[string]any)["also"].(map[string]any)
+	for name, required := range map[string]any{
+		"a request":         requestSchema["required"],
+		"a further request": also["items"].(map[string]any)["required"],
+	} {
+		if !reflect.DeepEqual(required, []string{"kind"}) {
+			t.Errorf("%s requires %v", name, required)
+		}
+	}
+	got, err := parseRequest(`{"kind":"leader"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, Request{Kind: KindLeader, Span: SpanMonth}) {
+		t.Errorf("a bare kind parses as %+v", got)
+	}
+}
