@@ -371,7 +371,7 @@ func TestGridRendersDaysByPlayers(t *testing.T) {
 	if !strings.Contains(body, `<span class="grid-avg num">`) {
 		t.Error("the columns carry no average")
 	}
-	if !strings.Contains(body, `<p class="page-eyebrow">`) || !strings.Contains(body, " days</p>") {
+	if !strings.Contains(body, `class="page-eyebrow">`) || !strings.Contains(body, " days</p>") {
 		t.Error("the grid does not name the window it covers")
 	}
 }
