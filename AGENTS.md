@@ -146,6 +146,23 @@ commit, including the minor version when it has one. Do not omit the trailer,
 replace it with prose in the pull request, or copy an example's identity when
 a different model did the work.
 
+**Fold a fix into the commit it fixes before a pull request is ready, not
+at merge.** README.md says the history `main` gets is the story of the
+change, not of reaching it. The repository allows no squash merge, so the
+commits a pull request has when it is merged are exactly what `main` gets.
+Several commits are fine when each is its own change — a feature, a fix,
+a refactor — and builds on its own. What must not reach `main` is a commit
+that fixes, corrects, reworks or reverts something introduced earlier in
+the same pull request: fold it into the commit it fixes with `git commit
+--fixup=<sha>`, then `GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash
+origin/main` and `git push --force-with-lease`. Do it before the pull
+request is marked ready (open it as a draft until then) and again after
+every review round that adds such a fix. In a stack of pull requests, fold
+each branch's fixes and rebase the branches above it onto the result. Only
+rewrite a branch you created. An agent that cannot force-push says so and
+leaves the pull request in draft; it does not mark it ready or merge it
+with the fixes still separate.
+
 ## Before a change is done
 
 **A fix gets a test that fails without it.** Then check that it does: remove
