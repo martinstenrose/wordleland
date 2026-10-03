@@ -915,6 +915,11 @@ earlier one referring to it.
 **The history `main` gets is the story of the change, not the story of
 reaching it.** A pull request usually goes through review rounds — a fix
 corrected, an approach reworked, a test adjusted after the first one missed
-something. None of that belongs in `main` once the PR merges: amend or
-squash before merging, so what lands is the commits above — one coherent
-change each, building on the last — not a transcript of how review went.
+something. None of that belongs in `main` once the PR merges. A pull
+request can hold several commits when each is its own change — a feature,
+a fix, a refactor — but a commit that fixes something introduced earlier
+in the same pull request is folded into the commit it fixes (`git commit
+--fixup`, then `git rebase -i --autosquash`) before the pull request is
+marked ready. The repository allows no squash merge, so what lands is the
+commits as they are: one coherent change each, building on the last, not
+a transcript of how review went.
