@@ -47,7 +47,8 @@ func TestAskAnswersAsAPlayer(t *testing.T) {
 	if !strings.Contains(out, `placed as: {"kind":"score","span":"month"}`) {
 		t.Errorf("the placing is not shown:\n%s", out)
 	}
-	if !strings.Contains(out, "Martin, ") || !strings.Contains(out, ": 3/6.") {
+	// Martin's 3, said to him: Bo's is a 5.
+	if !strings.Contains(out, "Du fick 3/6 ") {
 		t.Errorf("not answered as Martin:\n%s", out)
 	}
 	if out := c.mustRun("", "ask", "--url", url, "--model", "test:1b", "vad fick jag?"); !strings.Contains(out, "Who do you mean?") {
