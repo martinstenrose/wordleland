@@ -1,0 +1,69 @@
+{{define "title"}}{{.Title}} — {{.T.T "app.name"}}{{end}}
+{{define "content"}}
+{{/* A player correcting their own result for one day: the score and hard
+     mode as they stand, a reason, and what the group will see. Under it,
+     the corrections already made, which are what the Puzzle page shows
+     everyone. Posts and comes back to the Puzzle page; a rejection comes
+     back here with what was typed. */}}
+<header class="page-head">
+  <div class="page-head-id">
+    <p class="page-eyebrow">{{.Eyebrow}}</p>
+    <h1 class="page-title">{{.Title}}</h1>
+    <p class="page-sub">{{.Sub}}</p>
+  </div>
+</header>
+
+<div class="settings-stack">
+  {{if .Error}}<p class="note error" role="alert">{{.T.T .Error}}</p>{{end}}
+
+  <section class="card settings-card">
+    <div class="settings-card-head">
+      <span class="settings-card-icon">{{symbol "tune" 20}}</span>
+      <span class="settings-card-id">
+        <span class="settings-card-title">{{.T.T "correct.card"}}</span>
+        <span class="settings-card-sub">{{.T.T "correct.cardSub"}}</span>
+      </span>
+    </div>
+    <form method="post" action="{{.Action}}" class="form settings-form">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <label class="field">
+        <span class="field-label">{{.T.T "correct.score"}}</span>
+        <select name="score">
+          {{range .Scores}}<option value="{{.}}"{{if eq . $.Score}} selected{{end}}>{{if eq . "X"}}{{$.T.T "correct.missed"}}{{else}}{{.}}{{end}}</option>{{end}}
+        </select>
+      </label>
+      <label class="switch">
+        <input type="checkbox" name="hard_mode" value="1"{{if .HardMode}} checked{{end}}>
+        <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>
+        <span class="switch-label">
+          <span class="switch-title">{{.T.T "correct.hardMode"}}</span>
+        </span>
+      </label>
+      <label class="field">
+        <span class="field-label">{{.T.T "correct.reasonLabel"}}</span>
+        <input type="text" name="reason" value="{{.Reason}}" maxlength="{{.MaxLen}}">
+        <span class="field-hint">{{.T.T "correct.trailHint"}}</span>
+      </label>
+      <div class="actions">
+        <button class="btn" type="submit">{{.T.T "correct.save"}}</button>
+        <a class="btn secondary" href="{{.Back}}">{{.T.T "correct.cancel"}}</a>
+      </div>
+    </form>
+  </section>
+
+  {{if .Trail}}
+    <section class="card settings-card">
+      <div class="settings-card-head">
+        <span class="settings-card-icon">{{symbol "history" 20}}</span>
+        <span class="settings-card-id">
+          <span class="settings-card-title">{{.T.T "correct.history"}}</span>
+          <span class="settings-card-sub">{{.T.T "correct.historySub"}}</span>
+        </span>
+      </div>
+      <ol class="correct-trail">
+        {{range .Trail}}<li>{{.}}</li>{{end}}
+      </ol>
+    </section>
+  {{end}}
+</div>
+{{end}}

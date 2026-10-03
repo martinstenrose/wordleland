@@ -4,7 +4,9 @@
      day in figures under it, and the day before and after as two round
      buttons opposite. Then everyone who played, best first, each with the
      squares they posted — or, for a day from before grids were kept, a
-     line that says so and the scores alone. */}}
+     line that says so and the scores alone. A score its player corrected
+     says so under their name, every time, for everyone; the reader's own
+     row carries the way to correct it. */}}
 <header class="page-head">
   <div class="page-head-id">
     <p class="page-eyebrow">{{.Eyebrow}}</p>
@@ -29,8 +31,12 @@
           <span class="puzzle-id">
             <a class="player puzzle-name" href="{{.Href}}">{{.Name}}</a>
             <span class="puzzle-sub">{{.Sub}}</span>
+            {{range .Trail}}<span class="puzzle-trail">{{symbol "history" 14}}<span>{{$.T.T "puzzle.corrected" .}}</span></span>{{end}}
           </span>
-          <span class="puzzle-grid">{{template "pattern" (dict "Grid" .Grid "Size" "lg")}}</span>
+          <span class="puzzle-grid">
+            {{template "pattern" (dict "Grid" .Grid "Size" "lg")}}
+            {{with .CorrectHref}}<a class="puzzle-correct" href="{{.}}" aria-label="{{$.T.T "puzzle.correct"}}" title="{{$.T.T "puzzle.correct"}}">{{symbol "tune" 18}}</a>{{end}}
+          </span>
         </li>
       {{end}}
     </ol>

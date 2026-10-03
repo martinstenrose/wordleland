@@ -326,6 +326,26 @@ correction made of it. Nothing is backfilled: the chat history is not
 re-read, so the board has grids from the day this shipped, and the pages say
 so ("Grids recorded since #N") rather than showing earlier days as bare.
 
+**A player may correct their own score, and the group sees that they
+did.** The login linked to a player (`players.user_id`, the grant this file
+always said it would be) can change that player's existing results from the
+Puzzle page — score, miss, hard mode — and nobody else's. Only a result
+already filed: a day with no row stays the bridge's or an admin's.
+
+A correction among friends who compete is only fair if it is visible, so
+each one leaves two trails. The activity log gets a `result.updated` row with
+the player as actor, the previous score, `via: "self"` and the reason they
+gave, like any correction. And the Puzzle page shows every self-correction
+under the player's name, to every reader including the share link: "3 → 4",
+when, and why. The page reads that line out of the activity log rather than
+a second table, so the two cannot disagree; an admin's correction is not
+shown there, since it is not a player marking their own homework.
+
+A correction is written as a human entry, so — like the CLI's — the bridge
+cannot put the old score back by replaying history. One that would write
+the score already there is refused rather than logged, so the trail holds
+only changes.
+
 ## Authentication
 
 **Hand-rolled, and it stays that way.** No self-registration, no OAuth. Every
@@ -1510,10 +1530,11 @@ and esc/Cancel are the design's own and outside the four, like About's close.
 
 ## Deliberately not built
 
-- **Self-report in the browser** — a player filing their own result, by form or
+- **Self-report in the browser** — a player filing a new result, by form or
   by pasting share text. `players.user_id` and the shared parser exist for it;
-  no route does it. Manual entry is the CLI's job. This is the largest thing
-  the original spec promised that v1 does not do.
+  no route does it. Manual entry is the CLI's job. Correcting a result that
+  is already filed *is* built: see "A player may correct their own score"
+  under Identity and ingest.
 
   When it is built, the linked login is what grants it: an account linked to a
   player may add and edit that player's results and nobody else's. There was a
