@@ -29,6 +29,7 @@
           <span class="puzzle-id">
             <a class="player puzzle-name" href="{{.Href}}">{{.Name}}</a>
             <span class="puzzle-sub">{{.Sub}}</span>
+            {{with .Badges}}<span class="grid-badges">{{range .}}{{template "grid-badge" .}}{{end}}</span>{{end}}
           </span>
           <span class="puzzle-grid">{{template "pattern" (dict "Grid" .Grid "Size" "lg")}}</span>
         </li>

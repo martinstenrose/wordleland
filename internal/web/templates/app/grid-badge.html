@@ -1,0 +1,3 @@
+{{/* A badge a grid earned and why, opening on tap like a trait — see
+     app/trait.html. Data: badgeView. */}}
+{{define "grid-badge"}}<details class="trait-pop" name="popup"><summary class="grid-badge" title="{{.Why}}">{{.Name}}</summary><span class="trait-why popup-panel">{{.Why}}</span></details>{{end}}

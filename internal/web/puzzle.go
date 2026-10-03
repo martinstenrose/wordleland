@@ -48,6 +48,9 @@ type puzzleRow struct {
 	Sub       string
 	Direction string
 	Grid      string
+	// Badges are what the grid earned, its own shape and against the
+	// rest of the day's.
+	Badges []badgeView
 }
 
 // handlePuzzle renders /puzzle/{no}, or the current puzzle for a bare
@@ -121,10 +124,19 @@ func (s *Server) handlePuzzle(w http.ResponseWriter, r *http.Request, number, pr
 		averages[p.ID] = p.Average
 	}
 
+	var played []store.BoardResult
+	for _, res := range results {
+		if res.PuzzleNo == n {
+			played = append(played, res)
+		}
+	}
+	badges := stats.DayBadges(played)
+
 	for i, e := range day.Filed {
 		row := puzzleRow{
 			Rank: t.Integer(i + 1), Name: e.Name, Href: prefix + "/players/" + e.Slug,
 			Label: "X", Tone: 7, Direction: "level", Grid: e.Grid,
+			Badges: badgeViews(t, badges[e.ID]),
 		}
 		if e.Solved {
 			row.Label, row.Tone = strconv.Itoa(e.Guesses), e.Guesses

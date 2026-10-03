@@ -156,6 +156,7 @@ plain CSS-class convention: wrap a scrolling table in
 |---|---|---|
 | `topbar.html` | `mark`, `topbar`, `preferences`, `language-row`, `about` | The brand mark, and every reader of `chrome`: the pages, account state, search path, admin flag. |
 | `trait.html` | `trait` | A Wordle result trait and its explanation. |
+| `grid-badge.html` | `grid-badge` | A badge a grid earned and why, shaped like a trait. Not the `badge` partial in `ui/`, which is a status. |
 | `admin.html` | `admin-warning` | Admin-only chrome. |
 | `last-five.html` | `last-five` | A player's last five days as score tiles, each opening its puzzle and date: the leaderboard and Today. |
 

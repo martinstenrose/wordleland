@@ -185,6 +185,34 @@
   </section>
 {{end}}
 
+{{/* Every badge there is, as the grid that earns it: the player's earned
+     ones with how often and the day they last did, the rest faded, so the
+     list is also what there is still to earn. */}}
+<section class="card panel-card badges-card">
+  <div class="panel-card-head">
+    <h2>{{.T.T "player.badges"}}</h2>
+    {{with .Openings}}<span class="panel-card-hint">{{.}}</span>{{end}}
+  </div>
+  {{with .BadgesNote}}<p class="hint">{{.}}</p>{{end}}
+  <ul class="badge-list">
+    {{range .Badges}}
+      <li class="badge-item{{if not .Earned}} unearned{{end}}">
+        {{template "pattern" (dict "Grid" .Example "Size" "lg")}}
+        <span class="badge-id">
+          <span class="badge-name">{{.Name}}</span>
+          <span class="badge-why">{{.Why}}</span>
+        </span>
+        {{if .Earned}}
+          <span class="badge-value">
+            <span class="badge-count num">{{.Count}}</span>
+            <a class="badge-last" href="{{.LastHref}}">{{.Last}}</a>
+          </span>
+        {{end}}
+      </li>
+    {{end}}
+  </ul>
+</section>
+
 {{end}}
 {{end}}
 

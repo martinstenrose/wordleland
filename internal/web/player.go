@@ -121,6 +121,13 @@ type playerPage struct {
 
 	Trait string
 	Why   string
+
+	// Badges is every badge there is, the player's earned ones marked;
+	// Openings how many of the possible first rows they have opened with.
+	// BadgesNote stands in for both while the player has no grid.
+	Badges     []badgeRow
+	Openings   string
+	BadgesNote string
 }
 
 // playerStat is one headline figure.
@@ -231,6 +238,12 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request, slug, pref
 		if res, ok := byPuzzle[c.PuzzleNo]; ok {
 			page.Recent[i].Popup = popupFor(t, days, res, prefix)
 		}
+	}
+	page.Badges = playerBadges(t, results, player.ID, prefix)
+	if n := stats.Openings(results, player.ID); n > 0 {
+		page.Openings = t.T("player.badges.openings", n, stats.PossibleOpenings)
+	} else {
+		page.BadgesNote = t.T("player.badges.noGrids")
 	}
 	page.Heat, page.HeatLabels = buildHeatmap(t, days, results, player.ID, board.CurrentPuzzle, prefix)
 	// Averages by weekday are averages, withheld below the ranking threshold

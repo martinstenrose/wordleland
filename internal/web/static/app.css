@@ -3780,6 +3780,44 @@ a.head-step:hover { background: var(--color-surface-raised); }
   .puzzle-row { grid-template-columns: 18px 30px minmax(0, 1fr) auto; gap: 12px; padding: 12px 16px; }
 }
 
+/* ---- Badges -------------------------------------------------------------- */
+
+/* A badge a grid earned: the trait's shape in the accent, since a badge is
+   an event of the day rather than a description of the player. */
+.grid-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.grid-badge {
+  display: inline-block;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-tint);
+  border: 1px solid var(--color-accent-45);
+  color: var(--color-accent-strong);
+  cursor: help;
+}
+
+/* Two columns where there is room, one on a phone. An unearned badge keeps
+   its place, faded, so the list is also what is still to earn. */
+.badge-list {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 24px;
+}
+.badge-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--color-sep); min-width: 0; }
+.badge-item.unearned { opacity: .45; }
+.badge-item .pattern { flex: none; width: 39px; }
+.badge-id { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.badge-name { font-size: 14px; font-weight: 600; }
+.badge-why { font-size: 12px; line-height: 1.4; color: var(--color-muted); }
+.badge-value { display: flex; flex-direction: column; align-items: flex-end; flex: none; }
+.badge-count { font-size: 15px; font-weight: 700; }
+.badge-last { font-size: 11px; color: var(--color-muted); text-decoration: none; white-space: nowrap; }
+.badge-last:hover { color: var(--color-accent-strong); }
+
+@media (max-width: 860px) {
+  .badge-list { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* The form chart takes the height its row gives it, like the rank chart
    beside it, rather than a fixed 140px that left one card short. */
 .panel-card .chart-wrap { flex: 1; min-height: 150px; }

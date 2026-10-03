@@ -1495,6 +1495,43 @@ with `.link` on it, and `TestADestructiveActAsksBeforeItActs` pins the
 open-then-commit pair on the acts that have one. The search overlay's clear
 and esc/Cancel are the design's own and outside the four, like About's close.
 
+## Badges are read off the grids
+
+A grid earns a badge for its shape — a staircase, a space invader, a sea
+of greens — or for how it compares with the rest of the day's: twins, a
+mirror, the whole group opening alike. The rules are in
+`internal/wordle/badge.go` and `internal/stats/badges.go`; what follows is
+why they are shaped the way they are.
+
+**Worked out on every read, never stored**, like traits. A corrected grid
+changes what it earned, and a rule changed later applies to the whole
+history at once instead of leaving old badges awarded under old rules.
+Only results since grids were kept (migration 0016) can earn anything, and
+a player's page says so when they have none.
+
+**A family awards only its grandest.** A royal staircase is not also a
+green staircase, nor a grand staircase also a staircase — the poker rule,
+where a royal flush is not called a straight flush as well. Badges from
+different families stack.
+
+**Thresholds are guesses until there is data to set them by.** The
+history the grids would be measured against is not in this repository and
+was only weeks long when badges were added. Each rule is set so the badge
+is plausibly rare: twins and a mirror need three rows, because two-row
+grids alike are a coincidence; a late bloomer needs three guesses for the
+same reason. Revisit them once the group has a season of grids.
+
+**Not built, on purpose:**
+
+- *Déjà vu*, a player repeating their own grid: short grids repeat often
+  enough that it would stop meaning anything.
+- *Unique*, a grid nobody has posted before: almost every grid of four rows
+  or more is, and in the first weeks every grid is. It needs a rarity
+  measure taken from real history, not a rule written in advance.
+- *Ranking* the badges against each other, a best hand of the day.
+  Badges are for fun first; a ladder can come once it is known how rare
+  each one actually is.
+
 ## Deliberately not built
 
 - **Self-report in the browser** — a player filing their own result, by form or

@@ -28,6 +28,7 @@ package web
 // another and these are the parity net.
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -43,6 +44,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
@@ -1738,5 +1740,27 @@ func TestBrowserAPressedPillIsNotLeftCircled(t *testing.T) {
 	p.WaitFor(onPill)
 	if got := p.Eval(ring); got == "none" {
 		t.Error("a pill reached from the keyboard shows no ring")
+	}
+}
+
+// A player's badges fit a phone: one column, and nothing in the list —
+// the example grids, a long explanation, the count — widens the page into
+// sideways scrolling. Only layout can show that.
+func TestBrowserBadgesFitAPhone(t *testing.T) {
+	t.Parallel()
+	site := newSite(t)
+	seedGrid(t, site.srv, "harda", currentPuzzle()-2, "gynnn/gnynn/gnnyn/ggggg")
+	slug, _, _ := store.EnsureShareSlug(context.Background(), site.srv.db)
+
+	p := site.open(newBrowser(t), phoneWidth)
+	p.Navigate(site.base + "/share/" + slug + "/players/harda")
+	p.WaitFor(`document.querySelector(".badge-list")`)
+
+	if wide, view := p.Number("document.documentElement.scrollWidth"), p.Number("window.innerWidth"); wide > view {
+		t.Errorf("the player page is %vpx wide in a %vpx window", wide, view)
+	}
+	columns := p.Number(`getComputedStyle(document.querySelector(".badge-list")).gridTemplateColumns.split(" ").length`)
+	if columns != 1 {
+		t.Errorf("the badge list has %v columns on a phone, want 1", columns)
 	}
 }
