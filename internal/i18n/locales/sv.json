@@ -1023,6 +1023,7 @@
   "board.ranking.countXHint": "Ett X räknas som sju gissningar",
   "board.ranking.countMissedHint": "En dag utan spel räknas som sju",
   "board.ranking.reset": "Tillbaka till standard",
+  "board.ranking.apply": "Visa",
   "player.weekday.empty": "För få pussel än för att jämföra veckodagarna.",
   "settings.sub": "Ditt namn, din inloggning och tvåstegsverifiering.",
   "settings.profileSub": "Hur du syns för gruppen",

@@ -163,6 +163,7 @@ func (q boardQuery) with(mutate func(*boardQuery)) string {
 	// what is being looked at, and a control link carrying it would hand a
 	// reader a bare card the moment they followed it without a script.
 	values.Del("partial")
+	values.Del(rulesParam)
 
 	// Only non-default values appear, so a plain board has a clean URL.
 	set := func(key, value string, keep bool) {
@@ -208,13 +209,18 @@ func (q boardQuery) IsDefault() bool {
 	return !q.HardModeOnly && q.CountXAsSeven && !q.CountMissed
 }
 
-// rankingRow is one line of the ranking menu.
+// rankingRow is one line of the ranking menu: a checkbox in its form.
 type rankingRow struct {
 	Label string
 	// Hint says what the rule does, under its name.
 	Hint string
-	Href string
-	On   bool
+	// Name and Value are the checkbox's, and Off, when set, is the value a
+	// hidden field sends in its place when it is cleared. A checkbox sends
+	// nothing when cleared, which reads as the default, so the rule that is
+	// on by default needs the field to say it is off; the checkbox comes
+	// first, and the board reads the first value it is given.
+	Name, Value, Off string
+	On               bool
 }
 
 // rankingGroup is a headed set of rows. There are two, because the controls
@@ -231,6 +237,10 @@ type rankingGroup struct {
 // — which put "count missed as 7" alone on a line away from the toggle it
 // depends on. One control with the rules inside it fits at every width, and
 // gives the dependency somewhere to be stated.
+//
+// The rules are a form rather than a link each. Ticking one sends the form,
+// and the board redraws under the menu without the menu itself being
+// replaced, so it stays open, as a filter's menu does; see board.html.
 type rankingMenu struct {
 	// State is "Standard" or "Custom" rather than a list of what is on. A
 	// label built from the selection grows with it and has to be truncated
@@ -239,16 +249,24 @@ type rankingMenu struct {
 	// usual ones.
 	State  string
 	Groups []rankingGroup
+	// Keep is the rest of the board's query — range, sort, a pair being
+	// compared — sent along as hidden fields so a rule changes nothing else.
+	Keep []hiddenField
 	// Custom is set when any rule is off its default, and ResetHref then
 	// puts them all back.
 	Custom    bool
 	ResetHref string
-	// Open is set when the page was reached from the menu itself, which
-	// then arrives open. See ruleLink.
-	Open bool
 }
 
-func rankingMenuFor(t translator, q boardQuery, boardPath string, open bool) rankingMenu {
+// hiddenField is one name and value a form carries without showing it.
+type hiddenField struct{ Name, Value string }
+
+// rulesParam marks a board request as the ranking form's. Its query is the
+// form's — a checkbox's value, a cleared checkbox's stand-in — and the board
+// sends it on to the same board at its own address, see handleBoard.
+const rulesParam = "rules"
+
+func rankingMenuFor(t translator, q boardQuery, boardPath string) rankingMenu {
 	state := t.T("board.ranking.custom")
 	switch {
 	case q.IsDefault():
@@ -260,29 +278,42 @@ func rankingMenuFor(t translator, q boardQuery, boardPath string, open bool) ran
 	menu := rankingMenu{
 		State:  state,
 		Custom: !q.IsDefault(),
-		Open:   open,
 		Groups: []rankingGroup{{
 			Kicker: t.T("board.ranking.games"),
 			Rows: []rankingRow{{
 				Label: t.T("board.ranking.hardOnly"),
 				Hint:  t.T("board.ranking.hardOnlyHint"),
-				Href:  ruleLink(boardPath+q.HardModeHref(), "hard"),
-				On:    q.HardModeOnly,
+				Name:  "mode", Value: "hard",
+				On: q.HardModeOnly,
 			}},
 		}, {
 			Kicker: t.T("board.ranking.scoring"),
 			Rows: []rankingRow{{
 				Label: t.T("board.toggle.countX"),
 				Hint:  t.T("board.ranking.countXHint"),
-				Href:  ruleLink(boardPath+q.CountXHref(), "failed"),
-				On:    q.CountXAsSeven,
+				Name:  "failed", Value: "1", Off: "0",
+				On: q.CountXAsSeven,
 			}, {
 				Label: t.T("board.toggle.countMissed"),
 				Hint:  t.T("board.ranking.countMissedHint"),
-				Href:  ruleLink(boardPath+q.CountMissedHref(), "missed"),
-				On:    q.CountMissed,
+				Name:  "missed", Value: "1",
+				On: q.CountMissed,
 			}},
 		}},
+	}
+	keys := make([]string, 0, len(q.raw))
+	for k := range q.raw {
+		switch k {
+		case "mode", "failed", "missed", "partial", rulesParam:
+			continue
+		}
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	for _, k := range keys {
+		for _, v := range q.raw[k] {
+			menu.Keep = append(menu.Keep, hiddenField{k, v})
+		}
 	}
 	if menu.Custom {
 		menu.ResetHref = boardPath + q.with(func(n *boardQuery) {
@@ -299,25 +330,11 @@ type boardToast struct {
 	Text, Undo, Close string
 }
 
-// ruleLink marks a link in the ranking menu, so the board it lands on
-// arrives with the menu open: the reader may well have a second rule to
-// set. Rendering it open matters with a script too — a board that arrived
-// with the menu shut and had it reopened afterwards faded the panel out
-// through the page's cross-fade and back in once it had finished.
-//
-// A rule has no toast: the open menu already shows what changed, and the
-// row that changed it is the way back.
-func ruleLink(href, code string) string {
-	v := url.Values{}
-	v.Set("changed", code)
-	return withQuery(href, v)
-}
-
-// resetLink is ruleLink for the reset, which also carries the query it
-// changes from (back, "" or "?…") so the board can offer Undo: the reset
-// can change several rules at once and takes its own button away, so
-// there is no one row to press to get back. There is no script to
-// remember the earlier state, so the link does.
+// resetLink marks the menu's "Back to default" as a change, carrying the
+// query it changes from (back, "" or "?…") so the board can offer Undo:
+// the reset can change several rules at once and takes its own button
+// away, so there is no one rule to untick to get back. There is no script
+// to remember the earlier state, so the link does.
 func resetLink(href, back string) string {
 	v := url.Values{}
 	v.Set("changed", "reset")
@@ -420,11 +437,20 @@ const moveWindow = 7
 // whole history's whatever the range, since a range that cut a streak short
 // would report a streak nobody has.
 func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boardPath string, readOnly bool) {
+	if r.URL.Query().Has(rulesParam) {
+		// The ranking form's query says the rules as a form does — a
+		// cleared checkbox's stand-in beside a ticked one's value. The
+		// board it means has an address of its own, and that is where the
+		// reader is sent, so the address bar, Back and a copied link all
+		// carry the board's own query. htmx follows the redirect and puts
+		// that address in the bar.
+		http.Redirect(w, r, boardPath+parseBoardQuery(r).Href(), http.StatusSeeOther)
+		return
+	}
 	changed, undo := r.URL.Query().Get("changed"), r.URL.Query().Get("undo")
 	if changed != "" || undo != "" {
-		// Read once, then gone from every link this page builds: the open
-		// menu and the toast belong to the change that led here, not to the
-		// next one.
+		// Read once, then gone from every link this page builds: the toast
+		// belongs to the change that led here, not to the next one.
 		clean := r.URL.Query()
 		clean.Del("changed")
 		clean.Del("undo")
@@ -489,7 +515,7 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boa
 		Prefix:     prefix,
 		BoardPath:  boardPath,
 		Query:      query,
-		Ranking:    rankingMenuFor(t, query, boardPath, changed != ""),
+		Ranking:    rankingMenuFor(t, query, boardPath),
 		Toast:      boardChange(t, changed, undo, query, boardPath),
 		GroupPath:  template.HTML(sparkPath(full.GroupSeries, sparkWidth, sparkHeight, 0)),
 		MinGames:   stats.MinGames,

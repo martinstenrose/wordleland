@@ -200,12 +200,11 @@ func TestSortAndFiltersCoexist(t *testing.T) {
 		t.Error("sorting dropped the hard-mode filter")
 	}
 
-	// And a control link carries the sort onward.
-	href := hrefFor(t, body, "Count missed as 7")
-	href = strings.ReplaceAll(href, "&amp;", "&")
+	// And a rule changed from the menu carries the sort onward.
+	href := followRule(t, srv, body, "missed", nil)
 	for _, want := range []string{"sort=games", "mode=hard", "missed=1"} {
 		if !strings.Contains(href, want) {
-			t.Errorf("the toggle link %q dropped %q", href, want)
+			t.Errorf("the rule led to %q, which dropped %q", href, want)
 		}
 	}
 }

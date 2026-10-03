@@ -4,11 +4,11 @@
      ranking rules opposite, a head-to-head card while two rows are being
      compared, then the standings in one card with the notes at its foot.
 
-     Every control is a link — the range, each rule in the ranking menu,
-     the sort on a column head, the ⇄ on a row — so all of it works with
+     Every control is a link — the range, the sort on a column head, the ⇄
+     on a row — or, for the ranking rules, a form, so all of it works with
      no script. One row markup serves both widths: a phone re-flows it into
      the design's stacked row (see app.css). */}}
-{{with .Toast}}{{template "toast" (dict "Href" .Close "Text" .Text "Undo" .Undo "T" $.T)}}{{end}}
+<div id="board-toast">{{with .Toast}}{{template "toast" (dict "Href" .Close "Text" .Text "Undo" .Undo "T" $.T)}}{{end}}</div>
 <header class="page-head">
   <div class="page-head-id">
     <p class="page-eyebrow">{{.Eyebrow}}</p>
@@ -16,36 +16,56 @@
     <p class="page-sub">{{.T.T "board.sub"}}</p>
   </div>
   <div class="page-head-tools">
-    <nav class="head-seg" aria-label="{{.T.T "board.range.label"}}">
+    <nav id="board-ranges" class="head-seg" aria-label="{{.T.T "board.range.label"}}">
       {{range .Ranges}}<a class="{{if .On}}on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
     </nav>
     {{/* The rules, as one menu: which games count, and what a result is
-         worth. Every row flips one rule and keeps the rest of the query,
-         and the board it leads to arrives with the menu open. */}}
-    <details class="menu ranking" name="menu-group"{{if .Ranking.Open}} open{{end}}>
-      <summary class="menu-btn ranking-btn{{if .Ranking.Custom}} custom{{end}}" aria-label="{{.T.T "board.ranking.label"}}: {{.Ranking.State}}">
+         worth. The menu is a form, and changing a rule is changing what
+         this page shows rather than going to another page, so it redraws
+         the board below and leaves the menu where it is — open, the box
+         just ticked still under the finger. What else the rules change
+         comes along by id: the button's label, the menu's own rows (the
+         reset comes and goes), the range's links, which carry the rules,
+         and the reset's toast. No cross-fade: Safari draws one from
+         pictures of the page without the frosted glass, so an open menu
+         went clear for its length.
+
+         The form names the board's address and its rules; the board sends
+         that on to its own address (board.go), which is the one the bar
+         shows. With no script it is an ordinary form with a button. */}}
+    <details class="menu ranking" name="menu-group">
+      <summary id="ranking-summary" class="menu-btn ranking-btn{{if .Ranking.Custom}} custom{{end}}" aria-label="{{.T.T "board.ranking.label"}}: {{.Ranking.State}}">
         {{symbol "tune" 17}}
         {{/* Dropped on a phone, where the range and this share one row. */}}
         <span class="muted wide-only">{{.T.T "board.ranking.label"}}:</span>
         <span class="ranking-state">{{.Ranking.State}}</span>
         {{symbol "expand_more" 18}}
       </summary>
-      <div class="menu-panel glass ranking-panel">
+      <form id="ranking-panel" class="menu-panel glass ranking-panel" method="get" action="{{.BoardPath}}"
+            hx-get="{{.BoardPath}}" hx-trigger="change"
+            hx-target="#board-view" hx-select="#board-view" hx-swap="outerHTML show:none transition:false"
+            hx-select-oob="#ranking-summary,#ranking-panel,#board-ranges,#board-toast" hx-push-url="true">
+        <input type="hidden" name="rules" value="1">
+        {{range .Ranking.Keep}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">{{end}}
         {{range .Ranking.Groups}}
           <p class="kicker">{{.Kicker}}</p>
           {{range .Rows}}
-            <a class="menu-row ranking-row{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>
+            <label class="menu-row ranking-row">
+              <input id="rule-{{.Name}}" class="visually-hidden" type="checkbox" name="{{.Name}}" value="{{.Value}}"{{if .On}} checked{{end}}>
+              {{if .Off}}<input type="hidden" name="{{.Name}}" value="{{.Off}}">{{end}}
               <span class="ranking-text"><span class="ranking-name">{{.Label}}</span><span class="ranking-hint">{{.Hint}}</span></span>
               <span class="menu-check" aria-hidden="true">{{symbol "check" 19}}</span>
-            </a>
+            </label>
           {{end}}
         {{end}}
         {{with .Ranking.ResetHref}}<a class="btn secondary ranking-reset" href="{{.}}">{{$.T.T "board.ranking.reset"}}</a>{{end}}
-      </div>
+        <noscript><button class="btn secondary ranking-reset" type="submit">{{.T.T "board.ranking.apply"}}</button></noscript>
+      </form>
     </details>
   </div>
 </header>
 
+<div id="board-view" class="view">
 {{if and .Query.HardModeOnly .Board.ExcludedByFilter}}
   <p class="page-note">{{symbol "info" 18}}<span>{{.T.TN "board.mode.excluded" .Board.ExcludedByFilter}}</span></p>
 {{end}}
@@ -132,4 +152,5 @@
   </footer>
 </section>
 {{end}}
+</div>
 {{end}}

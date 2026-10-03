@@ -1023,6 +1023,7 @@
   "board.ranking.countXHint": "An X counts as seven guesses",
   "board.ranking.countMissedHint": "A day not played counts as seven",
   "board.ranking.reset": "Back to default",
+  "board.ranking.apply": "Apply",
   "player.weekday.empty": "Not enough puzzles yet to compare the days of the week.",
   "settings.sub": "Your name, sign-in and two-step verification.",
   "settings.profileSub": "How you appear to the group",
