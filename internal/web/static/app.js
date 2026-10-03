@@ -690,8 +690,19 @@ var onPageChange = (function () {
   // starts, is the version that costs nothing. Read at each swap rather
   // than once, so a setting changed mid-session is honoured. Without
   // script there is no transition to cancel.
+  //
+  // Nor is there one for a press in the board's ranking menu. The menu is
+  // open on both sides of that swap, and the cross-fade is drawn from
+  // pictures of the page, which Safari takes without the frosted glass: the
+  // panel went clear for the length of the fade and frosted again after,
+  // which read as the page reloading. The swap is instant instead.
   document.addEventListener("htmx:beforeTransition", function (event) {
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      event.preventDefault();
+      return;
+    }
+    var config = event.detail && event.detail.requestConfig;
+    if (config && config.elt && config.elt.closest && config.elt.closest(".ranking-panel")) {
       event.preventDefault();
     }
   });

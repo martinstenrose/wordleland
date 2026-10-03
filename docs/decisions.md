@@ -1316,6 +1316,12 @@ listens for.
   transition on each would freeze the page as you type. (The admin
   settings card had a swap of its own, left transitioning; the fifth pass
   made rotating the slug an ordinary post and redirect, with a toast.)
+- **A press in the board's ranking menu does not fade either**, cancelled
+  in `app.js` since the press is an ordinary boosted link. The menu is open
+  on both sides of that swap, and Safari draws the cross-fade from pictures
+  of the page without the frosted glass: the open panel went clear for the
+  length of the fade and frosted again after, which read as a reload. Not
+  seen in Chromium, which keeps the frost in its pictures.
 - **`content` is named only inside the shell.** The sign-in and error
   frames render a `<main>` too, and naming it there would morph the
   page well into the sign-in card on sign-out. Those frames cross-fade
