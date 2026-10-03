@@ -1,6 +1,7 @@
 package web
 
 import (
+	"html/template"
 	"net/http"
 	"strconv"
 	"time"
@@ -70,8 +71,22 @@ type gridPage struct {
 	InactiveHref string
 	Hidden       int
 
+	// InPlace is the attributes the grid's controls carry — the window and
+	// the inactive players' switch — which change what the grid shows
+	// rather than going to another page. See gridInPlace.
+	InPlace template.HTMLAttr
+
 	Empty bool
 }
+
+// gridInPlace has a grid control redraw the grid where it is, as the
+// board's do (boardInPlace): the grid below the head from the page that
+// comes back, the eyebrow (the window) and the head's controls (each
+// carries the other's setting) by id, and the address in the bar.
+const gridInPlace template.HTMLAttr = `hx-target="#grid-view" hx-select="#grid-view"` +
+	` hx-swap="outerHTML show:none transition:false"` +
+	` hx-select-oob="#grid-eyebrow,#grid-tools"` +
+	` hx-push-url="true"`
 
 // handleGrid renders every score as days by players.
 func (s *Server) handleGrid(w http.ResponseWriter, r *http.Request, prefix, boardPath string, readOnly bool) {
@@ -112,6 +127,7 @@ func (s *Server) handleGrid(w http.ResponseWriter, r *http.Request, prefix, boar
 		Total: grid.Total, Shown: len(grid.Rows), Hidden: grid.Hidden,
 		Inactive: showInactive,
 		Legend:   gridLegendFor(ch.T),
+		InPlace:  gridInPlace,
 	}
 
 	if showInactive {

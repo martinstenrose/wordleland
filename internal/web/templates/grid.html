@@ -14,28 +14,33 @@
      below, since a stylesheet cannot count columns on its own. */}}
 <header class="page-head">
   <div class="page-head-id">
-    <p class="page-eyebrow">{{.Eyebrow}}</p>
+    <p id="grid-eyebrow" class="page-eyebrow">{{.Eyebrow}}</p>
     <h1 class="page-title">{{.T.T "nav.view.grid"}}</h1>
     <p class="page-sub">{{.T.T "grid.head.sub"}}</p>
   </div>
-  {{if or .Spans .Hidden .Inactive}}
-    <div class="page-head-tools">
+  {{/* The window and the inactive players' switch change what the grid
+       shows, so they redraw the grid below and leave the page where it is
+       (InPlace, see grid.go's gridInPlace). The tools are drawn, empty and
+       hidden, even with no control in them, so a redraw always has them to
+       replace. */}}
+    <div id="grid-tools" class="page-head-tools"{{if not (or .Spans .Hidden .Inactive)}} hidden{{end}} {{.InPlace}}>
       {{if .Spans}}
         <nav class="head-seg" aria-label="{{.T.T "grid.span.label"}}">
-          {{range .Spans}}<a class="{{if .On}}on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
+          {{range .Spans}}<a id="span-{{.Code}}" class="{{if .On}}on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
         </nav>
       {{end}}
       {{if or .Hidden .Inactive}}
         {{/* On a phone the word goes and the glyph and count stay, so the
              range and this share one row in every language. */}}
-        <a class="head-toggle{{if .Inactive}} on{{end}}" href="{{.InactiveHref}}"{{if .Inactive}} aria-pressed="true"{{end}} aria-label="{{.T.T "grid.inactiveShort" .Hidden}}" title="{{.T.T "grid.inactiveShort" .Hidden}}">
+        <a id="grid-inactive" class="head-toggle{{if .Inactive}} on{{end}}" href="{{.InactiveHref}}"{{if .Inactive}} aria-pressed="true"{{end}} aria-label="{{.T.T "grid.inactiveShort" .Hidden}}" title="{{.T.T "grid.inactiveShort" .Hidden}}">
           {{if .Inactive}}{{symbol "visibility" 16}}{{else}}{{symbol "visibility_off" 16}}{{end}}
           <span class="wide-only">{{.T.T "grid.inactiveWord"}}</span><span class="num">({{.T.Integer .Hidden}})</span>
         </a>
       {{end}}
     </div>
-  {{end}}
 </header>
+
+<div id="grid-view">
 
 {{if .Empty}}
   {{template "page-empty" (dict "Icon" "grid_view" "Title" (.T.T "grid.empty.title") "Body" (.T.T "grid.empty.body"))}}
@@ -102,4 +107,5 @@
   </ul>
 </section>
 {{end}}
+</div>
 {{end}}
