@@ -23,6 +23,24 @@ func TestThePlacingTestCoversEveryKind(t *testing.T) {
 	}
 }
 
+// A question before is for a case that is asked: one keyed to a question
+// no case asks is a follow-up the test lost.
+func TestEveryPreviousQuestionHasItsCase(t *testing.T) {
+	t.Parallel()
+	asked := map[string]bool{}
+	for _, c := range PlacingCases {
+		asked[c.Question] = true
+	}
+	for q := range placingPrevious {
+		if !asked[q] {
+			t.Errorf("a question before %q, which no case asks", q)
+		}
+		if PlacingPrompt(q).Previous == nil {
+			t.Errorf("%q is not asked after its question", q)
+		}
+	}
+}
+
 // Each case's answer is one the parse would keep: a model that wrote it
 // exactly would pass, so a miss is the model's and not the case's.
 func TestThePlacingCasesAreReachable(t *testing.T) {

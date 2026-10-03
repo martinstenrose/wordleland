@@ -675,7 +675,8 @@ Fields:
   the same fields, at most 2. Otherwise [].
 `)
 	// Last, and in this order, what changes: today and the players once a
-	// day at most, the asker and the quoted post with every question. The
+	// day at most, the asker, the question before and the quoted post with
+	// every question. The
 	// server reuses its work on a prompt only up to the first difference,
 	// so everything above is read once, not once per question.
 	b.WriteString("\n")
@@ -687,6 +688,13 @@ Fields:
 		fmt.Fprintf(&b, "The person asking is %s; \"I\", \"me\" and \"my\" mean them.\n", p.Asker)
 	} else {
 		b.WriteString("The person asking is not a player.\n")
+	}
+	if p.Previous != nil {
+		fmt.Fprintf(&b, "\nThe group's last question, a few minutes ago, became this request: %s\n"+
+			"When this message only makes sense as a follow-up to it — \"and Bo?\", \"och jag då?\", "+
+			"\"och förra månaden?\", \"what about all time?\", \"och sämst?\", or a bare name saying "+
+			"who was meant — answer with that request, changing only what the message changes. A "+
+			"message that asks a whole question of its own ignores it.\n", Describe(*p.Previous))
 	}
 	if p.Context != "" {
 		b.WriteString("\nThe question is a reply to this earlier post of yours. Use it to read the " +

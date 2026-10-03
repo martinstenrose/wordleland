@@ -93,6 +93,24 @@ var PlacingCases = []PlacingCase{
 	{"vad är huvudstaden i Norge?", Request{Kind: KindUnknown}, ""},
 	{"vem leder, och har jag svit?",
 		Request{Kind: KindLeader, Also: []Request{{Kind: KindStreak, Player: "Alma"}}}, "also"},
+	// Follow-ups, each after the question in placingPrevious.
+	{"och förra månaden?", Request{Kind: KindLeader, Month: "2026-08"}, "month"},
+	{"och Bo då?", Request{Kind: KindStanding, Player: "Bo"}, "player"},
+	{"och sämst?", Request{Kind: KindLeader, Worst: true}, "worst"},
+	{"och Cid?", Request{Kind: KindStreak, Player: "Cid"}, "player"},
+	{"vad fick Dana igår?", Request{Kind: KindScore, Player: "Dana", Date: "2026-09-14"}, "player date"},
+}
+
+// placingPrevious is the question before, for the cases that follow one,
+// as the request it became: the last one the bot answered in the group.
+// The last is a whole question of its own, which the one before must not
+// bend.
+var placingPrevious = map[string]Request{
+	"och förra månaden?":  {Kind: KindLeader, Span: SpanMonth},
+	"och Bo då?":          {Kind: KindStanding, Span: SpanAll, Player: "Alma"},
+	"och sämst?":          {Kind: KindLeader, Span: SpanMonth},
+	"och Cid?":            {Kind: KindStreak, Player: "Bo"},
+	"vad fick Dana igår?": {Kind: KindVersus, Span: SpanAll, Player: "Bo"},
 }
 
 // PlacingResult is how one question went.
@@ -112,7 +130,11 @@ func (r PlacingResult) Placed() bool { return r.Err == nil && len(r.Misses) == 0
 // PlacingPrompt is what the model is told besides the question, as the bot
 // tells it.
 func PlacingPrompt(question string) Prompt {
-	return Prompt{Question: question, Asker: placingAsker, Players: PlacingPlayers, Today: PlacingToday}
+	p := Prompt{Question: question, Asker: placingAsker, Players: PlacingPlayers, Today: PlacingToday}
+	if previous, ok := placingPrevious[question]; ok {
+		p.Previous = &previous
+	}
+	return p
 }
 
 // RunPlacing asks interp every case in turn, and hands each result to

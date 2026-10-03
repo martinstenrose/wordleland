@@ -2284,6 +2284,18 @@ already turned down. A greeting or a thank-you among the further requests
 is dropped, a repeated one is kept once, and a thank-you ahead of a
 question gives way to it.
 
+**A follow-up is read against the question before it.** "Och Bo då?" and
+"och förra månaden?" were questions about nothing. The bot now remembers
+the last question it answered in the group, for ten minutes, and the
+model is shown it — after the fixed instructions, so the server's reuse
+of them is untouched — and told to change only what a follow-up changes.
+It is still one call that produces one request; the model is shown a
+request, never an answer. One memory for the group rather than one per
+member, because "och jag då?" is as often somebody else's as the
+asker's. What is kept is the request — kinds, spans, players' names —
+never the question's words or who asked, and only in memory: nothing is
+written, and a restart forgets it.
+
 **Models are compared by a placing test, not by impression.** Choosing
 between qwen2.5, qwen3, qwen3.5 and gemma4 kept coming down to reports
 from elsewhere and a question or two in the group. `wordleland
