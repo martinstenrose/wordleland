@@ -2,7 +2,13 @@
 {{define "content"}}
 {{/* The months: the page head, a row of months to choose from, the chosen
      month's own card — who is ahead or won, by how much, and who led at the
-     end of each day — its table, and the season across every month. */}}
+     end of each day — its table, and the season across every month.
+
+     Choosing a month — its pill, its column or a tile in the season, or
+     the season's year — changes what this page shows rather than going to
+     another, so it redraws the page in place (InPlace, see months.go's
+     monthsInPlace). A player's name still goes to their page. */}}
+<div id="months-view" class="view">
 <header class="page-head">
   <div class="page-head-id">
     {{with .Year}}<p class="page-eyebrow">{{.}}</p>{{end}}
@@ -17,9 +23,9 @@
 
 <section class="card pill-card">
   <div class="pill-row">
-    <nav class="pills" aria-label="{{.T.T "nav.view.months"}}">
-      {{range .Chips}}
-        <a class="pill month-pill{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>
+    <nav class="pills" aria-label="{{.T.T "nav.view.months"}}" {{.InPlace}}>
+      {{range $i, $c := .Chips}}
+        <a id="month-pill-{{$i}}" class="pill month-pill{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>
           {{if .Running}}<span class="month-running-dot" aria-hidden="true"></span>{{end}}
           <span class="pill-label month-pill-name">{{.Short}}</span>
           <span class="month-pill-who">{{.Winners}} <span class="num">{{.Average}}</span></span>
@@ -125,8 +131,8 @@
     <div class="season-head">
       <h2 class="today-list-title">{{.SeasonTitle}}</h2>
       {{with .SeasonYears}}
-        <nav class="head-seg season-years" aria-label="{{$.T.T "months.seasonYears"}}">
-          {{range .}}<a class="{{if .On}}on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
+        <nav class="head-seg season-years" aria-label="{{$.T.T "months.seasonYears"}}" {{$.InPlace}}>
+          {{range $i, $y := .}}<a id="season-year-{{$i}}" class="{{if .On}}on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
         </nav>
       {{end}}
       <span class="today-list-hint">{{.SeasonHint}}</span>
@@ -138,19 +144,19 @@
          way to its month, and like every link that stays on the page it
          keeps the scroll (see app.js). */}}
     <div class="season-grid" style="--months: {{len .SeasonCols}}">
-      <div class="season-row season-cols">
+      <div class="season-row season-cols" {{.InPlace}}>
         <span></span>
-        {{range .SeasonCols}}<a class="season-col{{if .On}} on{{end}}" href="{{.Href}}">{{.Label}}</a>{{end}}
+        {{range $i, $c := .SeasonCols}}<a id="season-col-{{$i}}" class="season-col{{if .On}} on{{end}}" href="{{.Href}}">{{.Label}}</a>{{end}}
         <span class="right season-wins-head">{{.T.T "months.wins"}}</span>
       </div>
-      {{range .Season}}
+      {{range $r, $row := .Season}}
         <div class="season-row">
           <span class="season-name">
             <a class="player" href="{{.Href}}">{{.Name}}</a>
             {{with .Summary}}<span class="season-summary">{{.}}</span>{{end}}
           </span>
-          {{range .Marks}}
-            <a class="season-tile{{if .Running}} running{{else if .Won}} won{{else if .Podium}} podium{{end}}{{if .On}} on{{end}}" href="{{.Href}}" title="{{.Title}}">{{if and .Won (not .Running)}}<span class="filled">{{symbol "trophy" 13}}</span>{{else}}{{.Label}}{{end}}</a>
+          {{range $c, $m := .Marks}}
+            <a id="season-{{$r}}-{{$c}}" {{$.InPlace}} class="season-tile{{if .Running}} running{{else if .Won}} won{{else if .Podium}} podium{{end}}{{if .On}} on{{end}}" href="{{.Href}}" title="{{.Title}}">{{if and .Won (not .Running)}}<span class="filled">{{symbol "trophy" 13}}</span>{{else}}{{.Label}}{{end}}</a>
           {{end}}
           <span class="season-wins num{{if .Wins}} some{{end}}"><span class="season-wins-icon filled">{{symbol "trophy" 15}}</span>{{$.T.Integer .Wins}}</span>
         </div>
@@ -166,4 +172,5 @@
 {{end}}
 
 {{end}}
+</div>
 {{end}}
