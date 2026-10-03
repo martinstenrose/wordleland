@@ -365,14 +365,14 @@ func habitSentence(t i18n.Translator, key string, e stats.TodayEntry, h stats.Ha
 }
 
 // eventLines are the day's events, every one that happened: a change of
-// leader, a streak reaching a milestone, somebody's first ever 2, a run at
+// leader in the month or on the all-time board, a streak reaching a milestone, somebody's first ever 2, a run at
 // 3 or better up to or past the group's record. Each is rare and each is
 // news the group would ask about, so a day with two of them tells both
 // rather than dropping one for the other. One line per kind, in this order.
 func eventLines(t i18n.Translator, d dayContext) []string {
 	var lines []string
 	for _, f := range []func(i18n.Translator, dayContext) string{
-		leaderLine, streakLine, firstTwoLine, recordLine,
+		leaderLine, allTimeLeaderLine, streakLine, firstTwoLine, recordLine,
 	} {
 		if line := f(t, d); line != "" {
 			lines = append(lines, line)
@@ -422,6 +422,46 @@ func leaderLine(t i18n.Translator, d dayContext) string {
 	label := capitalized(t.T("month." + strconv.Itoa(int(d.date.Month()))))
 	return "👑 " + t.T("announce.daily.spice.leader", label, after.Winners[0].Name,
 		joinNames(t, playerNames(before.Winners)))
+}
+
+// allTimeLeaderLine fires when the day put somebody alone at the top of the
+// all-time board who did not hold or share that place the day before. Only
+// among ranked players, as the board ranks them: somebody reaching
+// stats.MinGames straight into first place has taken it too. A first ever
+// leader, with nobody ranked the day before, has taken it from no one and is
+// not news. A shared top is no single leader, so a tie is passed over.
+func allTimeLeaderLine(t i18n.Translator, d dayContext) string {
+	before := boardLeaders(d.baseline)
+	if len(before) == 0 {
+		return ""
+	}
+	after := boardLeaders(d.board)
+	if len(after) != 1 {
+		return ""
+	}
+	names := make([]string, 0, len(before))
+	for _, p := range before {
+		if p.ID == after[0].ID {
+			return ""
+		}
+		names = append(names, p.Name)
+	}
+	return "🐐 " + t.T("announce.daily.spice.allTimeLeader", after[0].Name, joinNames(t, names),
+		t.Decimal(*after[0].Average, 2))
+}
+
+// boardLeaders is everyone ranked on the board's best average. More than one
+// when they share it: the board breaks that tie on games played, which is an
+// order to list them in, not a lead.
+func boardLeaders(b stats.Board) []stats.Player {
+	var out []stats.Player
+	for _, p := range b.Ranked {
+		if p.Average == nil || (len(out) > 0 && *p.Average != *out[0].Average) {
+			break
+		}
+		out = append(out, p)
+	}
+	return out
 }
 
 // streakLine fires when a solve today took somebody's streak onto a

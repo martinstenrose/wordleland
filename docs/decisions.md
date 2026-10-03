@@ -1620,7 +1620,11 @@ month's winner back into the group when a month closes. Deliberately small
 previous standings — because that is exactly what makes it safe to build
 before the larger idea it is a step toward, announcing rank changes as they
 happen. The day's recap has since taken the first of those steps: its 👑
-line, below, says when a day handed the month's lead to somebody new.
+line, below, says when a day handed the month's lead to somebody new, and
+its 🐐 line when a day put somebody alone at the top of the all-time board.
+The all-time line rides on the recap rather than being a message of its own:
+the change can only happen when a day's results land, and that is the moment
+the recap already posts.
 
 **A month closes the way a day does: when every active player has filed its
 last day, or at the run just after midnight.** It used to be noon on the

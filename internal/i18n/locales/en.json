@@ -422,6 +422,7 @@
   "announce.daily.last.usual": "%s closed it at %s, as usual.",
   "announce.daily.last.run": "%s closed it at %s, %d days running.",
   "announce.daily.spice.leader": "New leader in %s: %s takes over from %s.",
+  "announce.daily.spice.allTimeLeader": "New all-time leader: %s takes over from %s and now leads on %s on average.",
   "announce.daily.spice.streak": "%s: %d days in a row without a miss.",
   "announce.daily.spice.hard": "A hard one: %s on average today, against the usual %s.",
   "announce.daily.spice.easy": "An easy one: %s on average today, against the usual %s.",
