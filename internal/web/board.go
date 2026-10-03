@@ -56,6 +56,13 @@ type boardPage struct {
 	MinGames   int
 	FormWindow int
 
+	// InPlace is the attributes every control on the board carries — the
+	// range, the ranking form, a column's sort, a row's ⇄ and the
+	// head-to-head's close: each changes what the board shows rather than
+	// going to another page, so each redraws the board in place. See
+	// boardInPlace.
+	InPlace template.HTMLAttr
+
 	// Eyebrow names the range the board covers; Ranges switch it.
 	Eyebrow string
 	Ranges  []chromeOpt
@@ -260,6 +267,19 @@ type rankingMenu struct {
 
 // hiddenField is one name and value a form carries without showing it.
 type hiddenField struct{ Name, Value string }
+
+// boardInPlace has a board control redraw the board where it is: htmx
+// fetches the control's address as it would to go there, takes the board
+// from the page that comes back — the view below the head — and with it
+// what else in the head depends on the same query: the eyebrow (the
+// range), the ranking menu's button and rows, the range's links (each
+// carries the whole query) and the reset's toast. The address goes in the
+// bar. No cross-fade and no scroll: the reader is looking at the control.
+// docs/decisions.md, "A control redraws what it changes".
+const boardInPlace template.HTMLAttr = `hx-target="#board-view" hx-select="#board-view"` +
+	` hx-swap="outerHTML show:none transition:false"` +
+	` hx-select-oob="#board-eyebrow,#ranking-summary,#ranking-panel,#board-ranges,#board-toast"` +
+	` hx-push-url="true"`
 
 // rulesParam marks a board request as the ranking form's. Its query is the
 // form's — a checkbox's value, a cleared checkbox's stand-in — and the board
@@ -516,6 +536,7 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boa
 		BoardPath:  boardPath,
 		Query:      query,
 		Ranking:    rankingMenuFor(t, query, boardPath),
+		InPlace:    boardInPlace,
 		Toast:      boardChange(t, changed, undo, query, boardPath),
 		GroupPath:  template.HTML(sparkPath(full.GroupSeries, sparkWidth, sparkHeight, 0)),
 		MinGames:   stats.MinGames,

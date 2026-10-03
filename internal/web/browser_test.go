@@ -1714,6 +1714,66 @@ func TestBrowserARankingRuleRedrawsTheBoardUnderTheMenu(t *testing.T) {
 	}
 }
 
+// The board's other controls redraw it in place as the ranking menu does:
+// the range, a column's sort, a row's ⇄ and the head-to-head's close. The
+// head is the same element throughout, what depends on the query comes
+// along (the eyebrow, the menu's hidden fields), nothing reloads and
+// nothing cross-fades.
+func TestBrowserTheBoardsControlsRedrawItInPlace(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), desktopWidth)
+	p.Navigate(site.base + "/leaderboard")
+	p.Eval(`(() => { const start = document.startViewTransition.bind(document);
+		window.__fades = 0;
+		document.startViewTransition = (...a) => { window.__fades++; return start(...a); };
+		window.__alive = 1;
+		document.querySelector(".page-head").__same = true; return true; })()`)
+	// press follows a control and checks the board came back under the
+	// same head, at the address the control names.
+	press := func(selector string) {
+		t.Helper()
+		want := p.String(fmt.Sprintf(`new URL(document.querySelector(%q).href).search`, selector))
+		p.Eval(`document.querySelector("#board-view").__stale = true; true`)
+		p.Click(selector)
+		p.WaitFor(`!(document.querySelector("#board-view") || {}).__stale`)
+		if got := p.String(`location.search`); got != want {
+			t.Errorf("%s: the address is %q, want %q", selector, got, want)
+		}
+		if p.Eval(`!!(document.querySelector(".page-head") || {}).__same`) != true {
+			t.Errorf("%s replaced the page head", selector)
+		}
+	}
+
+	press("#board-ranges a:not(.on)")
+	if got := p.String(`document.querySelector("#board-eyebrow").textContent`); !strings.Contains(got, "90") {
+		t.Errorf("the eyebrow says %q after the range changed to 90 days", got)
+	}
+	if p.Eval(`!!document.querySelector('#ranking-panel input[type=hidden][name=range][value="90"]')`) != true {
+		t.Error("the ranking form does not carry the range just chosen")
+	}
+
+	press("#sort-games")
+	if got := p.String(`document.querySelector("#sort-games").closest("[aria-sort]").getAttribute("aria-sort")`); got == "none" {
+		t.Error("the column just sorted by is not marked as sorted")
+	}
+
+	press(".b-rows a.b-cmp")
+	if p.Eval(`!!document.querySelector(".h2h")`) != true {
+		t.Error("pressing a row's ⇄ did not open the head-to-head")
+	}
+	press("#h2h-close")
+	if p.Eval(`!!document.querySelector(".h2h")`) != false {
+		t.Error("closing the head-to-head left it open")
+	}
+
+	if p.Number(`window.__alive || 0`) != 1 {
+		t.Error("a board control reloaded the document")
+	}
+	if n := p.Number(`window.__fades`); n != 0 {
+		t.Errorf("a board control cross-faded the page (%v transitions)", n)
+	}
+}
+
 // A view a control redraws in place is a wrapper for htmx to replace, not a
 // box: the sections in it are spaced as the page's other sections are, by
 // the main region's gap. A wrapper that boxed them drew them touching.

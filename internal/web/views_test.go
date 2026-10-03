@@ -1057,7 +1057,7 @@ func TestBoardRowsShareTheHeadsCells(t *testing.T) {
 		}
 		return out
 	}
-	head, ok := sectionOf(body, `<div class="b-row b-head">`, "</div>")
+	head, ok := sectionOf(body, `<div class="b-row b-head"`, "</div>")
 	if !ok {
 		t.Fatal("the board has no head row")
 	}

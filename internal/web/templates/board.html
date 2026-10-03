@@ -11,24 +11,22 @@
 <div id="board-toast">{{with .Toast}}{{template "toast" (dict "Href" .Close "Text" .Text "Undo" .Undo "T" $.T)}}{{end}}</div>
 <header class="page-head">
   <div class="page-head-id">
-    <p class="page-eyebrow">{{.Eyebrow}}</p>
+    <p id="board-eyebrow" class="page-eyebrow">{{.Eyebrow}}</p>
     <h1 class="page-title">{{.T.T "nav.view.board"}}</h1>
     <p class="page-sub">{{.T.T "board.sub"}}</p>
   </div>
   <div class="page-head-tools">
-    <nav id="board-ranges" class="head-seg" aria-label="{{.T.T "board.range.label"}}">
-      {{range .Ranges}}<a class="{{if .On}}on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
+    <nav id="board-ranges" class="head-seg" aria-label="{{.T.T "board.range.label"}}" {{.InPlace}}>
+      {{range $i, $r := .Ranges}}<a id="range-{{$i}}" class="{{if .On}}on{{end}}" href="{{.Href}}"{{if .On}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
     </nav>
     {{/* The rules, as one menu: which games count, and what a result is
          worth. The menu is a form, and changing a rule is changing what
          this page shows rather than going to another page, so it redraws
          the board below and leaves the menu where it is — open, the box
-         just ticked still under the finger. What else the rules change
-         comes along by id: the button's label, the menu's own rows (the
-         reset comes and goes), the range's links, which carry the rules,
-         and the reset's toast. No cross-fade: Safari draws one from
-         pictures of the page without the frosted glass, so an open menu
-         went clear for its length.
+         just ticked still under the finger, like every control on the board
+         (InPlace, see board.go's boardInPlace). No cross-fade: Safari draws
+         one from pictures of the page without the frosted glass, so an
+         open menu went clear for its length.
 
          The form names the board's address and its rules; the board sends
          that on to its own address (board.go), which is the one the bar
@@ -42,9 +40,7 @@
         {{symbol "expand_more" 18}}
       </summary>
       <form id="ranking-panel" class="menu-panel glass ranking-panel" method="get" action="{{.BoardPath}}"
-            hx-get="{{.BoardPath}}" hx-trigger="change"
-            hx-target="#board-view" hx-select="#board-view" hx-swap="outerHTML show:none transition:false"
-            hx-select-oob="#ranking-summary,#ranking-panel,#board-ranges,#board-toast" hx-push-url="true">
+            hx-get="{{.BoardPath}}" hx-trigger="change" {{.InPlace}}>
         <input type="hidden" name="rules" value="1">
         {{range .Ranking.Keep}}<input type="hidden" name="{{.Name}}" value="{{.Value}}">{{end}}
         {{range .Ranking.Groups}}
@@ -87,7 +83,7 @@
         <p class="h2h-sub">{{.Sub}}</p>
       </div>
     {{end}}
-    <a class="h2h-close" href="{{.ClearHref}}" aria-label="{{$.T.T "board.h2h.close"}}" title="{{$.T.T "board.h2h.close"}}">{{symbol "close" 18}}</a>
+    <a id="h2h-close" class="h2h-close" href="{{.ClearHref}}" {{$.InPlace}} aria-label="{{$.T.T "board.h2h.close"}}" title="{{$.T.T "board.h2h.close"}}">{{symbol "close" 18}}</a>
   </section>
 {{end}}
 
@@ -95,10 +91,10 @@
   {{template "page-empty" (dict "Icon" "leaderboard" "Title" (.T.T "board.empty") "Body" (.T.T "board.emptyHint"))}}
 {{else}}
 <section class="card board-card">
-  <div class="b-row b-head">
+  <div class="b-row b-head" {{.InPlace}}>
     {{range .Cells}}
       <span class="{{.Class}}"{{with .Sort}} aria-sort="{{.Aria}}"{{end}}>
-        {{with .Sort}}<a href="{{.Href}}"{{if .Active}} class="sorted"{{end}}>{{.Label}}<span class="sort-mark" aria-hidden="true">{{if .Active}}{{if .Desc}}▾{{else}}▴{{end}}{{end}}</span></a>{{else}}{{.Label}}{{end}}
+        {{with .Sort}}<a id="sort-{{.Column}}" href="{{.Href}}"{{if .Active}} class="sorted"{{end}}>{{.Label}}<span class="sort-mark" aria-hidden="true">{{if .Active}}{{if .Desc}}▾{{else}}▴{{end}}{{end}}</span></a>{{else}}{{.Label}}{{end}}
       </span>
     {{end}}
     <span class="b-cmp"></span>
@@ -133,7 +129,7 @@
         <span class="b-five">{{template "last-five" .LastFive}}</span>
         <span class="b-streak num">{{.StreakText}}</span>
         {{if .Ranked}}
-          <a class="b-cmp{{if .Compare}} on{{end}}" href="{{.CompareHref}}" aria-pressed="{{if .Compare}}true{{else}}false{{end}}"
+          <a class="b-cmp{{if .Compare}} on{{end}}" id="cmp-{{.Slug}}" href="{{.CompareHref}}" {{$.InPlace}} aria-pressed="{{if .Compare}}true{{else}}false{{end}}"
              aria-label="{{$.T.T "board.compare" .Name}}" title="{{$.T.T "board.compare" .Name}}">{{symbol "compare_arrows" 17}}</a>
         {{else}}
           <span class="b-cmp"></span>
