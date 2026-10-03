@@ -1,6 +1,7 @@
 package web
 
 import (
+	"html/template"
 	"net/http"
 	"sort"
 	"strconv"
@@ -8,6 +9,16 @@ import (
 
 	"github.com/martinstenrose/wordleland/internal/stats"
 )
+
+// monthsInPlace has a control on the months page redraw the page where it
+// is, as the board's do (boardInPlace). Nearly all of the page is the month
+// chosen — the year in the head, the month's card, its table, the season
+// with that month outlined — so the view is all of it, and nothing else
+// needs taking by id. No cross-fade and no scroll, and the address goes
+// in the bar.
+const monthsInPlace template.HTMLAttr = `hx-target="#months-view" hx-select="#months-view"` +
+	` hx-swap="outerHTML show:none transition:false"` +
+	` hx-push-url="true"`
 
 // monthRow is one player's month, pre-formatted.
 type monthRow struct {
@@ -60,6 +71,12 @@ type monthsPage struct {
 	Query     boardQuery
 
 	Chips []monthChip
+
+	// InPlace is the attributes the page's controls carry — a month's pill,
+	// the season's years, a month's column and a tile in the season — which
+	// change which month the page shows rather than going to another page.
+	// See monthsInPlace.
+	InPlace template.HTMLAttr
 
 	// The page head: the year, and the rule a month is won by.
 	Year string
@@ -151,7 +168,7 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 	})
 
 	ch := s.newChrome(w, r, prefix, viewMonths, readOnly)
-	page := monthsPage{chrome: ch, Prefix: prefix, BoardPath: boardPath, Query: query}
+	page := monthsPage{chrome: ch, Prefix: prefix, BoardPath: boardPath, Query: query, InPlace: monthsInPlace}
 
 	// The missed-day clause goes with the scoring it describes, as the kicker
 	// it replaces had it.
