@@ -470,15 +470,16 @@ var onPageChange = (function () {
     // A page can arrive with a menu open — the board after a rule pressed
     // in its ranking menu (board.go's ruleLink). htmx puts the new body in
     // before it takes the old one out, and a <details name> opening while
-    // another of its name is open shuts itself, as an accordion does. The
-    // departing menus stop being a group: they look the same until they
-    // are gone, which also keeps the cross-fade from fading a menu out.
-    // htmx keeps its copy of the page for Back after this, so the name is
-    // held in data-ungrouped and put back when that copy is restored.
+    // another of its name is open shuts itself, as an accordion does. So
+    // the departing one closes first. That press swaps with no cross-fade
+    // (item 6), so nothing is drawn in between; and the copy htmx keeps for
+    // Back, taken after this, has the menu shut, as a page come back to
+    // should.
     if (detail.shouldSwap !== false) {
-      document.querySelectorAll("details[name][open]").forEach(function (d) {
-        d.setAttribute("data-ungrouped", d.getAttribute("name"));
-        d.removeAttribute("name");
+      incoming.querySelectorAll("details[name][open]").forEach(function (arriving) {
+        document.querySelectorAll("details[name][open]").forEach(function (d) {
+          if (d.getAttribute("name") === arriving.getAttribute("name")) d.open = false;
+        });
       });
     }
   });
@@ -611,13 +612,7 @@ var onPageChange = (function () {
   // Back and Forward: htmx puts the page back from its cache, or fetches it
   // again, and either way the enhancements on it need running and focus needs
   // a home. The scroll position is htmx's to restore, and it does.
-  document.addEventListener("htmx:historyRestore", function () {
-    document.querySelectorAll("details[data-ungrouped]").forEach(function (d) {
-      d.setAttribute("name", d.getAttribute("data-ungrouped"));
-      d.removeAttribute("data-ungrouped");
-    });
-    settled(null);
-  });
+  document.addEventListener("htmx:historyRestore", function () { settled(null); });
 
   // For anything that changed the page underneath it — the enrolment dialog
   // finishing, say — without itself being a navigation.

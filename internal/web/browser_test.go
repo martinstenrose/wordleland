@@ -1690,16 +1690,13 @@ func TestBrowserARankingRuleKeepsTheMenuOpenThroughTheSwap(t *testing.T) {
 		t.Errorf("a rule changed from the menu cross-faded the page (%v transitions)", n)
 	}
 
-	// Back: htmx keeps its copy of the page after the menus left it were
-	// ungrouped, and the copy it puts back is a menu like any other again —
-	// closed by a press elsewhere, by Esc, and by another menu opening.
+	// Back: the copy htmx kept of the page left is the one put back, and
+	// its menu is a menu like any other — named, so a press elsewhere, Esc
+	// and another menu opening all close it.
 	p.Eval(`document.querySelector("main").__stale = true; history.back(); true`)
 	p.WaitFor(`!(document.querySelector("main") || {}).__stale`)
 	if got := p.Eval(`document.querySelector("details.ranking").getAttribute("name")`); got != "menu-group" {
 		t.Errorf("the ranking menu came back from history named %v, want menu-group", got)
-	}
-	if n := p.Number(`document.querySelectorAll("[data-ungrouped]").length`); n != 0 {
-		t.Errorf("%v menus came back from history still marked ungrouped", n)
 	}
 
 	before := p.Number(`window.__fades`)
