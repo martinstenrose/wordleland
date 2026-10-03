@@ -473,8 +473,13 @@ var onPageChange = (function () {
     // another of its name is open shuts itself, as an accordion does. The
     // departing menus stop being a group: they look the same until they
     // are gone, which also keeps the cross-fade from fading a menu out.
+    // htmx keeps its copy of the page for Back after this, so the name is
+    // held in data-ungrouped and put back when that copy is restored.
     if (detail.shouldSwap !== false) {
-      document.querySelectorAll("details[name][open]").forEach(function (d) { d.removeAttribute("name"); });
+      document.querySelectorAll("details[name][open]").forEach(function (d) {
+        d.setAttribute("data-ungrouped", d.getAttribute("name"));
+        d.removeAttribute("name");
+      });
     }
   });
 
@@ -606,7 +611,13 @@ var onPageChange = (function () {
   // Back and Forward: htmx puts the page back from its cache, or fetches it
   // again, and either way the enhancements on it need running and focus needs
   // a home. The scroll position is htmx's to restore, and it does.
-  document.addEventListener("htmx:historyRestore", function () { settled(null); });
+  document.addEventListener("htmx:historyRestore", function () {
+    document.querySelectorAll("details[data-ungrouped]").forEach(function (d) {
+      d.setAttribute("name", d.getAttribute("data-ungrouped"));
+      d.removeAttribute("data-ungrouped");
+    });
+    settled(null);
+  });
 
   // For anything that changed the page underneath it — the enrolment dialog
   // finishing, say — without itself being a navigation.
