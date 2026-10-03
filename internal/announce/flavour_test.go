@@ -564,3 +564,90 @@ func TestARunUpToOnesOwnRecord(t *testing.T) {
 		t.Errorf("message = %q calls a run of two a record", got)
 	}
 }
+
+// Taking first place on the all-time board is its own event, beside the
+// month's: Bob's 3 against Alice's failure moves him past her on both.
+func TestANewAllTimeLeader(t *testing.T) {
+	db := announceDB(t)
+	mustPlayer(t, db, "Alice", "alice")
+	mustPlayer(t, db, "Bob", "bob")
+	record(t, db, "alice", day(1), true, 3)
+	record(t, db, "bob", day(1), true, 4)
+	for d := 2; d <= 10; d++ {
+		record(t, db, "alice", day(d), true, 3)
+		record(t, db, "bob", day(d), true, 3)
+	}
+	record(t, db, "alice", day(11), false, 0)
+	record(t, db, "bob", day(11), true, 3)
+	alreadyPosted(t, db, 2026, time.September, 10)
+
+	got := recap(t, db, day(11).Add(15*time.Hour), true)
+	if want := "🐐 New all-time leader: Bob takes over from Alice and now leads on 3.09 on average."; lineWith(t, got, "🐐") != want {
+		t.Errorf("message = %q, want %q", got, want)
+	}
+	if !strings.Contains(got, "👑 New leader in September") || strings.Index(got, "👑") > strings.Index(got, "🐐") {
+		t.Errorf("message = %q, want the month's 👑 line ahead of the 🐐 one", got)
+	}
+}
+
+// Somebody reaching the board's minimum straight into first place has taken
+// it: Carol's tenth game ranks her, ahead of Alice.
+func TestANewcomerRankedStraightIntoTheLead(t *testing.T) {
+	db := announceDB(t)
+	mustPlayer(t, db, "Alice", "alice")
+	mustPlayer(t, db, "Carol", "carol")
+	for d := 1; d <= 11; d++ {
+		record(t, db, "alice", day(d), true, 3)
+	}
+	for d := 2; d <= 11; d++ {
+		record(t, db, "carol", day(d), true, 2)
+	}
+	alreadyPosted(t, db, 2026, time.September, 10)
+
+	got := recap(t, db, day(11).Add(15*time.Hour), true)
+	if want := "🐐 New all-time leader: Carol takes over from Alice and now leads on 2.00 on average."; lineWith(t, got, "🐐") != want {
+		t.Errorf("message = %q, want %q", got, want)
+	}
+}
+
+// The first day anybody is ranked takes the lead from no one: not a change
+// of all-time leader.
+func TestNoAllTimeLeaderFromNobody(t *testing.T) {
+	db := announceDB(t)
+	mustPlayer(t, db, "Alice", "alice")
+	mustPlayer(t, db, "Bob", "bob")
+	for d := 1; d <= 10; d++ {
+		record(t, db, "alice", day(d), true, 3)
+		record(t, db, "bob", day(d), true, 4)
+	}
+	alreadyPosted(t, db, 2026, time.September, 9)
+	if got := recap(t, db, day(10).Add(15*time.Hour), true); strings.Contains(got, "🐐") {
+		t.Errorf("message = %q announces the board's first ever leader", got)
+	}
+}
+
+// A shared top is no single leader: Bob and Carol passing Alice together,
+// on the same average, is not announced as either of them taking over.
+func TestNoAllTimeLeaderInATie(t *testing.T) {
+	db := announceDB(t)
+	mustPlayer(t, db, "Alice", "alice")
+	mustPlayer(t, db, "Bob", "bob")
+	mustPlayer(t, db, "Carol", "carol")
+	for _, p := range []string{"bob", "carol"} {
+		record(t, db, p, day(1), true, 4)
+	}
+	record(t, db, "alice", day(1), true, 3)
+	for d := 2; d <= 10; d++ {
+		for _, p := range []string{"alice", "bob", "carol"} {
+			record(t, db, p, day(d), true, 3)
+		}
+	}
+	record(t, db, "alice", day(11), false, 0)
+	record(t, db, "bob", day(11), true, 3)
+	record(t, db, "carol", day(11), true, 3)
+	alreadyPosted(t, db, 2026, time.September, 10)
+
+	if got := recap(t, db, day(11).Add(15*time.Hour), true); strings.Contains(got, "🐐") {
+		t.Errorf("message = %q announces a leader on a shared top", got)
+	}
+}
