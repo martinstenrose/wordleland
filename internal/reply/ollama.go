@@ -277,8 +277,13 @@ var requestSchema = func() map[string]any {
 			"required": []string{"player", "guesses"},
 		}},
 	}
-	required := []string{"kind", "span", "days", "worst", "player", "other", "topic", "date", "puzzle",
-		"month", "guesses", "orbetter", "scores"}
+	// Only the kind is required. On a CPU the time an answer takes is
+	// mostly the model writing, a token at a time, and fourteen fields
+	// written out for "vem leder?" is a hundred tokens or so of zeros and
+	// empty strings. A field left out is its zero value, which is what
+	// every one of them means when it does not apply; the server's grammar
+	// writes the kind first and the rest, when written, after it.
+	required := []string{"kind"}
 	// The further questions of a message that asks more than one: each a
 	// request of the same shape, one level deep.
 	top := map[string]any{"also": map[string]any{
@@ -292,7 +297,7 @@ var requestSchema = func() map[string]any {
 	return map[string]any{
 		"type":       "object",
 		"properties": top,
-		"required":   append(slices.Clone(required), "also"),
+		"required":   required,
 	}
 }()
 
@@ -561,7 +566,8 @@ const maxHypotheticals = 20
 func systemPrompt(p Prompt) string {
 	var b strings.Builder
 	b.WriteString("You turn a question asked in a Wordle group chat into a JSON request. ")
-	b.WriteString("The question may be in any language. Answer with the JSON only.\n\n")
+	b.WriteString("The question may be in any language. Answer with the JSON only: kind, and then only ")
+	b.WriteString("the fields this question needs. Leave out a field that would be 0, \"\", false or [].\n\n")
 	b.WriteString(`
 Fields:
 - kind: "leader" for who is leading, winning, best, on top, or the ranking ("vem
