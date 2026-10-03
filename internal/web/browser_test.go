@@ -1656,12 +1656,21 @@ func TestBrowserTheGridPicksOutAColumn(t *testing.T) {
 }
 
 // A rule pressed in the ranking menu swaps in a board whose menu is already
-// open. Reopened by script once the swap had settled, the panel was shut in
-// the page the cross-fade faded to, so it faded out and popped back in.
+// open, and without the cross-fade. Reopened by script once the swap had
+// settled, the panel was shut in the page the fade went to; and Safari
+// draws the fade from pictures without the frosted glass, so the open panel
+// went clear for its length either way. Other links on the board still
+// fade, which is what shows the count below is counting.
 func TestBrowserARankingRuleKeepsTheMenuOpenThroughTheSwap(t *testing.T) {
 	site := newSite(t)
 	p := site.open(newBrowser(t), phoneWidth)
+	// The number of view transitions started since the page loaded.
+	const counting = `(() => { const start = document.startViewTransition.bind(document);
+		window.__fades = 0;
+		document.startViewTransition = (...a) => { window.__fades++; return start(...a); }; return true; })()`
+
 	p.Navigate(site.base + "/leaderboard")
+	p.Eval(counting)
 	p.Eval(`document.querySelector("details.ranking").open = true;
 		document.querySelector("main").__stale = true;
 		document.addEventListener("htmx:afterSwap", () => {
@@ -1676,6 +1685,17 @@ func TestBrowserARankingRuleKeepsTheMenuOpenThroughTheSwap(t *testing.T) {
 	}
 	if p.Eval(`!!document.querySelector(".toast")`) != false {
 		t.Error("a rule changed from the menu left a toast")
+	}
+	if n := p.Number(`window.__fades`); n != 0 {
+		t.Errorf("a rule changed from the menu cross-faded the page (%v transitions)", n)
+	}
+
+	before := p.Number(`window.__fades`)
+	p.Eval(`document.querySelector("main").__stale = true; true`)
+	p.Click(".head-seg a:not(.on)")
+	p.WaitFor(`!(document.querySelector("main") || {}).__stale`)
+	if n := p.Number(`window.__fades`) - before; n != 1 {
+		t.Errorf("the range cross-faded %v times, want 1: the count is not counting", n)
 	}
 }
 
