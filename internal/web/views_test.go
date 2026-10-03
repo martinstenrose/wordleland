@@ -686,9 +686,9 @@ func TestEachViewsControlsPointAtItself(t *testing.T) {
 	slug, _, _ := store.EnsureShareSlug(context.Background(), srv.db)
 
 	board := fetchAs(t, srv, "/share/"+slug+"/board", nil).Body.String()
-	href := hrefFor(t, board, "Hard mode only")
+	href := followRule(t, srv, board, "mode", nil)
 	if !strings.HasPrefix(href, "/share/"+slug+"/board") {
-		t.Errorf("the leaderboard's filter links to %q, not back to itself", href)
+		t.Errorf("the leaderboard's filter leads to %q, not back to itself", href)
 	}
 	if !strings.Contains(fetchAs(t, srv, href, nil).Body.String(), "players hidden") {
 		t.Error("following the leaderboard's own filter did not filter it")

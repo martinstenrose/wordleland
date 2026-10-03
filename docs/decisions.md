@@ -1022,8 +1022,8 @@ from it. The admin area's toasts have none, for the reason under
 to an address but a second act.
 
 The design also had a toast after each single rule in the ranking menu and
-after the range, and they were dropped: the board arrives with the menu
-still open, so the menu itself shows what changed and the row just pressed
+after the range, and they were dropped: the menu stays open while the
+board redraws under it, so it shows what changed and the box just ticked
 is the way back, and the range is a segmented pair. The reset is different
 — it can change several rules at once and takes its own button with it.
 
@@ -1130,10 +1130,10 @@ and what was kept on purpose:
   why — how many puzzles they have and where the board starts ranking. The
   count it replaced wrapped to two lines.
 - **Focus placed after a swap shows its ring only for the keyboard.** The
-  script puts focus on the pill, tab or ranking row for the page that
-  arrived, so the next Tab moves on from there; after a pointer press it
-  does so quietly, since Safari draws the ring for any focus a script sets
-  and a clicked pill was left circled.
+  script puts focus on the pill or tab for the page that arrived, or back
+  on the control a redraw in place replaced, so the next Tab moves on from
+  there; after a pointer press it does so quietly, since Safari draws the
+  ring for any focus a script sets and a clicked pill was left circled.
 - **The avatar's badge** is the design's 22px at both widths. It counts
   senders waiting for now and is named for where it sits, not for
   pending, since other notifications may use it.
@@ -1169,6 +1169,36 @@ the server's own rendering of that URL, so a page reached by script and a
 page reached by following the link are the same page. It is also the only
 version that gets an error page right: that frame has no rail, and replacing
 only the content would have left one behind.
+
+**A control redraws what it changes.** *(Revised; it once said every link
+replaces the whole body.)* Going to another page — a view in the bar, a
+player's name, a search hit — replaces the whole body, for the reasons
+above. A control that changes what this page shows — a filter, a range,
+a sort, a pair to compare — is a different act: the reader is still on the
+page, and on any site they use that redraws the part that changed and
+leaves the rest alone. Replacing the body for it threw away whatever the
+reader had open: the ranking menu had to be sent back open by the server,
+the open menu leaving had to be shut first so the browser would not shut
+the arriving one, and the cross-fade had to be cancelled because Safari
+drew it without the menu's frosted glass. Three workarounds for one
+missing distinction.
+
+So such a control fetches the page's own address, the server renders the
+whole page as it always does, and htmx takes from it only the region the
+control changes (`hx-select`) and the few things beside it that depend on
+the same query (`hx-select-oob`, by id), and pushes the address. Nothing
+is cross-faded: the reader's eye is on the control, and a fade over a
+glass panel is the one Safari draws wrong. The list of what else to take
+is the cost the body swap avoided; it lives in the page's own template,
+beside the control, where a change to the page is made, and each page's
+is short. With no script each control is still a link or a form to that
+same address.
+
+The ranking menu is the first, and a form: a checkbox per rule, sent on
+change. A form says a rule the way forms do — a cleared checkbox sends
+nothing, so the rule on by default has a hidden field to say it is off —
+and the board redirects that to its own address, so the bar, Back and a
+copied link carry the board's query and never the form's.
 
 **One mechanism, not one per route.** Two pages used to answer `?partial=1`
 with their card alone, so that the board's ranking menu and the player roster
@@ -1316,12 +1346,8 @@ listens for.
   transition on each would freeze the page as you type. (The admin
   settings card had a swap of its own, left transitioning; the fifth pass
   made rotating the slug an ordinary post and redirect, with a toast.)
-- **A press in the board's ranking menu does not fade either**, cancelled
-  in `app.js` since the press is an ordinary boosted link. The menu is open
-  on both sides of that swap, and Safari draws the cross-fade from pictures
-  of the page without the frosted glass: the open panel went clear for the
-  length of the fade and frosted again after, which read as a reload. Not
-  seen in Chromium, which keeps the frost in its pictures.
+- **A control that redraws what it changes opts out too**, for the reasons
+  under *A control redraws what it changes*.
 - **`content` is named only inside the shell.** The sign-in and error
   frames render a `<main>` too, and naming it there would morph the
   page well into the sign-in card on sign-out. Those frames cross-fade

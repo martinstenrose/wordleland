@@ -1165,10 +1165,11 @@ func TestBrowserAThemeLinkChangesTheThemeInPlace(t *testing.T) {
 //
 // The element that was pressed is gone with the body it was in, and focus
 // left on a departing node falls to the body — a keyboard back at the top
-// of the page with nothing to say it moved. Three controls are a place in
+// of the page with nothing to say it moved. Two controls are a place in
 // the page rather than a step out of it and keep focus there: a page in the
-// bar focuses the same page in the new bar, a ranking row reopens the menu
-// on that row, and a pill focuses the pill for the page that arrived.
+// bar focuses the same page in the new bar, and a pill focuses the pill for
+// the page that arrived. (A ranking rule redraws only the board, and keeps
+// its own focus; see TestBrowserARankingRuleRedrawsTheBoardUnderTheMenu.)
 // Everything else lands on the main region. None of this is in the markup.
 func TestBrowserFocusLandsSomewhereUsefulAfterASwitch(t *testing.T) {
 	site := newSite(t)
@@ -1190,14 +1191,6 @@ func TestBrowserFocusLandsSomewhereUsefulAfterASwitch(t *testing.T) {
 	p.Click(".board-card a.player")
 	p.WaitFor(`location.pathname.startsWith("/players/") && !(document.querySelector("main") || {}).__stale`)
 	p.WaitFor(active + ` === "main"`)
-
-	// A ranking row: the menu was open, and the reader may have a second
-	// rule to set, so it opens again on the row they chose.
-	p.Navigate(site.base + "/leaderboard")
-	p.Eval(`document.querySelector("details.ranking").open = true; document.querySelector("main").__stale = true; true`)
-	p.Click(".ranking-panel a:not(.on)")
-	p.WaitFor(`!(document.querySelector("main") || {}).__stale`)
-	p.WaitFor(`document.querySelector("details.ranking").open && document.querySelector(".ranking-panel").contains(document.activeElement)`)
 
 	// A pill: the pill for the page that arrived, so the next Tab moves on
 	// along the row from where the reader is.
@@ -1512,9 +1505,9 @@ func TestBrowserAResultAppearsWithoutAReload(t *testing.T) {
 	// The board: its content is redrawn, and the page is otherwise as it was.
 	q := site.open(b, desktopWidth)
 	q.Navigate(site.base + "/leaderboard")
-	q.Eval(`window.__alive = 1; document.querySelector("main > section").__stale = true; true`)
+	q.Eval(`window.__alive = 1; document.querySelector("main .board-card").__stale = true; true`)
 	file(t, site.srv, "lapsed", current-1, 3)
-	q.WaitFor(`!(document.querySelector("main > section") || {}).__stale`)
+	q.WaitFor(`!(document.querySelector("main .board-card") || {}).__stale`)
 	if alive := q.Number(`window.__alive || 0`); alive != 1 {
 		t.Error("the board redrew by reloading the document")
 	}
@@ -1655,56 +1648,69 @@ func TestBrowserTheGridPicksOutAColumn(t *testing.T) {
 	}
 }
 
-// A rule pressed in the ranking menu swaps in a board whose menu is already
-// open, and without the cross-fade. Reopened by script once the swap had
-// settled, the panel was shut in the page the fade went to; and Safari
-// draws the fade from pictures without the frosted glass, so the open panel
-// went clear for its length either way. Other links on the board still
-// fade, which is what shows the count below is counting.
-func TestBrowserARankingRuleKeepsTheMenuOpenThroughTheSwap(t *testing.T) {
+// A rule ticked in the ranking menu redraws the board under the menu and
+// nothing else: the menu is the same element, still open; the address is
+// the board's own, not the form's; nothing cross-fades — Safari drew the
+// fade without the menu's frosted glass — and nothing reloads. The reset
+// leaves its toast. A rule set from the keyboard keeps the focus on its
+// box, though the menu's rows are redrawn with the board.
+func TestBrowserARankingRuleRedrawsTheBoardUnderTheMenu(t *testing.T) {
 	site := newSite(t)
 	p := site.open(newBrowser(t), phoneWidth)
-	// The number of view transitions started since the page loaded.
-	const counting = `(() => { const start = document.startViewTransition.bind(document);
-		window.__fades = 0;
-		document.startViewTransition = (...a) => { window.__fades++; return start(...a); }; return true; })()`
-
 	p.Navigate(site.base + "/leaderboard")
-	p.Eval(counting)
-	p.Eval(`document.querySelector("details.ranking").open = true;
-		document.querySelector("main").__stale = true;
-		document.addEventListener("htmx:afterSwap", () => {
-			const menu = document.querySelector("details.ranking");
-			window.__openOnSwap = !!(menu && menu.open);
-		}, { once: true }); true`)
-	p.Click(".ranking-panel a:not(.on)")
-	p.WaitFor(`!(document.querySelector("main") || {}).__stale`)
-	p.WaitFor(`window.__openOnSwap !== undefined`)
-	if p.Eval(`window.__openOnSwap`) != true {
-		t.Error("the board swapped in with the ranking menu shut")
+	// The number of view transitions started since the page loaded.
+	p.Eval(`(() => { const start = document.startViewTransition.bind(document);
+		window.__fades = 0;
+		document.startViewTransition = (...a) => { window.__fades++; return start(...a); }; return true; })()`)
+	p.Eval(`window.__alive = 1;
+		const menu = document.querySelector("details.ranking");
+		menu.open = true; menu.__same = true;
+		document.querySelector("#board-view").__stale = true; true`)
+
+	p.Click(`label:has(#rule-missed)`)
+	p.WaitFor(`!(document.querySelector("#board-view") || {}).__stale`)
+	p.WaitFor(`location.search === "?missed=1"`)
+	if p.Eval(`(() => { const m = document.querySelector("details.ranking"); return !!(m && m.__same && m.open); })()`) != true {
+		t.Error("ticking a rule replaced or shut the ranking menu")
 	}
-	if p.Eval(`!!document.querySelector(".toast")`) != false {
-		t.Error("a rule changed from the menu left a toast")
+	if p.Eval(`document.querySelector("#rule-missed").checked`) != true {
+		t.Error("the rule just ticked is not ticked in the redrawn menu")
+	}
+	if got := p.String(`document.querySelector(".ranking-state").textContent`); got != "Custom" {
+		t.Errorf("the menu's button says %q after a rule changed, want Custom", got)
+	}
+	if p.Number(`window.__alive || 0`) != 1 {
+		t.Error("ticking a rule reloaded the document")
 	}
 	if n := p.Number(`window.__fades`); n != 0 {
-		t.Errorf("a rule changed from the menu cross-faded the page (%v transitions)", n)
+		t.Errorf("ticking a rule cross-faded the page (%v transitions)", n)
+	}
+	if p.Eval(`!!document.querySelector(".toast")`) != false {
+		t.Error("a rule left a toast")
 	}
 
-	// Back: the copy htmx kept of the page left is the one put back, and
-	// its menu is a menu like any other — named, so a press elsewhere, Esc
-	// and another menu opening all close it.
-	p.Eval(`document.querySelector("main").__stale = true; history.back(); true`)
-	p.WaitFor(`!(document.querySelector("main") || {}).__stale`)
-	if got := p.Eval(`document.querySelector("details.ranking").getAttribute("name")`); got != "menu-group" {
-		t.Errorf("the ranking menu came back from history named %v, want menu-group", got)
+	// From the keyboard: the box keeps the focus through the redraw.
+	p.Eval(`document.querySelector("#board-view").__stale = true; document.querySelector("#rule-mode").focus(); true`)
+	p.Press(" ", "Space", 0)
+	p.WaitFor(`!(document.querySelector("#board-view") || {}).__stale`)
+	p.WaitFor(`location.search === "?missed=1&mode=hard" || location.search === "?mode=hard&missed=1"`)
+	if got := p.String(`document.activeElement ? document.activeElement.id : ""`); got != "rule-mode" {
+		t.Errorf("focus went to %q after a rule set from the keyboard, want rule-mode", got)
 	}
 
-	before := p.Number(`window.__fades`)
-	p.Eval(`document.querySelector("main").__stale = true; true`)
-	p.Click(".head-seg a:not(.on)")
-	p.WaitFor(`!(document.querySelector("main") || {}).__stale`)
-	if n := p.Number(`window.__fades`) - before; n != 1 {
-		t.Errorf("the range cross-faded %v times, want 1: the count is not counting", n)
+	// The reset: the menu stays, the rules go back, and the toast says so.
+	p.Eval(`document.querySelector("#board-view").__stale = true; true`)
+	p.Click(".ranking-reset")
+	p.WaitFor(`!(document.querySelector("#board-view") || {}).__stale`)
+	p.WaitFor(`!!document.querySelector("#board-toast .toast")`)
+	if p.Eval(`(() => { const m = document.querySelector("details.ranking"); return !!(m && m.__same && m.open); })()`) != true {
+		t.Error("the reset replaced or shut the ranking menu")
+	}
+	if p.Eval(`document.querySelector("#rule-missed").checked || document.querySelector("#rule-mode").checked`) != false {
+		t.Error("the reset left a rule ticked")
+	}
+	if p.Number(`window.__alive || 0`) != 1 {
+		t.Error("the reset reloaded the document")
 	}
 }
 
@@ -1725,12 +1731,13 @@ func TestBrowserALinkToTheSamePageKeepsTheScroll(t *testing.T) {
 		ok := p.Eval(fmt.Sprintf(`(() => {
 			const link = document.querySelector(%q);
 			if (!link) return false;
-			document.querySelector("main").__stale = true;
+			document.querySelectorAll("main, main [id$='-view']").forEach(el => { el.__stale = true; });
 			link.click(); return true; })()`, selector))
 		if ok != true {
 			t.Fatalf("%s: nothing matches %s", path, selector)
 		}
-		p.WaitFor(`!(document.querySelector("main") || {}).__stale`)
+		// The whole page swapped, or only the view a control redraws.
+		p.WaitFor(`[...document.querySelectorAll("main, main [id$='-view']")].some(el => !el.__stale)`)
 		if alive := p.Number(`window.__alive || 0`); alive != 1 {
 			t.Errorf("%s %s: the document was reloaded", path, selector)
 		}
@@ -1743,7 +1750,7 @@ func TestBrowserALinkToTheSamePageKeepsTheScroll(t *testing.T) {
 		{"/leaderboard", ".head-seg a:not(.on)"},
 		// Counting missed days rather than hard mode only, which would leave
 		// the seeded board too short to have scrolled at all.
-		{"/leaderboard", `.ranking-panel a[href*="missed"]`},
+		{"/leaderboard", `label:has(#rule-missed)`},
 		{"/grid", ".head-seg a:not(.on)"},
 		{"/months", "a.season-tile:not(.on)"},
 	} {
