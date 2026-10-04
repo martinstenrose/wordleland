@@ -48,6 +48,12 @@ type puzzleRow struct {
 	Sub       string
 	Direction string
 	Grid      string
+
+	// Trail is each correction the player made to this result themselves,
+	// shown to everyone: see correct.go.
+	Trail []string
+	// CorrectHref is set on the reader's own row only.
+	CorrectHref string
 }
 
 // handlePuzzle renders /puzzle/{no}, or the current puzzle for a bare
@@ -121,6 +127,21 @@ func (s *Server) handlePuzzle(w http.ResponseWriter, r *http.Request, number, pr
 		averages[p.ID] = p.Average
 	}
 
+	corrections, err := store.Corrections(r.Context(), s.db, n)
+	if err != nil {
+		s.logger.Error("read corrections", "error", err)
+		s.renderError(w, r, http.StatusInternalServerError)
+		return
+	}
+	// Whose row may be corrected from here. The share view has no signed-in
+	// reader, so it offers nobody's.
+	var own int64
+	if ch.SignedIn() {
+		if p, err := store.PlayerByUserID(r.Context(), s.db, ch.User.ID); err == nil {
+			own = p.ID
+		}
+	}
+
 	for i, e := range day.Filed {
 		row := puzzleRow{
 			Rank: t.Integer(i + 1), Name: e.Name, Href: prefix + "/players/" + e.Slug,
@@ -142,6 +163,10 @@ func (s *Server) handlePuzzle(w http.ResponseWriter, r *http.Request, number, pr
 			row.Sub, row.Direction = t.T("puzzle.against", text), dir
 		default:
 			row.Sub = t.T("puzzle.unranked")
+		}
+		row.Trail = correctionLines(t, corrections[e.ID])
+		if e.ID == own {
+			row.CorrectHref = puzzlePath(prefix, n) + "/correct"
 		}
 		page.Rows = append(page.Rows, row)
 	}
