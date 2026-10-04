@@ -138,8 +138,8 @@ func TestAFragmentKeepsTheQuestionBefore(t *testing.T) {
 func TestTheRequestBeforeIsShownInTheModelsWords(t *testing.T) {
 	t.Parallel()
 	for want, r := range map[string]Request{
-		`{"kind":"leader","span":"2026-08","worst":false}`:                          {Kind: KindLeader, Span: SpanMonth, Month: "2026-08"},
-		`{"kind":"standing","player":"anyone","span":"14d"}`:                        {Kind: KindStanding, Span: SpanDays, Days: 14},
+		`{"kind":"leader","span":"2026-08","worst":false,"tone":"plain"}`:           {Kind: KindLeader, Span: SpanMonth, Month: "2026-08"},
+		`{"kind":"standing","player":"anyone","span":"14d","tone":"plain"}`:         {Kind: KindStanding, Span: SpanDays, Days: 14},
 		`{"kind":"count","player":"Bo","guesses":2,"orbetter":false,"fewest":true}`: {Kind: KindCount, Player: "Bo", Guesses: 2, Worst: true},
 		`{"kind":"score","player":"Bo","date":"2026-09-14"}`:                        {Kind: KindScore, Player: "Bo", Date: "2026-09-14"},
 		`{"kind":"puzzles","span":"all","easiest":true}`:                            {Kind: KindPuzzles, Span: SpanAll, Worst: true},

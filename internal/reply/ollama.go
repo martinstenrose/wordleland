@@ -375,6 +375,10 @@ func parseRequestAt(content string, today time.Time) (Request, error) {
 			}
 		}
 	}
+	// How a message was said is answered once, with its first question.
+	for i := range r.Also {
+		r.Also[i].Tone = ""
+	}
 	return r, nil
 }
 
@@ -480,6 +484,15 @@ func normalise(r Request) Request {
 		}
 	}
 	r.Scores = scores
+	switch r.Tone {
+	case ToneBoast, ToneWorried, ToneTease:
+	default:
+		// Plain, or anything else: no line in kind.
+		r.Tone = ""
+	}
+	if !slices.Contains(kindFields[r.Kind], "tone") {
+		r.Tone = ""
+	}
 	return r
 }
 
@@ -650,6 +663,13 @@ The fields a kind takes:
   "3 eller bättre"); otherwise false.
 - scores: each made-up result of a "whatif" as {"player", "guesses"}, guesses 1
   to 6 or 7 for an X ("om jag får en 6:a" is player "me", guesses 6).
+- tone: how the message is said. "plain" for a question simply asked, which
+  most messages are ("kan jag vinna månaden?", "hur går det för Bo?").
+  "boast" when the asker brags or fishes for praise about their own results
+  ("jag är väl bäst, va? 😎", "I'm crushing you all"); "worried" when the
+  asker sounds nervous about how they are doing ("leder jag fortfarande? 😅",
+  "är det kört för mig?"); "tease" when the message pokes fun at another
+  player ("haha hur dåligt går det för Bo egentligen? 😂").
 - also: when the message asks more than one thing ("vem leder, och har jag
   svit?", "how did I do yesterday and who is in form?"), the first question
   goes in the fields above and each further one here as its own request, at
@@ -657,15 +677,16 @@ The fields a kind takes:
 
 Examples, each a question and its request, written without spaces or line
 breaks:
-vem leder? {"kind":"leader","span":"month","worst":false,"also":[]}
-vem var sist förra veckan? {"kind":"leader","span":"lastweek","worst":true,"also":[]}
-hur går det för mig? {"kind":"standing","player":"me","span":"all","also":[]}
-hur ser tabellen ut? {"kind":"standing","player":"anyone","span":"all","also":[]}
-ställningen de senaste 7 dagarna? {"kind":"standing","player":"anyone","span":"7d","also":[]}
+vem leder? {"kind":"leader","span":"month","worst":false,"tone":"plain","also":[]}
+vem var sist förra veckan? {"kind":"leader","span":"lastweek","worst":true,"tone":"plain","also":[]}
+hur går det för mig? {"kind":"standing","player":"me","span":"all","tone":"plain","also":[]}
+jag krossar er väl den här månaden? 😎 {"kind":"standing","player":"me","span":"month","tone":"boast","also":[]}
+hur ser tabellen ut? {"kind":"standing","player":"anyone","span":"all","tone":"plain","also":[]}
+ställningen de senaste 7 dagarna? {"kind":"standing","player":"anyone","span":"7d","tone":"plain","also":[]}
 vem har längst svit? {"kind":"streak","player":"anyone","also":[]}
-vem vann augusti? {"kind":"leader","span":"august","worst":false,"also":[]}
-vem vinner september? {"kind":"catchup","player":"anyone","month":"september","also":[]}
-kan jag vinna månaden? {"kind":"catchup","player":"me","month":"none","also":[]}
+vem vann augusti? {"kind":"leader","span":"august","worst":false,"tone":"plain","also":[]}
+vem vinner september? {"kind":"catchup","player":"anyone","month":"september","tone":"plain","also":[]}
+kan jag vinna månaden? {"kind":"catchup","player":"me","month":"none","tone":"plain","also":[]}
 hur många 3:or har Bo? {"kind":"count","player":"Bo","guesses":3,"orbetter":false,"fewest":false,"also":[]}
 vad fick Bo igår? {"kind":"score","player":"Bo","date":"yesterday","also":[]}
 vem har inte spelat än? {"kind":"today","also":[]}

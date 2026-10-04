@@ -164,6 +164,27 @@ const (
 // Spans is every Span, for the schema's enum.
 var Spans = []Span{SpanMonth, SpanDays, SpanAll, SpanWeek, SpanLastWeek}
 
+// Tone is how a question was said, when that is worth answering in kind.
+type Tone string
+
+const (
+	// TonePlain is a question asked plainly, which is most of them. The
+	// model may write it; the parse keeps it as "", which is the same.
+	TonePlain Tone = "plain"
+	// ToneBoast is the asker bragging, or fishing for it: "jag är väl
+	// bäst, va? 😎".
+	ToneBoast Tone = "boast"
+	// ToneWorried is the asker nervous about how they are doing: "leder
+	// jag fortfarande? 😅", "är det kört för mig?".
+	ToneWorried Tone = "worried"
+	// ToneTease is the asker poking fun at another player: "hur dåligt
+	// går det för Bo egentligen? 😂".
+	ToneTease Tone = "tease"
+)
+
+// Tones is every Tone, for the schema's enum.
+var Tones = []Tone{TonePlain, ToneBoast, ToneWorried, ToneTease}
+
 // Request is a question reduced to what the answer needs. It is what the
 // model produces, and the only thing it produces.
 type Request struct {
@@ -201,6 +222,10 @@ type Request struct {
 	Puzzle int `json:"puzzle"`
 	// Scores are a what-if question's results that have not happened.
 	Scores []Hypothetical `json:"scores"`
+	// Tone is how the question was said: bragging, nervous, poking fun.
+	// The model reads it, as it reads the rest; the answer opens with a
+	// line in kind, and its figures are the same whatever the tone.
+	Tone Tone `json:"tone"`
 	// Also are the further questions of a message that asks more than
 	// one — "who leads, and is my streak still going?" — each answered in
 	// turn in the same post.
@@ -405,7 +430,7 @@ func New(db *sql.DB, cats i18n.Catalogues, locale string, interp Interpreter,
 		}
 		logger.Info("answering a question in the group",
 			"kind", req.Kind, "span", req.Span, "days", req.Days, "named_player", req.Player != "",
-			"also", strings.Join(also, ","))
+			"tone", req.Tone, "also", strings.Join(also, ","))
 		if req.Kind == KindUnknown {
 			keepUnanswered(ctx, db, logger, question)
 		}
@@ -465,6 +490,9 @@ func placeAndAnswer(ctx context.Context, db *sql.DB, t i18n.Translator, interp I
 	req = withAsker(req, asker)
 	now := time.Now()
 	answers := []string{answer(t, req, asker, players, results, now)}
+	if line := toneLine(t, req, asker, players, results, now); line != "" {
+		answers[0] = line + "\n" + answers[0]
+	}
 	for _, a := range req.Also {
 		answers = append(answers, answer(t, a, asker, players, results, now))
 	}
