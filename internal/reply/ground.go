@@ -42,6 +42,11 @@ func ground(r Request, p Prompt) Request {
 		// the month now running, whatever the model made of it.
 		r.Month = ""
 	}
+	if r.Tone != "" && !q.expressive {
+		// A tone the words do not carry: a plain question answered with
+		// "Hang in there." is the bot reading feelings into it.
+		r.Tone = ""
+	}
 	if p.Previous != nil && q.elliptical {
 		return q.following(r, *p.Previous)
 	}
@@ -77,6 +82,10 @@ type reading struct {
 	// lowest and highest say the question asks for the lowest or the
 	// highest average.
 	lowest, highest bool
+	// expressive says the message shows how it is meant: an emoji, a
+	// laugh, a "va?" fishing for agreement. A tone is only read into one
+	// that does.
+	expressive bool
 	// month says the question names a month: by name, as "förra
 	// månaden", or in figures.
 	month bool
@@ -107,6 +116,9 @@ var (
 	}
 	averageWords = []string{"snitt", "snittet", "genomsnitt", "average"}
 	monthBefore  = []string{"förra", "förrförra", "föregående", "senaste", "last", "previous", "innan", "before"}
+	// toneWords are the words a message wears its tone in.
+	toneWords = []string{"haha", "hahaha", "hehe", "lol", "lmao", "va", "väl", "right", "stackars", "oj",
+		"ojoj", "hjälp", "kört", "kass", "krossar", "krossa", "äger", "crushing", "crush", "doomed", "hopeless"}
 	// A fragment opens or closes with one of these and has none of the
 	// words a question of its own is built on.
 	opening  = []string{"och", "men", "å", "and", "but", "eller", "or"}
@@ -143,6 +155,8 @@ func read(p Prompt) reading {
 			q.asks = true
 		}
 	}
+	q.expressive = slices.ContainsFunc(lower, func(w string) bool { return slices.Contains(toneWords, w) }) ||
+		strings.ContainsFunc(p.Question, emoji)
 	average := slices.ContainsFunc(lower, func(w string) bool { return slices.Contains(averageWords, w) })
 	for i, w := range lower {
 		// "måndags", "i lördags": the day with its ending.
@@ -326,4 +340,10 @@ func (q reading) following(r, previous Request) Request {
 		}
 	}
 	return out
+}
+
+// emoji says a character is one: the pictographs, the emoticons, and the
+// older symbols chat apps draw as emoji.
+func emoji(c rune) bool {
+	return c >= 0x1F300 && c <= 0x1FAFF || c >= 0x2600 && c <= 0x27BF
 }

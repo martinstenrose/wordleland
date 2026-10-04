@@ -14,13 +14,13 @@ import (
 // which kind (normalise) are the other half of this table, and a test
 // holds the two together.
 var kindFields = map[Kind][]string{
-	KindLeader:   {"span", "worst"},
-	KindStanding: {"player", "span"},
+	KindLeader:   {"span", "worst", "tone"},
+	KindStanding: {"player", "span", "tone"},
 	KindStreak:   {"player"},
 	KindToday:    {},
 	KindScore:    {"player", "date"},
 	KindWins:     {"player", "month"},
-	KindCatchup:  {"player", "month"},
+	KindCatchup:  {"player", "month", "tone"},
 	KindCount:    {"player", "guesses", "orbetter", "fewest"},
 	KindHabits:   {"player"},
 	KindWhatIf:   {"scores", "date"},
@@ -28,10 +28,10 @@ var kindFields = map[Kind][]string{
 	KindDay:      {"date"},
 	KindPuzzles:  {"span", "easiest"},
 	KindDayWins:  {"player", "span"},
-	KindForm:     {"player", "worst", "span"},
+	KindForm:     {"player", "worst", "span", "tone"},
 	KindSteady:   {"player"},
 	KindWeekday:  {"player"},
-	KindProfile:  {"player"},
+	KindProfile:  {"player", "tone"},
 	KindHistory:  {"player"},
 	KindRecords:  {},
 	KindGroup:    {},
@@ -116,7 +116,10 @@ func requestSchema(players []string) ordered {
 		"player":   who(Anyone, Asker),
 		"other":    who(Asker),
 		"topic":    map[string]any{"type": "string", "enum": enum(Topics)},
-		"guesses":  map[string]any{"type": "integer"},
+		// Asked for only of the kinds an answer can meet in kind: the
+		// race, a player's profile, and their form.
+		"tone":    map[string]any{"type": "string", "enum": enum(Tones)},
+		"guesses": map[string]any{"type": "integer"},
 		"scores": map[string]any{"type": "array", "items": ordered{
 			{"type", "object"},
 			{"properties", ordered{

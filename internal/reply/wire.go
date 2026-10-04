@@ -231,6 +231,8 @@ func inWords(r Request) string {
 			}
 		case "topic":
 			value = string(r.Topic)
+		case "tone":
+			value = string(TonePlain)
 		case "guesses":
 			value = r.Guesses
 		case "orbetter":
