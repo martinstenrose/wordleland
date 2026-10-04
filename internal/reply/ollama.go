@@ -250,67 +250,11 @@ func (o *Ollama) pull(ctx context.Context) error {
 	return nil
 }
 
-// requestSchema is handed to the server as the response format, so the
-// model is constrained to a Request rather than asked nicely for one. The
-// enums are the Kind and Span constants; a value outside them cannot be
-// produced, and the parse below still checks.
-var requestSchema = func() map[string]any {
-	one := map[string]any{
-		"kind":     map[string]any{"type": "string", "enum": enum(Kinds)},
-		"span":     map[string]any{"type": "string", "enum": enum(Spans)},
-		"days":     map[string]any{"type": "integer"},
-		"worst":    map[string]any{"type": "boolean"},
-		"player":   map[string]any{"type": "string"},
-		"other":    map[string]any{"type": "string"},
-		"topic":    map[string]any{"type": "string", "enum": topicNames()},
-		"date":     map[string]any{"type": "string"},
-		"puzzle":   map[string]any{"type": "integer"},
-		"month":    map[string]any{"type": "string"},
-		"guesses":  map[string]any{"type": "integer"},
-		"orbetter": map[string]any{"type": "boolean"},
-		"scores": map[string]any{"type": "array", "items": map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"player":  map[string]any{"type": "string"},
-				"guesses": map[string]any{"type": "integer"},
-			},
-			"required": []string{"player", "guesses"},
-		}},
-	}
-	required := []string{"kind", "span", "days", "worst", "player", "other", "topic", "date", "puzzle",
-		"month", "guesses", "orbetter", "scores"}
-	// The further questions of a message that asks more than one: each a
-	// request of the same shape, one level deep.
-	top := map[string]any{"also": map[string]any{
-		"type":     "array",
-		"maxItems": maxAlso,
-		"items":    map[string]any{"type": "object", "properties": one, "required": required},
-	}}
-	for k, v := range one {
-		top[k] = v
-	}
-	return map[string]any{
-		"type":       "object",
-		"properties": top,
-		"required":   append(slices.Clone(required), "also"),
-	}
-}()
-
 // enum is a list of constants as the schema's strings.
 func enum[T ~string](values []T) []string {
 	out := make([]string, len(values))
 	for i, v := range values {
 		out[i] = string(v)
-	}
-	return out
-}
-
-// topicNames is every Topic plus the empty string for "not a rules
-// question", which the schema needs to allow since topic is required.
-func topicNames() []string {
-	out := []string{""}
-	for _, t := range Topics {
-		out = append(out, string(t))
 	}
 	return out
 }
@@ -328,7 +272,7 @@ func (o *Ollama) Interpret(ctx context.Context, p Prompt) (Request, error) {
 	body, err := json.Marshal(o.noThinking(map[string]any{
 		"model":  o.model,
 		"stream": false,
-		"format": requestSchema,
+		"format": requestSchema(p.Players),
 		// Deterministic: the same question should become the same request.
 		// No presence penalty, whatever the model ships with (qwen3.5:
 		// 1.5): a request repeats its quotes and field names by design.
@@ -365,7 +309,11 @@ func (o *Ollama) Interpret(ctx context.Context, p Prompt) (Request, error) {
 	if o.OnUsage != nil {
 		o.OnUsage(Usage{Reading: time.Duration(chat.PromptEvalDuration), Writing: time.Duration(chat.EvalDuration)})
 	}
-	return parseRequest(withoutThinking(chat.Message.Content))
+	r, err := parseRequestAt(withoutThinking(chat.Message.Content), p.Today)
+	if err != nil {
+		return Request{}, err
+	}
+	return ground(r, p), nil
 }
 
 // maxSpanDays is the longest "last N days" that is still a span rather
@@ -380,14 +328,28 @@ const maxAlso = 2
 // known values as a question it did not understand rather than an error:
 // the group gets the help line, and nothing is logged as broken.
 func parseRequest(content string) (Request, error) {
+	return parseRequestAt(content, time.Time{})
+}
+
+// parseRequestAt is parseRequest for a question asked on today, which is
+// what the model's words for a day and a month are counted from.
+func parseRequestAt(content string, today time.Time) (Request, error) {
 	var r Request
-	if err := json.Unmarshal([]byte(strings.TrimSpace(content)), &r); err != nil {
+	var named aliases
+	content = strings.TrimSpace(content)
+	if err := json.Unmarshal([]byte(content), &r); err != nil {
 		return Request{}, fmt.Errorf("model did not answer with a request: %w", err)
 	}
+	// The same text again for the names only a kind uses; it parsed once.
+	_ = json.Unmarshal([]byte(content), &named)
 	also := r.Also
-	r = normalise(r)
-	for _, a := range also {
-		a = normalise(a)
+	r = normalise(expand(r, named, today))
+	for i, a := range also {
+		var alias aliases
+		if i < len(named.Also) {
+			alias = named.Also[i]
+		}
+		a = normalise(expand(a, alias, today))
 		switch a.Kind {
 		case KindUnknown, KindHelp, KindThanks:
 			// Not a further question: a greeting or a thank-you alongside
@@ -540,6 +502,8 @@ var (
 // other name as it was.
 func pronoun(name string) string {
 	switch lower := strings.ToLower(name); {
+	case lower == Anyone:
+		return ""
 	case slices.Contains(askerWords, lower):
 		return Asker
 	case slices.Contains(groupWords, lower):
@@ -561,17 +525,21 @@ const maxHypotheticals = 20
 func systemPrompt(p Prompt) string {
 	var b strings.Builder
 	b.WriteString("You turn a question asked in a Wordle group chat into a JSON request. ")
-	b.WriteString("The question may be in any language. Answer with the JSON only.\n\n")
+	b.WriteString("The question may be in any language. Answer with the JSON only, on one line: ")
+	b.WriteString("the kind first, then the fields that kind takes.\n\n")
 	b.WriteString(`
-Fields:
-- kind: "leader" for who is leading, winning, best, on top, or the ranking ("vem
-  ligger etta?", "vem toppar?"), and
+- kind: "leader" for who is leading, winning, best, on top, has the best
+  average, or the ranking ("vem ligger etta?", "vem toppar?", "vem har bäst
+  snitt de senaste 14 dagarna?"), who is last ("vem är jumbo?"), and
   who won a past month ("vem vann juni?", "vem vann förra månaden?", with
   month set);
-  "standing" for how one particular player is doing, their place or average
-  ("hur ligger jag till?", "var ligger Bo?") —
-  or, with no player, the whole table: everyone's standing, "ställningen",
-  "the standings", "how is everyone doing";
+  "standing" for how one particular player is doing, their place or average,
+  now or over a period, well or badly ("hur ligger jag till?", "var ligger
+  Bo?", "hur dåligt går det för Bo?", "hur gick det för mig i augusti?", "hur
+  har det gått för Bo de senaste 7 dagarna?") —
+  or, with player "anyone", the whole table: everyone's standing,
+  "ställningen", "tabellen", "hur ser tabellen ut?", "the standings", "how is
+  everyone doing";
   "streak" for streaks or runs of solved days in a row ("svit", "i rad": "vem
   har flest dagar i rad?", "hur lång är min svit?") — not a count of scores;
   "today" for today's puzzle, who has posted, who is missing or left to post,
@@ -580,14 +548,15 @@ Fields:
   "score" for one player's result on one particular day ("my score on July 5",
   "what did Bo get yesterday", "vad fick Bo i onsdags?");
   "day" for everyone's results on one day, and how hard that puzzle was ("how
-  did everyone do yesterday?", "vad fick alla igår?", "was today's hard?");
+  did everyone do yesterday?", "vad fick alla igår?", "was today's hard?", "var
+  dagens ord svårt?", "hur svårt var gårdagens?");
   "wins" for counting titles: who has won the most months, how many months a
   player has won ("hur många månader har Bo vunnit?") — not who won or wins a
   particular month, and never the asker unless they ask about themselves;
   "catchup" for whether somebody can still win or catch up this month, how far
   behind they are, what they need to win, whether the leader is safe ("kan Bo
-  komma ikapp?", "can I still win?", "is Alma safe?"), and who will win the
-  month ("vem vinner månaden?", "vem vinner september?", with month set when
+  komma ikapp?", "kan Bo gå om mig?", "can I still win?", "is Alma safe?"), and who will win the
+  month ("vem vinner månaden?", "vem vinner september?", with the month when
   one is named) — not who is left to post today, which is "today";
   "whatif" for what would happen if somebody got a particular score: "if Bo
   gets a 6 tomorrow and Alma a 3, who leads?", "om jag får en 2:a idag?";
@@ -604,22 +573,27 @@ Fields:
   ("vem spelar bäst just nu?", "vem är het?");
   "steady" for who is most consistent, steady, reliable, or unpredictable ("vem
   är jämnast?");
-  "puzzles" for the hardest or easiest puzzle or day ("vilket var det svåraste
-  ordet i augusti?");
+  "puzzles" for which puzzle or day was the hardest or the easiest over a
+  period ("vilket var det svåraste ordet i augusti?", "vilket var det lättaste
+  pusslet den här månaden?") — not how hard one given day was, which is "day";
   "weekday" for which day of the week is hardest or best, for the group or a
-  player ("är söndagar svårast?");
+  player ("är söndagar svårast?", "vilken dag i veckan är jag bäst på?");
   "profile" for everything about one player: "tell me about Bo", "berätta om
   mig", "roast Alma", "what do you know about me?";
-  "history" for one player's months, month by month, their best month ("vilken
-  var min bästa månad?");
+  "history" for one player's months listed month by month ("månad för månad"),
+  or their best month ("vilken var min bästa månad?") — not how they did in one
+  month or period, which is "standing", nor how many months they have won,
+  which is "wins";
   "records" for the group's records, all-time bests, "rekorden";
-  "group" for the group as a whole: how many play, how many games, the group's
-  average ("hur många spelare är vi?");
+  "group" for the group as a whole: how many play, how many games or results
+  there are in all, the group's average ("hur många spelare är vi?", "hur
+  många resultat har gruppen totalt?");
   "habits" for who usually posts first or last, or when somebody usually posts
   ("vem postar sist?");
   "rules" for what something means or how it is counted — a miss, points, the
   average, a streak, how the month is scored, hard mode, form, who is ranked —
-  or what the bot knows (the words, a starting word) ("vad betyder punkter?");
+  or what the bot knows (the words, a starting word) ("vad betyder punkter?",
+  and "vad var dagens ord?", which is topic "data": the bot never sees words);
   "help" for asking what the bot can do, how to use it, or which questions it
   answers ("what can you do?", "vad kan du?", "help", "hjälp");
   "thanks" for thanks, praise or a compliment that asks nothing ("tack",
@@ -628,51 +602,74 @@ Fields:
   anything not about this Wordle group's scores (people's contact details,
   accounts, settings, other subjects). Never pick a kind that was not asked
   for: a message with no question in it is "thanks" or "unknown".
-- span: "month" for this month, and for who is leading or winning when no
-  period is given (a month is the competition being led); "all" for all time,
-  ever, overall, and — when no period is given — for who is best, the best
-  player, the best average, and for any "standing" question, one player's or
-  the whole table ("vem är bäst?", "ställningarna", "how is Bo doing?" are all
-  time: the board); "week" for this week, "lastweek" for last week (Monday to
-  Sunday); "days" for a number of recent days (two weeks is 14).
-- days: the number of days when span is "days", otherwise 0.
+
+The fields a kind takes:
+- span: the period asked about, as one word. "month" for this month, and for
+  who is leading or winning when no period is given (a month is the
+  competition being led); "all" for all time, ever, overall, and — when no
+  period is given — for who is best, the best player, the best average, and
+  for any "standing" question, one player's or the whole table
+  ("vem är bäst?", "ställningarna", "how is Bo doing?" are all time: the
+  board); "week" for this week ("den här veckan"); "lastweek" for last week
+  ("förra veckan");
+  "lastmonth" for last month ("förra månaden"); a month by its English name
+  ("i augusti" is "august", "vem vann juli?" is "july"); a number of recent
+  days as "7d", "14d" ("de senaste 14 dagarna", two weeks is "14d").
+- month: for "wins" and "catchup", "none" unless the question names a month:
+  then that month by its English name, or "lastmonth". "kan jag vinna
+  månaden?" and "hur många månader har Bo vunnit?" name none.
+- date: the day asked about, as one word: "" for today, "yesterday" ("igår"),
+  "daybeforeyesterday" ("i förrgår"), "tomorrow" ("imorgon"), a weekday for
+  the last one ("i fredags" is "friday"), a date as MM-DD ("5 juli" is "07-05",
+  "den 3 september" is "09-03"), or the puzzle's number when the question
+  names one ("Wordle 1900" is "1900").
 - worst: true for the other end — for "leader", who is last, worst, lowest,
-  struggling; for "form", who is in the worst form or slipping; for "puzzles",
-  the easiest rather than the hardest; for "count", the fewest rather than the
-  most. Otherwise false.
-- player: the player the question is about, spelled exactly as in the list —
-  the asker's own name when they ask about themselves — otherwise "". Always ""
-  when the message asks nothing about anyone.
-  A question that asks who ("vem", "who", "vilka") is about the whole group:
-  player is "" whoever is asking ("vem har bäst form?", "vem vann juni?") —
-  unless it names players itself ("vem är bäst av Alma och Bo?").
-- other: when kind is "versus", the second player; "" when the asker compares
-  themselves with the player in "player".
-- topic: when kind is "rules", which rule: "miss" (a missed day), "average" (the
-  average, points), "streak", "month" (how a month is scored and won), "hardmode",
-  "form", "ranked" (who is ranked on the board and why not), "data" (what the bot
-  knows: the words, anyone's starting word); otherwise "".
-- month: when a question names a particular past month ("vem vann juli?", "last
-  month", "how did I do in August"), that month as YYYY-MM, worked out from
-  today's date (a month without a year is the most recent one that has
-  happened); otherwise "".
-- guesses: when kind is "count", the score asked about: 1 to 6, 7 for a failure
-  (X), 0 for the whole distribution ("2:or", "tvåor", "en 2:a" are 2; "X",
-  "missar", "fails" are 7); otherwise 0.
-- orbetter: true when a "count" question asks for that score or better ("3 or
-  better", "3 eller bättre"); otherwise false.
-- date: when kind is "score", "day" or "whatif", the day asked about as
-  YYYY-MM-DD, worked out from today's date ("yesterday", "tomorrow", "last
-  Friday", "July 5" — a month without a year is the most recent one that has
-  happened); "" for the usual day (today) or when the kind takes no date.
-- puzzle: when a "score" or "day" question names a puzzle by its number
-  ("Wordle 1900"), that number; otherwise 0.
-- scores: when kind is "whatif", each made-up result as {"player", "guesses"},
-  guesses 1 to 6 or 7 for an X ("om jag får en 6:a" is the asker, 6); otherwise [].
+  struggling, "jumbo", "sist", "sämst"; for "form", who is in the worst form
+  or slipping. Otherwise false.
+- easiest: for "puzzles", true for the easiest puzzle ("lättaste"), false for
+  the hardest ("svåraste").
+- fewest: for "count", true for who has the fewest ("minst", "fewest"), false
+  for the most ("flest") and for one player's own count.
+- player: who the question is about. A name from the list when it names a
+  player; "me" when the asker asks about themselves ("jag", "mig", "min", "I",
+  "my"); "anyone" when it asks who or which player ("vem", "vilka", "who":
+  "vem har längst svit?", "vem är i form?") or is about no one in particular —
+  never the asker just because they are asking. For "count" only, "group" for
+  the whole group's total ("hur många 2:or har vi?").
+- other: the second player of a "versus": a name, or "me" for the asker ("hur
+  står jag mot Bo?" is player "me", other "Bo"; "vem är bäst av Cid och Dana?"
+  is player "Cid", other "Dana").
+- topic: which rule: "miss" (a missed day), "average" (the average, points),
+  "streak", "month" (how a month is scored and won), "hardmode", "form",
+  "ranked" (who is ranked on the board and why not), "data" (what the bot
+  knows: the words, anyone's starting word).
+- guesses: the score a "count" asks about: 1 to 6, 7 for a failure (X), 0 for
+  the whole distribution ("2:or", "tvåor", "en 2:a" are 2; "X", "missar",
+  "fails" are 7).
+- orbetter: true when a "count" asks for that score or better ("3 or better",
+  "3 eller bättre"); otherwise false.
+- scores: each made-up result of a "whatif" as {"player", "guesses"}, guesses 1
+  to 6 or 7 for an X ("om jag får en 6:a" is player "me", guesses 6).
 - also: when the message asks more than one thing ("vem leder, och har jag
   svit?", "how did I do yesterday and who is in form?"), the first question
-  goes in the fields above and each further one here as its own request with
-  the same fields, at most 2. Otherwise [].
+  goes in the fields above and each further one here as its own request, at
+  most 2. Otherwise [].
+
+Examples, each a question and its request, written without spaces or line
+breaks:
+vem leder? {"kind":"leader","span":"month","worst":false,"also":[]}
+vem var sist förra veckan? {"kind":"leader","span":"lastweek","worst":true,"also":[]}
+hur går det för mig? {"kind":"standing","player":"me","span":"all","also":[]}
+hur ser tabellen ut? {"kind":"standing","player":"anyone","span":"all","also":[]}
+ställningen de senaste 7 dagarna? {"kind":"standing","player":"anyone","span":"7d","also":[]}
+vem har längst svit? {"kind":"streak","player":"anyone","also":[]}
+vem vann augusti? {"kind":"leader","span":"august","worst":false,"also":[]}
+vem vinner september? {"kind":"catchup","player":"anyone","month":"september","also":[]}
+kan jag vinna månaden? {"kind":"catchup","player":"me","month":"none","also":[]}
+hur många 3:or har Bo? {"kind":"count","player":"Bo","guesses":3,"orbetter":false,"fewest":false,"also":[]}
+vad fick Bo igår? {"kind":"score","player":"Bo","date":"yesterday","also":[]}
+vem har inte spelat än? {"kind":"today","also":[]}
+tack, och vem är i form? {"kind":"thanks","also":[{"kind":"form","player":"anyone","worst":false,"span":"month"}]}
 `)
 	// Last, and in this order, what changes: today and the players once a
 	// day at most, the asker and the quoted post with every question. The
@@ -684,7 +681,7 @@ Fields:
 		fmt.Fprintf(&b, "Players: %s.\n", strings.Join(p.Players, ", "))
 	}
 	if p.Asker != "" {
-		fmt.Fprintf(&b, "The person asking is %s; \"I\", \"me\" and \"my\" mean them.\n", p.Asker)
+		fmt.Fprintf(&b, "The person asking is %s; \"I\", \"me\" and \"my\" mean them, written \"me\".\n", p.Asker)
 	} else {
 		b.WriteString("The person asking is not a player.\n")
 	}

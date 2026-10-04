@@ -2331,6 +2331,51 @@ runs without the database. A unit test holds that every kind has a
 question and that each question's own answer would pass, so a miss is
 the model's, not the test's.
 
+**Each kind has its own fields, and the model writes exactly those.** The
+request had one shape for every kind, every field required, and "vem
+leder?" came back as fourteen fields of zeros and empty strings: about a
+hundred tokens, and on a CPU the model's writing is most of the seconds an
+answer takes. Making the fields optional was tried and was three times as
+fast and wrong more often — the model left out the player of "hur ligger
+jag till?" and the date of "vad fick jag igår?", and the bot answered a
+different question with a straight face. So the schema is one alternative
+per kind: the kind, then that kind's fields, all required, nothing else
+allowed. The kind is written first because everything after depends on it;
+`encoding/json` sorts a map's keys, which had put `also`, `date` and `days`
+ahead of it, so the schema is marshalled in the order it is written. A
+test holds the table of fields to what the parse keeps for each kind.
+
+**The model writes words; the arithmetic is Go's.** "Förra månaden" asked
+for as `YYYY-MM` came back as the wrong month, and "den 3 september" as
+the year 3000. The model now writes `lastmonth`, `august`, `yesterday`,
+`friday`, `14d`, a puzzle by its number, a day of a month as `MM-DD` — one
+word for one decision — and the date is worked out here from the day the
+question was asked. A span, its days and a named month were three fields
+that could contradict each other and are one. The other end of a table is
+`worst` only where that is what it means: a puzzle question has `easiest`
+and a count `fewest`, since "the hardest puzzle" was read as `worst` as
+often as not.
+
+**Who a question is about is held to its words.** The commonest misreading
+by far was the asker written in for a question that asks who — "vem har
+längst svit?" answered with the asker's own streak. Two things fixed it.
+A player is a choice the grammar offers — a name from the roster, `me`,
+or `anyone` — instead of a string left empty, which a small model fills
+in. And the reading is checked against the question, which says who it is
+about in words Go reads as well as the model does: the asker stands only
+when the question says "jag", "my" or their name; the one player a
+question names is who it is about; two names are the two compared; "vi"
+makes a count the group's. The same goes for a day said in a word —
+"igår", "i lördags", "on Saturday" — a month the question never names,
+which is dropped, and "lägst snitt", which is the best and not the worst.
+Only toward what the words say: where they settle nothing, the model's
+reading stands, so a nickname still works.
+
+On the 55 questions the placing test had before this, it took qwen3:4b
+from 31 placed to 54, with a request of about 30 tokens where it had been
+about 95. The questions that came out wrong on the way are in the test
+now.
+
 **An answer talks like somebody in the chat, still in the catalogue's
 words.** Three things made answers read as a printout. The asker heard
 their own name read back ("Bo: place 2 of 2"); asked about themselves
