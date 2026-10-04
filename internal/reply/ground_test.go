@@ -151,3 +151,30 @@ func TestTheLowestAverageIsTheBest(t *testing.T) {
 		t.Error("a reading the words do not settle was changed")
 	}
 }
+
+// A week the question names is that week: "den här veckan då?" after a
+// question about all time came back as all time again.
+func TestAWeekTheQuestionNamesIsThatWeek(t *testing.T) {
+	t.Parallel()
+	previous := Request{Kind: KindStanding, Span: SpanAll, Player: "Alma"}
+	for question, want := range map[string]Span{
+		"den här veckan då?":             SpanWeek,
+		"och förra veckan?":              SpanLastWeek,
+		"hur går det för mig this week?": SpanWeek,
+		"who led last week?":             SpanLastWeek,
+		// No week named: the model's reading stands.
+		"hur går det för mig?":             SpanAll,
+		"vilken veckodag är jag bäst på?":  SpanAll,
+		"hur gick det för två veckor sen?": SpanAll,
+	} {
+		got := ground(Request{Kind: KindStanding, Span: SpanAll, Player: Asker},
+			Prompt{Question: question, Asker: "Alma", Players: []string{"Alma", "Bo"}, Previous: &previous})
+		if got.Span != want {
+			t.Errorf("%s: span = %q, want %q", question, got.Span, want)
+		}
+	}
+	// A kind with no span takes none.
+	if got := ground(Request{Kind: KindStreak, Span: SpanMonth}, Prompt{Question: "min svit den här veckan?"}); got.Span != SpanMonth {
+		t.Errorf("a streak got the span %q", got.Span)
+	}
+}

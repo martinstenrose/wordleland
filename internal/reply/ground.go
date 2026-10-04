@@ -27,15 +27,23 @@ func ground(r Request, p Prompt) Request {
 			}
 		}
 	}
+	if q.week != "" && slices.Contains(kindFields[r.Kind], "span") {
+		// "Den här veckan" and "förra veckan" are those weeks: a fragment
+		// that said only that came back with the span before it.
+		r.Span, r.Days, r.Month = q.week, 0, ""
+	}
 	if r.Kind == KindLeader && q.lowest != q.highest {
 		// A low average is the good end: "vem har lägst snitt?" asks who
 		// is best, and "högst snitt" who is last.
 		r.Worst = q.highest
 	}
-	if r.Month != "" && !q.month && !q.quoted {
+	if r.Month != "" && !q.month && !q.quoted && (p.Previous == nil || p.Previous.Month != r.Month) {
 		// A month the question never named: "kan jag vinna månaden?" is
 		// the month now running, whatever the model made of it.
 		r.Month = ""
+	}
+	if p.Previous != nil && q.elliptical {
+		return q.following(r, *p.Previous)
 	}
 	r = q.who(r)
 	for i, a := range r.Also {
@@ -58,17 +66,24 @@ type reading struct {
 	// which player ("vem", "who").
 	first, group, asks bool
 	// quoted says the question came with one of the bot's posts, whose
-	// names and scores it may be about without repeating them.
-	quoted bool
+	// names and scores it may be about without repeating them; follows,
+	// that the question before was about the asker.
+	quoted, follows bool
 	// day is the day the question names in a word, as the model's word
 	// for it: "igår" is "yesterday", "i lördags" is "saturday".
 	day string
+	// week is the week the question names, this one or the last.
+	week Span
 	// lowest and highest say the question asks for the lowest or the
 	// highest average.
 	lowest, highest bool
 	// month says the question names a month: by name, as "förra
 	// månaden", or in figures.
 	month bool
+	// elliptical says the message is a fragment that leans on the
+	// question before it — "och Bo då?", "förra veckan då?" — rather than
+	// a question of its own.
+	elliptical bool
 }
 
 var (
@@ -92,6 +107,13 @@ var (
 	}
 	averageWords = []string{"snitt", "snittet", "genomsnitt", "average"}
 	monthBefore  = []string{"förra", "förrförra", "föregående", "senaste", "last", "previous", "innan", "before"}
+	// A fragment opens or closes with one of these and has none of the
+	// words a question of its own is built on.
+	opening  = []string{"och", "men", "å", "and", "but", "eller", "or"}
+	closing  = []string{"då", "istället", "then", "instead", "too", "också"}
+	askWords = []string{"vem", "vad", "hur", "vilken", "vilket", "vilka", "när", "var", "varför", "kan",
+		"har", "är", "who", "what", "how", "which", "when", "where", "why", "can", "is", "are", "do",
+		"does", "did", "has", "have", "berätta", "tell", "visa", "show"}
 	// afterI are words that make an "i" before them the English pronoun
 	// rather than the Swedish preposition, which is the commonest word in
 	// "vem leder i september?".
@@ -101,6 +123,9 @@ var (
 
 func read(p Prompt) reading {
 	q := reading{asker: p.Asker, quoted: p.Context != ""}
+	// A follow-up to a question about the asker is still about them
+	// without saying "I" again: "hur går det för mig?", "och förra månaden?".
+	q.follows = p.Previous != nil && q.isAsker(p.Previous.Player)
 	words := strings.FieldsFunc(p.Question, func(c rune) bool { return !unicode.IsLetter(c) && !unicode.IsDigit(c) })
 	lower := make([]string, len(words))
 	for i, w := range words {
@@ -138,6 +163,17 @@ func read(p Prompt) reading {
 		q.lowest = q.lowest || average && (w == "lägst" || w == "lägsta" || w == "lowest")
 		q.highest = q.highest || average && (w == "högst" || w == "högsta" || w == "highest")
 	}
+	for i, w := range lower {
+		if i == 0 || !strings.HasPrefix(w, "veck") && !strings.HasPrefix(w, "week") {
+			continue
+		}
+		switch lower[i-1] {
+		case "här", "denna", "this":
+			q.week = SpanWeek
+		case "förra", "last", "previous", "föregående":
+			q.week = SpanLastWeek
+		}
+	}
 	months := slices.ContainsFunc(lower, func(w string) bool {
 		return strings.HasPrefix(w, "månad") || strings.HasPrefix(w, "month")
 	})
@@ -145,6 +181,13 @@ func read(p Prompt) reading {
 		_, figures := strings.CutPrefix(w, "20")
 		q.month = q.month || slices.Contains(monthNames, w) || months && slices.Contains(monthBefore, w) ||
 			figures && len(w) == 4
+	}
+	if n := len(lower); n > 0 && n <= 6 {
+		marked := slices.Contains(opening, lower[0]) || slices.Contains(closing, lower[n-1]) ||
+			n >= 2 && (lower[0] == "what" || lower[0] == "how") && lower[1] == "about"
+		asking := slices.ContainsFunc(lower, func(w string) bool { return slices.Contains(askWords, w) })
+		about := n >= 2 && (lower[0] == "what" || lower[0] == "how") && lower[1] == "about"
+		q.elliptical = marked && (!asking || about)
 	}
 	// A player is named by their whole name, or by a first name nobody
 	// else has, with or without a genitive s: "Bos svit".
@@ -199,7 +242,7 @@ func (q reading) isAsker(player string) bool {
 // supportsAsker says the question could be about the asker: it says "I"
 // or their name, or came with a post that may.
 func (q reading) supportsAsker() bool {
-	return q.first || q.quoted || q.names(q.asker)
+	return q.first || q.quoted || q.follows || q.names(q.asker)
 }
 
 func (q reading) names(player string) bool {
@@ -239,4 +282,48 @@ func (q reading) who(r Request) Request {
 		r.Player = Group
 	}
 	return r
+}
+
+// following answers a fragment with the question before it, changed only
+// where the fragment says: "hur går det för mig?" and then "den här veckan
+// då?" is the same question over this week. The model mostly writes that
+// itself. When it comes back with another kind of question altogether, the
+// kind before stands and takes from the model's reading only the fields
+// the two kinds share; and who it is about is whoever the fragment names,
+// or else whoever it was about before.
+func (q reading) following(r, previous Request) Request {
+	out := r
+	if r.Kind != previous.Kind {
+		out = previous
+		theirs := kindFields[r.Kind]
+		shared := func(names ...string) bool {
+			return slices.ContainsFunc(names, func(n string) bool { return slices.Contains(theirs, n) })
+		}
+		for _, field := range kindFields[previous.Kind] {
+			switch {
+			case field == "span" && shared("span"):
+				out.Span, out.Days, out.Month = r.Span, r.Days, r.Month
+			case field == "month" && shared("month", "span") && r.Month != "":
+				out.Month = r.Month
+			case field == "date" && shared("date"):
+				out.Date = r.Date
+			case (field == "worst" || field == "easiest" || field == "fewest") && shared("worst", "easiest", "fewest"):
+				out.Worst = r.Worst
+			case field == "guesses" && shared("guesses"):
+				out.Guesses, out.OrBetter = r.Guesses, r.OrBetter
+			}
+		}
+	}
+	out.Also = nil
+	if slices.Contains(kindFields[out.Kind], "player") && out.Kind != KindVersus {
+		switch {
+		case len(q.named) > 0:
+			out.Player = q.named[0]
+		case q.first:
+			out.Player = Asker
+		case out.Player != Group:
+			out.Player = previous.Player
+		}
+	}
+	return out
 }
