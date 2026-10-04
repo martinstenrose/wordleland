@@ -1837,6 +1837,38 @@ func TestBrowserTheGridsControlsRedrawItInPlace(t *testing.T) {
 	}
 }
 
+// Choosing a month redraws the months page in place: its pill, its column
+// in the season, a tile in the season. The page's view is replaced, the
+// document is not, nothing cross-fades, and the address is the one the
+// control names.
+func TestBrowserChoosingAMonthRedrawsThePageInPlace(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), desktopWidth)
+	p.Navigate(site.base + "/months")
+	p.Eval(`(() => { const start = document.startViewTransition.bind(document);
+		window.__fades = 0;
+		document.startViewTransition = (...a) => { window.__fades++; return start(...a); };
+		window.__alive = 1; document.querySelector("main").__same = true; return true; })()`)
+	for _, selector := range []string{"a.month-pill:not(.on)", "a.season-col:not(.on)", "a.season-tile:not(.on)"} {
+		want := p.String(fmt.Sprintf(`new URL(document.querySelector(%q).href).search`, selector))
+		p.Eval(`document.querySelector("#months-view").__stale = true; true`)
+		p.Click(selector)
+		p.WaitFor(`!(document.querySelector("#months-view") || {}).__stale`)
+		if got := p.String(`location.search`); got != want {
+			t.Errorf("%s: the address is %q, want %q", selector, got, want)
+		}
+		if p.Eval(`!!(document.querySelector("main") || {}).__same`) != true {
+			t.Errorf("%s replaced the whole page rather than its view", selector)
+		}
+	}
+	if p.Number(`window.__alive || 0`) != 1 {
+		t.Error("choosing a month reloaded the document")
+	}
+	if n := p.Number(`window.__fades`); n != 0 {
+		t.Errorf("choosing a month cross-faded the page (%v transitions)", n)
+	}
+}
+
 // A link that stays on the page swaps it and leaves the reader where they
 // were: another player, a pair to compare, the range, a ranking rule, a month
 // from the season. htmx would scroll a boosted swap to the top, which is

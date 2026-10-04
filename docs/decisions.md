@@ -1115,10 +1115,10 @@ and what was kept on purpose:
   links nowhere.
 - **A link that stays on the page keeps the scroll.** htmx scrolls every
   boosted swap to the top, which is right for a step to another page and
-  wrong for a change to this one — another player in the roster, a month
-  from the season, closing a toast, a confirm in Settings. (The board's
-  and the grid's controls now redraw in place and never scroll; see *A
-  control redraws what it changes*.) So
+  wrong for a change to this one — another player in the roster, closing
+  a toast, a confirm in Settings. (The board's, the grid's and the months
+  page's controls now redraw in place and never scroll; see *A control
+  redraws what it changes*.) So
   `app.js` compares the page a swap leaves with the one it lands on — the
   same path, or the same kind of page under it (`/players/…`,
   `/puzzle/…`, `/admin/players/…`) — and when they match, swaps with
@@ -1198,7 +1198,11 @@ same address.
 The board is the first page converted: its range, a column's sort, a
 row's ⇄ and the head-to-head's close all carry the same attributes
 (`boardInPlace` in `board.go`), and redraw the board below its head. The
-grid's window and inactive players' switch do the same (`gridInPlace`). The
+grid's window and inactive players' switch do the same (`gridInPlace`),
+and so does choosing a month (`monthsInPlace`) — nearly all of that page
+is the month chosen, so its view is the whole page and nothing is taken
+by id. Another player's pill on a player's page is a step to another
+page, and still replaces the body. The
 ranking menu is a form: a checkbox per rule, sent on
 change. A form says a rule the way forms do — a cleared checkbox sends
 nothing, so the rule on by default has a hidden field to say it is off —
