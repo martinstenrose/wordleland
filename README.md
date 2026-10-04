@@ -237,6 +237,18 @@ docker compose exec app /wordleland ask --player Martin "vem är kvar att svara 
 
 Without `--player` the question is asked by nobody in particular, so "I"
 and "me" mean nobody, as for a member whose Signal account is not linked.
+`--after` asks another question first, for trying a follow-up:
+
+```sh
+docker compose exec app /wordleland ask --player Martin --after "vem leder?" "och förra månaden?"
+```
+
+**Follow-ups** work in the group as they would with a person: within ten
+minutes of an answer, "och Bo då?", "och förra månaden?" or "and the
+worst?" are read against the question before, whoever asks them. The bot
+keeps only the request that question became — what was asked, about
+whom, over which span — in memory, never its words, and forgets it on a
+restart.
 
 **Replying to one of the bot's posts** works too: tap the bot's name into a
 reply to a daily recap and ask "what does 'points' mean here?", "vad fick

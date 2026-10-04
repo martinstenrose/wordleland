@@ -2319,6 +2319,27 @@ already turned down. A greeting or a thank-you among the further requests
 is dropped, a repeated one is kept once, and a thank-you ahead of a
 question gives way to it.
 
+**A follow-up is read against the question before it.** "Och Bo då?" and
+"och förra månaden?" were questions about nothing. The bot now remembers
+the last question it answered in the group, for ten minutes, and the
+model is shown it — after the fixed instructions, so the server's reuse
+of them is untouched, and in the words the model itself writes — and told
+to change only what a follow-up changes. It is still one call that
+produces one request; the model is shown a request, never an answer. One
+memory for the group rather than one per member, because "och jag då?" is
+as often somebody else's as the asker's. What is kept is the request —
+kinds, spans, players' names — never the question's words or who asked,
+and only in memory: nothing is written, and a restart forgets it.
+
+**A fragment keeps the question before it, whatever the model made of
+it.** A message that opens with "och" or closes with "då", and has no
+question word of its own, is a fragment. When the model answers one with
+another kind of question altogether — "den här veckan då?" after a
+standing came back as who leads the week — the kind before stands, and
+takes from the model's reading only the fields the two kinds share. Who a
+fragment is about is whoever it names, the asker if it says "jag", and
+otherwise whoever the question before was about.
+
 **Models are compared by a placing test, not by impression.** Choosing
 between qwen2.5, qwen3, qwen3.5 and gemma4 kept coming down to reports
 from elsewhere and a question or two in the group. `wordleland

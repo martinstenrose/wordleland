@@ -1,6 +1,7 @@
 package reply
 
 import (
+	"encoding/json"
 	"slices"
 	"strconv"
 	"strings"
@@ -187,4 +188,61 @@ func dateOf(word string, ahead bool, today time.Time) (string, bool) {
 // first, since a month back from the 31st is not always a month.
 func monthsAgo(now time.Time, n int) time.Time {
 	return time.Date(now.Year(), now.Month()-time.Month(n), 1, 0, 0, 0, 0, now.Location())
+}
+
+// inWords is a request as the model would have written it: its kind and
+// that kind's fields, in the model's own vocabulary. It is how the model is
+// shown the request a follow-up follows, so that what it reads and what it
+// writes are the same language.
+func inWords(r Request) string {
+	out := ordered{{"kind", string(r.Kind)}}
+	for _, field := range kindFields[r.Kind] {
+		var value any
+		switch field {
+		case "span":
+			switch {
+			case r.Month != "":
+				value = r.Month
+			case r.Span == SpanDays:
+				value = strconv.Itoa(r.Days) + "d"
+			case r.Span == "":
+				value = string(SpanMonth)
+			default:
+				value = string(r.Span)
+			}
+		case "month":
+			value = r.Month
+			if r.Month == "" {
+				value = wordNoMonth
+			}
+		case "date":
+			value = r.Date
+		case "worst", "easiest", "fewest":
+			value = r.Worst
+		case "player":
+			value = r.Player
+			if r.Player == "" {
+				value = Anyone
+			}
+		case "other":
+			value = r.Other
+			if r.Other == "" {
+				value = Asker
+			}
+		case "topic":
+			value = string(r.Topic)
+		case "guesses":
+			value = r.Guesses
+		case "orbetter":
+			value = r.OrBetter
+		case "scores":
+			value = r.Scores
+		}
+		out = append(out, member{field, value})
+	}
+	text, err := json.Marshal(out)
+	if err != nil {
+		return ""
+	}
+	return string(text)
 }
