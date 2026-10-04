@@ -86,7 +86,8 @@ func TestThePromptDescribesEveryKindAndSpan(t *testing.T) {
 		}
 	}
 	for _, s := range Spans {
-		if !strings.Contains(prompt, `"`+string(s)+`"`) {
+		// A number of days is written with the number, as "14d".
+		if s != SpanDays && !strings.Contains(prompt, `"`+string(s)+`"`) {
 			t.Errorf("the prompt never mentions span %q", s)
 		}
 	}

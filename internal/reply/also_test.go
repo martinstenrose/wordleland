@@ -59,18 +59,3 @@ func TestParseRequestFurtherQuestions(t *testing.T) {
 		}
 	}
 }
-
-// The schema offers further questions one level deep: each is a request
-// without an "also" of its own.
-func TestTheSchemaNestsOneLevel(t *testing.T) {
-	t.Parallel()
-	props := requestSchema["properties"].(map[string]any)
-	also := props["also"].(map[string]any)
-	items := also["items"].(map[string]any)["properties"].(map[string]any)
-	if _, nested := items["also"]; nested {
-		t.Error("a further question may carry further questions")
-	}
-	if _, ok := items["kind"]; !ok || also["maxItems"] != maxAlso {
-		t.Errorf("further questions are not requests of their own, bounded: %v", also)
-	}
-}

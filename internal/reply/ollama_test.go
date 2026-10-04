@@ -174,8 +174,8 @@ func TestInterpretAsksForARequest(t *testing.T) {
 	if chat["model"] != "qwen2.5:3b" || chat["stream"] != false {
 		t.Errorf("model/stream = %v/%v", chat["model"], chat["stream"])
 	}
-	if _, ok := chat["format"].(map[string]any)["properties"]; !ok {
-		t.Errorf("format is not a JSON schema: %v", chat["format"])
+	if kinds, _ := chat["format"].(map[string]any)["anyOf"].([]any); len(kinds) != len(Kinds) {
+		t.Errorf("format is not a schema with an alternative per kind: %d of them", len(kinds))
 	}
 	if temp := chat["options"].(map[string]any)["temperature"]; temp != 0.0 {
 		t.Errorf("temperature = %v, want 0", temp)
@@ -183,7 +183,7 @@ func TestInterpretAsksForARequest(t *testing.T) {
 	msgs := chat["messages"].([]any)
 	system := msgs[0].(map[string]any)["content"].(string)
 	user := msgs[1].(map[string]any)["content"].(string)
-	for _, want := range []string{"Bo", "Alma", "15 September 2026", `"leader"`, `"days"`} {
+	for _, want := range []string{"Bo", "Alma", "15 September 2026", `"leader"`, `"14d"`} {
 		if !strings.Contains(system, want) {
 			t.Errorf("system prompt lacks %q:\n%s", want, system)
 		}

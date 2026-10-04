@@ -33,7 +33,7 @@ func TestParseRequestDropsAPlayerWhereNoneCanBeMeant(t *testing.T) {
 
 func TestThePromptSaysANonQuestionIsNotAQuestion(t *testing.T) {
 	system := systemPrompt(Prompt{Players: []string{"Alma"}})
-	for _, want := range []string{`"thanks"`, "asks nothing", `Always ""`,
+	for _, want := range []string{`"thanks"`, "asks nothing", "never the asker just because they are asking",
 		// "Who is best?" is a career question; "who leads?" is the month's.
 		`"vem är bäst?"`, "who is leading or winning when no",
 		// The standings with no period are the board, all time.
