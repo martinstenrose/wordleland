@@ -19,7 +19,7 @@ func TestWorstNamesTheBottomAmongRegulars(t *testing.T) {
 		t.Errorf("en: %q", got)
 	}
 	got = answer(translator(t, "sv"), Request{Kind: KindLeader, Span: SpanMonth, Worst: true}, nil, players, results, now)
-	if got != "🥄 September: Bo är jumbo på 4,20 i snitt." {
+	if got != "🐘 September: Bo är jumbo på 4,20 i snitt." {
 		t.Errorf("sv: %q", got)
 	}
 }

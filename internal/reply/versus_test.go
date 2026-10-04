@@ -97,7 +97,7 @@ func TestTheWeekSpans(t *testing.T) {
 	}{
 		{"sv", Request{Kind: KindLeader, Span: SpanWeek}, "📊 Den här veckan: Alma leder på 3,00 i snitt, 100 punkter före Bo."},
 		{"en", Request{Kind: KindStanding, Span: SpanLastWeek}, "Last week:\n1. Alma 3.00\n2. Bo 4.00"},
-		{"sv", Request{Kind: KindLeader, Span: SpanLastWeek, Worst: true}, "🥄 Förra veckan: Bo är jumbo på 4,00 i snitt."},
+		{"sv", Request{Kind: KindLeader, Span: SpanLastWeek, Worst: true}, "🐘 Förra veckan: Bo är jumbo på 4,00 i snitt."},
 	}
 	for _, tc := range tests {
 		if got := answer(translator(t, tc.loc), tc.req, nil, players, results, now); got != tc.want {

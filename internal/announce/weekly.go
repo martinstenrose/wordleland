@@ -288,9 +288,9 @@ func spoonLine(t i18n.Translator, w weekContext) string {
 	}
 	avg := t.Decimal(*last[0].Average, 2)
 	if len(last) > 1 {
-		return "🥄 " + t.T("announce.weekly.spoonShared", joinNames(t, playerNames(last)), avg)
+		return t.T("mark.last") + " " + t.T("announce.weekly.spoonShared", joinNames(t, playerNames(last)), avg)
 	}
-	return "🥄 " + t.T("announce.weekly.spoon", last[0].Name, avg)
+	return t.T("mark.last") + " " + t.T("announce.weekly.spoon", last[0].Name, avg)
 }
 
 // weekAverageLine is the group's average over the results it posted, set
