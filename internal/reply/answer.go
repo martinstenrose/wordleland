@@ -511,7 +511,12 @@ func gapLine(t i18n.Translator, m stats.Month, mp stats.MonthPlayer) string {
 		case len(others) > 0:
 			return t.T("reply.standing.level", joinNames(t, others))
 		case m.Margin != nil:
-			return t.T("reply.standing.clear", int(math.Round(*m.Margin*100)), joinNames(t, names(runnersUp(m))))
+			next := joinNames(t, names(runnersUp(m)))
+			if points := int(math.Round(*m.Margin * 100)); points > 0 {
+				return t.T("reply.standing.clear", points, next)
+			}
+			// A gap under half a point is a gap, and not "0 points".
+			return t.T("reply.standing.clear.just", next)
 		}
 		return ""
 	}
@@ -531,7 +536,10 @@ func gapLine(t i18n.Translator, m stats.Month, mp stats.MonthPlayer) string {
 	if len(above) == 0 {
 		return ""
 	}
-	return t.T("reply.standing.behind", int(math.Round((*mp.Average-aboveAvg)*100)), joinNames(t, above))
+	if points := int(math.Round((*mp.Average - aboveAvg) * 100)); points > 0 {
+		return t.T("reply.standing.behind", points, joinNames(t, above))
+	}
+	return t.T("reply.standing.behind.just", joinNames(t, above))
 }
 
 // streak reads the board, whose streaks are computed from the unfiltered

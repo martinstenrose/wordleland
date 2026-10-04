@@ -2,6 +2,7 @@ package reply
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -152,5 +153,29 @@ func TestAStockLineIsNotSaidTheSameTwiceRunning(t *testing.T) {
 	}
 	if said[0] == said[1] {
 		t.Errorf("said %q twice running", said[0])
+	}
+}
+
+// A gap too small to show in points is still a gap: "0 points behind"
+// reads as level, which the places beside it say it is not.
+func TestAGapThatRoundsToNothingIsNotZeroPoints(t *testing.T) {
+	t.Parallel()
+	now := fixtureNow()
+	current := wordle.PuzzleForDate(now)
+	// Three hundred days of 3s each, but for one 4 of Bo's: a third of a
+	// point apart, all time.
+	results := play(t, alma.ID, current-299, current, 3, 0)
+	bos := play(t, bo.ID, current-299, current, 3, 0)
+	bos[0].Guesses = 4
+	players, results := []store.Player{alma, bo}, append(results, bos...)
+	tr := translator(t, "en")
+
+	got := answer(tr, Request{Kind: KindStanding, Span: SpanAll, Player: "Bo"}, nil, players, results, now)
+	if !strings.HasSuffix(got, "Just behind Alma.") || strings.Contains(got, "0 points") {
+		t.Errorf("the chaser: %q", got)
+	}
+	got = answer(tr, Request{Kind: KindStanding, Span: SpanAll, Player: "Alma"}, nil, players, results, now)
+	if !strings.HasSuffix(got, "Just ahead of Bo.") || strings.Contains(got, "0 points") {
+		t.Errorf("the leader: %q", got)
 	}
 }
