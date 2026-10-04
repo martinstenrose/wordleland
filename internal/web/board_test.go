@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/martinstenrose/wordleland/internal/i18n"
+	"github.com/martinstenrose/wordleland/internal/stats"
 	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/wordle"
 )
@@ -888,5 +889,28 @@ func TestMonthAwardsLinkTheirHolders(t *testing.T) {
 	shared := fetchAs(t, srv, "/share/"+slug+"/months", nil).Body.String()
 	if !strings.Contains(shared, `<p class="month-award-who"><a href="/share/`+slug+`/players/`) {
 		t.Error("a shared award links out of the share prefix")
+	}
+}
+
+// The climb is told against the month before by its full name — "från juli",
+// not the chip's "från jul", which reads as Christmas.
+func TestMonthAwardClimbNamesTheMonthInFull(t *testing.T) {
+	t.Parallel()
+
+	tr := translator{strings: catalogue{
+		"month.7":                    "juli",
+		"month.short.7":              "Jul",
+		"months.award.climbed.other": "upp %d placeringar från %s",
+	}}
+	player := func(id int64, rank int) stats.MonthPlayer {
+		return stats.MonthPlayer{Player: store.Player{ID: id, Name: "P", Slug: "p"}, Rank: rank}
+	}
+	months := []stats.Month{
+		{Year: 2026, Month: time.August, Ranked: []stats.MonthPlayer{player(1, 1), player(2, 2), player(3, 3), player(4, 4)}},
+		{Year: 2026, Month: time.July, Ranked: []stats.MonthPlayer{player(2, 1), player(3, 2), player(4, 3), player(1, 4)}},
+	}
+	awards := monthAwards(tr, months, 0, false, "")
+	if got, want := awards[0].What, "upp 3 placeringar från juli"; got != want {
+		t.Errorf("climb award = %q, want %q", got, want)
 	}
 }

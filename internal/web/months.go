@@ -577,7 +577,7 @@ func monthAwards(t translator, months []stats.Month, selected int, running bool,
 		}
 		if climb > 0 {
 			improved.Who = who(climbers)
-			improved.What = t.TP("months.award.climbed", climb, climb, shortMonthName(t, prev.Month))
+			improved.What = t.TP("months.award.climbed", climb, climb, t.T("month."+strconv.Itoa(int(prev.Month))))
 		}
 	}
 	awards = append(awards, improved)
