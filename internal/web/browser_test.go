@@ -32,6 +32,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -1980,5 +1981,65 @@ func TestBrowserAPressedPillIsNotLeftCircled(t *testing.T) {
 	p.WaitFor(onPill)
 	if got := p.Eval(ring); got == "none" {
 		t.Error("a pill reached from the keyboard shows no ring")
+	}
+}
+
+// A reader's settings are as wide as any other page's cards, and the pending
+// page's empty state draws its glyph in the middle of its circle.
+//
+// The settings stack once capped itself narrower than the page, so its
+// cards stood apart from every other page's; and the shared card gutter
+// padded the empty state's icon circle too, leaving it less room than the
+// glyph, which then spilled off to the right. Both are only visible in
+// the laid-out page.
+func TestBrowserSettingsCardsAreAsWideAsTheRest(t *testing.T) {
+	site := newSite(t)
+	b := newBrowser(t)
+
+	const widths = `JSON.stringify([...document.querySelectorAll("main .card")].map(c => Math.round(c.getBoundingClientRect().width)))`
+	for _, width := range []int{phoneWidth, desktopWidth} {
+		p := site.open(b, width)
+		p.Navigate(site.base + "/admin/settings")
+		var ref []int
+		_ = json.Unmarshal([]byte(p.String(widths)), &ref)
+		if len(ref) == 0 {
+			t.Fatalf("width %d: /admin/settings has no card to measure against", width)
+		}
+		p.Navigate(site.base + "/settings")
+		var got []int
+		_ = json.Unmarshal([]byte(p.String(widths)), &got)
+		if len(got) == 0 {
+			t.Fatalf("width %d: /settings has no cards", width)
+		}
+		for i, w := range got {
+			if w != ref[0] {
+				t.Errorf("width %d: settings card %d is %dpx wide, other pages' cards are %dpx", width, i, w, ref[0])
+			}
+		}
+	}
+}
+
+func TestBrowserTheEmptyPendingGlyphIsCentred(t *testing.T) {
+	site := newSite(t)
+	b := newBrowser(t)
+
+	const probe = `(() => {
+		const icon = document.querySelector(".admin-empty-icon");
+		if (!icon) return "";
+		const c = icon.getBoundingClientRect(), g = icon.querySelector("svg").getBoundingClientRect();
+		return JSON.stringify([c.left + c.width / 2 - (g.left + g.width / 2), c.top + c.height / 2 - (g.top + g.height / 2)]);
+	})()`
+	for _, width := range []int{phoneWidth, desktopWidth} {
+		p := site.open(b, width)
+		p.Navigate(site.base + "/admin/pending")
+		raw := p.String(probe)
+		if raw == "" {
+			t.Fatalf("width %d: /admin/pending shows no empty state", width)
+		}
+		var off [2]float64
+		_ = json.Unmarshal([]byte(raw), &off)
+		if math.Abs(off[0]) > 0.5 || math.Abs(off[1]) > 0.5 {
+			t.Errorf("width %d: the glyph is %.1fpx, %.1fpx off its circle's centre", width, off[0], off[1])
+		}
 	}
 }
