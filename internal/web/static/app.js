@@ -467,21 +467,6 @@ var onPageChange = (function () {
     // reply is confirmed or corrected by the lines above, and there is
     // nothing left to put back.
     if (detail.shouldSwap !== false) settleAhead(detail.xhr);
-    // A page can arrive with a menu open — the board after a rule pressed
-    // in its ranking menu (board.go's ruleLink). htmx puts the new body in
-    // before it takes the old one out, and a <details name> opening while
-    // another of its name is open shuts itself, as an accordion does. So
-    // the departing one closes first. That press swaps with no cross-fade
-    // (item 6), so nothing is drawn in between; and the copy htmx keeps for
-    // Back, taken after this, has the menu shut, as a page come back to
-    // should.
-    if (detail.shouldSwap !== false) {
-      incoming.querySelectorAll("details[name][open]").forEach(function (arriving) {
-        document.querySelectorAll("details[name][open]").forEach(function (d) {
-          if (d.getAttribute("name") === arriving.getAttribute("name")) d.open = false;
-        });
-      });
-    }
   });
 
   // And the address. htmx (2.0.10) decides whether a boosted swap pushes
@@ -538,25 +523,11 @@ var onPageChange = (function () {
     el.focus({ preventScroll: true, focusVisible: !pointerLast });
   }
 
-  // Where focus goes instead, for the three controls that are a place in the
+  // Where focus goes instead, for the two controls that are a place in the
   // page rather than a step out of it. Each returns false if the page that
   // arrived does not have what it was looking for, and the main region takes
   // over. link is the anchor that was pressed, detached now but intact.
   function focusRule(link) {
-    var ranking = link.closest(".ranking-panel");
-    if (ranking) {
-      // The board arrives with the menu open (board.go's ruleLink), and the
-      // reader may well have a second rule to set, so the row they chose
-      // keeps the focus.
-      var index = Array.prototype.indexOf.call(ranking.querySelectorAll("a"), link);
-      return function () {
-        var menu = document.querySelector("details.ranking");
-        if (!menu || !menu.open) return false;
-        var row = menu.querySelectorAll(".ranking-panel a")[index];
-        if (row) placeFocus(row);
-        return true;
-      };
-    }
     if (link.closest(".pill-row, .admin-tabs")) {
       // A pill or a step arrow beside the roster, or one of the admin
       // area's tabs. The one for the page that arrived keeps the focus, so
@@ -696,19 +667,8 @@ var onPageChange = (function () {
   // starts, is the version that costs nothing. Read at each swap rather
   // than once, so a setting changed mid-session is honoured. Without
   // script there is no transition to cancel.
-  //
-  // Nor is there one for a press in the board's ranking menu. The menu is
-  // open on both sides of that swap, and the cross-fade is drawn from
-  // pictures of the page, which Safari takes without the frosted glass: the
-  // panel went clear for the length of the fade and frosted again after,
-  // which read as the page reloading. The swap is instant instead.
   document.addEventListener("htmx:beforeTransition", function (event) {
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      event.preventDefault();
-      return;
-    }
-    var config = event.detail && event.detail.requestConfig;
-    if (config && config.elt && config.elt.closest && config.elt.closest(".ranking-panel")) {
       event.preventDefault();
     }
   });
@@ -716,7 +676,7 @@ var onPageChange = (function () {
   // 7. A link that stays on the page keeps the reader where they are.
   // htmx scrolls a boosted swap to the top, which is right for a step to
   // another page and wrong for a change to this one: another player in the
-  // roster, the range or a rule on the board, a pair to compare, a month
+  // roster, the range on the board, a pair to compare, a month
   // from the season, the grid's window. Those swap the page and leave the
   // scroll alone. "The same page" is the same view — the same path, or
   // the same kind of page under it (/players/…, /puzzle/…, an admin
@@ -737,5 +697,28 @@ var onPageChange = (function () {
     var landed = detail.xhr.responseURL || (detail.pathInfo && detail.pathInfo.finalRequestPath);
     if (!landed || pageOf(landed) !== pageOf(window.location.href)) return;
     detail.swapOverride = "innerHTML show:none";
+  });
+
+  // 8. A control that changes what a page shows, rather than going to
+  // another page, redraws only what it changes (docs/decisions.md, "A
+  // control redraws what it changes"): the board under its ranking menu,
+  // say. What it redraws can include the control itself — the menu's rows,
+  // when the reset comes and goes — and focus on a replaced node falls to
+  // the body. So focus that was on an element with an id goes back to the
+  // element with that id, if the swap brought one. Body swaps place focus
+  // themselves (item 2).
+  var focusedId = null;
+  document.addEventListener("htmx:beforeSwap", function (event) {
+    var active = document.activeElement;
+    focusedId = event.detail.target !== document.body && active && active.id ? active.id : null;
+  });
+  document.addEventListener("htmx:afterSettle", function (event) {
+    if (event.detail.target === document.body || !focusedId) return;
+    var id = focusedId;
+    focusedId = null;
+    var active = document.activeElement;
+    if (active && active !== document.body && active.id === id) return;
+    var again = document.getElementById(id);
+    if (again) placeFocus(again);
   });
 })();

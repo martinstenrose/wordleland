@@ -556,6 +556,57 @@ func hrefFor(t *testing.T, body, text string) string {
 	return html.UnescapeString(rest[:strings.Index(rest, `"`)])
 }
 
+// ruleHref is the address the ranking form on a board page sends with the
+// checkbox for one rule flipped, as a browser builds it: every field in the
+// order the form has it, a checkbox only when ticked. The board answers it
+// with a redirect to its own address; see followRule.
+func ruleHref(t *testing.T, body, rule string) string {
+	t.Helper()
+	start := strings.Index(body, `<form id="ranking-panel"`)
+	if start < 0 {
+		t.Fatal("no ranking form on the page")
+	}
+	form := body[start : start+strings.Index(body[start:], "</form>")]
+	action := regexp.MustCompile(`action="([^"]*)"`).FindStringSubmatch(form)[1]
+	var fields []string
+	found := false
+	for _, tag := range regexp.MustCompile(`<input [^>]*>`).FindAllString(form, -1) {
+		attr := func(name string) string {
+			m := regexp.MustCompile(` ` + name + `="([^"]*)"`).FindStringSubmatch(tag)
+			if m == nil {
+				return ""
+			}
+			return html.UnescapeString(m[1])
+		}
+		name := attr("name")
+		if attr("type") == "checkbox" {
+			on := strings.Contains(tag, " checked")
+			if name == rule {
+				on, found = !on, true
+			}
+			if !on {
+				continue
+			}
+		}
+		fields = append(fields, url.QueryEscape(name)+"="+url.QueryEscape(attr("value")))
+	}
+	if !found {
+		t.Fatalf("no checkbox for %q in the ranking form", rule)
+	}
+	return html.UnescapeString(action) + "?" + strings.Join(fields, "&")
+}
+
+// followRule flips one rule in the board page's ranking form and returns
+// the address the board sends it on to.
+func followRule(t *testing.T, srv *Server, body, rule string, cookie *http.Cookie) string {
+	t.Helper()
+	rec := fetchAs(t, srv, ruleHref(t, body, rule), cookie)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("sending the ranking form with %s flipped = %d, want 303", rule, rec.Code)
+	}
+	return rec.Header().Get("Location")
+}
+
 // hrefForName is hrefFor for a control whose name is its aria-label rather
 // than text in the page — an icon link, such as one of the three theme
 // settings.
@@ -610,20 +661,20 @@ func TestControlsWorkOnBothBoards(t *testing.T) {
 			}
 			body := rec.Body.String()
 
-			for _, control := range []string{"Hard mode only", "Count missed as 7", "Count failed as 7"} {
-				href := hrefFor(t, body, control)
+			for _, rule := range []string{"mode", "missed", "failed"} {
+				href := followRule(t, srv, body, rule, board.cookie)
 				if !strings.HasPrefix(href, board.path) {
-					t.Errorf("%q links to %q, which is not under the board at %q",
-						control, href, board.path)
+					t.Errorf("the %s rule leads to %q, which is not under the board at %q",
+						rule, href, board.path)
 				}
 				if got := fetchAs(t, srv, href, board.cookie).Code; got != http.StatusOK {
-					t.Errorf("following %q to %q = %d, want 200", control, href, got)
+					t.Errorf("following the %s rule to %q = %d, want 200", rule, href, got)
 				}
 			}
 
-			// And the filter link does not merely resolve — it changes the
-			// board it resolves to.
-			hard := fetchAs(t, srv, hrefFor(t, body, "Hard mode only"), board.cookie).Body.String()
+			// And the filter does not merely resolve — it changes the board
+			// it resolves to.
+			hard := fetchAs(t, srv, followRule(t, srv, body, "mode", board.cookie), board.cookie).Body.String()
 			if !strings.Contains(hard, "players hidden") {
 				t.Errorf("following the hard-mode control left the board unfiltered")
 			}
@@ -815,38 +866,52 @@ func TestPartialNeverSurvivesIntoALink(t *testing.T) {
 	}
 }
 
-// A rule in the ranking menu leads to a board with the menu still open and
-// no toast: the menu shows what changed, and the row is the way back. The
-// reset, which can change several rules and takes its own button away,
-// leaves a toast whose Undo goes back to the board as it was. Either belongs
-// to that one change, so no link on the page carries it on.
-func TestARankingChangeKeepsTheMenuOpen(t *testing.T) {
+// The ranking rules are a form: a checkbox per rule, carrying the rest of
+// the board's query along, which the board sends on to its own address.
+// That address is the board's query alone — a cleared checkbox's stand-in
+// and the form's marker gone — so the bar, Back and a copied link never
+// show the form's. A rule leaves no toast; the reset, which can change
+// several and takes its own button away, leaves one whose Undo goes back.
+func TestTheRankingRulesAreAFormForTheBoardsOwnAddress(t *testing.T) {
 	t.Parallel()
 
 	srv := testServer(t)
 	seedBoard(t, srv)
 	_, session := adminSession(t, srv)
-	const openMenu = `<details class="menu ranking" name="menu-group" open>`
 
 	board := fetchAs(t, srv, "/leaderboard?range=90", session).Body.String()
-	if strings.Contains(board, openMenu) {
-		t.Error("the menu is open on a board nobody changed")
-	}
-	link := regexp.MustCompile(`href="(/leaderboard\?[^"]*changed=hard[^"]*)"`).FindStringSubmatch(board)
-	if link == nil {
-		t.Fatal("the hard-mode row does not mark its link as a change")
-	}
-	after := fetchAs(t, srv, html.UnescapeString(link[1]), session).Body.String()
-	if !strings.Contains(after, openMenu) {
-		t.Error("a rule changed from the menu arrives with the menu shut")
-	}
-	if strings.Contains(after, `class="toast`) {
-		t.Error("a rule changed from the menu leaves a toast")
-	}
-	if strings.Contains(after, "changed=hard&amp;changed=") || strings.Contains(after, "changed=reset&amp;changed=") {
-		t.Error("a link on the changed board carries the change on")
+	for _, want := range []string{
+		`<form id="ranking-panel" class="menu-panel glass ranking-panel" method="get" action="/leaderboard"`,
+		`<input type="hidden" name="rules" value="1">`,
+		`<input type="hidden" name="range" value="90">`,
+		`<input id="rule-mode" class="visually-hidden" type="checkbox" name="mode" value="hard">`,
+		// On by default, so cleared it needs the hidden field after it.
+		`<input id="rule-failed" class="visually-hidden" type="checkbox" name="failed" value="1" checked>
+              <input type="hidden" name="failed" value="0">`,
+	} {
+		if !strings.Contains(board, want) {
+			t.Errorf("the ranking form does not have %s", want)
+		}
 	}
 
+	for _, tt := range []struct{ query, want string }{
+		// Hard mode ticked, failed left ticked: its stand-in follows it.
+		{"?rules=1&range=90&mode=hard&failed=1&failed=0", "/leaderboard?mode=hard&range=90"},
+		// Failed cleared: only the stand-in is sent.
+		{"?rules=1&failed=0", "/leaderboard?failed=0"},
+		// Everything at its default: the bare board.
+		{"?rules=1&failed=1&failed=0", "/leaderboard"},
+	} {
+		rec := fetchAs(t, srv, "/leaderboard"+tt.query, session)
+		if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != tt.want {
+			t.Errorf("%s: %d to %q, want 303 to %q", tt.query, rec.Code, rec.Header().Get("Location"), tt.want)
+		}
+	}
+
+	after := fetchAs(t, srv, "/leaderboard?mode=hard&range=90", session).Body.String()
+	if strings.Contains(after, `class="toast`) {
+		t.Error("a board with a rule changed has a toast")
+	}
 	reset := regexp.MustCompile(`href="(/leaderboard\?[^"]*changed=reset[^"]*)"`).FindStringSubmatch(after)
 	if reset == nil {
 		t.Fatal("the reset does not mark its link as a change")
@@ -860,6 +925,9 @@ func TestARankingChangeKeepsTheMenuOpen(t *testing.T) {
 	}
 	if !strings.Contains(back, `<a class="toast-close" href="/leaderboard?range=90"`) {
 		t.Error("the toast's close does not go to the same board without the note")
+	}
+	if strings.Contains(back, "changed=reset&amp;changed=") {
+		t.Error("a link on the reset board carries the change on")
 	}
 
 	for _, bad := range []string{"https://example.tld", "//example.tld"} {

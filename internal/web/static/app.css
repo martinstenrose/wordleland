@@ -3909,8 +3909,13 @@ a.b-cmp.on { background: var(--color-accent); border-color: var(--color-accent);
 .ranking-text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
 .ranking-name { font-size: 14px; font-weight: 600; }
 .ranking-hint { font-size: 12px; color: var(--color-muted); }
+/* Each row is a label around a checkbox the eye never sees: the row is
+   what is pressed, and its check and wash follow the box as it is ticked,
+   before the board has redrawn. */
 .ranking-row .menu-check { color: var(--color-accent); opacity: 0; }
-.ranking-row.on .menu-check { opacity: 1; }
+.ranking-row:has(:checked) { background: var(--glass-hover); }
+.ranking-row:has(:checked) .menu-check { opacity: 1; }
+.ranking-row:has(:focus-visible) { outline: 2px solid var(--color-accent-50); outline-offset: -2px; }
 .ranking-reset { display: flex; justify-content: center; margin: 6px 6px 2px; }
 
 /* Two players head to head. */
