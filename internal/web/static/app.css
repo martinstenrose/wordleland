@@ -2860,6 +2860,9 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 /* A screen with nothing on it: a glyph, what is missing, what will fill it. */
 .admin-empty.card { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 24px; text-align: center; border-radius: var(--radius-card); }
+/* The card's own padding is the gutter; the shared one would squeeze the
+   icon's circle and push the glyph off-centre. */
+.admin-empty.card > * { padding-left: 0; padding-right: 0; }
 .admin-empty-icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 26px; background: var(--color-tint); color: var(--color-accent); }
 .admin-empty-title { margin-top: 4px; font-size: 17px; font-weight: 700; }
 .admin-empty-body { max-width: 340px; font-size: 14px; line-height: 1.5; color: var(--color-muted); }
