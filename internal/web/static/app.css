@@ -3202,7 +3202,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   font-size: 14px; font-weight: 500; line-height: 1.35;
 }
 .toast-text { flex: 1; min-width: 0; }
-.toast-undo { padding: 4px 6px; font-weight: 700; color: var(--color-accent); text-decoration: none; }
 /* A finger's width, 44px, drawn into the toast's padding so the toast is
    no taller for it. */
 .toast-close { display: grid; place-items: center; flex: none; width: 44px; height: 44px; margin: -12px -10px; color: var(--color-muted); }

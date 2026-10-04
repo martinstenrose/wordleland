@@ -44,7 +44,7 @@ read fields on a struct.
 | `pill-nav` | One active choice among several, as a row of pills. |
 | `switcher` | The head of a page with siblings, and the row of pills that moves between them. |
 | `page-empty` | A page with nothing in it yet: one card with a glyph, what is missing and what will fill it, in place of everything the page would draw. Defined beside `switcher`. |
-| `toast` | The outcome of something just done, in frosted glass — over the foot of a wide window, under the bar on a phone, whose foot is the browser's: a check, the text, an optional Undo, and a close that is a link to the page without the notice. Defined in `ui/toast.html`. |
+| `toast` | The outcome of something just done, in frosted glass — over the foot of a wide window, under the bar on a phone, whose foot is the browser's: a check, the text, and a close that is a link to the page without the notice. Defined in `ui/toast.html`. |
 | `empty-state` | A list with nothing in it yet, inside a card that has other things: a glyph in the accent's wash, what is missing and what will fill it. `page-empty` is the whole-page version. Defined in `ui/empty-state.html`. |
 | `admin-head` | An admin screen's page head, then the five sections as a segmented bar of tabs; on a phone the bar is hidden and the eyebrow leads back to the section list at `/admin`. Defined in `app/admin.html`. |
 | `pattern` | The squares a result was shared with, small beside a name or larger on the Puzzle page. Built from a stored `wordle.Grid` by the `gridRows` template function; nothing is drawn for a result without one. |

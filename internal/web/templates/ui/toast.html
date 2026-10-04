@@ -1,14 +1,12 @@
 {{/* The outcome of something just done, floating over the foot of the
-     window: a check, what happened, perhaps a way back, and a way to put it
-     away. It is a note and not a dialog — nothing waits on it — and its
+     window: a check, what happened, and a way to put it away. It is a note and not a dialog — nothing waits on it — and its
      close is a link to the page without the outcome, so it goes with no
      script. Data: {T translator, Text string, Href string (the page's
-     address without the notice), Undo string (optional: where Undo goes)}. */}}
+     address without the notice)}. */}}
 {{define "toast"}}
 <div class="toast glass" role="status">
   {{symbol "check_circle" 19}}
   <span class="toast-text">{{.Text}}</span>
-  {{with .Undo}}<a class="toast-undo" href="{{.}}">{{$.T.T "action.undo"}}</a>{{end}}
   <a class="toast-close" href="{{.Href}}" aria-label="{{.T.T "action.close"}}" title="{{.T.T "action.close"}}">{{symbol "close" 18}}</a>
 </div>
 {{end}}
