@@ -446,7 +446,7 @@ func TestTheWeeklyPostUsesTheConfiguredLocale(t *testing.T) {
 	for _, want := range []string{
 		"🗓️ Vecka 38 är klar: 4 spelare, 28 resultat.",
 		"🥇 Alice tog hem veckan på 3,00 i snitt.",
-		"🥄 Dave är veckans jumbo på 5,00.",
+		"🐘 Dave är veckans jumbo på 5,00.",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("message =\n%s\nwant a line %q", got, want)

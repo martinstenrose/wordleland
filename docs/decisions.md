@@ -1976,9 +1976,9 @@ Sunday evening — it is only posted early once every active player is in.
 **Last place is named only among those who played at least five days.** With
 missed days counted as 7, the bottom of the table is usually whoever was
 away, and naming absentees is the one thing the recaps never do. So the 🥄
-line takes the last of the regulars, and is left out when that player is in
-the top three, which in a small group they can be. The same five days gate the
-turnaround line, which also names people for where they finished.
+line (🐘 in Swedish, where last place is the jumbo) takes the last of the
+regulars, and is left out when that player is in the top three, which in a
+small group they can be. The same five days gate the turnaround line, which also names people for where they finished.
 
 **A core and at most three extras.** The core — head, winner, last place,
 average — is there every week. Only the winner, not a podium: three names

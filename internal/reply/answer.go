@@ -382,9 +382,9 @@ func last(t i18n.Translator, label string, m stats.Month) string {
 	}
 	avg := t.Decimal(worst, 2)
 	if len(bottom) > 1 {
-		return "🥄 " + t.T("reply.last.tie", label, joinNames(t, bottom), avg)
+		return t.T("mark.last") + " " + t.T("reply.last.tie", label, joinNames(t, bottom), avg)
 	}
-	return "🥄 " + t.T("reply.last", label, bottom[0], avg)
+	return t.T("mark.last") + " " + t.T("reply.last", label, bottom[0], avg)
 }
 
 func standing(t i18n.Translator, req Request, asker *store.Player,
