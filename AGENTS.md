@@ -126,10 +126,9 @@ if asked.
 
 ## Contributing
 
-Branch naming, commit message conventions, and "every commit builds on its
-own" are in README.md's Contributing section — that file is for whoever
-runs and works with the project from outside it, which a contributor is
-before anything else.
+Branch naming, commit messages, "every commit builds on its own" and how
+a pull request's history should look are in @CONTRIBUTING.md, for every
+contributor; what follows adds to it.
 
 Every commit written with an agent includes a final `Co-Authored-By` trailer
 naming the model that did the work, using its provider's noreply address.
@@ -147,7 +146,7 @@ replace it with prose in the pull request, or copy an example's identity when
 a different model did the work.
 
 **Fold a fix into the commit it fixes before a pull request is ready, not
-at merge.** README.md says the history `main` gets is the story of the
+at merge.** CONTRIBUTING.md says the history `main` gets is the story of the
 change, not of reaching it. The repository allows no squash merge, so the
 commits a pull request has when it is merged are exactly what `main` gets.
 Several commits are fine when each is its own change — a feature, a fix,
