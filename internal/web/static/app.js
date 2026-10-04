@@ -676,8 +676,8 @@ var onPageChange = (function () {
   // 7. A link that stays on the page keeps the reader where they are.
   // htmx scrolls a boosted swap to the top, which is right for a step to
   // another page and wrong for a change to this one: another player in the
-  // roster, the range on the board, a pair to compare, a month
-  // from the season, the grid's window. Those swap the page and leave the
+  // roster, a month from the season, the grid's window. Those swap the
+  // page and leave the
   // scroll alone. "The same page" is the same view — the same path, or
   // the same kind of page under it (/players/…, /puzzle/…, an admin
   // section's players) — read off the addresses either side of the swap,
