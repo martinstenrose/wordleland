@@ -161,11 +161,12 @@ const (
 	// weekMinPlayers is how many need to have played for a week to be a
 	// competition. One player's week is their player page.
 	weekMinPlayers = 2
-	// podiumPlaces is how far down the table the podium reaches. Ranks
-	// are shared by ties, so it can name more than three.
-	podiumPlaces = 3
+	// spoonFloor is the best rank the spoon can go to. In a small group
+	// the last of the regulars can be second or third, and that is not
+	// coming last.
+	spoonFloor = 4
 	// regularDays is how many of the seven days a player needs to have
-	// played to be named for coming last, or in a close finish. Counted
+	// played to be named for coming last, or for a turnaround. Counted
 	// days are what keeps the wooden spoon from naming whoever was away:
 	// a missed day scores 7, so last place would otherwise go to an
 	// absentee, and naming absentees is what the recaps never do.
@@ -173,12 +174,6 @@ const (
 	// extrasCap is how many of the extra lines a week gets. The core is
 	// four lines; three more keeps it one screen.
 	extrasCap = 3
-	// crownMin is how many days' best one player needs for it to be a
-	// line. Once is a day's news, not a week's.
-	crownMin = 3
-	// photoGap is the widest gap between neighbours that still reads as a
-	// close finish: a quarter of a guess.
-	photoGap = 0.25
 	// moverMargin is how far under their own average going into the week a
 	// player's week has to land to be its turnaround.
 	moverMargin = 0.75
@@ -195,9 +190,6 @@ const (
 	// time to be theirs.
 	earlyMinDays = 5
 )
-
-// medals marks the podium places.
-var medals = map[int]string{1: "🥇", 2: "🥈", 3: "🥉"}
 
 // weekContext is everything the week's message is composed from.
 type weekContext struct {
@@ -236,12 +228,12 @@ func newWeekContext(players []store.Player, results []store.BoardResult, first i
 	}, nil
 }
 
-// weeklyPost is the message: the week, its podium, who came last and how the
+// weeklyPost is the message: the week, its winner, who came last and how the
 // group did, and up to extrasCap of the rest.
 func weeklyPost(t i18n.Translator, w weekContext) string {
 	var lines []string
 	for _, f := range []func(i18n.Translator, weekContext) string{
-		weekHeadLine, podiumLine, spoonLine, weekAverageLine,
+		weekHeadLine, weekWinnerLine, spoonLine, weekAverageLine,
 	} {
 		if line := f(t, w); line != "" {
 			lines = append(lines, line)
@@ -249,7 +241,7 @@ func weeklyPost(t i18n.Translator, w weekContext) string {
 	}
 	extras := 0
 	for _, f := range []func(i18n.Translator, weekContext) string{
-		runLine, crownLine, photoLine, moverLine, swingLine, attendanceLine, earlyLine,
+		runLine, moverLine, swingLine, attendanceLine, earlyLine,
 	} {
 		if extras == extrasCap {
 			break
@@ -268,30 +260,30 @@ func weekHeadLine(t i18n.Translator, w weekContext) string {
 		len(w.week.Ranked)+len(w.week.Thin), len(w.rows))
 }
 
-// podiumLine is every rank up to podiumPlaces with its average, ties
-// sharing a medal.
-func podiumLine(t i18n.Translator, w weekContext) string {
-	var parts []string
-	for _, group := range rankGroups(w.week.Ranked) {
-		if group[0].Rank > podiumPlaces {
-			break
-		}
-		parts = append(parts, medals[group[0].Rank]+" "+joinNames(t, playerNames(group))+
-			" "+t.Decimal(*group[0].Average, 2))
+// weekWinnerLine is the top of the table, everyone sharing it named.
+func weekWinnerLine(t i18n.Translator, w weekContext) string {
+	groups := rankGroups(w.week.Ranked)
+	if len(groups) == 0 {
+		return ""
 	}
-	return strings.Join(parts, " · ")
+	top := groups[0]
+	avg := t.Decimal(*top[0].Average, 2)
+	if len(top) > 1 {
+		return "🥇 " + t.T("announce.weekly.winnerShared", joinNames(t, playerNames(top)), avg)
+	}
+	return "🥇 " + t.T("announce.weekly.winner", top[0].Name, avg)
 }
 
 // spoonLine names the bottom of the table among those who played most of
-// the week — see regularDays — and stays away when that is somebody already
-// on the podium, which in a small group it can be.
+// the week — see regularDays — and stays away when that is somebody in the
+// top three, which in a small group it can be.
 func spoonLine(t i18n.Translator, w weekContext) string {
 	groups := rankGroups(regulars(w.week.Ranked))
 	if len(groups) < 2 {
 		return ""
 	}
 	last := groups[len(groups)-1]
-	if last[0].Rank <= podiumPlaces {
+	if last[0].Rank < spoonFloor {
 		return ""
 	}
 	avg := t.Decimal(*last[0].Average, 2)
@@ -389,64 +381,6 @@ func isWinner(week stats.Week, player int64) bool {
 		}
 	}
 	return false
-}
-
-// crownLine is whoever had the day's best most often. A shared best counts
-// for everyone sharing it, as the day's 🥇 line names them all.
-func crownLine(t i18n.Translator, w weekContext) string {
-	crowns := make(map[int64]int)
-	days := 0
-	for p := w.week.First; p <= w.week.Last; p++ {
-		day := stats.ComputeToday(w.players, w.rows, p)
-		if day.Best == nil {
-			continue
-		}
-		days++
-		for _, e := range day.Filed {
-			if e.Solved && e.Guesses == day.Best.Guesses {
-				crowns[e.ID]++
-			}
-		}
-	}
-	most := 0
-	for _, n := range crowns {
-		most = max(most, n)
-	}
-	if most < crownMin {
-		return ""
-	}
-	var names []string
-	for _, p := range w.players {
-		if crowns[p.ID] == most {
-			names = append(names, p.Name)
-		}
-	}
-	sort.Strings(names)
-	if len(names) > 1 {
-		return "👑 " + t.T("announce.weekly.crownsShared", joinNames(t, names), most, days)
-	}
-	return "👑 " + t.T("announce.weekly.crowns", names[0], most, days)
-}
-
-// photoLine is the closest finish between neighbouring places, among those
-// who played most of the week. A tie is not a close finish, it is a tie,
-// and the podium already says so. The higher of two equal gaps wins: a
-// close race for first is the better story than one for fifth.
-func photoLine(t i18n.Translator, w weekContext) string {
-	groups := rankGroups(regulars(w.week.Ranked))
-	var ahead, behind []stats.MonthPlayer
-	gap := photoGap
-	for i := 1; i < len(groups); i++ {
-		d := *groups[i][0].Average - *groups[i-1][0].Average
-		if d <= gap && (ahead == nil || d < gap) {
-			ahead, behind, gap = groups[i-1], groups[i], d
-		}
-	}
-	if ahead == nil {
-		return ""
-	}
-	return "📸 " + t.T("announce.weekly.photo", joinNames(t, playerNames(ahead)),
-		joinNames(t, playerNames(behind)), t.Decimal(gap, 2))
 }
 
 // moverLine is the week's turnaround: whoever landed furthest under their

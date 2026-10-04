@@ -86,10 +86,9 @@ func TestSundaysFullHousePostsTheDayThenTheWeek(t *testing.T) {
 		t.Errorf("first message = %q, want Sunday's recap", c.sent[0])
 	}
 	want := "🗓️ Week 38 is done: 4 players, 28 results.\n" +
-		"🥇 Alice 3.00 · 🥈 Bob 3.43 · 🥉 Carol 4.14\n" +
+		"🥇 Alice takes the week at 3.00 on average.\n" +
 		"🥄 Dave brings up the rear at 5.00.\n" +
 		"📊 The group averaged 3.89.\n" +
-		"👑 Alice had the day's best on 6 of 7 days.\n" +
 		"🎢 Rollercoaster week for Carol: a 2 and an X.\n" +
 		"✅ Everyone played all seven days."
 	if c.sent[1] != want {
@@ -117,9 +116,10 @@ func TestTheWeekWaitsForSundayThenMidnight(t *testing.T) {
 	if err := weekly(ctx, day(21).Add(time.Minute)); err != nil {
 		t.Fatal(err)
 	}
-	// Erin's six 3s and a missed Sunday: 25/7.
-	if got := lineWith(t, c.only(t), "🥇"); !strings.Contains(got, "🥈 Bob 3.43 · 🥉 Erin 3.57") {
-		t.Errorf("podium = %q, want Erin's missed Sunday counted as 7", got)
+	// Erin's six 3s and a missed Sunday: 25/7, where six days alone would
+	// have shared the win.
+	if got := lineWith(t, c.only(t), "🥇"); got != "🥇 Alice takes the week at 3.00 on average." {
+		t.Errorf("winner = %q, want Erin's missed Sunday counted as 7", got)
 	}
 }
 
@@ -295,9 +295,9 @@ func TestTheWoodenSpoonSkipsAbsentees(t *testing.T) {
 	}
 }
 
-// In a group of four the last of the regulars can be on the podium, and a
-// medal and a spoon for the same player is a contradiction.
-func TestNoSpoonForSomebodyOnThePodium(t *testing.T) {
+// In a small group the last of the regulars can be second, and second is not
+// last.
+func TestNoSpoonForSomebodyInTheTopThree(t *testing.T) {
 	db := announceDB(t)
 	seedWeek(t, db, testMonday,
 		scores{"Alice", [7]int{3, 3, 3, 3, 3, 3, 3}},
@@ -334,15 +334,6 @@ func TestTheWeeksExtras(t *testing.T) {
 		prefix  string
 		want    string
 	}{
-		{
-			"a photo finish between neighbours",
-			[]scores{
-				{"Alice", [7]int{3, 3, 3, 3, 3, 3, 4}},
-				{"Bob", [7]int{3, 3, 3, 3, 3, 4, 4}},
-				{"Carol", [7]int{5, 5, 5, 5, 5, 5, 5}},
-			},
-			"📸", "📸 Photo finish: Alice ahead of Bob by 0.14.",
-		},
 		{
 			"a metronome when nobody swung",
 			[]scores{
@@ -454,7 +445,7 @@ func TestTheWeeklyPostUsesTheConfiguredLocale(t *testing.T) {
 	got := weekPost(t, db, "sv")
 	for _, want := range []string{
 		"🗓️ Vecka 38 är klar: 4 spelare, 28 resultat.",
-		"🥇 Alice 3,00 · 🥈 Bob 3,43 · 🥉 Carol 4,14",
+		"🥇 Alice tog hem veckan på 3,00 i snitt.",
 		"🥄 Dave är veckans jumbo på 5,00.",
 	} {
 		if !strings.Contains(got, want) {
@@ -463,16 +454,16 @@ func TestTheWeeklyPostUsesTheConfiguredLocale(t *testing.T) {
 	}
 }
 
-// Ties share a medal, and the next place skips the ones they used.
-func TestAPodiumTieSharesTheMedal(t *testing.T) {
+// A tie at the top shares the win.
+func TestATieAtTheTopSharesTheWin(t *testing.T) {
 	db := announceDB(t)
 	seedWeek(t, db, testMonday,
 		scores{"Alice", [7]int{3, 3, 3, 3, 3, 3, 3}},
 		scores{"Bob", [7]int{3, 3, 3, 3, 3, 3, 3}},
 		scores{"Carol", [7]int{4, 4, 4, 4, 4, 4, 4}},
 	)
-	if got, want := lineWith(t, weekPost(t, db, "en"), "🥇"), "🥇 Alice and Bob 3.00 · 🥉 Carol 4.00"; got != want {
-		t.Errorf("podium = %q, want %q", got, want)
+	if got, want := lineWith(t, weekPost(t, db, "en"), "🥇"), "🥇 Alice and Bob share the week at 3.00 on average."; got != want {
+		t.Errorf("winner = %q, want %q", got, want)
 	}
 }
 
