@@ -984,7 +984,7 @@
   "months.award.noClimbers": "ingen klättrare den här gången",
   "months.award.climbed.one": "upp 1 placering från %[2]s",
   "months.award.climbed.other": "upp %d placeringar från %s",
-  "months.award.fewestFails": "Minst missar",
+  "months.award.fewestFails": "Färst missar",
   "months.award.noFails": "inte ett enda X",
   "months.award.fails.one": "1 miss",
   "months.award.fails.other": "%d missar",
