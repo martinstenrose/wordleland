@@ -1969,29 +1969,32 @@ previous week done rather than opening with it.
 
 **Scored as a month is.** `stats.ComputeWeek` is the month's scoring over a
 seven-puzzle span (`scoreSpan`, which the month now also goes through): a day
-not played counts as 7, so the podium cannot be won by playing only the good
+not played counts as 7, so the week cannot be won by playing only the good
 days. The week is scored as of the following Monday even when posted on
 Sunday evening — it is only posted early once every active player is in.
 
 **Last place is named only among those who played at least five days.** With
 missed days counted as 7, the bottom of the table is usually whoever was
 away, and naming absentees is the one thing the recaps never do. So the 🥄
-line takes the last of the regulars, and is left out when that player is on
-the podium, which in a small group they can be. The same five days gate the
-close-finish and turnaround lines, which also name people for where they
-finished.
+line takes the last of the regulars, and is left out when that player is in
+the top three, which in a small group they can be. The same five days gate the
+turnaround line, which also names people for where they finished.
 
-**A core and at most three extras.** The core — head, podium, last place,
-average — is there every week. The extras each have a threshold and a fixed
-priority (a run of weeks at the top, daily bests, close finish, turnaround,
-rollercoaster or metronome, full attendance, early bird), and the first three
-that fire go out. Once a week can carry more than the day's three or four
+**A core and at most three extras.** The core — head, winner, last place,
+average — is there every week. Only the winner, not a podium: three names
+and averages on one line ran together, and three lines of them were too
+many for what second and third add. The extras each have a threshold and a
+fixed priority (a run of weeks at the top, turnaround, rollercoaster or
+metronome, full attendance, early bird), and the first three that fire go
+out. Once a week can carry more than the day's three or four
 lines, but not all of them: a message that needs scrolling is the one nobody
 reads, and a varying set keeps it from being the same message every Sunday.
 
 **Every line has to be able to stay away.** Three were tried and dropped
-because they would have been there almost every week. The easiest and
-hardest day always exist, however flat the week was, and a day that really
+because they would have been there almost every week. Two more went once
+seen in the group: the count of days' bests read oddly when shared bests
+gave two players five of seven each, and the close finish between
+neighbours was one line too many. The easiest and hardest day always exist, however flat the week was, and a day that really
 stood out has already been called by the day's own 🧱/🪶 line. A tally of 2s
 and Xs fires whenever there is one of either, which is most weeks. And a list
 of who played every day names, by elimination, who did not, so attendance is
@@ -2000,7 +2003,7 @@ same score all seven days, not a week of 3s and 4s, which is just a week.
 
 **A run of weeks is said from the second, its end from the third.** A shared
 win counts for everyone sharing it, as a shared month does. Ending a run of
-two is just a new winner, which the podium already says.
+two is just a new winner, which the winner line already says.
 
 **Keyed by the Monday's puzzle number**, in `signal_week_announcements`, for
 the reasons the day's table gives. An ISO week number restarts every January;
