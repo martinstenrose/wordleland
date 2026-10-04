@@ -3121,9 +3121,9 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 /* ---- Settings ---------------------------------------------------------- */
 
-/* A reader's own account: three cards in one column, no wider than a form
-   wants to be. */
-.settings-stack { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 720px; }
+/* A reader's own account: three cards in one column, as wide as every other
+   page's cards — the page container sets the width, not this stack. */
+.settings-stack { display: flex; flex-direction: column; gap: 16px; width: 100%; }
 .settings-card.card { display: flex; flex-direction: column; gap: 16px; padding: 20px; border-radius: var(--radius-card); }
 .settings-card.card > * { padding-left: 0; padding-right: 0; }
 .settings-card-head { display: flex; align-items: center; gap: 12px; }
