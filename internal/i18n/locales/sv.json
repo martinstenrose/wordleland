@@ -139,7 +139,7 @@
   "signin.password": "Lösenord",
   "signin.submit": "Logga in",
   "signin.help": "Problem att logga in?",
-  "signin.note": "Resultaten synkas från gruppchatten varje morgon.",
+  "signin.note": "Resultaten synkas från gruppchatten så fort de delas.",
   "signin.asideTitle": "Gruppen hittills",
   "signin.gamesOver.one": "pussel loggat under 1 dag",
   "signin.gamesOver.other": "pussel loggade under %d dagar",
