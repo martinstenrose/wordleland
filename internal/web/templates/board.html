@@ -8,7 +8,6 @@
      on a row — or, for the ranking rules, a form, so all of it works with
      no script. One row markup serves both widths: a phone re-flows it into
      the design's stacked row (see app.css). */}}
-<div id="board-toast">{{with .Toast}}{{template "toast" (dict "Href" .Close "Text" .Text "Undo" .Undo "T" $.T)}}{{end}}</div>
 <header class="page-head">
   <div class="page-head-id">
     <p id="board-eyebrow" class="page-eyebrow">{{.Eyebrow}}</p>

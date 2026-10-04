@@ -871,8 +871,8 @@ func TestPartialNeverSurvivesIntoALink(t *testing.T) {
 // the board's query along, which the board sends on to its own address.
 // That address is the board's query alone — a cleared checkbox's stand-in
 // and the form's marker gone — so the bar, Back and a copied link never
-// show the form's. A rule leaves no toast; the reset, which can change
-// several and takes its own button away, leaves one whose Undo goes back.
+// show the form's. Neither a rule nor the reset leaves a toast: the menu,
+// still open, shows what changed.
 func TestTheRankingRulesAreAFormForTheBoardsOwnAddress(t *testing.T) {
 	t.Parallel()
 
@@ -913,29 +913,15 @@ func TestTheRankingRulesAreAFormForTheBoardsOwnAddress(t *testing.T) {
 	if strings.Contains(after, `class="toast`) {
 		t.Error("a board with a rule changed has a toast")
 	}
-	reset := regexp.MustCompile(`href="(/leaderboard\?[^"]*changed=reset[^"]*)"`).FindStringSubmatch(after)
+	reset := regexp.MustCompile(`<a class="btn secondary ranking-reset" href="([^"]*)"`).FindStringSubmatch(after)
 	if reset == nil {
-		t.Fatal("the reset does not mark its link as a change")
+		t.Fatal("a board with a rule changed has no way back to the default")
 	}
-	back := fetchAs(t, srv, html.UnescapeString(reset[1]), session).Body.String()
-	if !strings.Contains(back, "Ranking back to default.") {
-		t.Error("the reset left no toast saying what it did")
+	if got := html.UnescapeString(reset[1]); got != "/leaderboard?range=90" {
+		t.Errorf("the reset goes to %q, want the same board with the default rules", got)
 	}
-	if !strings.Contains(back, `<a class="toast-undo" href="/leaderboard?mode=hard&amp;range=90">`) {
-		t.Error("the toast's Undo does not go back to the board as it was")
-	}
-	if !strings.Contains(back, `<a class="toast-close" href="/leaderboard?range=90"`) {
-		t.Error("the toast's close does not go to the same board without the note")
-	}
-	if strings.Contains(back, "changed=reset&amp;changed=") {
-		t.Error("a link on the reset board carries the change on")
-	}
-
-	for _, bad := range []string{"https://example.tld", "//example.tld"} {
-		body := fetchAs(t, srv, "/leaderboard?changed=reset&undo="+url.QueryEscape(bad), session).Body.String()
-		if strings.Contains(body, `href="`+bad) || strings.Contains(body, `href="/leaderboard`+bad) {
-			t.Errorf("undo=%s was followed rather than ignored", bad)
-		}
+	if back := fetchAs(t, srv, html.UnescapeString(reset[1]), session).Body.String(); strings.Contains(back, `class="toast`) {
+		t.Error("the reset left a toast")
 	}
 }
 

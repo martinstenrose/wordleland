@@ -1170,8 +1170,6 @@
   "search.none": "Nothing matches “%s”. Try a first name or a puzzle number like %s.",
   "search.esc": "esc",
   "search.clear": "Clear",
-  "action.undo": "Undo",
-  "board.toast.reset": "Ranking back to default.",
   "admin.addPlayer": "Add player",
   "admin.playerCount.one": "1 player",
   "admin.playerCount.other": "%d players",

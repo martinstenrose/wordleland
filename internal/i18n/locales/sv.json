@@ -1170,8 +1170,6 @@
   "search.none": "Inget matchar ”%s”. Prova ett förnamn eller ett pusselnummer som %s.",
   "search.esc": "esc",
   "search.clear": "Rensa",
-  "action.undo": "Ångra",
-  "board.toast.reset": "Rankningen är tillbaka till standard.",
   "admin.addPlayer": "Lägg till spelare",
   "admin.playerCount.one": "1 spelare",
   "admin.playerCount.other": "%d spelare",

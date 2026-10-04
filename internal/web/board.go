@@ -20,10 +20,6 @@ import (
 type boardPage struct {
 	chrome
 
-	// Toast says the ranking is back to default, with the way back to how it
-	// was; nil when the page was not reached by the reset. See boardChange.
-	Toast *boardToast
-
 	Board stats.Board
 	Rows  []boardRow
 
@@ -272,13 +268,12 @@ type hiddenField struct{ Name, Value string }
 // fetches the control's address as it would to go there, takes the board
 // from the page that comes back — the view below the head — and with it
 // what else in the head depends on the same query: the eyebrow (the
-// range), the ranking menu's button and rows, the range's links (each
-// carries the whole query) and the reset's toast. The address goes in the
-// bar. No cross-fade and no scroll: the reader is looking at the control.
+// range), the ranking menu's button and rows, and the range's links (each
+// carries the whole query). The address goes in the bar. No cross-fade and no scroll: the reader is looking at the control.
 // docs/decisions.md, "A control redraws what it changes".
 const boardInPlace template.HTMLAttr = `hx-target="#board-view" hx-select="#board-view"` +
 	` hx-swap="outerHTML show:none transition:false"` +
-	` hx-select-oob="#board-eyebrow,#ranking-summary,#ranking-panel,#board-ranges,#board-toast"` +
+	` hx-select-oob="#board-eyebrow,#ranking-summary,#ranking-panel,#board-ranges"` +
 	` hx-push-url="true"`
 
 // rulesParam marks a board request as the ranking form's. Its query is the
@@ -339,61 +334,8 @@ func rankingMenuFor(t translator, q boardQuery, boardPath string) rankingMenu {
 		menu.ResetHref = boardPath + q.with(func(n *boardQuery) {
 			n.HardModeOnly, n.CountXAsSeven, n.CountMissed = false, true, false
 		})
-		menu.ResetHref = resetLink(menu.ResetHref, q.Href())
 	}
 	return menu
-}
-
-// boardToast is the note the reset leaves: what it did, and a link back to
-// how it was. Close is the same board without the note.
-type boardToast struct {
-	Text, Undo, Close string
-}
-
-// resetLink marks the menu's "Back to default" as a change, carrying the
-// query it changes from (back, "" or "?…") so the board can offer Undo:
-// the reset can change several rules at once and takes its own button
-// away, so there is no one rule to untick to get back. There is no script
-// to remember the earlier state, so the link does.
-func resetLink(href, back string) string {
-	v := url.Values{}
-	v.Set("changed", "reset")
-	v.Set("undo", back)
-	return withQuery(href, v)
-}
-
-func withQuery(href string, v url.Values) string {
-	switch {
-	case strings.HasSuffix(href, "?"):
-		return href + v.Encode()
-	case strings.Contains(href, "?"):
-		return href + "&" + v.Encode()
-	}
-	return href + "?" + v.Encode()
-}
-
-// boardChange words the toast for the reset, which is the only change to
-// the ranking that leaves one. undo is only ever a query string: anything
-// else in it is ignored rather than followed.
-func boardChange(t translator, changed, undo string, q boardQuery, boardPath string) *boardToast {
-	if changed != "reset" {
-		return nil
-	}
-	return &boardToast{Text: t.T("board.toast.reset"), Undo: undoHref(boardPath, undo), Close: boardPath + q.Href()}
-}
-
-// undoHref is the board at an earlier query, or "" when undo is not one.
-func undoHref(boardPath, undo string) string {
-	if undo == "" {
-		return boardPath
-	}
-	if !strings.HasPrefix(undo, "?") {
-		return ""
-	}
-	if _, err := url.ParseQuery(undo[1:]); err != nil {
-		return ""
-	}
-	return boardPath + undo
 }
 
 // parseBoardQuery reads the controls, defaulting: count failed as 7 on,
@@ -467,16 +409,6 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boa
 		http.Redirect(w, r, boardPath+parseBoardQuery(r).Href(), http.StatusSeeOther)
 		return
 	}
-	changed, undo := r.URL.Query().Get("changed"), r.URL.Query().Get("undo")
-	if changed != "" || undo != "" {
-		// Read once, then gone from every link this page builds: the toast
-		// belongs to the change that led here, not to the next one.
-		clean := r.URL.Query()
-		clean.Del("changed")
-		clean.Del("undo")
-		r = r.Clone(r.Context())
-		r.URL.RawQuery = clean.Encode()
-	}
 	full, players, results, query, err := s.boardData(r)
 	if err != nil {
 		s.logger.Error("build board", "error", err)
@@ -537,7 +469,6 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request, prefix, boa
 		Query:      query,
 		Ranking:    rankingMenuFor(t, query, boardPath),
 		InPlace:    boardInPlace,
-		Toast:      boardChange(t, changed, undo, query, boardPath),
 		GroupPath:  template.HTML(sparkPath(full.GroupSeries, sparkWidth, sparkHeight, 0)),
 		MinGames:   stats.MinGames,
 		FormWindow: stats.FormWindow,

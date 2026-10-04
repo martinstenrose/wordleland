@@ -1316,7 +1316,7 @@ func TestBrowserThePageScrollsUnderTheBar(t *testing.T) {
 func TestBrowserTheBottomOfAPhoneIsEmpty(t *testing.T) {
 	site := newSite(t)
 	p := site.open(newBrowser(t), phoneWidth)
-	for _, path := range []string{"/today", "/leaderboard", "/players", "/admin/pending", "/leaderboard?changed=reset&undo=%3Fmode%3Dhard"} {
+	for _, path := range []string{"/today", "/leaderboard", "/players", "/admin/pending", "/settings?notice=name"} {
 		p.Navigate(site.base + path)
 		pinned := p.Strings(`[...document.querySelectorAll("body *")].filter(el => {
 			const s = getComputedStyle(el);
@@ -1653,8 +1653,8 @@ func TestBrowserTheGridPicksOutAColumn(t *testing.T) {
 // A rule ticked in the ranking menu redraws the board under the menu and
 // nothing else: the menu is the same element, still open; the address is
 // the board's own, not the form's; nothing cross-fades — Safari drew the
-// fade without the menu's frosted glass — and nothing reloads. The reset
-// leaves its toast. A rule set from the keyboard keeps the focus on its
+// fade without the menu's frosted glass — and nothing reloads. Neither a
+// rule nor the reset leaves a toast. A rule set from the keyboard keeps the focus on its
 // box, though the menu's rows are redrawn with the board.
 func TestBrowserARankingRuleRedrawsTheBoardUnderTheMenu(t *testing.T) {
 	site := newSite(t)
@@ -1700,11 +1700,14 @@ func TestBrowserARankingRuleRedrawsTheBoardUnderTheMenu(t *testing.T) {
 		t.Errorf("focus went to %q after a rule set from the keyboard, want rule-mode", got)
 	}
 
-	// The reset: the menu stays, the rules go back, and the toast says so.
+	// The reset: the menu stays and the rules go back, with no toast — the
+	// menu shows every rule at its default.
 	p.Eval(`document.querySelector("#board-view").__stale = true; true`)
 	p.Click(".ranking-reset")
 	p.WaitFor(`!(document.querySelector("#board-view") || {}).__stale`)
-	p.WaitFor(`!!document.querySelector("#board-toast .toast")`)
+	if p.Eval(`!!document.querySelector(".toast")`) != false {
+		t.Error("the reset left a toast")
+	}
 	if p.Eval(`(() => { const m = document.querySelector("details.ranking"); return !!(m && m.__same && m.open); })()`) != true {
 		t.Error("the reset replaced or shut the ranking menu")
 	}
