@@ -28,6 +28,7 @@ package web
 // another and these are the parity net.
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -43,6 +44,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/martinstenrose/wordleland/internal/store"
 	"github.com/martinstenrose/wordleland/internal/wordle"
 )
 
@@ -1771,6 +1773,67 @@ func TestBrowserTheBoardsControlsRedrawItInPlace(t *testing.T) {
 	}
 	if n := p.Number(`window.__fades`); n != 0 {
 		t.Errorf("a board control cross-faded the page (%v transitions)", n)
+	}
+}
+
+// The grid's window and its inactive players' switch redraw the grid in
+// place, as the board's controls do: the head stays, the eyebrow follows
+// the window, nothing reloads or cross-fades, and the address is the one
+// the control names.
+func TestBrowserTheGridsControlsRedrawItInPlace(t *testing.T) {
+	site := newSite(t)
+	// Somebody who played this week and has since left the group, so the
+	// inactive players' switch has someone to show.
+	ctx := context.Background()
+	gone, err := store.CreatePlayer(ctx, site.srv.db, store.SystemActor(), "Gone", "gone")
+	if err != nil {
+		t.Fatal(err)
+	}
+	seedResult(t, site.srv, gone.ID, currentPuzzle()-2, 4, false)
+	left := false
+	if _, err := store.UpdatePlayer(ctx, site.srv.db, store.SystemActor(), gone.ID, store.PlayerUpdate{Active: &left}); err != nil {
+		t.Fatal(err)
+	}
+	p := site.open(newBrowser(t), desktopWidth)
+	p.Navigate(site.base + "/grid")
+	p.Eval(`(() => { const start = document.startViewTransition.bind(document);
+		window.__fades = 0;
+		document.startViewTransition = (...a) => { window.__fades++; return start(...a); };
+		window.__alive = 1;
+		document.querySelector(".page-head").__same = true; return true; })()`)
+	press := func(selector string) {
+		t.Helper()
+		want := p.String(fmt.Sprintf(`new URL(document.querySelector(%q).href).search`, selector))
+		p.Eval(`document.querySelector("#grid-view").__stale = true; true`)
+		p.Click(selector)
+		p.WaitFor(`!(document.querySelector("#grid-view") || {}).__stale`)
+		if got := p.String(`location.search`); got != want {
+			t.Errorf("%s: the address is %q, want %q", selector, got, want)
+		}
+		if p.Eval(`!!(document.querySelector(".page-head") || {}).__same`) != true {
+			t.Errorf("%s replaced the page head", selector)
+		}
+	}
+
+	press("#grid-inactive")
+	if p.Eval(`document.querySelector("#grid-inactive").classList.contains("on")`) != true {
+		t.Error("the inactive players' switch is not on after it was pressed")
+	}
+	if p.Eval(`!!document.querySelector('.grid th[title="Gone"]')`) != true {
+		t.Error("the inactive player is not in the grid after the switch")
+	}
+
+	before := p.String(`document.querySelector("#grid-eyebrow").textContent`)
+	press("#grid-tools .head-seg a:not(.on)")
+	if after := p.String(`document.querySelector("#grid-eyebrow").textContent`); after == before {
+		t.Errorf("the eyebrow still says %q after the window changed", after)
+	}
+
+	if p.Number(`window.__alive || 0`) != 1 {
+		t.Error("a grid control reloaded the document")
+	}
+	if n := p.Number(`window.__fades`); n != 0 {
+		t.Errorf("a grid control cross-faded the page (%v transitions)", n)
 	}
 }
 
