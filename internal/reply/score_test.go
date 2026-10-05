@@ -25,7 +25,7 @@ func TestScoreOnADay(t *testing.T) {
 		{name: "the day Bo failed", req: Request{Kind: KindScore, Player: "Bo", Date: failed.Format(DateLayout)},
 			want: "Bo, 5 September: X — not solved."},
 		{name: "the asker, today", req: Request{Kind: KindScore}, asker: &alma,
-			want: "You got 3/6 on 15 September."},
+			want: "You got it in 3 on 15 September."},
 		{name: "a day before the history", req: Request{Kind: KindScore, Player: "Alma", Date: "2026-07-05"},
 			want: "Alma has no result for 5 July."},
 		{name: "a day still to come", req: Request{Kind: KindScore, Player: "Alma", Date: "2026-09-20"},
@@ -50,7 +50,7 @@ func TestScoreInHardModeSaysSo(t *testing.T) {
 	results[0].HardMode = true
 
 	got := answer(translator(t, "sv"), Request{Kind: KindScore, Player: "Alma"}, nil, []store.Player{alma}, results, now)
-	if got != "Alma, 15 september: 2/6, hard mode." {
+	if got != "Alma behövde 2 försök den 15 september, i hard mode." {
 		t.Errorf("got %q", got)
 	}
 }

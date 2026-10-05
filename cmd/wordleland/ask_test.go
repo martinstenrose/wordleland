@@ -48,7 +48,7 @@ func TestAskAnswersAsAPlayer(t *testing.T) {
 		t.Errorf("the placing is not shown:\n%s", out)
 	}
 	// Martin's 3, said to him: Bo's is a 5.
-	if !strings.Contains(out, "Du fick 3/6 ") {
+	if !strings.Contains(out, "Du behövde 3 försök ") {
 		t.Errorf("not answered as Martin:\n%s", out)
 	}
 	// A follow-up is asked after the question before, and both are shown.
