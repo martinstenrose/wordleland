@@ -144,11 +144,11 @@ func score(t i18n.Translator, req Request, asker *store.Player,
 		case r.HardMode && you:
 			return t.T("reply.score.hard.you", r.Guesses, label)
 		case r.HardMode:
-			return t.T("reply.score.hard", p.Name, label, r.Guesses)
+			return t.T("reply.score.hard", p.Name, r.Guesses, label)
 		case you:
 			return t.T("reply.score.solved.you", r.Guesses, label)
 		default:
-			return t.T("reply.score.solved", p.Name, label, r.Guesses)
+			return t.T("reply.score.solved", p.Name, r.Guesses, label)
 		}
 	}
 	if you {

@@ -132,7 +132,7 @@ func TestTheAskerIsAnsweredAsYou(t *testing.T) {
 		}
 	}
 	// Swedish, the group's language.
-	if got := answer(translator(t, "sv"), Request{Kind: KindScore}, &alma, players, results, now); got != "Du fick 3/6 den 15 september." {
+	if got := answer(translator(t, "sv"), Request{Kind: KindScore}, &alma, players, results, now); got != "Du behövde 3 försök den 15 september." {
 		t.Errorf("sv: got %q", got)
 	}
 }
