@@ -114,8 +114,9 @@ func placingTestOne(ctx context.Context, out io.Writer, url, model string, all b
 //
 // The first question may find the instructions already read — the bot
 // starts its prompt with the same ones, and so did a run a minute ago —
-// and then every question is quick. Reading the whole prompt in under a
-// second is beyond a CPU without reuse, so that is reuse too.
+// and then every question is quick, the first one too or nearly. Reading
+// the whole prompt in under a second is beyond a CPU without reuse, so a
+// later median under a second is reuse whatever the first took.
 func cacheVerdict(usage []reply.Usage) (string, string) {
 	if len(usage) < 2 {
 		return "", ""
@@ -131,12 +132,12 @@ func cacheVerdict(usage []reply.Usage) (string, string) {
 	slices.Sort(writing)
 	after, write := reading[len(reading)/2], writing[len(writing)/2]
 	switch {
-	case first < time.Second && after < time.Second:
-		return fmt.Sprintf("Prompt cache: works — every question read its prompt in under a second (the first %.1f s), the instructions already read by an earlier question. Writing: median %.1f s.",
-			first.Seconds(), write.Seconds()), "cache works"
 	case after*4 <= first:
 		return fmt.Sprintf("Prompt cache: works — reading the prompt took %.1f s the first time and %.1f s after (median). Writing: median %.1f s.",
 			first.Seconds(), after.Seconds(), write.Seconds()), "cache works"
+	case after < time.Second:
+		return fmt.Sprintf("Prompt cache: works — every question read its prompt in under a second (the first %.1f s), the instructions already read by an earlier question or run. Writing: median %.1f s.",
+			first.Seconds(), write.Seconds()), "cache works"
 	default:
 		return fmt.Sprintf("Prompt cache: not working — reading the prompt took %.1f s the first time and still %.1f s after (median), so every question reads the instructions again. Writing: median %.1f s.",
 			first.Seconds(), after.Seconds(), write.Seconds()), "no cache"

@@ -151,6 +151,9 @@ func TestCacheVerdict(t *testing.T) {
 		{usage(20*s, s/2, s/2, 22*s), "cache works", "works"},
 		{usage(22*s, 16*s, 15*s, 16*s), "no cache", "not working"},
 		{usage(s/2, s/2, s/2), "cache works", "already read by an earlier question"},
+		// The instructions still held from an earlier run: the first
+		// question read them in a couple of seconds, not tens.
+		{usage(17*s/10, 7*s/10, 7*s/10, 6*s/10), "cache works", "already read by an earlier question"},
 		{usage(s/2, 16*s, 15*s), "no cache", "not working"},
 		{usage(20 * s), "", ""},
 	}
