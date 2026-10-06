@@ -51,6 +51,12 @@ func ground(r Request, p Prompt) Request {
 		return q.following(r, *p.Previous)
 	}
 	r = q.who(r)
+	if r.Kind == KindWhatIf && len(r.Scores) == 1 && q.ifWho != "" {
+		// "Om Dana får X imorgon, kan jag gå om?" has two people in it,
+		// and the score is the one named after "om": the asker is the
+		// one asking what it would mean for them.
+		r.Scores = []Hypothetical{{Player: q.ifWho, Guesses: r.Scores[0].Guesses}}
+	}
 	for i, a := range r.Also {
 		// A further question shares the message's names with the first,
 		// so only the asker is checked: "me" needs somebody saying "me".
@@ -86,6 +92,9 @@ type reading struct {
 	// laugh, a "va?" fishing for agreement. A tone is only read into one
 	// that does.
 	expressive bool
+	// ifWho is who a what-if is about: the player, or the asker, named
+	// right after "om" or "if".
+	ifWho string
 	// month says the question names a month: by name, as "förra
 	// månaden", or in figures.
 	month bool
@@ -202,6 +211,23 @@ func read(p Prompt) reading {
 		asking := slices.ContainsFunc(lower, func(w string) bool { return slices.Contains(askWords, w) })
 		about := n >= 2 && (lower[0] == "what" || lower[0] == "how") && lower[1] == "about"
 		q.elliptical = marked && (!asking || about)
+	}
+	for i, w := range lower[:max(len(lower)-1, 0)] {
+		if w != "om" && w != "if" && w != "ifall" {
+			continue
+		}
+		next := lower[i+1]
+		if slices.Contains(firstWords, next) || next == "i" {
+			q.ifWho = Asker
+		} else {
+			for _, name := range p.Players {
+				first, _, _ := strings.Cut(strings.ToLower(name), " ")
+				if next == first || next == strings.ToLower(name) {
+					q.ifWho = name
+				}
+			}
+		}
+		break
 	}
 	// A player is named by their whole name, or by a first name nobody
 	// else has, with or without a genitive s: "Bos svit".

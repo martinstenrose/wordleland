@@ -178,3 +178,30 @@ func TestAWeekTheQuestionNamesIsThatWeek(t *testing.T) {
 		t.Errorf("a streak got the span %q", got.Span)
 	}
 }
+
+// A what-if with two people in it — "om Dana får X imorgon, kan jag gå
+// om?" — is about the one named after "om": the asker is asking what it
+// would mean for them, and the model gave them the score.
+func TestAWhatIfIsAboutWhoeverFollowsIf(t *testing.T) {
+	t.Parallel()
+	players := []string{"Alma", "Bo", "Dana"}
+	for question, want := range map[string]string{
+		"om Dana får X imorgon, kan jag gå om?": "Dana",
+		"if Bo gets a 6 tomorrow, do I lead?":   "Bo",
+		"om jag får en 3:a, slår jag Bo?":       Asker,
+		"om I get a 2 today, am I ahead of Bo?": Asker,
+		"vad händer om Bo får en 1:a?":          "Bo",
+	} {
+		got := ground(Request{Kind: KindWhatIf, Scores: []Hypothetical{{Player: Asker, Guesses: 7}}},
+			Prompt{Question: question, Asker: "Alma", Players: players})
+		if len(got.Scores) != 1 || got.Scores[0].Player != want || got.Scores[0].Guesses != 7 {
+			t.Errorf("%s: scores = %+v, want %s with 7", question, got.Scores, want)
+		}
+	}
+	// Two scores are two people's, as the model read them.
+	two := []Hypothetical{{Player: "Bo", Guesses: 7}, {Player: "Dana", Guesses: 3}}
+	got := ground(Request{Kind: KindWhatIf, Scores: two}, Prompt{Question: "om Bo får X och Dana en 3:a?", Asker: "Alma", Players: players})
+	if len(got.Scores) != 2 || got.Scores[0].Player != "Bo" {
+		t.Errorf("two scores: %+v", got.Scores)
+	}
+}

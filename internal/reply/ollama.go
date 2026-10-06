@@ -572,16 +572,20 @@ func systemPrompt(p Prompt) string {
   month ("vem vinner månaden?", "vem vinner september?", with the month when
   one is named) — not who is left to post today, which is "today";
   "whatif" for what would happen if somebody got a particular score: "if Bo
-  gets a 6 tomorrow and Alma a 3, who leads?", "om jag får en 2:a idag?";
+  gets a 6 tomorrow and Alma a 3, who leads?", "om jag får en 2:a idag?", "om
+  Dana får X imorgon, kan jag gå om?" — a score that has not happened yet,
+  whatever is asked about it;
   "count" for how many times a player has scored a given number or failed
   ("hur många 2:or har jag?", "how often does Bo fail?", "do I have any 1s?"),
   who has the most or fewest of a score, a player's whole distribution, or the
   whole group's total ("hur många 2:or har vi?", player "group") — never a
   streak ("svit", "i rad"), which is "streak";
-  "versus" for two players compared, head to head ("how do I stand against
-  Bo?", "vem är bäst av Alma och Bo?", "Alma vs Bo");
+  "versus" for two players compared, head to head, or the gap between them
+  ("how do I stand against Bo?", "vem är bäst av Alma och Bo?", "Alma vs Bo",
+  "hur många poäng skiljer mig och Bo?");
   "daywins" for who most often has the best score of the day, days won ("vem
-  har vunnit flest dagar?");
+  har vunnit flest dagar?", "hur många dagar har Bo vunnit?") — days, not
+  months, which is "wins";
   "form" for who is in form, hot, improving, in a slump, playing well lately
   ("vem spelar bäst just nu?", "vem är het?");
   "steady" for who is most consistent, steady, reliable, or unpredictable ("vem
