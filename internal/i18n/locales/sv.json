@@ -715,6 +715,8 @@
   "reply.standing": "%s: plats %d av %d (%s), %s i snitt över %d spel.",
   "reply.standing.none": "%s har inga spel (%s).",
   "reply.standing.none.you": "Du har inga spel (%s).",
+  "reply.standing.unranked": "%s är inte rankad (%s): %d spel, %s i snitt.",
+  "reply.standing.unranked.you": "Du är inte rankad (%s): %d spel, %s i snitt.",
   "reply.standing.you": "Du ligger på plats %d av %d (%s), %s i snitt över %d spel.",
   "reply.standing.clear": "%d punkter före %s.",
   "reply.standing.clear.just": "Precis före %s.",

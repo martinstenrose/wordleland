@@ -179,3 +179,30 @@ func TestAGapThatRoundsToNothingIsNotZeroPoints(t *testing.T) {
 		t.Errorf("the leader: %q", got)
 	}
 }
+
+// A player the board leaves out has played; "no games" is for somebody
+// who has none. The standing says why they are not ranked, with the
+// figures they do have.
+func TestAnUnrankedPlayersStandingSaysWhy(t *testing.T) {
+	t.Parallel()
+	now := fixtureNow()
+	current := wordle.PuzzleForDate(now)
+	players, results := fixture(t)
+	// Cid has three games, none of them recent.
+	results = append(results, play(t, cid.ID, current-40, current-38, 4, 0)...)
+	tr := translator(t, "en")
+
+	got := answer(tr, Request{Kind: KindStanding, Span: SpanAll, Player: "Cid"}, nil, players, results, now)
+	if got != "Cid Larsson isn't ranked (no recent puzzles): 3 games, 4.00 on average." {
+		t.Errorf("unranked: %q", got)
+	}
+	got = answer(tr, Request{Kind: KindStanding, Span: SpanAll, Player: "Cid"}, &cid, players, results, now)
+	if got != "You aren't ranked (no recent puzzles): 3 games, 4.00 on average." {
+		t.Errorf("unranked, asked by them: %q", got)
+	}
+	// This month Cid has not played at all, and the month's table says so.
+	got = answer(tr, Request{Kind: KindStanding, Span: SpanMonth, Player: "Cid"}, nil, players, results, now)
+	if got != "Cid Larsson has no games (September)." {
+		t.Errorf("no games this month: %q", got)
+	}
+}
