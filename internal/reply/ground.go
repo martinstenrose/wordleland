@@ -50,6 +50,16 @@ func ground(r Request, p Prompt) Request {
 	if p.Previous != nil && q.elliptical {
 		return q.following(r, *p.Previous)
 	}
+	if r.Kind == KindThanks && len(q.named) == 1 {
+		// "Anton är bäst! 👑" is praise, but of the player it names, not
+		// of the bot it was addressed to: a "Tack!" back takes the credit.
+		r.Player = q.named[0]
+		if q.best {
+			// A claim the board can settle, and does: the board is who is
+			// best, as "vem är bäst?" is.
+			r.Span = SpanAll
+		}
+	}
 	r = q.who(r)
 	if r.Kind == KindWhatIf && len(r.Scores) == 1 && q.ifWho != "" {
 		// "Om Dana får X imorgon, kan jag gå om?" has two people in it,
@@ -102,6 +112,8 @@ type reading struct {
 	// question before it — "och Bo då?", "förra veckan då?" — rather than
 	// a question of its own.
 	elliptical bool
+	// best says the message calls somebody the best: "bäst", "👑".
+	best bool
 }
 
 var (
@@ -126,6 +138,8 @@ var (
 	averageWords = []string{"snitt", "snittet", "genomsnitt", "average"}
 	monthBefore  = []string{"förra", "förrförra", "föregående", "senaste", "last", "previous", "innan", "before"}
 	// toneWords are the words a message wears its tone in.
+	// bestWords are how a message calls somebody the best.
+	bestWords = []string{"bäst", "bästa", "best", "etta", "kung", "king"}
 	toneWords = []string{"haha", "hahaha", "hehe", "lol", "lmao", "va", "väl", "right", "stackars", "oj",
 		"ojoj", "hjälp", "kört", "kass", "krossar", "krossa", "äger", "crushing", "crush", "doomed", "hopeless"}
 	// A fragment opens or closes with one of these and has none of the
@@ -166,6 +180,8 @@ func read(p Prompt) reading {
 	}
 	q.expressive = slices.ContainsFunc(lower, func(w string) bool { return slices.Contains(toneWords, w) }) ||
 		strings.ContainsFunc(p.Question, emoji)
+	q.best = slices.ContainsFunc(lower, func(w string) bool { return slices.Contains(bestWords, w) }) ||
+		strings.Contains(p.Question, "👑")
 	average := slices.ContainsFunc(lower, func(w string) bool { return slices.Contains(averageWords, w) })
 	for i, w := range lower {
 		// "måndags", "i lördags": the day with its ending.

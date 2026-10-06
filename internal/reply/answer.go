@@ -94,6 +94,9 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 	case KindRules:
 		return rules(t, req)
 	case KindThanks:
+		if p, ok := findPlayer(req.Player, players); ok {
+			return cheer(t, req, p, asker, players, results, now)
+		}
 		return t.Vary("reply.thanks")
 	case KindHelp:
 		return t.T("reply.help")
@@ -103,6 +106,51 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 		// the bot lecturing the room.
 		return t.Vary("reply.unknown")
 	}
+}
+
+// cheer answers praise of a player. Calling them the best is a claim
+// the board settles: agreed when they top it, and otherwise answered with
+// who does, since a bot that nods along to the wrong name is no use as a
+// scorekeeper.
+func cheer(t i18n.Translator, req Request, p store.Player, asker *store.Player,
+	players []store.Player, results []store.BoardResult, now time.Time) string {
+
+	you := isAsker(p, asker)
+	if req.Span != SpanAll {
+		if you {
+			return t.Vary("reply.cheer.you")
+		}
+		return t.Vary("reply.cheer", p.Name)
+	}
+	_, m := standingOver(t, req, players, results, now)
+	if len(m.Winners) == 0 || m.Winners[0].Average == nil {
+		// Nobody ranked yet: nothing to settle it with.
+		if you {
+			return t.Vary("reply.cheer.you")
+		}
+		return t.Vary("reply.cheer", p.Name)
+	}
+	avg := t.Decimal(*m.Winners[0].Average, 2)
+	for _, w := range m.Winners {
+		if w.ID != p.ID {
+			continue
+		}
+		switch {
+		case len(m.Winners) > 1 && you:
+			return t.T("reply.cheer.best.you.tie", avg)
+		case len(m.Winners) > 1:
+			return t.T("reply.cheer.best.tie", p.Name, avg)
+		case you:
+			return t.T("reply.cheer.best.you", avg)
+		default:
+			return t.T("reply.cheer.best", p.Name, avg)
+		}
+	}
+	best := joinNames(t, names(m.Winners))
+	if you {
+		return t.T("reply.cheer.notbest.you", best, avg)
+	}
+	return t.T("reply.cheer.notbest", p.Name, best, avg)
 }
 
 // isAsker says the player an answer is about is the one asking, who is
