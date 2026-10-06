@@ -715,6 +715,8 @@
   "reply.standing": "%s: place %d of %d (%s), %s on average over %d games.",
   "reply.standing.none": "%s has no games (%s).",
   "reply.standing.none.you": "You have no games (%s).",
+  "reply.standing.unranked": "%s isn't ranked (%s): %d games, %s on average.",
+  "reply.standing.unranked.you": "You aren't ranked (%s): %d games, %s on average.",
   "reply.standing.you": "You're in place %d of %d (%s), %s on average over %d games.",
   "reply.standing.clear": "%d points clear of %s.",
   "reply.standing.clear.just": "Just ahead of %s.",

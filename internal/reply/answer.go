@@ -489,6 +489,20 @@ func standing(t i18n.Translator, req Request, asker *store.Player,
 		}
 		return line
 	}
+	if req.Span == SpanAll {
+		// All time is the board, which leaves a player out for a reason
+		// — too few games, none lately, gone inactive — and says so;
+		// "no games" is for somebody who has none.
+		for _, bp := range stats.Compute(players, results, stats.DefaultOptions(now)).Unranked {
+			if bp.ID != p.ID || bp.Average == nil {
+				continue
+			}
+			if you {
+				return t.T("reply.standing.unranked.you", t.T(reasonKey(bp.Reason)), bp.Games, t.Decimal(*bp.Average, 2))
+			}
+			return t.T("reply.standing.unranked", p.Name, t.T(reasonKey(bp.Reason)), bp.Games, t.Decimal(*bp.Average, 2))
+		}
+	}
 	if you {
 		return t.T("reply.standing.none.you", label)
 	}
