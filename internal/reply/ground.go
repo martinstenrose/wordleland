@@ -38,6 +38,14 @@ func ground(r Request, p Prompt) Request {
 		// anyway, the more so with "vinna månaden" in the next question.
 		r.Span, r.Days = SpanAll, 0
 	}
+	if (r.Kind == KindLeader || r.Kind == KindForm && r.Player == "" || r.Kind == KindStanding && r.Player == "") &&
+		r.Month == "" && q.bestNow {
+		// "Vem är bäst just nu?" is the form, the last 30 puzzles, as
+		// "vem spelar bäst just nu?" is: the month is who leads, and a
+		// lead built in its first week is not who is best now. "Sämst
+		// just nu" is the same from the other end.
+		r = Request{Kind: KindForm, Worst: q.worstNow, Span: SpanMonth, Tone: r.Tone}
+	}
 	if r.Kind == KindLeader && q.lowest != q.highest {
 		// A low average is the good end: "vem har lägst snitt?" asks who
 		// is best, and "högst snitt" who is last.
@@ -123,6 +131,11 @@ type reading struct {
 	// bestEver says a sentence of the message asks or says who is best
 	// and names no period: "Vem är bäst?", not "vem är bäst i augusti?".
 	bestEver bool
+	// bestNow says one asks who is best, or worst, now and names no
+	// other period: "vem är bäst just nu?".
+	bestNow bool
+	// worstNow is bestNow for the other end: "vem är sämst just nu?".
+	worstNow bool
 }
 
 var (
@@ -150,6 +163,8 @@ var (
 	// month, a week, a number of days, now.
 	spanWords = []string{"månad", "month", "veck", "week", "dag", "day", "år", "year", "idag", "igår",
 		"today", "yesterday", "nu", "now", "senaste", "last", "förra", "denna", "this"}
+	// nowWords say a question is about now: the form, not the month.
+	nowWords = []string{"nu", "now", "currently", "tillfället"}
 	// toneWords are the words a message wears its tone in.
 	// bestWords are how a message calls somebody the best.
 	bestWords = []string{"bäst", "bästa", "best", "etta", "kung", "king"}
@@ -196,7 +211,10 @@ func read(p Prompt) reading {
 	q.best = slices.ContainsFunc(lower, func(w string) bool { return slices.Contains(bestWords, w) }) ||
 		strings.Contains(p.Question, "👑")
 	for _, sentence := range strings.FieldsFunc(p.Question, func(c rune) bool { return strings.ContainsRune("?!.;\n", c) }) {
-		q.bestEver = q.bestEver || bestEverIn(sentence)
+		ever, now, worst := bestIn(sentence)
+		q.bestEver = q.bestEver || ever
+		q.bestNow = q.bestNow || now
+		q.worstNow = q.worstNow || now && worst
 	}
 	average := slices.ContainsFunc(lower, func(w string) bool { return slices.Contains(averageWords, w) })
 	for i, w := range lower {
@@ -306,26 +324,35 @@ func read(p Prompt) reading {
 	return q
 }
 
-// bestEverIn says one sentence calls somebody the best with no period
-// said: no month or weekday by name, no word a period starts with, no
-// figures.
-func bestEverIn(sentence string) bool {
+// bestIn reads one sentence that calls somebody the best, or with worst
+// the worst, for the period it says: ever when it says none — no month or
+// weekday by name, no word a period starts with, no figures — and now
+// when the only period is "nu", "now", "currently".
+func bestIn(sentence string) (ever, now, worst bool) {
 	words := strings.FieldsFunc(strings.ToLower(sentence), func(c rune) bool { return !unicode.IsLetter(c) && !unicode.IsDigit(c) })
-	if !slices.ContainsFunc(words, func(w string) bool { return w == "bäst" || w == "bästa" || w == "best" }) {
-		return false
+	best := slices.ContainsFunc(words, func(w string) bool { return w == "bäst" || w == "bästa" || w == "best" })
+	worst = slices.ContainsFunc(words, func(w string) bool { return w == "sämst" || w == "sämsta" || w == "worst" })
+	if best == worst {
+		return false, false, false
 	}
 	for _, w := range words {
+		if slices.Contains(nowWords, w) {
+			now = true
+			continue
+		}
 		if slices.Contains(monthNames, w) || dayNames[w] != "" || dayNames[strings.TrimSuffix(w, "s")] != "" ||
 			strings.ContainsFunc(w, unicode.IsDigit) {
-			return false
+			return false, false, false
 		}
 		for _, period := range spanWords {
 			if strings.HasPrefix(w, period) {
-				return false
+				return false, false, false
 			}
 		}
 	}
-	return true
+	// "Vem är sämst?" with no period is left to the model: it is the
+	// month's last place as often as anybody's worst ever.
+	return !now && !worst, now, worst
 }
 
 // isAsker says a player field means the person asking.

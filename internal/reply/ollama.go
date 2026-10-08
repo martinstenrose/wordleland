@@ -587,7 +587,7 @@ func systemPrompt(p Prompt) string {
   har vunnit flest dagar?", "hur många dagar har Bo vunnit?") — days, not
   months, which is "wins";
   "form" for who is in form, hot, improving, in a slump, playing well lately
-  ("vem spelar bäst just nu?", "vem är het?");
+  ("vem spelar bäst just nu?", "vem är bäst just nu?", "vem är het?");
   "steady" for who is most consistent, steady, reliable, or unpredictable ("vem
   är jämnast?");
   "puzzles" for which puzzle or day was the hardest or the easiest over a
