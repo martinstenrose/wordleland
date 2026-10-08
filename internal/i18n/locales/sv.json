@@ -695,7 +695,7 @@
   "search.placeholder": "Sök spelare och sidor",
   "search.players": "Spelare",
   "search.pages": "Sidor",
-  "reply.help": "Jag kan svara på vem som leder eller är jumbo (den här månaden, en tidigare månad, den här eller förra veckan, de senaste N dagarna, totalt), ställningen, om någon fortfarande kan vinna och vad som händer om någon får en viss siffra, sviter, form och vem som är stabilast, dagens pussel eller en viss dags resultat, svåraste pusslet och veckodagen, hur många 2:or någon har, vem som vinner flest dagar, två spelare mot varandra, en spelares profil och månader, rekorden, gruppen, vem som postar först och vad ett ord betyder. Nämn mig och fråga.",
+  "reply.help": "Jag kan svara på det mesta om gruppens resultat: vem som leder, ställningen, sviter och form, enskilda dagar, rekord och hur poängen räknas. Nämn mig och fråga, till exempel \"vem leder?\" eller \"hur går det för mig?\"",
   "reply.notready": "Jag håller fortfarande på att komma igång — fråga igen om några minuter.",
   "reply.failed": "Det där fick jag inte ihop. Prova att fråga på ett annat sätt.",
   "reply.failed.2": "Den slank undan. Kan du säga det på ett annat sätt?",
