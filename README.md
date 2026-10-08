@@ -172,9 +172,11 @@ reads the question and turns it into one of these requests:
   N days or all time; one player's standing, or the whole table; monthly
   wins.
 - **The race:** whether somebody can still win the month and what it would
-  take; what a made-up result would do ("if Bo gets a 6 tomorrow…"), scored
-  into the month as that player's next day with everyone else as they
-  stand.
+  take; asked of everyone, who leads and who can still pass — with much of
+  the month left, only that anybody can — and a tip on who will, from each
+  player's last five results and last 30 days; what a made-up result would
+  do ("if Bo gets a 6 tomorrow…"), scored into the month as that player's
+  next day with everyone else as they stand.
 - **Players:** a player's profile (their trait, places, streak, scores,
   form and titles — also the answer to "roast Alma"), their months one by
   one, two players head to head (places, and the days both played won,

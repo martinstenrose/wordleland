@@ -2192,6 +2192,21 @@ rounds — and under 1 the pass is impossible, since a 1 is the best a day
 can be. Those two thresholds are the whole of the judgement; everything
 else is the number.
 
+**"Who wins the month?" is a line and a tip, not everyone's numbers.**
+Asked of the whole field, the answer used to give every chaser's needed
+average, which in a group of nine was a wall of figures nobody read. With
+more than ten days left it now says only who leads and that anybody can
+win, since a week's bad luck still undoes any lead; nearer the end it
+names who can still pass (three, then "and N more"), without their
+needs, which a player asking about themselves still gets. Either way it
+ends with a tip, worded as one: each player who can still win, their
+points so far plus the days left at their recent pace — halfway between
+their last five results and their last 30 days, weighed by how many of
+those days they played, since a day not played is a 7 in the month — and
+the lowest finish is the tip. It is the one place the bot guesses, and
+it says "my tip" and shows the two averages it read so the guess can be
+judged.
+
 **A past month is spoken of as the 🏆 message spoke of it.** "Vem vann
 juli?" gets the month's result in the announcement's own words, not a
 present-tense "leads": the month is over, and the answer to who won it is
