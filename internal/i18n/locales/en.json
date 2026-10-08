@@ -695,7 +695,7 @@
   "search.placeholder": "Search players and pages",
   "search.players": "Players",
   "search.pages": "Pages",
-  "reply.help": "I can answer who leads or is last (this month, a past month, this or last week, the last N days, all time), the standings, whether somebody can still win and what happens if somebody gets a certain score, streaks, form and who is steadiest, today's puzzle or any day's results, the hardest puzzle and weekday, how many 2s somebody has, who wins the most days, two players head to head, a player's profile and months, the records, the group, who posts first, and what a word means. Mention me and ask.",
+  "reply.help": "I can answer most things about the group's results: who leads, the standings, streaks and form, single days, records and how scores are counted. Mention me and ask, for example \"who leads?\" or \"how am I doing?\"",
   "reply.notready": "I'm still getting set up — ask me again in a few minutes.",
   "reply.failed": "I couldn't work that one out. Try asking it another way.",
   "reply.failed.2": "That one got away from me. Could you put it another way?",

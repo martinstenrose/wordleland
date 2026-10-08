@@ -153,7 +153,7 @@ func TestAnswers(t *testing.T) {
 		{
 			name: "what can you do",
 			req:  Request{Kind: KindHelp},
-			want: "I can answer who leads",
+			want: "I can answer most things",
 		},
 	}
 	for _, tc := range tests {
@@ -188,5 +188,18 @@ func TestLeaderTieNamesEveryone(t *testing.T) {
 		nil, []store.Player{alma, bo}, results, now)
 	if got != "📊 The last 7 days: Alma and Bo are level at the top on 3.00." {
 		t.Errorf("got %q", got)
+	}
+}
+
+// The help line is a chat message, not the manual: what kind of thing the
+// bot answers and how to ask, short enough to read without "Läs mer".
+func TestTheHelpLineIsShort(t *testing.T) {
+	t.Parallel()
+	players, results := fixture(t)
+	for _, locale := range []string{"sv", "en"} {
+		got := answer(translator(t, locale), Request{Kind: KindHelp}, nil, players, results, fixtureNow())
+		if n := len([]rune(got)); n > 250 {
+			t.Errorf("%s: %d characters: %q", locale, n, got)
+		}
 	}
 }
