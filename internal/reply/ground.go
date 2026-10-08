@@ -64,14 +64,27 @@ func ground(r Request, p Prompt) Request {
 	if p.Previous != nil && q.elliptical {
 		return q.following(r, *p.Previous)
 	}
-	if r.Kind == KindThanks && len(q.named) == 1 {
+	if r.Kind == KindThanks && len(q.named) > 0 {
 		// "Anton är bäst! 👑" is praise, but of the player it names, not
 		// of the bot it was addressed to: a "Tack!" back takes the credit.
-		r.Player = q.named[0]
+		// More names are praise of them all, and checked together.
+		r.Praised = slices.Clone(q.named)
 		if q.best {
-			// A claim the board can settle, and does: the board is who is
-			// best, as "vem är bäst?" is.
-			r.Span = SpanAll
+			// A claim the figures can settle, over the period it says: a
+			// day, a week, this month, and with none the board, all time,
+			// as "vem är bäst?" is. A month by name is left a cheer.
+			date, day := dayOf(q.day, false, p.Today)
+			switch {
+			case q.day != "" && day:
+				// Today's date too: a day said is a day claimed.
+				r.Date = date
+			case q.week != "":
+				r.Span = q.week
+			case q.thisMonth:
+				r.Span = SpanMonth
+			case !q.month:
+				r.Span = SpanAll
+			}
 		}
 	}
 	r = q.who(r)
@@ -120,8 +133,9 @@ type reading struct {
 	// right after "om" or "if".
 	ifWho string
 	// month says the question names a month: by name, as "förra
-	// månaden", or in figures.
-	month bool
+	// månaden", or in figures; thisMonth, that it says "månaden" and
+	// means the one running.
+	month, thisMonth bool
 	// elliptical says the message is a fragment that leans on the
 	// question before it — "och Bo då?", "förra veckan då?" — rather than
 	// a question of its own.
@@ -255,6 +269,7 @@ func read(p Prompt) reading {
 		q.month = q.month || slices.Contains(monthNames, w) || months && slices.Contains(monthBefore, w) ||
 			figures && len(w) == 4
 	}
+	q.thisMonth = months && !q.month
 	if n := len(lower); n > 0 && n <= 6 {
 		marked := slices.Contains(opening, lower[0]) || slices.Contains(closing, lower[n-1]) ||
 			n >= 2 && (lower[0] == "what" || lower[0] == "how") && lower[1] == "about"

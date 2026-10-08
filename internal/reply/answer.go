@@ -3,6 +3,7 @@ package reply
 import (
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -94,10 +95,7 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 	case KindRules:
 		return rules(t, req)
 	case KindThanks:
-		if p, ok := findPlayer(req.Player, players); ok {
-			return cheer(t, req, p, asker, players, results, now)
-		}
-		return t.Vary("reply.thanks")
+		return cheer(t, req, asker, players, results, now)
 	case KindBot:
 		return t.Vary("reply.bot")
 	case KindHelp:
@@ -110,49 +108,130 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 	}
 }
 
-// cheer answers praise of a player. Calling them the best is a claim
-// the board settles: agreed when they top it, and otherwise answered with
-// who does, since a bot that nods along to the wrong name is no use as a
-// scorekeeper.
-func cheer(t i18n.Translator, req Request, p store.Player, asker *store.Player,
+// cheer answers praise of a player, or of several. Calling them the best is
+// a claim the figures settle: agreed when they top it, and otherwise
+// answered with who does, since a bot that nods along to the wrong name
+// is no use as a scorekeeper. The claim is over the period it said — a
+// day, a week, this month, the board — and without one it is a cheer.
+func cheer(t i18n.Translator, req Request, asker *store.Player,
 	players []store.Player, results []store.BoardResult, now time.Time) string {
 
-	you := isAsker(p, asker)
-	if req.Span != SpanAll {
+	var praised []store.Player
+	for _, name := range req.Praised {
+		if p, ok := findPlayer(name, players); ok && !slices.ContainsFunc(praised, func(q store.Player) bool { return q.ID == p.ID }) {
+			praised = append(praised, p)
+		}
+	}
+	if len(praised) == 0 {
+		return t.Vary("reply.thanks")
+	}
+	all := make([]string, len(praised))
+	for i, p := range praised {
+		all[i] = p.Name
+	}
+	who := joinNames(t, all)
+	you := len(praised) == 1 && isAsker(praised[0], asker)
+	plain := func() string {
 		if you {
 			return t.Vary("reply.cheer.you")
 		}
-		return t.Vary("reply.cheer", p.Name)
+		return t.Vary("reply.cheer", who)
 	}
-	_, m := standingOver(t, req, players, results, now)
+	if req.Span == "" && req.Date == "" {
+		return plain()
+	}
+	where, value, best, ok := bestOver(t, req, players, results, now)
+	if !ok {
+		// Nobody with a result over it: nothing to settle it with.
+		return plain()
+	}
+	var top []store.Player
+	for _, p := range praised {
+		if slices.ContainsFunc(best, func(b store.Player) bool { return b.ID == p.ID }) {
+			top = append(top, p)
+		}
+	}
+	names := make([]string, len(best))
+	for i, b := range best {
+		names[i] = b.Name
+	}
+	winners := joinNames(t, names)
+	switch {
+	case len(top) == 0 && you:
+		return t.T("reply.cheer.notbest.you", where, winners, value)
+	case len(top) == 0:
+		return t.T("reply.cheer.notbest", who, where, winners, value)
+	case len(top) < len(praised):
+		return t.T("reply.cheer.best.some", where, winners, value)
+	case you && len(best) > 1:
+		return t.T("reply.cheer.best.you.tie", where, value)
+	case you:
+		return t.T("reply.cheer.best.you", where, value)
+	case len(best) > 1:
+		return t.T("reply.cheer.best.tie", where, winners, value)
+	default:
+		return t.T("reply.cheer.best", where, who, value)
+	}
+}
+
+// bestOver is who was best over a praise's period, said as the answer
+// says it: where ("i dag", "den här veckan", "totalt"), and the score
+// that won it — the day's guesses, or a period's average. False when
+// nobody has a result over it.
+func bestOver(t i18n.Translator, req Request, players []store.Player,
+	results []store.BoardResult, now time.Time) (where, value string, best []store.Player, ok bool) {
+
+	if req.Date != "" {
+		date, err := time.ParseInLocation(DateLayout, req.Date, now.Location())
+		if err != nil {
+			return "", "", nil, false
+		}
+		puzzle := wordle.PuzzleForDate(date)
+		lowest := 0
+		for _, r := range results {
+			if r.PuzzleNo != puzzle {
+				continue
+			}
+			p, found := findByID(players, r.PlayerID)
+			if !found {
+				continue
+			}
+			switch v := resultValue(r); {
+			case lowest == 0 || v < lowest:
+				lowest, best = v, []store.Player{p}
+			case v == lowest:
+				best = append(best, p)
+			}
+		}
+		if lowest == 0 {
+			return "", "", nil, false
+		}
+		value = t.TN("reply.cheer.guesses", lowest)
+		if lowest == failGuesses {
+			value = t.T("reply.cheer.x")
+		}
+		return dayLabel(t, date, now), value, best, true
+	}
+	label, m := standingOver(t, req, players, results, now)
 	if len(m.Winners) == 0 || m.Winners[0].Average == nil {
-		// Nobody ranked yet: nothing to settle it with.
-		if you {
-			return t.Vary("reply.cheer.you")
-		}
-		return t.Vary("reply.cheer", p.Name)
+		return "", "", nil, false
 	}
-	avg := t.Decimal(*m.Winners[0].Average, 2)
 	for _, w := range m.Winners {
-		if w.ID != p.ID {
-			continue
-		}
-		switch {
-		case len(m.Winners) > 1 && you:
-			return t.T("reply.cheer.best.you.tie", avg)
-		case len(m.Winners) > 1:
-			return t.T("reply.cheer.best.tie", p.Name, avg)
-		case you:
-			return t.T("reply.cheer.best.you", avg)
-		default:
-			return t.T("reply.cheer.best", p.Name, avg)
+		best = append(best, w.Player)
+	}
+	if req.Span == SpanMonth {
+		label = t.T("reply.cheer.in", label)
+	}
+	return label, t.T("reply.cheer.avg", t.Decimal(*m.Winners[0].Average, 2)), best, true
+}
+
+func findByID(players []store.Player, id int64) (store.Player, bool) {
+	for _, p := range players {
+		if p.ID == id {
+			return p, true
 		}
 	}
-	best := joinNames(t, names(m.Winners))
-	if you {
-		return t.T("reply.cheer.notbest.you", best, avg)
-	}
-	return t.T("reply.cheer.notbest", p.Name, best, avg)
+	return store.Player{}, false
 }
 
 // isAsker says the player an answer is about is the one asking, who is
