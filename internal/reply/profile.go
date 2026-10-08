@@ -182,7 +182,7 @@ func records(t i18n.Translator, players []store.Player, results []store.BoardRes
 	}
 	all := append(append([]stats.Player(nil), board.Ranked...), board.Unranked...)
 	if who, n := holders(all, func(p stats.Player) int { return p.LongestStreak }); n > 0 {
-		lines = append(lines, "🔥 "+t.T("reply.records.streak", joinNames(t, who), n))
+		lines = append(lines, "🔥 "+t.T("reply.records.streak", joinNames(t, who), t.TN("reply.days", n)))
 	}
 	for _, g := range []int{1, 2} {
 		if who, n := holders(all, func(p stats.Player) int { return p.Distribution[g-1] }); n > 0 {

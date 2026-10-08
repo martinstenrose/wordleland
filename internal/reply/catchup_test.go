@@ -197,3 +197,18 @@ func TestAMonthNamedWithWinsIsThatMonth(t *testing.T) {
 		t.Errorf("a wins question lost its month: %+v", got)
 	}
 }
+
+// One day is "1 dag", not "1 dagar".
+func TestCatchupSaysOneDay(t *testing.T) {
+	now := time.Date(2026, time.September, 30, 8, 0, 0, 0, time.Local)
+	current := wordle.PuzzleForDate(now)
+	first := wordle.PuzzleForDate(time.Date(2026, time.September, 1, 0, 0, 0, 0, time.Local))
+	// Bo has not played today, the last day: it is his one day left.
+	results := append(play(t, alma.ID, first, current, 3, 0), play(t, bo.ID, first, current-2, 3, 0)...)
+	results = append(results, play(t, bo.ID, current-1, current-1, 4, 0)...)
+
+	got := answer(translator(t, "sv"), Request{Kind: KindCatchup, Player: "Bo"}, nil, []store.Player{alma, bo}, results, now)
+	if !strings.Contains(got, "med 1 dag kvar") {
+		t.Errorf("got %q", got)
+	}
+}
