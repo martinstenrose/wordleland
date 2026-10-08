@@ -455,7 +455,7 @@ func raceAside(t i18n.Translator, m stats.Month, asker *store.Player, now time.T
 	case left == 0:
 		return t.T("reply.leader.lastDay")
 	case len(m.Winners) == 1 && m.Margin != nil && int(math.Round(*m.Margin*100)) <= tightPoints:
-		return t.Vary("reply.leader.close", left)
+		return t.Vary("reply.leader.close", t.TN("reply.days", left))
 	}
 	return ""
 }
@@ -628,9 +628,9 @@ func streak(t i18n.Translator, req Request, asker *store.Player,
 			}
 		}
 		if isAsker(p, asker) {
-			return t.T("reply.streak.player.you", current, longest)
+			return t.T("reply.streak.player.you", t.TN("reply.days", current), longest)
 		}
-		return t.T("reply.streak.player", p.Name, current, longest)
+		return t.T("reply.streak.player", p.Name, t.TN("reply.days", current), longest)
 	}
 
 	current, currentDays := holders(all, func(p stats.Player) int { return p.CurrentStreak })
@@ -638,12 +638,12 @@ func streak(t i18n.Translator, req Request, asker *store.Player,
 
 	var lines []string
 	if currentDays > 0 {
-		lines = append(lines, "🔥 "+t.T("reply.streak.current", joinNames(t, current), currentDays))
+		lines = append(lines, "🔥 "+t.T("reply.streak.current", joinNames(t, current), t.TN("reply.days", currentDays)))
 	} else {
 		lines = append(lines, t.T("reply.streak.none"))
 	}
 	if longestDays > 0 {
-		lines = append(lines, t.T("reply.streak.ever", joinNames(t, longest), longestDays))
+		lines = append(lines, t.T("reply.streak.ever", joinNames(t, longest), t.TN("reply.days", longestDays)))
 	}
 	return strings.Join(lines, "\n")
 }

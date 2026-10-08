@@ -119,6 +119,15 @@ func (t Translator) T(key string, args ...any) string {
 	return Sprintf(t.Locale, format, args...)
 }
 
+// TN is T for a count said with its noun: key+".one" for one, else
+// key+".other", formatted with n — "1 dag", "2 dagar".
+func (t Translator) TN(key string, n int) string {
+	if n == 1 {
+		return t.T(key+".one", n)
+	}
+	return t.T(key+".other", n)
+}
+
 // Rotating is the translator with a memory for Vary, so a line said with
 // it comes out in its next wording each time. Copies share the memory.
 func (t Translator) Rotating() Translator {

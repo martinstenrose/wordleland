@@ -72,14 +72,14 @@ func catchup(t i18n.Translator, req Request, asker *store.Player,
 		case left == 0:
 			return t.T("reply.catchup.over", head, p.Name, points, leaders)
 		case need < impossibleBelow:
-			return t.T("reply.catchup.impossible", head, p.Name, points, leaders, left)
+			return t.T("reply.catchup.impossible", head, p.Name, points, leaders, t.TN("reply.days", left))
 		case need < miracleBelow:
-			return t.T("reply.catchup.hard", head, p.Name, points, leaders, left, t.Decimal(need, 2))
+			return t.T("reply.catchup.hard", head, p.Name, points, leaders, t.TN("reply.days", left), t.Decimal(need, 2))
 		default:
 			// The assumption with its number: "keeps pace" means the
 			// leader's average stays where it is, and saying what it is
 			// tells the chaser what they are being measured against.
-			return t.T("reply.catchup.possible", head, p.Name, points, leaders, left, t.Decimal(need, 2),
+			return t.T("reply.catchup.possible", head, p.Name, points, leaders, t.TN("reply.days", left), t.Decimal(need, 2),
 				leaders, leaderAvg)
 		}
 	}
@@ -102,7 +102,7 @@ func catchup(t i18n.Translator, req Request, asker *store.Player,
 	var line string
 	switch {
 	case left > openRaceDays:
-		line = t.T("reply.catchup.open", head, leaders, leaderAvg, left)
+		line = t.T("reply.catchup.open", head, leaders, leaderAvg, t.TN("reply.days", left))
 	case len(chasers) == 0:
 		line = t.T("reply.catchup.decided", head, leaders, leaderAvg)
 	default:
@@ -113,7 +113,7 @@ func catchup(t i18n.Translator, req Request, asker *store.Player,
 		if left == 1 {
 			line = t.T("reply.catchup.close.last", head, leaders, leaderAvg, joinNames(t, named))
 		} else {
-			line = t.T("reply.catchup.close", head, leaders, leaderAvg, left, joinNames(t, named))
+			line = t.T("reply.catchup.close", head, leaders, leaderAvg, t.TN("reply.days", left), joinNames(t, named))
 		}
 	}
 	if len(chasers) > 0 {
@@ -197,9 +197,9 @@ func leadersView(t i18n.Translator, label, leaders string, m stats.Month, race r
 	need, left := race.need(chaser)
 	points := race.pointsBehind(chaser)
 	if left == 0 || need < impossibleBelow {
-		return t.T("reply.catchup.safe", leaders, label, points, left)
+		return t.T("reply.catchup.safe", leaders, label, points, t.TN("reply.days", left))
 	}
-	return t.T("reply.catchup.leads", leaders, label, points, left, chaser.Name, t.Decimal(need, 2),
+	return t.T("reply.catchup.leads", leaders, label, points, t.TN("reply.days", left), chaser.Name, t.Decimal(need, 2),
 		leaders, t.Decimal(race.leader, 2))
 }
 
