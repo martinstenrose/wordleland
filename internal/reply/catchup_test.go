@@ -74,17 +74,47 @@ func TestCatchupFromTheLeader(t *testing.T) {
 	}
 }
 
-// Nobody named and the asker unknown: everyone's chances at once. Days left
-// here are the days after today.
-func TestCatchupForEveryone(t *testing.T) {
-	players, results := fixture(t)
+// Nobody named: the race in a line, and a tip. Half the month left is
+// anybody's: Alma leads on 3.00 but has scored 5s for five days, while
+// Cid on 3.13 scores 3s; at their recent pace Cid finishes on 3.10 and
+// Alma on 3.50.
+func TestCatchupForEveryoneWithMuchOfTheMonthLeft(t *testing.T) {
 	now := fixtureNow()
 	current := wordle.PuzzleForDate(now)
-	results = append(results, play(t, cid.ID, current-14, current, 6, 0)...)
+	first := wordle.PuzzleForDate(time.Date(2026, time.September, 1, 0, 0, 0, 0, time.Local))
+	results := append(play(t, alma.ID, first, current-5, 2, 0), play(t, alma.ID, current-4, current, 5, 0)...)
+	results = append(results, play(t, bo.ID, first, current, 4, current-10)...)
+	results = append(results, play(t, cid.ID, first, first, 5, 0)...)
+	results = append(results, play(t, cid.ID, first+1, current, 3, 0)...)
 
-	got := answer(translator(t, "en"), Request{Kind: KindCatchup}, nil, players, results, now)
-	want := "September: Alma leads on 3.00 with 16 days left, today included.\nStill in it: Bo (needs 1.80 over 15 days).\nOut of reach: Cid Larsson."
+	got := answer(translator(t, "sv"), Request{Kind: KindCatchup}, nil, []store.Player{alma, bo, cid}, results, now)
+	want := "September: Alma leder på 3,00, men med 16 dagar kvar kan vem som helst vinna. " +
+		"Mitt tips: Cid Larsson, med 3,00 i snitt de senaste fem och 3,13 över 30 dagar."
 	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+}
+
+// Near the end, who can still pass, by name only. Six days left: Bo on
+// 4.00 cannot, Cid on 3.20 needs 2.00 and can.
+func TestCatchupForEveryoneNearTheEnd(t *testing.T) {
+	now := time.Date(2026, time.September, 25, 20, 0, 0, 0, time.Local)
+	current := wordle.PuzzleForDate(now)
+	first := wordle.PuzzleForDate(time.Date(2026, time.September, 1, 0, 0, 0, 0, time.Local))
+	results := append(play(t, alma.ID, first, current, 3, 0), play(t, bo.ID, first, current, 4, 0)...)
+	results = append(results, play(t, cid.ID, first, first+4, 4, 0)...)
+	results = append(results, play(t, cid.ID, first+5, current, 3, 0)...)
+
+	got := answer(translator(t, "en"), Request{Kind: KindCatchup}, nil, []store.Player{alma, bo, cid}, results, now)
+	want := "September: Alma leads on 3.00 with 6 days left. Still able to pass: Cid Larsson. " +
+		"My tip is that Alma holds on, averaging 3.00 over the last five and 3.00 over 30 days."
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+
+	// Nobody able to pass: no names, and no tip to give.
+	got = answer(translator(t, "en"), Request{Kind: KindCatchup}, nil, []store.Player{alma, bo}, results, now)
+	if want := "September: Alma leads on 3.00, and nobody can catch up."; got != want {
 		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }

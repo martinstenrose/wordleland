@@ -2,8 +2,8 @@ package reply
 
 import (
 	"math"
+	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/martinstenrose/wordleland/internal/i18n"
@@ -84,29 +84,106 @@ func catchup(t i18n.Translator, req Request, asker *store.Player,
 		}
 	}
 
-	// Nobody in particular: everyone's chances at once. The days left are
-	// the month's, today included, and each need says its own days, since
-	// somebody who has already played today has one fewer.
-	var in, out []string
+	// Nobody in particular: the race in a line, not everyone's numbers.
+	// With much of the month left anybody can win it, and saying so is
+	// the honest answer; nearer the end, who can still pass. Either way a
+	// tip, said as one.
+	left := race.afterNow + 1
+	head := capitalized(label)
+	var chasers []string
 	for _, mp := range m.Ranked {
 		if isWinner(m, mp.ID) {
 			continue
 		}
+		if need, days := race.need(mp); days > 0 && need >= impossibleBelow {
+			chasers = append(chasers, mp.Name)
+		}
+	}
+	var line string
+	switch {
+	case left > openRaceDays:
+		line = t.T("reply.catchup.open", head, leaders, leaderAvg, left)
+	case len(chasers) == 0:
+		line = t.T("reply.catchup.decided", head, leaders, leaderAvg)
+	default:
+		named := chasers
+		if len(named) > maxChasersNamed {
+			named = append(named[:maxChasersNamed:maxChasersNamed], t.T("reply.catchup.more", len(chasers)-maxChasersNamed))
+		}
+		if left == 1 {
+			line = t.T("reply.catchup.close.last", head, leaders, leaderAvg, joinNames(t, named))
+		} else {
+			line = t.T("reply.catchup.close", head, leaders, leaderAvg, left, joinNames(t, named))
+		}
+	}
+	if len(chasers) > 0 {
+		if tip, ok := forecast(m, race, results, now); ok {
+			key := "reply.catchup.tip"
+			if isWinner(m, tip.player.ID) {
+				key = "reply.catchup.tip.leader"
+			}
+			line += " " + t.T(key, tip.player.Name, t.Decimal(tip.lastFive, 2), t.Decimal(tip.thirty, 2))
+		}
+	}
+	return line
+}
+
+// openRaceDays is how many days left make the month anybody's: a third of
+// it and more, when a week's bad luck still undoes any lead. maxChasersNamed
+// is how many of those still able to pass are named before "and N more".
+const (
+	openRaceDays    = 10
+	maxChasersNamed = 3
+)
+
+// tip is the player the forecast picks, with the two averages it read.
+type tip struct {
+	player           stats.MonthPlayer
+	lastFive, thirty float64
+}
+
+// forecast picks who is likeliest to win the month: each player's points
+// so far plus the days left at what they are scoring lately — halfway
+// between their last five results and their last 30 days, weighed by how
+// many of those 30 days they played, since a day not played is a 7 in
+// the month. A guess and said as one; only a player who can still win,
+// and has played lately, is picked.
+func forecast(m stats.Month, race race, results []store.BoardResult, now time.Time) (tip, bool) {
+	opts := stats.DefaultOptions(now)
+	current := wordle.PuzzleForDate(now)
+	byPlayer := map[int64][]store.BoardResult{}
+	// The window is 30 days, or the group's whole history when that is
+	// shorter: a day before anybody played is nobody's miss.
+	earliest := current
+	for _, r := range results {
+		earliest = min(earliest, r.PuzzleNo)
+		if r.PuzzleNo > current-30 && r.PuzzleNo <= current {
+			byPlayer[r.PlayerID] = append(byPlayer[r.PlayerID], r)
+		}
+	}
+	var best tip
+	bestFinal := math.Inf(1)
+	for _, mp := range m.Ranked {
 		need, left := race.need(mp)
-		if left == 0 || need < impossibleBelow {
-			out = append(out, mp.Name)
+		recent := byPlayer[mp.ID]
+		if mp.Average == nil || len(recent) == 0 || !isWinner(m, mp.ID) && (left == 0 || need < impossibleBelow) {
 			continue
 		}
-		in = append(in, t.T("reply.catchup.needs", mp.Name, t.Decimal(need, 2), left))
+		slices.SortFunc(recent, func(a, b store.BoardResult) int { return b.PuzzleNo - a.PuzzleNo })
+		lastFive, _ := stats.MeanScore(recent[:min(5, len(recent))], opts)
+		thirty, played := stats.MeanScore(recent, opts)
+		if played == 0 {
+			continue
+		}
+		share := min(float64(len(recent))/float64(min(30, current-earliest+1)), 1)
+		pace := share*(lastFive+thirty)/2 + (1-share)*7
+		scored := race.scored(mp.ID)
+		final := (*mp.Average*float64(scored) + pace*float64(race.length-scored)) / float64(race.length)
+		if final < bestFinal {
+			best, bestFinal = tip{mp, lastFive, thirty}, final
+		}
 	}
-	lines := []string{t.T("reply.catchup.head", capitalized(label), leaders, leaderAvg, race.afterNow+1)}
-	if len(in) > 0 {
-		lines = append(lines, t.T("reply.catchup.in", joinNames(t, in)))
-	}
-	if len(out) > 0 {
-		lines = append(lines, t.T("reply.catchup.out", joinNames(t, out)))
-	}
-	return strings.Join(lines, "\n")
+	return best, !math.IsInf(bestFinal, 1)
 }
 
 // leadersView is the question from the top of the table: how safe the lead
