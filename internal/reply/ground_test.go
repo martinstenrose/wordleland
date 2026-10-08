@@ -220,7 +220,6 @@ func TestWhoIsBestWithNoPeriodIsAllTime(t *testing.T) {
 		{"vem är bäst den här månaden?", SpanMonth},
 		{"vem är bäst i augusti?", SpanMonth},
 		{"vem har bäst snitt de senaste 14 dagarna?", SpanMonth},
-		{"vem är bäst just nu?", SpanMonth},
 		{"vem leder?", SpanMonth},
 	} {
 		got := ground(Request{Kind: KindLeader, Span: SpanMonth}, Prompt{Question: tc.question, Asker: "Alma", Players: []string{"Alma", "Bo"}})
@@ -230,5 +229,50 @@ func TestWhoIsBestWithNoPeriodIsAllTime(t *testing.T) {
 	}
 	if got := ground(Request{Kind: KindLeader, Span: SpanMonth, Worst: true}, Prompt{Question: "vem är sämst?"}); got.Span != SpanMonth {
 		t.Errorf("the other end moved: %+v", got)
+	}
+}
+
+// "Vem är bäst just nu?" is the form, the last 30 puzzles, whichever of
+// the month's kinds the model read it as; "vem leder just nu?" is still
+// the month.
+func TestWhoIsBestNowIsTheForm(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		question string
+		read     Request
+		want     Kind
+	}{
+		{"vem är bäst just nu?", Request{Kind: KindLeader, Span: SpanMonth}, KindForm},
+		{"who's best right now?", Request{Kind: KindLeader, Span: SpanAll}, KindForm},
+		{"vem är bäst för tillfället?", Request{Kind: KindStanding, Span: SpanAll}, KindForm},
+		{"vem leder just nu?", Request{Kind: KindLeader, Span: SpanMonth}, KindLeader},
+		{"vem är bäst den här månaden?", Request{Kind: KindLeader, Span: SpanMonth}, KindLeader},
+		{"hur går det för Bo just nu, är han bäst?", Request{Kind: KindStanding, Player: "Bo", Span: SpanAll}, KindStanding},
+	} {
+		got := ground(tc.read, Prompt{Question: tc.question, Asker: "Alma", Players: []string{"Alma", "Bo"}})
+		if got.Kind != tc.want {
+			t.Errorf("%q: %+v, want kind %q", tc.question, got, tc.want)
+		}
+	}
+}
+
+// "Vem är sämst just nu?" is the form from the other end; "vem är sämst?"
+// with no period is left as the model read it.
+func TestWhoIsWorstNowIsTheColdForm(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		question string
+		read     Request
+		want     Request
+	}{
+		{"vem är sämst just nu?", Request{Kind: KindLeader, Span: SpanMonth, Worst: true}, Request{Kind: KindForm, Span: SpanMonth, Worst: true}},
+		{"who's worst right now?", Request{Kind: KindForm, Span: SpanMonth}, Request{Kind: KindForm, Span: SpanMonth, Worst: true}},
+		{"vem är sämst?", Request{Kind: KindLeader, Span: SpanMonth, Worst: true}, Request{Kind: KindLeader, Span: SpanMonth, Worst: true}},
+		{"vem är bäst just nu?", Request{Kind: KindForm, Span: SpanMonth, Worst: true}, Request{Kind: KindForm, Span: SpanMonth}},
+	} {
+		got := ground(tc.read, Prompt{Question: tc.question, Asker: "Alma", Players: []string{"Alma", "Bo"}})
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%q: got %+v, want %+v", tc.question, got, tc.want)
+		}
 	}
 }
