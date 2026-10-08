@@ -32,6 +32,12 @@ func ground(r Request, p Prompt) Request {
 		// that said only that came back with the span before it.
 		r.Span, r.Days, r.Month = q.week, 0, ""
 	}
+	if r.Kind == KindLeader && !r.Worst && r.Month == "" && q.bestEver {
+		// "Vem är bäst?" with no period is the board, all time, as the
+		// prompt says; a small model answers it with the month's leader
+		// anyway, the more so with "vinna månaden" in the next question.
+		r.Span, r.Days = SpanAll, 0
+	}
 	if r.Kind == KindLeader && q.lowest != q.highest {
 		// A low average is the good end: "vem har lägst snitt?" asks who
 		// is best, and "högst snitt" who is last.
@@ -114,6 +120,9 @@ type reading struct {
 	elliptical bool
 	// best says the message calls somebody the best: "bäst", "👑".
 	best bool
+	// bestEver says a sentence of the message asks or says who is best
+	// and names no period: "Vem är bäst?", not "vem är bäst i augusti?".
+	bestEver bool
 }
 
 var (
@@ -137,6 +146,10 @@ var (
 	}
 	averageWords = []string{"snitt", "snittet", "genomsnitt", "average"}
 	monthBefore  = []string{"förra", "förrförra", "föregående", "senaste", "last", "previous", "innan", "before"}
+	// spanWords open the words that put a period on a question: a
+	// month, a week, a number of days, now.
+	spanWords = []string{"månad", "month", "veck", "week", "dag", "day", "år", "year", "idag", "igår",
+		"today", "yesterday", "nu", "now", "senaste", "last", "förra", "denna", "this"}
 	// toneWords are the words a message wears its tone in.
 	// bestWords are how a message calls somebody the best.
 	bestWords = []string{"bäst", "bästa", "best", "etta", "kung", "king"}
@@ -182,6 +195,9 @@ func read(p Prompt) reading {
 		strings.ContainsFunc(p.Question, emoji)
 	q.best = slices.ContainsFunc(lower, func(w string) bool { return slices.Contains(bestWords, w) }) ||
 		strings.Contains(p.Question, "👑")
+	for _, sentence := range strings.FieldsFunc(p.Question, func(c rune) bool { return strings.ContainsRune("?!.;\n", c) }) {
+		q.bestEver = q.bestEver || bestEverIn(sentence)
+	}
 	average := slices.ContainsFunc(lower, func(w string) bool { return slices.Contains(averageWords, w) })
 	for i, w := range lower {
 		// "måndags", "i lördags": the day with its ending.
@@ -288,6 +304,28 @@ func read(p Prompt) reading {
 		}
 	}
 	return q
+}
+
+// bestEverIn says one sentence calls somebody the best with no period
+// said: no month or weekday by name, no word a period starts with, no
+// figures.
+func bestEverIn(sentence string) bool {
+	words := strings.FieldsFunc(strings.ToLower(sentence), func(c rune) bool { return !unicode.IsLetter(c) && !unicode.IsDigit(c) })
+	if !slices.ContainsFunc(words, func(w string) bool { return w == "bäst" || w == "bästa" || w == "best" }) {
+		return false
+	}
+	for _, w := range words {
+		if slices.Contains(monthNames, w) || dayNames[w] != "" || dayNames[strings.TrimSuffix(w, "s")] != "" ||
+			strings.ContainsFunc(w, unicode.IsDigit) {
+			return false
+		}
+		for _, period := range spanWords {
+			if strings.HasPrefix(w, period) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // isAsker says a player field means the person asking.
