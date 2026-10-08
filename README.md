@@ -196,7 +196,8 @@ post. That is all the model does. The figures come from the
 same code the board runs, and every sentence — the rule explanations
 included — from the same catalogues the announcements use, so the model can
 misread a question but cannot get a number or a rule wrong. "What can you
-do?" gets the list of what can be asked; a question it cannot place gets
+do?" gets the list of what can be asked; a question about the bot itself
+("är du smart?") gets a line of its own; a question it cannot place gets
 one short line pointing at that question; thanks or praise gets a thanks
 back.
 

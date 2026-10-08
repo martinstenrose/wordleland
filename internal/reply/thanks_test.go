@@ -71,3 +71,14 @@ func TestThePromptSaysANonQuestionIsNotAQuestion(t *testing.T) {
 		}
 	}
 }
+
+// "Är du smart eller dum?" is about the bot, and "Det förstod jag inte"
+// is the one answer that settles it the wrong way.
+func TestAQuestionAboutTheBotIsAnswered(t *testing.T) {
+	t.Parallel()
+	players, results := fixture(t)
+	got := answer(translator(t, "sv"), Request{Kind: KindBot}, &bo, players, results, fixtureNow())
+	if got != "Smart nog att räkna snitt, dum nog att aldrig få se dagens ord. 🤖" {
+		t.Errorf("got %q", got)
+	}
+}
