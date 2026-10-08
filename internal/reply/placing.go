@@ -107,6 +107,7 @@ var PlacingCases = []PlacingCase{
 	{"vad räknas som en miss?", Request{Kind: KindRules, Topic: TopicMiss}, "topic"},
 	{"vad var dagens ord?", Request{Kind: KindRules, Topic: TopicData}, "topic"},
 	{"vad kan man fråga dig om?", Request{Kind: KindHelp}, ""},
+	{"är du smart eller dum?", Request{Kind: KindBot}, ""},
 	{"tack, duktig bot!", Request{Kind: KindThanks}, ""},
 	{"vad är huvudstaden i Norge?", Request{Kind: KindUnknown}, ""},
 	{"vem leder, och har jag svit?",

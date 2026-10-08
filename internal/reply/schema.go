@@ -37,6 +37,7 @@ var kindFields = map[Kind][]string{
 	KindGroup:    {},
 	KindRules:    {"topic"},
 	KindThanks:   {},
+	KindBot:      {},
 	KindHelp:     {},
 	KindUnknown:  {},
 }

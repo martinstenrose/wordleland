@@ -351,7 +351,7 @@ func parseRequestAt(content string, today time.Time) (Request, error) {
 		}
 		a = normalise(expand(a, alias, today))
 		switch a.Kind {
-		case KindUnknown, KindHelp, KindThanks:
+		case KindUnknown, KindHelp, KindThanks, KindBot:
 			// Not a further question: a greeting or a thank-you alongside
 			// the real one says nothing an answer could.
 			continue
@@ -365,7 +365,7 @@ func parseRequestAt(content string, today time.Time) (Request, error) {
 		}
 	}
 	switch r.Kind {
-	case KindUnknown, KindHelp, KindThanks:
+	case KindUnknown, KindHelp, KindThanks, KindBot:
 		// "Tack! Och vem leder?": the question is what gets answered.
 		if len(r.Also) > 0 {
 			rest := r.Also[1:]
@@ -452,7 +452,7 @@ func normalise(r Request) Request {
 	}
 	r.Player = pronoun(strings.TrimSpace(r.Player))
 	switch r.Kind {
-	case KindLeader, KindToday, KindRules, KindThanks, KindHelp, KindUnknown,
+	case KindLeader, KindToday, KindRules, KindThanks, KindBot, KindHelp, KindUnknown,
 		KindWhatIf, KindDay, KindPuzzles, KindRecords, KindGroup:
 		// Nothing to be about a player: a name here is the model filling
 		// a field in, which it does for a message that asks nothing.
@@ -615,6 +615,10 @@ func systemPrompt(p Prompt) string {
   answers ("what can you do?", "vad kan du?", "help", "hjälp");
   "thanks" for thanks, praise or a compliment that asks nothing ("tack",
   "duktig bot", "good bot", "nice");
+  "bot" for a question or remark about the bot itself: whether it is smart,
+  who or what it is, how it feels ("är du smart eller dum?", "är du en
+  robot?", "vem är du?", "are you alive?") — not what it can do, which is
+  "help", nor what it knows, which is "rules";
   "unknown" for anything else: a greeting or a remark that asks nothing, and
   anything not about this Wordle group's scores (people's contact details,
   accounts, settings, other subjects). Never pick a kind that was not asked

@@ -69,6 +69,10 @@ const (
 	// bot" — answered in kind rather than with the help line, which would
 	// read as the bot missing the point.
 	KindThanks Kind = "thanks"
+	// KindBot is a question or remark about the bot itself — "är du smart
+	// eller dum?" — answered with a line of its own rather than "I didn't
+	// get that", which is the one answer that proves the asker's point.
+	KindBot Kind = "bot"
 	// KindHelp asks what the bot can do — "vad kan du?" — and gets the
 	// list. Its own kind so that asking for help is not counted among the
 	// questions the bot could not place.
@@ -121,7 +125,7 @@ const (
 var Kinds = []Kind{KindLeader, KindStanding, KindStreak, KindToday, KindScore, KindWins,
 	KindCatchup, KindCount, KindHabits, KindWhatIf, KindVersus, KindDay, KindPuzzles,
 	KindDayWins, KindForm, KindSteady, KindWeekday, KindProfile, KindHistory, KindRecords,
-	KindGroup, KindRules, KindThanks, KindHelp, KindUnknown}
+	KindGroup, KindRules, KindThanks, KindBot, KindHelp, KindUnknown}
 
 // Topic is which rule a KindRules question asks about. Each has one
 // catalogue text, written by hand to match what internal/stats does.
@@ -320,7 +324,7 @@ func followable(req Request) *Request {
 	}
 	req.Also = nil
 	switch req.Kind {
-	case KindUnknown, KindHelp, KindThanks:
+	case KindUnknown, KindHelp, KindThanks, KindBot:
 		return nil
 	}
 	return &req

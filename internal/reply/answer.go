@@ -98,6 +98,8 @@ func answer(t i18n.Translator, req Request, asker *store.Player,
 			return cheer(t, req, p, asker, players, results, now)
 		}
 		return t.Vary("reply.thanks")
+	case KindBot:
+		return t.Vary("reply.bot")
 	case KindHelp:
 		return t.T("reply.help")
 	default:
