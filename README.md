@@ -200,8 +200,9 @@ included — from the same catalogues the announcements use, so the model can
 misread a question but cannot get a number or a rule wrong. "What can you
 do?" gets a short line on what it answers; a question about the bot itself
 ("är du smart?") gets a line of its own; a question it cannot place gets
-one short line pointing at that question; thanks or praise gets a thanks
-back.
+one short line pointing at that question; thanks to the bot gets a thanks
+back, and praise of players ("Alma är bäst!") is checked against the
+figures for the period it names.
 
 **A question it could not place is kept for thirty days** — the text and
 when it was asked, not who asked — so a kind of answer can be added for

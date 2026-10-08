@@ -3,6 +3,8 @@ package reply
 import (
 	"strings"
 	"testing"
+
+	"github.com/martinstenrose/wordleland/internal/store"
 )
 
 // "Duktig bot" is not a question. It gets a thanks back, not the help
@@ -17,26 +19,38 @@ func TestPraiseIsAnsweredInKind(t *testing.T) {
 
 // Praise of a player is not thanks to the bot: a "Tack!" back would be the
 // bot taking their credit. Calling them the best is checked against the
-// board, which here has Alma first on 3.00 and Bo behind her.
+// figures for the period it says, which here have Alma first on 3.00
+// every day and Bo behind her; no period is the board, all time.
 func TestPraiseOfAPlayerIsNotTakenAsThanks(t *testing.T) {
 	t.Parallel()
 	players, results := fixture(t)
 	for _, tc := range []struct{ question, asker, want string }{
-		{"Alma är bäst! 👑", "Bo", "Stämmer! Alma toppar tabellen med 3,00 i snitt. 👑"},
-		{"Bo är bäst!", "Alma", "Snyggt av Bo, men bäst är Alma med 3,00 i snitt. 😉"},
-		{"Bo är bäst 😎", "Bo", "Djärvt påstått – bäst är Alma med 3,00 i snitt. 😉"},
-		{"jag menar, Alma är kung", "Alma", "Svårt att säga emot – du toppar tabellen med 3,00 i snitt. 👑"},
-		// Praise that claims nothing the board can settle is cheered.
+		{"Alma är bäst! 👑", "Bo", "Stämmer! Bäst totalt: Alma, med 3,00 i snitt. 👑"},
+		{"Bo är bäst!", "Alma", "Snyggt av Bo, men bäst totalt: Alma, med 3,00 i snitt. 😉"},
+		{"Bo är bäst 😎", "Bo", "Djärvt påstått – bäst totalt: Alma, med 3,00 i snitt. 😉"},
+		{"jag menar, Alma är kung", "Alma", "Svårt att säga emot – bäst totalt: du, med 3,00 i snitt. 👑"},
+		// Praise that claims nothing the figures can settle is cheered.
 		{"grym Bo!", "Alma", "Heja Bo! 👑"},
 		{"grym Bo!", "Bo", "Självförtroendet är det inget fel på! 😄"},
+		// More names are praise of them all, checked together.
+		{"Alma och Bo är bäst!", "Cid Larsson", "Delvis rätt! Bäst totalt: Alma, med 3,00 i snitt. 👑"},
+		{"Alma och Bo är grymma", "Cid Larsson", "Heja Alma och Bo! 👑"},
+		{"Bo, Cid och Alma är bäst!", "Bo", "Delvis rätt! Bäst totalt: Alma, med 3,00 i snitt. 👑"},
+		{"Bo och Cid är bäst!", "Alma", "Snyggt av Bo och Cid Larsson, men bäst totalt: Alma, med 3,00 i snitt. 😉"},
+		{"Alma, Bo och Cid är grymma", "Bo", "Heja Alma, Bo och Cid Larsson! 👑"},
+		// A period said is the period checked: a day by its guesses.
+		{"Bo var bäst idag!", "Alma", "Snyggt av Bo, men bäst i dag: Alma, med 3 försök. 😉"},
+		{"Alma var bäst igår", "Bo", "Stämmer! Bäst i går: Alma, med 3 försök. 👑"},
+		{"Bo är bäst den här veckan", "Alma", "Snyggt av Bo, men bäst den här veckan: Alma, med 3,00 i snitt. 😉"},
+		{"Alma är bäst den här månaden", "Bo", "Stämmer! Bäst i september: Alma, med 3,00 i snitt. 👑"},
+		// A month by name is not one the answer checks: a cheer.
+		{"Alma var bäst i augusti", "Bo", "Heja Alma! 👑"},
 		// Praise of the bot is still thanked.
 		{"duktig bot!", "Bo", "Tack! 🙂"},
 	} {
-		req := ground(Request{Kind: KindThanks}, Prompt{Question: tc.question, Asker: tc.asker, Players: []string{"Alma", "Bo", "Cid Larsson"}})
-		asker := bo
-		if tc.asker == "Alma" {
-			asker = alma
-		}
+		req := ground(Request{Kind: KindThanks}, Prompt{Question: tc.question, Asker: tc.asker,
+			Players: []string{"Alma", "Bo", "Cid Larsson"}, Today: fixtureNow()})
+		asker := map[string]store.Player{"Alma": alma, "Bo": bo, "Cid Larsson": cid}[tc.asker]
 		if got := answer(translator(t, "sv"), req, &asker, players, results, fixtureNow()); got != tc.want {
 			t.Errorf("%q from %s: got %q, want %q", tc.question, tc.asker, got, tc.want)
 		}

@@ -234,6 +234,11 @@ type Request struct {
 	// one — "who leads, and is my streak still going?" — each answered in
 	// turn in the same post.
 	Also []Request `json:"also"`
+	// Praised is everyone a "thanks" names, in the order it names them:
+	// praise of players rather than of the bot. Read from the message's
+	// own words, never written by the model, since the model fills a name
+	// in for a message that names nobody.
+	Praised []string `json:"-"`
 }
 
 // Hypothetical is one made-up result: a player and their guesses, 1 to 6,
