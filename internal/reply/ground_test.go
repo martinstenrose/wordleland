@@ -205,3 +205,30 @@ func TestAWhatIfIsAboutWhoeverFollowsIf(t *testing.T) {
 		t.Errorf("two scores: %+v", got.Scores)
 	}
 }
+
+// "Vem är bäst?" is the board, all time, whatever else the message asks:
+// a month in the next question is not this one's.
+func TestWhoIsBestWithNoPeriodIsAllTime(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		question string
+		want     Span
+	}{
+		{"avgör detta för oss. Vem är bäst? Vem kommer vinna månaden?", SpanAll},
+		{"vem är bäst?", SpanAll},
+		{"who is the best?", SpanAll},
+		{"vem är bäst den här månaden?", SpanMonth},
+		{"vem är bäst i augusti?", SpanMonth},
+		{"vem har bäst snitt de senaste 14 dagarna?", SpanMonth},
+		{"vem är bäst just nu?", SpanMonth},
+		{"vem leder?", SpanMonth},
+	} {
+		got := ground(Request{Kind: KindLeader, Span: SpanMonth}, Prompt{Question: tc.question, Asker: "Alma", Players: []string{"Alma", "Bo"}})
+		if got.Span != tc.want {
+			t.Errorf("%q: span %q, want %q", tc.question, got.Span, tc.want)
+		}
+	}
+	if got := ground(Request{Kind: KindLeader, Span: SpanMonth, Worst: true}, Prompt{Question: "vem är sämst?"}); got.Span != SpanMonth {
+		t.Errorf("the other end moved: %+v", got)
+	}
+}
