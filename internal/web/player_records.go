@@ -56,7 +56,7 @@ func popupFor(t translator, days dayTable, r store.BoardResult, prefix string) d
 	}
 	line1 := t.T("player.puzzle", t.Puzzle(r.PuzzleNo)) + " · " +
 		t.T("weekday.short."+strconv.Itoa(int(date.Weekday()))) + " " + strconv.Itoa(date.Day()) + " " +
-		shortMonthName(t, date.Month()) + " · " + result
+		t.T("month."+strconv.Itoa(int(date.Month()))) + " · " + result
 	if r.HardMode {
 		line1 += " *"
 	}

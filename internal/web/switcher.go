@@ -217,6 +217,8 @@ func lastPlayed(t translator, date, now time.Time) string {
 	case 1:
 		return t.T("player.lastPlayedYesterday")
 	}
+	// Abbreviated, against the full name a date has elsewhere: the eyebrow
+	// is one line that clips, and "30 september" overruns it at 320px.
 	when := strconv.Itoa(date.Day()) + " " + shortMonthName(t, date.Month())
 	if date.Year() != now.Year() {
 		when += " " + strconv.Itoa(date.Year())

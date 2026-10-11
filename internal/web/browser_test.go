@@ -1106,6 +1106,25 @@ func TestBrowserAPhoneMonthRowIsThreeColumns(t *testing.T) {
 	}
 }
 
+// A grid row's date reads "27 September" on a wide window and "27/9" in a
+// phone's narrow column, which has no room for a month's name.
+func TestBrowserGridDatesFitTheirColumn(t *testing.T) {
+	site := newSite(t)
+	for _, c := range []struct {
+		width int
+		shows string
+	}{{desktopWidth, ".grid-date-long"}, {phoneWidth, ".grid-date-numeric"}} {
+		p := site.open(newBrowser(t), c.width)
+		p.Navigate(site.base + "/grid")
+		if w := p.Number(fmt.Sprintf(`document.querySelector(%q).getBoundingClientRect().width`, c.shows)); w < 10 {
+			t.Errorf("at %dpx the grid's date does not show %s", c.width, c.shows)
+		}
+		if over := p.Number(`(c => c.scrollWidth - c.clientWidth)(document.querySelector("tbody .grid-date"))`); over > 0 {
+			t.Errorf("at %dpx the date runs %vpx past its column", c.width, over)
+		}
+	}
+}
+
 // The About panel covers what is under it.
 //
 // It is drawn from inside the account menu, which floats over the page as

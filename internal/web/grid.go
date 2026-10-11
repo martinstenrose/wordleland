@@ -33,7 +33,10 @@ type gridCellView struct {
 }
 
 type gridRowView struct {
+	// Date is the day as it is read, "27 September", and Numeric the
+	// same as "27/9" for a phone's narrow column.
 	Date     string
+	Numeric  string
 	PuzzleNo int
 	// Href is the day's own page, which the date links to.
 	Href  string
@@ -177,8 +180,9 @@ func (s *Server) handleGrid(w http.ResponseWriter, r *http.Request, prefix, boar
 	}
 
 	for _, row := range grid.Rows {
-		date := strconv.Itoa(row.Date.Day()) + " " + shortMonthName(ch.T, row.Date.Month())
-		view := gridRowView{PuzzleNo: row.PuzzleNo, Date: date, Href: puzzlePath(prefix, row.PuzzleNo)}
+		date := strconv.Itoa(row.Date.Day()) + " " + ch.T.T("month."+strconv.Itoa(int(row.Date.Month())))
+		numeric := strconv.Itoa(row.Date.Day()) + "/" + strconv.Itoa(int(row.Date.Month()))
+		view := gridRowView{PuzzleNo: row.PuzzleNo, Date: date, Numeric: numeric, Href: puzzlePath(prefix, row.PuzzleNo)}
 		for _, i := range order {
 			c := row.Cells[i]
 			cell := gridCellView{Played: c.Played}

@@ -380,12 +380,6 @@ func (s *Server) adminPanel(r *http.Request, slug string, games map[int64]int, f
 	return panel, nil
 }
 
-// dayMonth is "27 Sep", from the catalogue's short month names.
-func dayMonth(t translator, at time.Time) string {
-	at = at.In(time.Local)
-	return strconv.Itoa(at.Day()) + " " + shortMonthName(t, at.Month())
-}
-
 // handleAdminPlayerSubmit applies an edit.
 func (s *Server) handleAdminPlayerSubmit(w http.ResponseWriter, r *http.Request) {
 	player, err := store.PlayerBySlug(r.Context(), s.db, r.PathValue("slug"))

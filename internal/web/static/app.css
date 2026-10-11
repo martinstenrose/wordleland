@@ -2549,6 +2549,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   color: inherit; text-decoration: underline;
   text-decoration-color: var(--color-border); text-underline-offset: 3px;
 }
+.grid-date-numeric { display: none; }
 .grid-date-link:hover { color: var(--color-accent); text-decoration-color: currentColor; }
 .grid tbody td { padding: 0; height: 38px; text-align: center; }
 .grid tbody .cell.grid-tile {
@@ -2588,6 +2589,10 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 
 @media (max-width: 860px) {
   .grid .grid-date { width: 60px; padding: 0 8px 0 10px; font-size: 12px; }
+  /* "27 September" has no room in a phone's date column; "27/9" does,
+     and a screen reader still hears the date in full. */
+  .grid-date-long { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .grid-date-numeric { display: inline; }
   .grid-puzzle { display: none; }
   .grid-name-wide { display: none; }
   .grid-name-short { display: inline; }
