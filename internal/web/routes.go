@@ -35,6 +35,10 @@ func (s *Server) routes() http.Handler {
 	// player's calendar — and from the day either side of it.
 	mux.HandleFunc("GET /puzzle", s.requireAuth(s.handlePuzzlePage))
 	mux.HandleFunc("GET /puzzle/{no}", s.requireAuth(s.handlePuzzlePage))
+	// A player correcting their own result for the day — see correct.go.
+	// Not under the share prefix: the share link changes nothing.
+	mux.HandleFunc("GET /puzzle/{no}/correct", s.requireAuth(s.handleCorrectForm))
+	mux.HandleFunc("POST /puzzle/{no}/correct", s.requireAuth(s.handleCorrectSubmit))
 
 	// The live stream Today and the board listen to — see live.go. Behind
 	// the same session check as the pages; the share view has its own
