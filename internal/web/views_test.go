@@ -777,8 +777,9 @@ func TestAFinishedMonthNamesItsWinner(t *testing.T) {
 	}
 	table, _ := sectionOf(body, `<ol class="month-rows">`, "</ol>")
 	table = html.UnescapeString(table)
-	if !strings.Contains(table, "+0.") || !strings.Contains(table, "/") {
-		t.Error("the table does not say how far behind, or played over possible")
+	// Behind is a plain distance to the front, with no sign.
+	if !regexp.MustCompile(`<span class="right num muted month-wide">\d+\.\d\d</span>`).MatchString(table) || strings.Contains(table, "+") || !strings.Contains(table, "/") {
+		t.Error("the table does not say how far behind, unsigned, or played over possible")
 	}
 }
 
@@ -888,6 +889,10 @@ func TestRunningMonthReadsAsUnfinished(t *testing.T) {
 	}
 	if !strings.Contains(hero, " left.") && !strings.Contains(hero, "Last day.") {
 		t.Errorf("a running month does not say how much of it is left:\n%s", hero)
+	}
+	// Whoever is at the front leads it; nobody has won it yet.
+	if table, _ := sectionOf(body, `<ol class="month-rows">`, "</ol>"); !strings.Contains(table, `<span class="month-behind-phone num">leader</span>`) || strings.Contains(table, ">winner<") {
+		t.Error("a phone's row does not call the running month's front its leader")
 	}
 	now := time.Now()
 	daysInMonth := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, now.Location()).Day()
