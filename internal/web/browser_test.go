@@ -1083,6 +1083,29 @@ func TestBrowserAPhoneShowsWhoLedEachDay(t *testing.T) {
 	}
 }
 
+// On a phone a month's row is three columns — rank, name, average — with
+// the move from the month before and the fails on one line under the name,
+// whether or not the table has the wide window's "vs" column.
+//
+// The wide window's seven-column grid for that column once out-ranked the
+// phone's three and squeezed the name into a sliver.
+func TestBrowserAPhoneMonthRowIsThreeColumns(t *testing.T) {
+	site := newSite(t)
+	seedSharedLeadMonth(t, site) // so the month on show has one before it
+	p := site.open(newBrowser(t), 390)
+	p.Navigate(site.base + "/months")
+
+	if p.Number(`document.querySelectorAll(".month-table.with-vs").length`) == 0 {
+		t.Fatal("the month on show has no month before it to be set against")
+	}
+	if cols := p.Number(`getComputedStyle(document.querySelector(".month-rows .month-row")).gridTemplateColumns.split(" ").length`); cols != 3 {
+		t.Errorf("a phone's month row has %v columns, want 3", cols)
+	}
+	if lines := p.Number(`(m => Math.round(m.getBoundingClientRect().height / parseFloat(getComputedStyle(m).lineHeight)))(document.querySelector(".month-name-meta"))`); lines != 1 {
+		t.Errorf("the line under a name runs to %v lines, want 1", lines)
+	}
+}
+
 // The About panel covers what is under it.
 //
 // It is drawn from inside the account menu, which floats over the page as

@@ -2295,8 +2295,8 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .month-group { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 5px; margin: 4px 0 0; font-size: 13px; color: var(--color-muted); }
 .month-group b { color: var(--color-text); }
 .month-group-trend { white-space: nowrap; }
-/* How an average moved from the month before: better is green, worse
-   red, level grey. */
+/* How an average moved from the month before, the group's and each
+   player's: better is green, worse red, level and new grey. */
 .month-trend { font-weight: 700; color: var(--color-muted); }
 .month-trend.down { color: var(--color-accent); }
 .month-trend.up { color: var(--color-danger); }
@@ -2374,6 +2374,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   border-top: 0;
   font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--color-muted);
 }
+.month-table.with-vs .month-row { grid-template-columns: 40px minmax(0, 1fr) 84px 80px 84px 80px 60px; }
 .month-row .right { text-align: right; }
 .month-table.card > .month-row.head { padding-left: 24px; padding-right: 24px; }
 .month-row > .pill-rank { justify-self: start; min-width: 26px; height: 26px; border-radius: 13px; }
@@ -2382,7 +2383,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .month-lead-icon { display: flex; color: var(--color-accent); }
 .month-name-meta { display: none; font-size: 12px; color: var(--color-muted); }
 .month-avg { display: flex; flex-direction: column; align-items: flex-end; font-size: 16px; font-weight: 700; }
-.month-behind-phone { display: none; font-size: 12px; font-weight: 400; color: var(--color-muted); }
+.month-behind-phone { display: none; font-size: 12px; font-weight: 400; color: var(--color-muted); white-space: nowrap; }
 .month-row .month-wide { font-size: 14px; }
 .month-fails { color: var(--color-danger); }
 .month-table.card > .month-thin { padding: 16px 24px 20px; border-top: 1px solid var(--color-sep); }
@@ -2447,7 +2448,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   .month-lead-legend li > label { gap: 5px; }
 
   .month-row.head { display: none; }
-  .month-row { grid-template-columns: 26px minmax(0, 1fr) auto; min-height: 58px; padding: 0 16px; }
+  .month-row, .month-table.with-vs .month-row { grid-template-columns: 26px minmax(0, 1fr) auto; min-height: 58px; padding: 0 16px; }
   .month-row .month-wide { display: none; }
   .month-name-meta, .month-behind-phone { display: block; }
   .month-table.card > .month-thin { padding: 14px 16px 16px; }

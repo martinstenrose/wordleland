@@ -27,9 +27,16 @@ type monthRow struct {
 	Name    string
 	Href    string
 	Average string
-	// Behind is the gap to the front, "+0.12", or an em dash for whoever is
-	// at it.
-	Behind string
+	// Behind is the gap to the front, "0.12", or an em dash for whoever is
+	// at it. BehindPhone says the same in words for a phone's row, which has
+	// no column heading to say what the figure is: "0.12 behind", or
+	// "leader" ("winner" once the month is over) for whoever is at the front.
+	Behind      string
+	BehindPhone string
+	// Vs is how the player's average moved from their own month before:
+	// a trend, as the group's has, or "new" for a player who was not
+	// ranked in it. Empty on the board's oldest month, which has none.
+	Vs trend
 	// Played is the puzzles played against the days the month has had.
 	Played string
 	Games  int
@@ -98,6 +105,9 @@ type monthsPage struct {
 	Group      string
 	GroupTrend trend
 	GroupVs    string
+	// VsHead heads the table's column of moves, "vs Aug", the month before
+	// abbreviated as a column heading must be; empty when there is none.
+	VsHead string
 
 	// Who led at the end of each day, as a strip of the month's days, and a
 	// legend for the three who led longest.
@@ -269,13 +279,15 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 		page.Sub = ch.T.T("months.hero.ahead", ch.T.Decimal(*m.Margin, 2), second.Name)
 	}
 	page.Group = formatScore(ch.T, m.GroupAverage)
+	var prev *stats.Month
 	if selected+1 < len(months) {
-		prev := months[selected+1]
+		prev = &months[selected+1]
 		name := ch.T.T("month." + strconv.Itoa(int(prev.Month)))
 		page.GroupTrend = trendOf(ch.T, m.GroupAverage, prev.GroupAverage, name)
 		if page.GroupTrend.Dir != "" {
 			page.GroupVs = ch.T.T("months.group.vs", name)
 		}
+		page.VsHead = ch.T.T("months.vsHead", monthShort(ch.T, *prev))
 	}
 
 	// Who led after each day, coloured by the three who led longest.
@@ -300,8 +312,16 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 	for _, p := range m.Ranked {
 		row := monthRowFor(p, prefix, m.Winners, m.Days, ch.T)
 		row.Behind = "—"
+		row.BehindPhone = ch.T.T("months.row.winner")
+		if page.Running {
+			row.BehindPhone = ch.T.T("months.row.leader")
+		}
 		if !row.Winner && len(m.Winners) > 0 {
-			row.Behind = "+" + ch.T.Decimal(*p.Average-*m.Winners[0].Average, 2)
+			row.Behind = ch.T.Decimal(*p.Average-*m.Winners[0].Average, 2)
+			row.BehindPhone = ch.T.T("months.row.behind", row.Behind)
+		}
+		if prev != nil {
+			row.Vs = playerTrend(ch.T, p, *prev)
 		}
 		page.Rows = append(page.Rows, row)
 	}
@@ -454,9 +474,10 @@ func longDate(t translator, date time.Time) string {
 
 // joinNames renders a tie as every name, because a tie is the result.
 // trend is how an average moved from one month to the next, ready to show:
-// Dir is "down", "up" or "level", and empty when there is no comparison
-// at all. Delta is the size of the move and Said the comparison in words
-// for a screen reader, which the arrow is not.
+// Dir is "down", "up" or "level", or "new" for somebody with nothing to
+// set against, and empty when there is no comparison at all. Delta is the
+// size of the move and Said the comparison in words for a screen reader,
+// which the arrow is not.
 type trend struct {
 	Dir   string
 	Delta string
@@ -483,6 +504,18 @@ func trendOf(t translator, now, before *float64, name string) trend {
 		tr.Dir, tr.Said = "level", t.T("months.group.same", name)
 	}
 	return tr
+}
+
+// playerTrend sets a player's month against their own in prev, or marks
+// them new to it when prev did not rank them.
+func playerTrend(t translator, p stats.MonthPlayer, prev stats.Month) trend {
+	name := t.T("month." + strconv.Itoa(int(prev.Month)))
+	for _, q := range prev.Ranked {
+		if q.ID == p.ID {
+			return trendOf(t, p.Average, q.Average, name)
+		}
+	}
+	return trend{Dir: "new", Said: t.T("months.vs.newSaid", name)}
 }
 
 // leadStrip draws who led at the end of each of length days, and the

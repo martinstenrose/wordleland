@@ -106,12 +106,13 @@
   </section>
 {{end}}
 
-<section class="card month-table">
+<section class="card month-table{{if .VsHead}} with-vs{{end}}">
   <div class="month-row head" aria-hidden="true">
     <span>{{.T.T "board.column.rank"}}</span>
     <span>{{.T.T "board.column.player"}}</span>
     <span class="right">{{.T.T "board.column.average"}}</span>
     <span class="right">{{.T.T "months.behind"}}</span>
+    {{with .VsHead}}<span class="right">{{.}}</span>{{end}}
     <span class="right">{{.T.T "months.played"}}</span>
     <span class="right">{{.T.T "months.fails"}}</span>
   </div>
@@ -124,13 +125,14 @@
             <a class="player" href="{{.Href}}">{{.Name}}</a>
             {{if .Winner}}<span class="month-lead-icon filled" title="{{if $.Running}}{{$.T.T "months.medal.leading"}}{{else}}{{$.T.T "months.medal.winner"}}{{end}}">{{if $.Running}}{{symbol "trending_up" 16}}{{else}}{{symbol "trophy" 16}}{{end}}</span>{{end}}
           </span>
-          <span class="month-name-meta">{{$.T.T "months.playedFails" .Played .Fails}}</span>
+          <span class="month-name-meta">{{if eq .Vs.Dir "new"}}{{template "month-trend" (dict "Trend" .Vs "T" $.T)}} · {{else if .Vs.Dir}}{{template "month-trend" (dict "Trend" .Vs "T" $.T)}}<span aria-hidden="true"> {{$.VsHead}}</span> · {{end}}{{$.T.TN "months.row.fails" .Fails}}</span>
         </span>
         <span class="month-avg">
           <span class="num">{{.Average}}</span>
-          <span class="month-behind-phone num">{{.Behind}}</span>
+          <span class="month-behind-phone num">{{.BehindPhone}}</span>
         </span>
         <span class="right num muted month-wide">{{.Behind}}</span>
+        {{if $.VsHead}}<span class="right month-wide">{{template "month-trend" (dict "Trend" .Vs "T" $.T)}}</span>{{end}}
         <span class="right num month-wide">{{.Played}}</span>
         <span class="right num month-wide{{if .Fails}} month-fails{{else}} muted{{end}}">{{$.T.Integer .Fails}}</span>
       </li>
@@ -199,6 +201,6 @@
 
 {{/* month-trend draws how an average moved from the month before: an arrow
      and the size of the move, green when it went down (better) and red
-     when up. The arrow is hidden from a screen reader, which hears the
-     move in words. */}}
-{{define "month-trend"}}<span class="month-trend {{.Trend.Dir}} num" aria-hidden="true">{{if eq .Trend.Dir "down"}}▼{{else if eq .Trend.Dir "up"}}▲{{else}}±{{end}}{{.Trend.Delta}}</span><span class="visually-hidden">{{.Trend.Said}}</span>{{end}}
+     when up, or "new" for somebody the month before did not rank. The
+     arrow is hidden from a screen reader, which hears the move in words. */}}
+{{define "month-trend"}}<span class="month-trend {{.Trend.Dir}} num" aria-hidden="true">{{if eq .Trend.Dir "new"}}{{.T.T "months.vs.new"}}{{else}}{{if eq .Trend.Dir "down"}}▼{{else if eq .Trend.Dir "up"}}▲{{else}}±{{end}}{{.Trend.Delta}}{{end}}</span><span class="visually-hidden">{{.Trend.Said}}</span>{{end}}
