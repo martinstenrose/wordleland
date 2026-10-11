@@ -957,7 +957,9 @@ average. The streak left the head for Records, which leaves three figures.
 before, fewest fails, most ones and twos, the longest solving run — among
 the players it ranks; a title shared by more than two goes to "N players".
 The season is the selected month's year, with a switch between years that
-appears only when there is more than one.
+appears only when there is more than one. *The awards are superseded: four
+are now chosen from six, a big tie is "Pia +2", and fewest fails and the
+solving run are gone — see* Months against the month before.
 
 Where the build departs from the mockups:
 
@@ -1099,17 +1101,23 @@ and what was kept on purpose:
 - **Months** on a phone draws the four awards as rows of one card, as the
   design's later pass does. The season's line under a name is two figures,
   times in the top three and the average place; the running month's
-  "Partial month" line and "failed" (not "fails") stay.
+  "Partial month" line and "failed" (not "fails") stay. *The "Partial
+  month" line has since gone, and the phone's line under a name is the move
+  from the month before and the fails — see* Months against the month
+  before.
 - **The grid** keeps its own scroll box, writes puzzles as "#1926" and days
   as "27 Sep", and gives each column a floor so tiles never touch; past
   that the grid scrolls sideways. Its phone layout is due a redesign.
+  *Its days now read "27 September", and "27/9" on a phone — see* Months
+  against the month before.
 - **A player's** trait chip stands beside the name. The retired mark that
   stood with it is gone from the head: two chips fought for the line, and
   the roster and the board already say who has left. The eyebrow says when
   they last played as the design does — today, yesterday, 27 Sep — so it
   stays one line.
 - **An award's holders are links** to their pages; a count ("3 players")
-  links nowhere.
+  links nowhere. *There is no count any more: three or more holders are the
+  first of them, linked, and "+2".*
 - **A link that stays on the page keeps the scroll.** htmx scrolls every
   boosted swap to the top, which is right for a step to another page and
   wrong for a change to this one — another player in the roster, closing
@@ -1539,6 +1547,81 @@ The two things most likely to rot are held by tests rather than by care:
 with `.link` on it, and `TestADestructiveActAsksBeforeItActs` pins the
 open-then-commit pair on the acts that have one. The search overlay's clear
 and esc/Cancel are the design's own and outside the four, like About's close.
+
+## Months against the month before
+
+The design's later passes over Months turned it into a page that compares:
+each month with the one before it, and each player with themselves.
+
+**Who led each day** gives a colour to a player, not to a set of players.
+The first version gave a tie its own colour, so "Ana and Bo" could take a
+place in the legend from somebody who led most of the month; now a shared
+day counts for each of them and its square is split into a band per
+leader. Pressing a day picks it out and pressing a name in the legend
+rings every day its player led, with the grid's radios-and-a-stylesheet
+pattern, so the strip is still not a set of links. A phone shows the strip
+too, under the headline, in place of the bar that only said how far
+through a running month was; the strip's note says that at both widths.
+
+**The month's card ends on the group's average** and how it moved from the
+month before — "▼0.03 vs September", green for better — rather than on
+"Partial month · 11 days so far", which repeated the eyebrow and the strip.
+The move is rounded to the hundredths it is shown in before it is given an
+arrow, as the week's recap rounds its own, so a move too small to see is
+"±0.00" rather than "▼0.00". The board's oldest month shows the average
+alone.
+
+**The table sets each player against their own month before**, in a "vs
+Aug" column and on a phone's line under the name, with "new" for somebody
+it did not rank. Behind became a plain distance, "0.09", since a signed
+figure beside the new column read as a move of its own. Months has **no
+rank arrows**: the leaderboard's ↑↓ mean the last seven days, and the same
+glyphs meaning "since last month" one page over would have to be learned
+twice.
+
+**The awards are four chosen from six**, in this order: most improved,
+most 1s and 2s, steadiest, best week, biggest single-day beat, above their
+own level. A candidate is passed over when it has no holder yet or more
+than two share it, and the first passed over fill in when that leaves
+fewer than four, so a month always has four in that order. Fewest fails
+and the longest solve streak were dropped because they were almost always
+a big tie — on a board where most days are solved, several players share
+the best of both — and a card that says "8 players" says nothing.
+For the same reason a tie of three or more is the first holder and how
+many others, "Pia +2", which also keeps a name to link.
+
+The figures behind them are in `stats` (`MonthAwardFigures`,
+`SeasonAverages`), and the rules there are choices worth having written
+down:
+
+- **Steadiest** is the smallest standard deviation of the scores a player
+  posted, from five days played; fewer than that is too little to spread.
+- **Best week** is the lowest seven days running inside the month, every
+  one of them played, from seven days played. A month counts a missed day
+  as 7 whatever the board's toggles; a "week" with a gap in it is not a
+  week of play, and with a miss counted as nothing it would be a good day
+  short of one.
+- **Biggest single-day beat** is the furthest under that day's group
+  average a player came in, the player counted in the group as "the
+  group's average that day" is everywhere else. A day nobody else played
+  cannot be won.
+- **Above their own level** sets the month against the player's season
+  average, which is the mean of their monthly averages that year rather
+  than of their games, so a month counts the same however much of it they
+  played — as the season's places already do.
+- **Ties are compared in the hundredths a figure is shown in**, so two
+  players who read the same share it.
+
+**Month names**: the catalogue's abbreviation where a row of months has to
+fit — the month pills, the season's columns, chart and heat-map labels, the
+"vs Aug" heading — and the name in full wherever a date is read, "27
+September", because an abbreviation can be a word of its own: "jul" is
+Christmas in Swedish. There used to be two abbreviations, the catalogue's
+"Sep" and the first three letters of the name; there is now one. Two
+places keep a shorter form, each measured: a phone's grid dates its rows
+"27/9", since its 60px column has no room for a month's name, and a
+player's eyebrow still says "last played 30 Sep", because it is one line
+that clips and "30 September 2025" overruns it at 390px.
 
 ## Deliberately not built
 
