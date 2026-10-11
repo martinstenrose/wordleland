@@ -186,3 +186,84 @@ func TestMonthTableSetsEachPlayerAgainstTheirMonthBefore(t *testing.T) {
 		t.Error("the board's oldest month sets its players against a month it does not have")
 	}
 }
+
+// Four awards are taken in order, passing over any with no holder yet or
+// shared by more than two; when that leaves fewer than four, the first
+// passed over fill in, and the four keep their order.
+func TestPickAwardsPassesOverBigTiesAndFillsInOrder(t *testing.T) {
+	t.Parallel()
+
+	c := func(name string, ready bool, holders int) awardCandidate {
+		return awardCandidate{monthAward: monthAward{Title: name}, Ready: ready, Holders: holders}
+	}
+	titles := func(as []monthAward) []string {
+		var out []string
+		for _, a := range as {
+			out = append(out, a.Title)
+		}
+		return out
+	}
+
+	for _, tc := range []struct {
+		name string
+		in   []awardCandidate
+		want []string
+	}{
+		{"the first four that qualify", []awardCandidate{c("1", true, 1), c("2", true, 2), c("3", true, 1), c("4", true, 1), c("5", true, 1), c("6", true, 1)}, []string{"1", "2", "3", "4"}},
+		{"a big tie and a missing holder passed over", []awardCandidate{c("1", true, 3), c("2", true, 1), c("3", false, 0), c("4", true, 1), c("5", true, 2), c("6", true, 1)}, []string{"2", "4", "5", "6"}},
+		{"filled from the first passed over, in order", []awardCandidate{c("1", true, 4), c("2", true, 1), c("3", false, 0), c("4", false, 0), c("5", true, 1), c("6", true, 5)}, []string{"1", "2", "3", "5"}},
+	} {
+		if got := titles(pickAwards(tc.in, 4)); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%s: picked %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+// A title three or more share goes to the first of them and how many
+// others, "Pia +2", never a count with nobody in it; a running month's
+// titles say "so far"; and an award needing more days than the month has
+// given anybody says so instead of naming a holder.
+func TestMonthAwardsNameATieByItsFirstHolder(t *testing.T) {
+	t.Parallel()
+
+	srv := testServer(t)
+	en := translator{locale: "en", strings: srv.catalogues["en"], fallback: srv.catalogues["en"]}
+	avg := func(v float64) *float64 { return &v }
+	p := func(id int64, name string, rank, twos, games int) stats.MonthPlayer {
+		return stats.MonthPlayer{Player: store.Player{ID: id, Name: name, Slug: strings.ToLower(name)}, Rank: rank, TwoOrBetter: twos, Games: games, Average: avg(3)}
+	}
+	months := []stats.Month{{Year: 2026, Month: time.September, Ranked: []stats.MonthPlayer{
+		p(1, "Pia", 1, 2, 4), p(2, "Ola", 2, 2, 4), p(3, "Eva", 3, 2, 4),
+	}}}
+
+	awards := monthAwards(en, months, 0, true, "", nil, nil)
+	if len(awards) != 4 {
+		t.Fatalf("%d awards, want 4", len(awards))
+	}
+	var quick, steady *monthAward
+	for i := range awards {
+		if !strings.HasSuffix(awards[i].Title, " so far") {
+			t.Errorf("a running month's award is titled %q, without \"so far\"", awards[i].Title)
+		}
+		switch awards[i].Icon {
+		case "bolt":
+			quick = &awards[i]
+		case "straighten":
+			steady = &awards[i]
+		}
+	}
+	if quick == nil {
+		t.Fatal("the three-way tie for 1s and 2s did not fill in for a missing award")
+	}
+	if got := quick.Who; len(got) != 2 || got[0].Text != "Pia" || got[0].Href != "/players/pia" || got[1].Text != " +2" {
+		t.Errorf("a three-way tie is named %+v, want Pia, linked, +2", got)
+	}
+	if steady == nil || steady.What != "from 5 days played" || steady.Who[0].Text != "—" {
+		t.Errorf("steadiest on four days each = %+v, want nobody, from 5 days played", steady)
+	}
+	for _, a := range awards {
+		if a.Icon == "verified" || a.Icon == "local_fire_department" {
+			t.Errorf("a removed award is still given: %q", a.Title)
+		}
+	}
+}
