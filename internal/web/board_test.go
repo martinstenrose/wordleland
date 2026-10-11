@@ -963,7 +963,7 @@ func TestMonthAwardClimbNamesTheMonthInFull(t *testing.T) {
 		{Year: 2026, Month: time.August, Ranked: []stats.MonthPlayer{player(1, 1), player(2, 2), player(3, 3), player(4, 4)}},
 		{Year: 2026, Month: time.July, Ranked: []stats.MonthPlayer{player(2, 1), player(3, 2), player(4, 3), player(1, 4)}},
 	}
-	awards := monthAwards(tr, months, 0, false, "")
+	awards := monthAwards(tr, months, 0, false, "", nil, nil)
 	if got, want := awards[0].What, "upp 3 placeringar från juli"; got != want {
 		t.Errorf("climb award = %q, want %q", got, want)
 	}

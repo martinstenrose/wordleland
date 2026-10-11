@@ -329,7 +329,8 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 		page.Thin = append(page.Thin, monthRowFor(p, prefix, nil, m.Days, ch.T))
 	}
 
-	page.Awards = monthAwards(ch.T, months, selected, page.Running, prefix)
+	page.Awards = monthAwards(ch.T, months, selected, page.Running, prefix,
+		stats.MonthAwardFigures(results, opts, m), stats.SeasonAverages(months, m.Year))
 
 	// The season is the selected month's year. A board that spans more
 	// than one has a switch between them, each year opening on its latest
@@ -613,88 +614,203 @@ type awardPart struct {
 	Text, Href string
 }
 
-// monthAwards names the month's most improved, fewest fails, most ones and
-// twos, and longest solving run, among the players it ranks. A title shared
-// by more than two goes to "N players" rather than a list that will not fit.
-func monthAwards(t translator, months []stats.Month, selected int, running bool, prefix string) []monthAward {
+// Day minimums for the awards that need a run of play to mean anything:
+// a spread over three games says little, and a best week needs a week.
+const (
+	steadiestMinDays = 5
+	bestWeekMinDays  = 7
+)
+
+// awardCandidate is one award the month could show: Ready when it has a
+// holder at all, which a month too young or a board too new may not, and
+// Holders how many share it.
+type awardCandidate struct {
+	monthAward
+	Ready   bool
+	Holders int
+}
+
+// monthAwards picks the month's four awards from six candidates, in this
+// order: most improved, most 1s and 2s, steadiest, best week, biggest
+// single-day beat and above their own level. A candidate is passed over
+// when it has no holder yet or more than two share it, since a title
+// half the group holds says nothing about anybody; when that leaves fewer
+// than four, the first passed over fill the gap, so the month always has
+// four, kept in that order. A running month's titles say "so far".
+func monthAwards(t translator, months []stats.Month, selected int, running bool, prefix string,
+	figs map[int64]stats.MonthFigures, season map[int64]float64) []monthAward {
+
 	m := months[selected]
 	if len(m.Ranked) == 0 {
 		return nil
 	}
-	// who names the holders, each a link to their page; more than two is a
-	// count, which has nobody to link to.
-	who := func(holders []stats.MonthPlayer) []awardPart {
-		if len(holders) > 2 {
-			return []awardPart{{Text: t.TN("months.award.players", len(holders))}}
+	monthName := t.T("month." + strconv.Itoa(int(m.Month)))
+	title := func(key string) string {
+		if running {
+			return t.T(key + "SoFar")
 		}
-		var parts []awardPart
-		for i, p := range holders {
-			if i > 0 {
-				parts = append(parts, awardPart{Text: " " + t.T("list.and") + " "})
-			}
-			parts = append(parts, awardPart{Text: p.Name, Href: prefix + "/players/" + p.Slug})
-		}
-		return parts
+		return t.T(key)
 	}
-	nobody := []awardPart{{Text: "—"}}
-	// top finds the players holding the best value of a figure, higher or
-	// lower being better as asked.
-	top := func(value func(stats.MonthPlayer) int, higher bool) (int, []stats.MonthPlayer) {
-		best, holders := 0, []stats.MonthPlayer(nil)
-		for i, p := range m.Ranked {
-			v := value(p)
-			if i == 0 || (higher && v > best) || (!higher && v < best) {
-				best, holders = v, []stats.MonthPlayer{p}
-			} else if v == best {
+	// who names the holders, each a link to their page: one or two by
+	// name, more as the first of them and how many others — "Pia +2" —
+	// rather than a count with nobody in it.
+	who := func(holders []stats.MonthPlayer) []awardPart {
+		link := func(p stats.MonthPlayer) awardPart {
+			return awardPart{Text: p.Name, Href: prefix + "/players/" + p.Slug}
+		}
+		switch {
+		case len(holders) == 0:
+			return []awardPart{{Text: "—"}}
+		case len(holders) > 2:
+			return []awardPart{link(holders[0]), {Text: " +" + t.Integer(len(holders)-1)}}
+		case len(holders) == 2:
+			return []awardPart{link(holders[0]), {Text: " " + t.T("list.and") + " "}, link(holders[1])}
+		}
+		return []awardPart{link(holders[0])}
+	}
+	// best finds the players with the best of a figure, in the month's
+	// order, compared in the hundredths it is shown in so that two who
+	// read the same share it. ok says who has the figure at all.
+	best := func(figure func(stats.MonthPlayer) (float64, bool), lower bool) (float64, []stats.MonthPlayer) {
+		var top float64
+		var holders []stats.MonthPlayer
+		for _, p := range m.Ranked {
+			v, ok := figure(p)
+			if !ok {
+				continue
+			}
+			v = math.Round(v*100) / 100
+			switch {
+			case holders == nil || (lower && v < top) || (!lower && v > top):
+				top, holders = v, []stats.MonthPlayer{p}
+			case v == top:
 				holders = append(holders, p)
 			}
 		}
-		return best, holders
+		return top, holders
+	}
+	candidate := func(icon, key string, holders []stats.MonthPlayer, what, none string) awardCandidate {
+		c := awardCandidate{monthAward: monthAward{Icon: icon, Title: title(key), Who: who(holders), What: what}, Ready: len(holders) > 0, Holders: len(holders)}
+		if !c.Ready {
+			c.What = none
+		}
+		return c
 	}
 
-	var awards []monthAward
+	var candidates []awardCandidate
 
-	improved := monthAward{Icon: "trending_up", Title: t.T("months.award.improved"), Who: nobody, What: t.T("months.award.noClimbers")}
-	if running {
-		improved.Title = t.T("months.award.improvedSoFar")
-	}
+	// Most improved: places climbed from the month before.
+	var climbers []stats.MonthPlayer
+	climbWhat := ""
 	if selected+1 < len(months) {
 		prev := months[selected+1]
 		before := map[int64]int{}
 		for _, p := range prev.Ranked {
 			before[p.ID] = p.Rank
 		}
-		climb, climbers := 0, []stats.MonthPlayer(nil)
-		for _, p := range m.Ranked {
+		climb, holders := best(func(p stats.MonthPlayer) (float64, bool) {
 			r, ok := before[p.ID]
-			if !ok {
-				continue
-			}
-			switch up := r - p.Rank; {
-			case up > climb:
-				climb, climbers = up, []stats.MonthPlayer{p}
-			case up == climb && up > 0:
-				climbers = append(climbers, p)
-			}
+			return float64(r - p.Rank), ok && r > p.Rank
+		}, false)
+		climbers = holders
+		n := int(climb)
+		climbWhat = t.TP("months.award.climbed", n, n, t.T("month."+strconv.Itoa(int(prev.Month))))
+	}
+	candidates = append(candidates, candidate("trending_up", "months.award.improved", climbers, climbWhat, t.T("months.award.noClimbers")))
+
+	// Most 1s and 2s.
+	quick, holders := best(func(p stats.MonthPlayer) (float64, bool) {
+		return float64(p.TwoOrBetter), p.TwoOrBetter > 0
+	}, false)
+	candidates = append(candidates, candidate("bolt", "months.award.quick", holders,
+		t.T("months.award.quickWhat", int(quick)), t.T("months.award.quickNone")))
+
+	// Steadiest: the smallest spread, over enough games to have one.
+	steady, holders := best(func(p stats.MonthPlayer) (float64, bool) {
+		f := figs[p.ID]
+		return derefOr(f.Spread), p.Games >= steadiestMinDays && f.Spread != nil
+	}, true)
+	candidates = append(candidates, candidate("straighten", "months.award.steady", holders,
+		t.T("months.award.steadyWhat", t.Decimal(steady, 2)), t.T("months.award.minDays", steadiestMinDays)))
+
+	// Best week: the lowest seven days running.
+	week, holders := best(func(p stats.MonthPlayer) (float64, bool) {
+		f := figs[p.ID]
+		if f.BestWeek == nil || p.Games < bestWeekMinDays {
+			return 0, false
 		}
-		if climb > 0 {
-			improved.Who = who(climbers)
-			improved.What = t.TP("months.award.climbed", climb, climb, t.T("month."+strconv.Itoa(int(prev.Month))))
+		return f.BestWeek.Average, true
+	}, true)
+	weekWhat := ""
+	if len(holders) > 0 {
+		w := figs[holders[0].ID].BestWeek
+		last := w.First.AddDate(0, 0, w.Days-1)
+		weekWhat = t.T("months.award.weekWhat", t.Decimal(week, 2), w.First.Day(), last.Day(), monthName)
+	}
+	candidates = append(candidates, candidate("date_range", "months.award.week", holders,
+		weekWhat, t.T("months.award.minDays", bestWeekMinDays)))
+
+	// Biggest single-day beat: furthest under the group on one day.
+	beat, holders := best(func(p stats.MonthPlayer) (float64, bool) {
+		f := figs[p.ID]
+		if f.BestBeat == nil {
+			return 0, false
+		}
+		return f.BestBeat.Margin, true
+	}, false)
+	beatWhat := ""
+	if len(holders) > 0 {
+		beatWhat = t.T("months.award.beatWhat", t.Decimal(beat, 2), figs[holders[0].ID].BestBeat.Date.Day(), monthName)
+	}
+	candidates = append(candidates, candidate("rocket_launch", "months.award.beat", holders,
+		beatWhat, t.T("months.award.beatNone")))
+
+	// Above their own level: how far the month beat the player's season.
+	level, holders := best(func(p stats.MonthPlayer) (float64, bool) {
+		s, ok := season[p.ID]
+		if !ok {
+			return 0, false
+		}
+		d := s - *p.Average
+		return d, math.Round(d*100) > 0
+	}, false)
+	candidates = append(candidates, candidate("north_east", "months.award.level", holders,
+		t.T("months.award.levelWhat", t.Decimal(level, 2)), t.T("months.award.levelNone")))
+
+	return pickAwards(candidates, 4)
+}
+
+// pickAwards takes up to n candidates in order, passing over any not ready
+// or shared by more than two, and fills from those passed over, first
+// first, when that leaves fewer than n. The result keeps the candidates'
+// order.
+func pickAwards(candidates []awardCandidate, n int) []monthAward {
+	take := make([]bool, len(candidates))
+	taken := 0
+	for i, c := range candidates {
+		if taken < n && c.Ready && c.Holders <= 2 {
+			take[i] = true
+			taken++
 		}
 	}
-	awards = append(awards, improved)
-
-	fails, names := top(func(p stats.MonthPlayer) int { return p.Fails }, false)
-	fewest := monthAward{Icon: "verified", Title: t.T("months.award.fewestFails"), Who: who(names), What: t.TP("months.award.fails", fails, fails)}
-	if fails == 0 {
-		fewest.What = t.T("months.award.noFails")
+	for i := range candidates {
+		if taken < n && !take[i] {
+			take[i] = true
+			taken++
+		}
 	}
-	awards = append(awards, fewest)
+	var out []monthAward
+	for i, c := range candidates {
+		if take[i] {
+			out = append(out, c.monthAward)
+		}
+	}
+	return out
+}
 
-	quick, names := top(func(p stats.MonthPlayer) int { return p.TwoOrBetter }, true)
-	awards = append(awards, monthAward{Icon: "bolt", Title: t.T("months.award.quick"), Who: who(names), What: t.T("months.award.quickWhat", quick)})
-
-	run, names := top(func(p stats.MonthPlayer) int { return p.BestRun }, true)
-	awards = append(awards, monthAward{Icon: "local_fire_department", Title: t.T("months.award.run"), Who: who(names), What: t.TP("months.award.runWhat", run, run)})
-	return awards
+func derefOr(v *float64) float64 {
+	if v == nil {
+		return 0
+	}
+	return *v
 }
