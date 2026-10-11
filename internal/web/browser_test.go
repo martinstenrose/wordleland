@@ -1054,6 +1054,35 @@ func TestBrowserPressingANamePicksOutTheDaysTheyLed(t *testing.T) {
 	}
 }
 
+// On a phone the who-led strip goes under the month's headline, ruled off
+// from it, the card's width, with taller squares than a wide window's; and
+// a tap picks a day out there as a press does on a wide window.
+//
+// Measured at 320px, the narrowest phone the layout is drawn for, where 31
+// squares are under 5px wide each.
+func TestBrowserAPhoneShowsWhoLedEachDay(t *testing.T) {
+	site := newSite(t)
+	p := site.open(newBrowser(t), 320)
+	p.Navigate(site.base + "/months")
+
+	got := p.String(`(() => {
+		const leads = document.querySelector(".month-leads"), card = document.querySelector(".month-hero");
+		const l = leads.getBoundingClientRect(), c = card.getBoundingClientRect(), s = getComputedStyle(leads);
+		return [l.width > 0 && l.top > document.querySelector(".month-lead").getBoundingClientRect().bottom,
+			s.borderTopStyle, s.paddingTop, Math.round(document.querySelector(".lead-day").getBoundingClientRect().height),
+			l.right <= c.right, document.documentElement.scrollWidth <= document.documentElement.clientWidth].join(" ");
+	})()`)
+	if want := "true solid 14px 26 true true"; got != want {
+		t.Errorf("the phone's strip (under the headline, rule, padding, square height, inside the card, no sideways scroll) = %q, want %q", got, want)
+	}
+
+	box := `document.querySelector(".ld-0").getBoundingClientRect()`
+	p.ClickAt(int(p.Number(box+`.left + 2`)), int(p.Number(box+`.top + 13`)))
+	if got := p.String(`getComputedStyle(document.querySelector(".ld-0")).outlineStyle`); got != "solid" {
+		t.Errorf("a tap on the first day did not ring it (outline %q)", got)
+	}
+}
+
 // The About panel covers what is under it.
 //
 // It is drawn from inside the account menu, which floats over the page as

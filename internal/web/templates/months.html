@@ -40,7 +40,13 @@
     <p class="month-eyebrow{{if .Running}} running{{end}}">{{.Eyebrow}}</p>
     <h2 class="month-lead">{{.Headline}}</h2>
     {{with .Sub}}<p class="month-sub">{{.}}</p>{{end}}
-    <p class="month-meta">{{.Meta}}</p>
+    {{/* The group's average, and how it moved from the month before: an
+         arrow and the size of the move, green when the group got better
+         (lower) and red when worse. A screen reader hears it in words. */}}
+    <p class="month-group">
+      <span>{{.T.T "months.groupAverage"}} <b class="num">{{.Group}}</b></span>
+      {{with .GroupTrend.Dir}}<span class="month-group-trend">{{template "month-trend" (dict "Trend" $.GroupTrend "T" $.T)}}<span aria-hidden="true"> {{$.GroupVs}}</span></span>{{end}}
+    </p>
   </div>
   {{if .LeadDays}}
     {{/* Who led at the end of each day, a square each, in the colour of the
@@ -79,14 +85,6 @@
       <ul class="month-lead-legend">
         {{range .LeadLegend}}<li class="lg-{{.Tone}}"><label class="pick-on" for="lead-pick-p{{.Tone}}"><span class="lead-dot lead-{{.Tone}}" aria-hidden="true"></span><b>{{.Name}}</b><span class="muted">{{.Days}}</span></label><label class="pick-off" for="lead-pick-none"><span class="lead-dot lead-{{.Tone}}" aria-hidden="true"></span><b>{{.Name}}</b><span class="muted">{{.Days}}</span></label></li>{{end}}
       </ul>
-    </div>
-  {{end}}
-  {{if .DayBar}}
-    {{/* A phone's version of the strip, for a month still running: how far
-         through it is, today marked. */}}
-    <div class="month-daybar">
-      <ol class="month-daybar-days" aria-hidden="true">{{range .DayBar}}<li class="daybar-{{.}}"></li>{{end}}</ol>
-      <span class="month-daybar-label num">{{.DayLabel}}</span>
     </div>
   {{end}}
 </section>
@@ -198,3 +196,9 @@
 {{end}}
 </div>
 {{end}}
+
+{{/* month-trend draws how an average moved from the month before: an arrow
+     and the size of the move, green when it went down (better) and red
+     when up. The arrow is hidden from a screen reader, which hears the
+     move in words. */}}
+{{define "month-trend"}}<span class="month-trend {{.Trend.Dir}} num" aria-hidden="true">{{if eq .Trend.Dir "down"}}▼{{else if eq .Trend.Dir "up"}}▲{{else}}±{{end}}{{.Trend.Delta}}</span><span class="visually-hidden">{{.Trend.Said}}</span>{{end}}
