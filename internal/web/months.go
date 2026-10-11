@@ -2,6 +2,7 @@ package web
 
 import (
 	"html/template"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -91,17 +92,18 @@ type monthsPage struct {
 	Running  bool
 	Headline string
 	Sub      string
-	Meta     string
+
+	// The group's average for the month, and how it moved from the month
+	// before when there is one, set against it as GroupVs says.
+	Group      string
+	GroupTrend trend
+	GroupVs    string
 
 	// Who led at the end of each day, as a strip of the month's days, and a
-	// legend for the three who led longest. On a phone a running month shows
-	// how far through it is instead: DayBar is 2 for today, 1 for a day
-	// gone, 0 for one to come.
+	// legend for the three who led longest.
 	LeadDays   []leadDay
 	LeadNote   string
 	LeadLegend []leadLegend
-	DayBar     []int
-	DayLabel   string
 
 	Rows []monthRow
 	Thin []monthRow
@@ -266,11 +268,15 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 	} else if second != nil && m.Margin != nil {
 		page.Sub = ch.T.T("months.hero.ahead", ch.T.Decimal(*m.Margin, 2), second.Name)
 	}
-	page.Meta = ch.T.TN("months.fullMonth", m.Days)
-	if page.Running {
-		page.Meta = ch.T.TN("months.partialMonth", m.Days)
+	page.Group = formatScore(ch.T, m.GroupAverage)
+	if selected+1 < len(months) {
+		prev := months[selected+1]
+		name := ch.T.T("month." + strconv.Itoa(int(prev.Month)))
+		page.GroupTrend = trendOf(ch.T, m.GroupAverage, prev.GroupAverage, name)
+		if page.GroupTrend.Dir != "" {
+			page.GroupVs = ch.T.T("months.group.vs", name)
+		}
 	}
-	page.Meta += " · " + ch.T.T("months.groupAverage") + " " + formatScore(ch.T, m.GroupAverage)
 
 	// Who led after each day, coloured by the three who led longest.
 	opts := stats.Options{
@@ -287,17 +293,6 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 	page.LeadDays, page.LeadLegend = leadStrip(ch.T, leaders, length)
 	if page.Running {
 		page.LeadNote = ch.T.T("months.progress", len(leaders), length)
-		page.DayLabel = ch.T.T("months.dayOf", now.Day(), daysInMonth)
-		for d := 1; d <= daysInMonth; d++ {
-			switch {
-			case d == now.Day():
-				page.DayBar = append(page.DayBar, 2)
-			case d < now.Day():
-				page.DayBar = append(page.DayBar, 1)
-			default:
-				page.DayBar = append(page.DayBar, 0)
-			}
-		}
 	} else {
 		page.LeadNote = ch.T.TN("months.days", m.Days)
 	}
@@ -458,6 +453,38 @@ func longDate(t translator, date time.Time) string {
 }
 
 // joinNames renders a tie as every name, because a tie is the result.
+// trend is how an average moved from one month to the next, ready to show:
+// Dir is "down", "up" or "level", and empty when there is no comparison
+// at all. Delta is the size of the move and Said the comparison in words
+// for a screen reader, which the arrow is not.
+type trend struct {
+	Dir   string
+	Delta string
+	Said  string
+}
+
+// trendOf sets now against before, the average of the month called name.
+// The move is rounded to the hundredths it is shown in, as the weekly
+// announcement rounds its own, so a move too small to show is level
+// rather than "▼0.00". name is the month in full — "jul" alone is
+// Christmas in Swedish.
+func trendOf(t translator, now, before *float64, name string) trend {
+	if now == nil || before == nil {
+		return trend{}
+	}
+	delta := math.Round((*now-*before)*100) / 100
+	tr := trend{Delta: t.Decimal(math.Abs(delta), 2)}
+	switch {
+	case delta < 0:
+		tr.Dir, tr.Said = "down", t.T("months.group.lower", tr.Delta, name)
+	case delta > 0:
+		tr.Dir, tr.Said = "up", t.T("months.group.higher", tr.Delta, name)
+	default:
+		tr.Dir, tr.Said = "level", t.T("months.group.same", name)
+	}
+	return tr
+}
+
 // leadStrip draws who led at the end of each of length days, and the
 // legend for its colours. A colour is a player's, not a set of players':
 // a day two shared counts for both of them and shows a band of each, so a

@@ -891,7 +891,10 @@ func TestRunningMonthReadsAsUnfinished(t *testing.T) {
 	}
 	now := time.Now()
 	daysInMonth := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, now.Location()).Day()
-	if want := fmt.Sprintf("Day %d of %d", now.Day(), daysInMonth); !strings.Contains(hero, want) {
+	// How far through it is, in the who-led strip's note, which a phone
+	// shows as well as a wide window. Everybody in the fixture has played
+	// today, so today counts.
+	if want := fmt.Sprintf(`<span class="lead-note-month">day %d of %d</span>`, now.Day(), daysInMonth); !strings.Contains(hero, want) {
 		t.Errorf("the current month does not show %q", want)
 	}
 }

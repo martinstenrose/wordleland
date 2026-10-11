@@ -2279,7 +2279,7 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
    right. */
 .month-hero.card {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
   padding: 26px 28px;
@@ -2292,7 +2292,14 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .month-eyebrow.running { color: var(--color-accent); }
 .month-lead { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.018em; line-height: 1.2; text-wrap: pretty; }
 .month-sub { margin: 0; font-size: 14px; color: var(--color-muted); }
-.month-meta { margin: 2px 0 0; font-size: 12px; color: var(--color-muted); }
+.month-group { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 5px; margin: 4px 0 0; font-size: 13px; color: var(--color-muted); }
+.month-group b { color: var(--color-text); }
+.month-group-trend { white-space: nowrap; }
+/* How an average moved from the month before: better is green, worse
+   red, level grey. */
+.month-trend { font-weight: 700; color: var(--color-muted); }
+.month-trend.down { color: var(--color-accent); }
+.month-trend.up { color: var(--color-danger); }
 
 /* --lead-ring is how a picked day, and a picked name's days and dot, are
    ringed: here so the per-day rules in months.html and the per-colour
@@ -2344,12 +2351,6 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .month-leads:has(#lead-pick-p4:focus-visible) .lg-4 .lead-dot { outline: 2px solid var(--color-accent-50); outline-offset: 2px; }
 .lead-dot { width: 10px; height: 10px; border-radius: 3px; }
 
-.month-daybar { display: none; align-items: center; gap: 10px; }
-.month-daybar-days { flex: 1; display: flex; gap: 2px; margin: 0; padding: 0; list-style: none; }
-.month-daybar-days li { flex: 1; height: 10px; border-radius: 3px; background: var(--color-surface-raised); }
-.month-daybar-days .daybar-1 { background: color-mix(in srgb, var(--color-accent) 45%, var(--color-surface-raised)); }
-.month-daybar-days .daybar-2 { background: var(--color-accent); }
-.month-daybar-label { font-size: 13px; font-weight: 700; color: var(--color-muted); white-space: nowrap; }
 
 /* The month's table: rank, player, average, how far behind, played and
    failed. On a phone the last three fold under the name and the
@@ -2436,8 +2437,14 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
   .month-pill-who { display: none; }
   .month-hero.card { flex-direction: column; align-items: stretch; gap: 14px; padding: 20px 18px 18px; }
   .month-lead { font-size: 22px; letter-spacing: -.015em; }
-  .month-leads { display: none; }
-  .month-daybar { display: flex; }
+  /* On a phone the strip goes under the headline, the card's width and
+     ruled off from it, with taller squares and a smaller legend. */
+  .month-hero.card > .month-leads { width: auto; margin-top: 4px; padding: 14px 0 0; border-top: 1px solid var(--color-sep); }
+  .month-leads-head { gap: 10px; }
+  .month-leads-head > span:first-child { white-space: nowrap; }
+  .lead-day { height: 26px; border-radius: 3px; min-width: 0; }
+  .month-lead-legend { gap: 6px 12px; font-size: 12px; }
+  .month-lead-legend li > label { gap: 5px; }
 
   .month-row.head { display: none; }
   .month-row { grid-template-columns: 26px minmax(0, 1fr) auto; min-height: 58px; padding: 0 16px; }
