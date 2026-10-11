@@ -48,12 +48,15 @@ type monthChip struct {
 	Average string
 }
 
-// leadDay is one day of the month in the who-led strip: Tone picks the
-// leader's colour, 1 to 3 for the three who led longest and 4 for anybody
-// else, and 0 is a day still to come.
+// leadDay is one day of the month in the who-led strip. Tones holds a
+// colour for each player who led at the end of it, in the order the month
+// ranks them: 1 to 3 for the three who led longest and 4 for anybody else.
+// A shared day has a band for each; a day still to come has none. Note is
+// what the strip's head says while the day is picked out.
 type leadDay struct {
-	Tone  int
+	Tones []int
 	Title string
+	Note  string
 }
 
 // leadLegend names one of the colours in the strip.
@@ -277,39 +280,11 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 		Now:           now,
 	}
 	leaders := stats.DayLeaders(players, results, opts, m)
-	daysLed := map[string]int{}
-	var order []string
-	for _, day := range leaders {
-		if len(day) == 0 {
-			continue
-		}
-		name := joinNames(ch.T, day)
-		if daysLed[name] == 0 {
-			order = append(order, name)
-		}
-		daysLed[name]++
-	}
-	sort.SliceStable(order, func(i, j int) bool { return daysLed[order[i]] > daysLed[order[j]] })
-	tone := map[string]int{}
-	for i, name := range order {
-		tone[name] = min(i+1, 4)
-		if i < 3 {
-			page.LeadLegend = append(page.LeadLegend, leadLegend{Tone: i + 1, Name: name, Days: ch.T.TN("months.days", daysLed[name])})
-		}
-	}
 	length := m.Days
 	if page.Running {
 		length = daysInMonth
 	}
-	for d := 0; d < length; d++ {
-		day := leadDay{Title: ch.T.T("months.day", d+1)}
-		if d < len(leaders) && len(leaders[d]) > 0 {
-			name := joinNames(ch.T, leaders[d])
-			day.Tone = tone[name]
-			day.Title += ": " + name
-		}
-		page.LeadDays = append(page.LeadDays, day)
-	}
+	page.LeadDays, page.LeadLegend = leadStrip(ch.T, leaders, length)
 	if page.Running {
 		page.LeadNote = ch.T.T("months.progress", len(leaders), length)
 		page.DayLabel = ch.T.T("months.dayOf", now.Day(), daysInMonth)
@@ -483,6 +458,56 @@ func longDate(t translator, date time.Time) string {
 }
 
 // joinNames renders a tie as every name, because a tie is the result.
+// leadStrip draws who led at the end of each of length days, and the
+// legend for its colours. A colour is a player's, not a set of players':
+// a day two shared counts for both of them and shows a band of each, so a
+// tie at the front never takes a colour of its own away from a player.
+// The three who led on most days have a colour each, and everybody else
+// shares the fourth, totalled in the legend as Others.
+func leadStrip(t translator, leaders [][]stats.MonthPlayer, length int) ([]leadDay, []leadLegend) {
+	daysLed := map[int64]int{}
+	var order []stats.MonthPlayer
+	for _, day := range leaders {
+		for _, p := range day {
+			if daysLed[p.ID] == 0 {
+				order = append(order, p)
+			}
+			daysLed[p.ID]++
+		}
+	}
+	sort.SliceStable(order, func(i, j int) bool { return daysLed[order[i].ID] > daysLed[order[j].ID] })
+
+	tone := map[int64]int{}
+	var legend []leadLegend
+	others := 0
+	for i, p := range order {
+		tone[p.ID] = min(i+1, 4)
+		if i < 3 {
+			legend = append(legend, leadLegend{Tone: i + 1, Name: p.Name, Days: t.TN("months.days", daysLed[p.ID])})
+		} else {
+			others += daysLed[p.ID]
+		}
+	}
+	if others > 0 {
+		legend = append(legend, leadLegend{Tone: 4, Name: t.T("months.others"), Days: t.TN("months.days", others)})
+	}
+
+	days := make([]leadDay, 0, length)
+	for d := 0; d < length; d++ {
+		day := leadDay{Title: t.T("months.day", d+1)}
+		if d < len(leaders) && len(leaders[d]) > 0 {
+			for _, p := range leaders[d] {
+				day.Tones = append(day.Tones, tone[p.ID])
+			}
+			who := t.T("months.led", joinNames(t, leaders[d]))
+			day.Note = day.Title + " · " + who
+			day.Title += ": " + who
+		}
+		days = append(days, day)
+	}
+	return days, legend
+}
+
 func joinNames(t translator, ps []stats.MonthPlayer) string {
 	names := make([]string, 0, len(ps))
 	for _, p := range ps {
