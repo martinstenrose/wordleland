@@ -441,13 +441,21 @@ func monthKey(m stats.Month) string {
 
 // monthLabel names the month in the reader's language. time.Month.String()
 // is always English, so the name comes from the catalogue.
-// shortMonthName abbreviates a month for the season marks and chips.
+// Month names: the catalogue's abbreviation, "Aug", where a row of
+// months has to fit — the month pills, the season's columns, a chart's or
+// a heat map's labels, the table's "vs Aug" — and the name in full
+// wherever a date is read, "27 September". In full, because an
+// abbreviation can be a word of its own: "jul" is Christmas in Swedish.
+
+// shortMonthName abbreviates a month for a row of months.
 func shortMonthName(t translator, m time.Month) string {
-	name := t.T("month." + strconv.Itoa(int(m)))
-	if r := []rune(name); len(r) > 3 {
-		return string(r[:3])
-	}
-	return name
+	return t.T("month.short." + strconv.Itoa(int(m)))
+}
+
+// dayMonth is a date as it is read, "27 September", in the local zone.
+func dayMonth(t translator, at time.Time) string {
+	at = at.In(time.Local)
+	return strconv.Itoa(at.Day()) + " " + t.T("month."+strconv.Itoa(int(at.Month())))
 }
 
 // monthShort names a chip: the abbreviated month, and no year. The chips are
@@ -455,7 +463,7 @@ func shortMonthName(t translator, m time.Month) string {
 // them, so a chip wide enough for "September 2026" spends the row's width on
 // what the next line already says.
 func monthShort(t translator, m stats.Month) string {
-	return t.T("month.short." + strconv.Itoa(int(m.Month)))
+	return shortMonthName(t, m.Month)
 }
 
 func monthLabel(t translator, m stats.Month) string {

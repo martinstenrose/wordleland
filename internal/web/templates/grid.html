@@ -74,7 +74,7 @@
         {{range .Rows}}
           <tr>
             <th class="grid-date" scope="row">
-              <a class="grid-date-link num" href="{{.Href}}">{{.Date}}</a>
+              <a class="grid-date-link num" href="{{.Href}}"><span class="grid-date-long">{{.Date}}</span><span class="grid-date-numeric" aria-hidden="true">{{.Numeric}}</span></a>
               <span class="grid-puzzle muted num">{{$.T.T "player.puzzle" ($.T.Puzzle .PuzzleNo)}}</span>
             </th>
             {{range $i, $c := .Cells}}

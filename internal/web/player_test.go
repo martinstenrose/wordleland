@@ -200,7 +200,7 @@ func TestRecentStripCellsOpenAPopupWithThePuzzleDetail(t *testing.T) {
 		t.Fatalf("DateForPuzzle(%d): %v", current, err)
 	}
 	// Which puzzle, the day, and what it took; then the day's own page.
-	want := fmt.Sprintf(">#%d · %s %d %s · 3 guesses *<", current, date.Weekday().String()[:3], date.Day(), date.Format("Jan"))
+	want := fmt.Sprintf(">#%d · %s %d %s · 3 guesses *<", current, date.Weekday().String()[:3], date.Day(), date.Format("January"))
 	if !strings.Contains(page, want) {
 		t.Errorf("the popup does not show %q", want)
 	}
@@ -247,7 +247,7 @@ func TestCalendarSquaresOpenAPopupWithTheResult(t *testing.T) {
 	}
 	// harda solves everything in three, so the detail names the puzzle, the
 	// day, and what it took.
-	want := fmt.Sprintf("#%d · %s %d %s · 3 guesses", current, date.Weekday().String()[:3], date.Day(), date.Format("Jan"))
+	want := fmt.Sprintf("#%d · %s %d %s · 3 guesses", current, date.Weekday().String()[:3], date.Day(), date.Format("January"))
 	if !strings.Contains(calendar, want) {
 		t.Errorf("the calendar popup does not show %q", want)
 	}
@@ -497,8 +497,8 @@ func TestLastPlayedIsShortAndRelative(t *testing.T) {
 		"player.lastPlayedToday":     "last played today",
 		"player.lastPlayedYesterday": "last played yesterday",
 		"player.lastPlayedOn":        "last played %s",
-		"month.9":                    "September",
-		"month.12":                   "December",
+		"month.short.9":              "Sep",
+		"month.short.12":             "Dec",
 	}}
 	now := time.Date(2026, 9, 28, 12, 0, 0, 0, time.Local)
 	day := func(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0, 0, 0, time.UTC) }
