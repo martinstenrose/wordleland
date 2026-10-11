@@ -890,6 +890,170 @@ func TestBrowserTheMonthsHeadlineIsOneTarget(t *testing.T) {
 	p.WaitFor(fmt.Sprintf(`location.pathname === %q || location.pathname.startsWith(%q + "/")`, want, want))
 }
 
+// A day two players shared the lead on is split into a band of each one's
+// colour, and the legend under the strip wraps rather than cutting off a
+// name it has no room for.
+//
+// Measured at the narrow end of the strip's widths, 300px, with two names
+// long enough that their legend entries cannot sit on one line.
+func TestBrowserASharedLeadShowsBothLeaders(t *testing.T) {
+	site := newSite(t)
+	month := seedSharedLeadMonth(t, site)
+
+	p := site.open(newBrowser(t), 940)
+	p.Navigate(fmt.Sprintf("%s/months?month=%d-%d", site.base, month.Year(), month.Month()))
+
+	bands := p.Strings(`[...document.querySelectorAll(".lead-day")[0].querySelectorAll(".pick-on > span")].map(b =>
+		getComputedStyle(b).backgroundColor + " " + Math.round(b.getBoundingClientRect().height))`)
+	if len(bands) != 2 || bands[0] == bands[1] || !strings.HasSuffix(bands[0], " 11") || !strings.HasSuffix(bands[1], " 11") {
+		t.Errorf("the shared first day's bands are %v, want two of 11px in different colours", bands)
+	}
+
+	if w := p.Number(`document.querySelector(".month-leads").getBoundingClientRect().width`); w != 300 {
+		t.Errorf("the strip is %vpx wide, want the narrow 300px", w)
+	}
+	if rows := p.Number(`new Set([...document.querySelectorAll(".month-lead-legend li")].map(li => li.getBoundingClientRect().top)).size`); rows < 2 {
+		t.Errorf("the legend is on %v line; two long names should wrap to two", rows)
+	}
+	clipped := p.Strings(`(() => {
+		const box = document.querySelector(".month-leads").getBoundingClientRect();
+		return [...document.querySelectorAll(".month-lead-legend li")]
+			.filter(li => li.getBoundingClientRect().right > box.right + 0.5)
+			.map(li => li.textContent);
+	})()`)
+	if len(clipped) > 0 {
+		t.Errorf("legend entries run past the strip: %v", clipped)
+	}
+}
+
+// seedSharedLeadMonth gives the month three months back two players with
+// long names who are level on every day of it, and returns the month.
+func seedSharedLeadMonth(t *testing.T, site *site) time.Time {
+	t.Helper()
+	ctx := context.Background()
+	month := time.Date(time.Now().Year(), time.Now().Month()-3, 1, 0, 0, 0, 0, time.Local)
+	for _, name := range []string{"Annabella Lindqvist", "Bartholomew Sandberg"} {
+		p, err := store.CreatePlayer(ctx, site.srv.db, store.SystemActor(), name, strings.ToLower(strings.Fields(name)[0]))
+		if err != nil {
+			t.Fatalf("CreatePlayer(%s): %v", name, err)
+		}
+		for day := 1; day <= 10; day++ {
+			seedResult(t, site.srv, p.ID, wordle.PuzzleForDate(month.AddDate(0, 0, day-1)), 3, false)
+		}
+	}
+	return month
+}
+
+// Pressing a day in the who-led strip picks it out: it is ringed, and the
+// strip's head names the day and its leaders where the month's length was,
+// cut short rather than running into the heading. Pressing another moves
+// the pick, and pressing the picked one again lets it go.
+func TestBrowserPressingADayPicksItOut(t *testing.T) {
+	site := newSite(t)
+	month := seedSharedLeadMonth(t, site)
+
+	p := site.open(newBrowser(t), 940)
+	p.Navigate(fmt.Sprintf("%s/months?month=%d-%d", site.base, month.Year(), month.Month()))
+
+	const note = `[...document.querySelectorAll(".month-leads-note > span")].filter(s => s.getClientRects().length).map(s => s.textContent).join("|")`
+	const ringed = `[...document.querySelectorAll(".lead-day")].map((d, i) => getComputedStyle(d).outlineStyle === "solid" ? i : -1).filter(i => i >= 0).join(",")`
+	monthNote := p.String(note)
+	press := func(day int) {
+		t.Helper()
+		box := fmt.Sprintf(`document.querySelector(".ld-%d").getBoundingClientRect()`, day)
+		p.ClickAt(int(p.Number(box+`.left + 4`)), int(p.Number(box+`.top + 11`)))
+	}
+
+	press(1)
+	if got := p.String(note); got != "Day 2 · Annabella Lindqvist and Bartholomew Sandberg led" {
+		t.Errorf("with day 2 picked the head says %q", got)
+	}
+	if got := p.String(ringed); got != "1" {
+		t.Errorf("ringed days are %q, want day 2 alone", got)
+	}
+	if gap := p.Number(`document.querySelector(".month-leads-note").getBoundingClientRect().left - document.querySelector(".month-leads-head > span").getBoundingClientRect().right`); gap < 0 {
+		t.Errorf("the picked day's note runs %vpx into the heading", -gap)
+	}
+
+	press(4)
+	if got := p.String(ringed); got != "4" {
+		t.Errorf("after pressing day 5, ringed days are %q", got)
+	}
+
+	press(4)
+	if got := p.String(ringed); got != "" {
+		t.Errorf("pressing the picked day again left %q ringed", got)
+	}
+	if got := p.String(note); got != monthNote {
+		t.Errorf("with nothing picked the head says %q, want %q back", got, monthNote)
+	}
+}
+
+// Pressing a name in the legend rings every day its player led, and only
+// those; pressing it again lets go, and pressing a day moves the pick there.
+//
+// A month where the lead changes hands: Ana opens on twos and Bo on threes,
+// then Ana's sixes from day 6 put Bo ahead from day 7 to the end.
+func TestBrowserPressingANamePicksOutTheDaysTheyLed(t *testing.T) {
+	site := newSite(t)
+	ctx := context.Background()
+	month := time.Date(time.Now().Year(), time.Now().Month()-4, 1, 0, 0, 0, 0, time.Local)
+	for _, pl := range []struct {
+		name        string
+		early, late int
+	}{{"Ana", 2, 6}, {"Bo", 3, 3}} {
+		p, err := store.CreatePlayer(ctx, site.srv.db, store.SystemActor(), pl.name, strings.ToLower(pl.name))
+		if err != nil {
+			t.Fatalf("CreatePlayer(%s): %v", pl.name, err)
+		}
+		for day := 1; day <= 10; day++ {
+			guesses := pl.early
+			if day > 5 {
+				guesses = pl.late
+			}
+			seedResult(t, site.srv, p.ID, wordle.PuzzleForDate(month.AddDate(0, 0, day-1)), guesses, false)
+		}
+	}
+
+	p := site.open(newBrowser(t), 1280)
+	p.Navigate(fmt.Sprintf("%s/months?month=%d-%d", site.base, month.Year(), month.Month()))
+
+	const ringed = `[...document.querySelectorAll(".lead-day")].map((d, i) => getComputedStyle(d).outlineStyle === "solid" ? i : -1).filter(i => i >= 0).join(",")`
+	led := func(name string) string {
+		return p.String(fmt.Sprintf(`[...document.querySelectorAll(".lead-day")].map((d, i) => d.title.includes(%q) ? i : -1).filter(i => i >= 0).join(",")`, name))
+	}
+	press := func(selector string) {
+		t.Helper()
+		box := fmt.Sprintf(`[...document.querySelectorAll(%q)].find(e => e.getClientRects().length).getBoundingClientRect()`, selector)
+		p.ClickAt(int(p.Number(box+`.left + 4`)), int(p.Number(box+`.top + 6`)))
+	}
+
+	ana, bo := led("Ana"), led("Bo")
+	if ana != "0,1,2,3,4,5" || !strings.HasPrefix(bo, "6,7,") {
+		t.Fatalf("the seeded month did not change hands on day 7: Ana led %q, Bo %q", ana, bo)
+	}
+
+	press(".month-lead-legend b")
+	legendFirst := p.String(`document.querySelector(".month-lead-legend b").textContent`)
+	if got, want := p.String(ringed), led(legendFirst); got != want {
+		t.Errorf("with %s picked, ringed days are %q, want the days they led, %q", legendFirst, got, want)
+	}
+	if got := p.String(`getComputedStyle(document.querySelector(".lg-1 .lead-dot")).outlineStyle`); got != "solid" {
+		t.Errorf("the picked name's dot is not ringed (outline %q)", got)
+	}
+
+	press(".month-lead-legend b")
+	if got := p.String(ringed); got != "" {
+		t.Errorf("pressing the picked name again left %q ringed", got)
+	}
+
+	press(".month-lead-legend b")
+	press(".ld-8 label")
+	if got := p.String(ringed); got != "8" {
+		t.Errorf("pressing a day with a name picked rings %q, want that day alone", got)
+	}
+}
+
 // The About panel covers what is under it.
 //
 // It is drawn from inside the account menu, which floats over the page as

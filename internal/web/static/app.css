@@ -2294,21 +2294,54 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .month-sub { margin: 0; font-size: 14px; color: var(--color-muted); }
 .month-meta { margin: 2px 0 0; font-size: 12px; color: var(--color-muted); }
 
-.month-leads { flex: none; width: 400px; display: flex; flex-direction: column; gap: 10px; padding-bottom: 4px; }
+/* --lead-ring is how a picked day, and a picked name's days and dot, are
+   ringed: here so the per-day rules in months.html and the per-colour
+   ones below draw the same ring. */
+.month-leads { --lead-ring: 1.5px solid var(--color-text-45); flex: none; width: 400px; display: flex; flex-direction: column; gap: 10px; padding-bottom: 4px; }
 .month-leads-head {
   display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 0;
   font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-muted);
 }
-.month-leads-note { font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none; white-space: nowrap; }
+.month-leads-head > span:first-child { flex: none; }
+.month-leads-note { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none; white-space: nowrap; }
+.lead-note { display: none; font-weight: 700; color: var(--color-text); }
+/* While a day is picked its note stands where the month's length was; the
+   per-day rules in months.html show the picked one. As on the grid, the
+   "none" radio is named by attribute, so as not to out-rank those rules. */
+.month-leads:has(.lead-pick-day:checked) .lead-note-month { display: none; }
+.lead-pick { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
 .month-lead-days { display: flex; gap: 2px; margin: 0; padding: 0; list-style: none; }
-.lead-day { flex: 1; height: 22px; border-radius: 4px; border: 1px dashed var(--color-border); }
-.lead-day.lead-1, .lead-day.lead-2, .lead-day.lead-3, .lead-day.lead-4 { border: 0; }
+.lead-day { flex: 1; display: flex; flex-direction: column; height: 22px; border-radius: 4px; border: 1px dashed var(--color-border); overflow: hidden; }
+.lead-day.led { border: 0; }
+.lead-day > label { flex: 1; display: flex; flex-direction: column; cursor: pointer; }
+.lead-day > .pick-off { display: none; }
+.lead-day > label > span { flex: 1; }
 .lead-1 { background: var(--color-accent); }
 .lead-2 { background: oklch(.72 .13 70); }
 .lead-3 { background: oklch(.6 .08 250); }
 .lead-4 { background: var(--color-muted); }
-.month-lead-legend { display: flex; gap: 14px; margin: 0; padding: 0; list-style: none; font-size: 13px; white-space: nowrap; overflow: hidden; }
-.month-lead-legend li { display: flex; align-items: center; gap: 6px; }
+.month-lead-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 0; list-style: none; font-size: 13px; white-space: nowrap; }
+.month-lead-legend li > label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.month-lead-legend .pick-off { display: none; }
+/* A name picked out in the legend rings its dot and every day its player
+   led; the days carry an lt- class for each colour they show. Four
+   colours, so four rules here rather than a rule per day in months.html. */
+.month-leads:has(#lead-pick-p1:checked) :is(.lt-1, .lg-1 .lead-dot) { outline: var(--lead-ring); outline-offset: 1px; }
+.month-leads:has(#lead-pick-p1:checked) .lg-1 .pick-on { display: none; }
+.month-leads:has(#lead-pick-p1:checked) .lg-1 .pick-off { display: flex; }
+.month-leads:has(#lead-pick-p1:focus-visible) .lg-1 .lead-dot { outline: 2px solid var(--color-accent-50); outline-offset: 2px; }
+.month-leads:has(#lead-pick-p2:checked) :is(.lt-2, .lg-2 .lead-dot) { outline: var(--lead-ring); outline-offset: 1px; }
+.month-leads:has(#lead-pick-p2:checked) .lg-2 .pick-on { display: none; }
+.month-leads:has(#lead-pick-p2:checked) .lg-2 .pick-off { display: flex; }
+.month-leads:has(#lead-pick-p2:focus-visible) .lg-2 .lead-dot { outline: 2px solid var(--color-accent-50); outline-offset: 2px; }
+.month-leads:has(#lead-pick-p3:checked) :is(.lt-3, .lg-3 .lead-dot) { outline: var(--lead-ring); outline-offset: 1px; }
+.month-leads:has(#lead-pick-p3:checked) .lg-3 .pick-on { display: none; }
+.month-leads:has(#lead-pick-p3:checked) .lg-3 .pick-off { display: flex; }
+.month-leads:has(#lead-pick-p3:focus-visible) .lg-3 .lead-dot { outline: 2px solid var(--color-accent-50); outline-offset: 2px; }
+.month-leads:has(#lead-pick-p4:checked) :is(.lt-4, .lg-4 .lead-dot) { outline: var(--lead-ring); outline-offset: 1px; }
+.month-leads:has(#lead-pick-p4:checked) .lg-4 .pick-on { display: none; }
+.month-leads:has(#lead-pick-p4:checked) .lg-4 .pick-off { display: flex; }
+.month-leads:has(#lead-pick-p4:focus-visible) .lg-4 .lead-dot { outline: 2px solid var(--color-accent-50); outline-offset: 2px; }
 .lead-dot { width: 10px; height: 10px; border-radius: 3px; }
 
 .month-daybar { display: none; align-items: center; gap: 10px; }

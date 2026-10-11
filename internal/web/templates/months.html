@@ -45,15 +45,39 @@
   {{if .LeadDays}}
     {{/* Who led at the end of each day, a square each, in the colour of the
          leader; the three who led longest have a colour each and named in the
-         legend, anybody else the muted one. A day still to come is an empty
-         square. Each names its day and its leader on hover. */}}
+         legend, anybody else the muted one, totalled as Others. A shared day
+         is split into a band per leader. A day still to come is an empty
+         square. Each names its day and its leaders on hover.
+
+         Pressing a day picks it out — ringed, and named in the head where
+         the month's length was — and pressing it again lets go, the way the
+         grid picks out a column: a radio per day, a label for it on the
+         square and one for "none" on the square once it is picked, and a
+         rule per day here bringing the picked one forward. No script.
+
+         A name in the legend is picked the same way, and rings every day
+         its player led, shared ones too; Others rings the days anybody
+         outside the three led. Days and names are one group of radios, so
+         picking one lets go of the other. */}}
     <div class="month-leads">
-      <p class="month-leads-head"><span>{{.T.T "months.whoLed"}}</span><span class="month-leads-note">{{.LeadNote}}</span></p>
+      <input class="lead-pick" type="radio" name="lead-pick" id="lead-pick-none" checked aria-label="{{.T.T "months.lead.clear"}}">
+      {{range $i, $d := .LeadDays}}{{if .Tones}}<input class="lead-pick lead-pick-day" type="radio" name="lead-pick" id="lead-pick-{{$i}}" aria-label="{{.Title}}">{{end}}{{end}}
+      {{range .LeadLegend}}<input class="lead-pick" type="radio" name="lead-pick" id="lead-pick-p{{.Tone}}" aria-label="{{if eq .Tone 4}}{{$.T.T "months.lead.pickOthers"}}{{else}}{{$.T.T "months.lead.pickPlayer" .Name}}{{end}}">{{end}}
+      <style>
+        {{range $i, $d := .LeadDays}}{{if .Tones}}
+        .month-leads:has(#lead-pick-{{$i}}:checked) .ld-{{$i}} { outline: var(--lead-ring); outline-offset: 1px; }
+        .month-leads:has(#lead-pick-{{$i}}:checked) .ld-{{$i}} .pick-on { display: none; }
+        .month-leads:has(#lead-pick-{{$i}}:checked) .ld-{{$i}} .pick-off { display: flex; }
+        .month-leads:has(#lead-pick-{{$i}}:checked) .lead-note-{{$i}} { display: inline; }
+        .month-leads:has(#lead-pick-{{$i}}:focus-visible) .ld-{{$i}} { outline: 2px solid var(--color-accent-50); outline-offset: 2px; }
+        {{end}}{{end}}
+      </style>
+      <p class="month-leads-head"><span>{{.T.T "months.whoLed"}}</span><span class="month-leads-note"><span class="lead-note-month">{{.LeadNote}}</span>{{range $i, $d := .LeadDays}}{{if .Tones}}<span class="lead-note lead-note-{{$i}}">{{.Note}}</span>{{end}}{{end}}</span></p>
       <ol class="month-lead-days">
-        {{range .LeadDays}}<li class="lead-day{{if .Tone}} lead-{{.Tone}}{{end}}" title="{{.Title}}"></li>{{end}}
+        {{range $i, $d := .LeadDays}}<li class="lead-day ld-{{$i}}{{if .Tones}} led{{range .Tones}} lt-{{.}}{{end}}{{end}}" title="{{.Title}}">{{if .Tones}}<label class="pick-on" for="lead-pick-{{$i}}">{{range .Tones}}<span class="lead-{{.}}"></span>{{end}}</label><label class="pick-off" for="lead-pick-none">{{range .Tones}}<span class="lead-{{.}}"></span>{{end}}</label>{{end}}</li>{{end}}
       </ol>
       <ul class="month-lead-legend">
-        {{range .LeadLegend}}<li><span class="lead-dot lead-{{.Tone}}" aria-hidden="true"></span><b>{{.Name}}</b><span class="muted">{{.Days}}</span></li>{{end}}
+        {{range .LeadLegend}}<li class="lg-{{.Tone}}"><label class="pick-on" for="lead-pick-p{{.Tone}}"><span class="lead-dot lead-{{.Tone}}" aria-hidden="true"></span><b>{{.Name}}</b><span class="muted">{{.Days}}</span></label><label class="pick-off" for="lead-pick-none"><span class="lead-dot lead-{{.Tone}}" aria-hidden="true"></span><b>{{.Name}}</b><span class="muted">{{.Days}}</span></label></li>{{end}}
       </ul>
     </div>
   {{end}}
