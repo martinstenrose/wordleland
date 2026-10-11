@@ -3,8 +3,10 @@ package web
 import (
 	"html/template"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/martinstenrose/wordleland/internal/stats"
@@ -56,11 +58,14 @@ type leadDay struct {
 	Title string
 }
 
-// leadLegend names one of the colours in the strip.
+// leadLegend names one of the colours in the strip. Why, when set, is the
+// entry's popup, a line each: who exactly, for an entry the legend may cut
+// short.
 type leadLegend struct {
 	Tone int
 	Name string
 	Days string
+	Why  []string
 }
 
 type monthsPage struct {
@@ -277,26 +282,8 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 		Now:           now,
 	}
 	leaders := stats.DayLeaders(players, results, opts, m)
-	daysLed := map[string]int{}
-	var order []string
-	for _, day := range leaders {
-		if len(day) == 0 {
-			continue
-		}
-		name := joinNames(ch.T, day)
-		if daysLed[name] == 0 {
-			order = append(order, name)
-		}
-		daysLed[name]++
-	}
-	sort.SliceStable(order, func(i, j int) bool { return daysLed[order[i]] > daysLed[order[j]] })
-	tone := map[string]int{}
-	for i, name := range order {
-		tone[name] = min(i+1, 4)
-		if i < 3 {
-			page.LeadLegend = append(page.LeadLegend, leadLegend{Tone: i + 1, Name: name, Days: ch.T.TN("months.days", daysLed[name])})
-		}
-	}
+	var tones []int
+	tones, page.LeadLegend = leadTones(ch.T, leaders)
 	length := m.Days
 	if page.Running {
 		length = daysInMonth
@@ -304,9 +291,8 @@ func (s *Server) handleMonths(w http.ResponseWriter, r *http.Request, prefix, bo
 	for d := 0; d < length; d++ {
 		day := leadDay{Title: ch.T.T("months.day", d+1)}
 		if d < len(leaders) && len(leaders[d]) > 0 {
-			name := joinNames(ch.T, leaders[d])
-			day.Tone = tone[name]
-			day.Title += ": " + name
+			day.Tone = tones[d]
+			day.Title += ": " + joinNames(ch.T, inNameOrder(leaders[d]))
 		}
 		page.LeadDays = append(page.LeadDays, day)
 	}
@@ -480,6 +466,86 @@ func longDate(t translator, date time.Time) string {
 	weekday := t.T("weekday." + strconv.Itoa(int(date.Weekday())))
 	month := t.T("month." + strconv.Itoa(int(date.Month())))
 	return weekday + " " + strconv.Itoa(date.Day()) + " " + month + " " + strconv.Itoa(date.Year())
+}
+
+// leadTones colours the strip of who led each day and names the colours.
+//
+// Each leader, or each set of players tied for the lead, is one entry; the
+// three with the most days have a colour each, ties in first-led order, and
+// anybody else gets the muted one, summed in the legend as "others". A tie
+// or "others" can run wider than the legend has room for, so the stylesheet
+// cuts its name short and its popup says in full who it is. A day nobody
+// has led is tone 0.
+func leadTones(t translator, leaders [][]stats.MonthPlayer) ([]int, []leadLegend) {
+	// A tie is keyed by who, not by the order DayLeaders happens to list
+	// them in, nor by name, which two players can share.
+	keys := make([]string, len(leaders))
+	names := map[string]string{}
+	daysLed := map[string]int{}
+	tied := map[string]bool{}
+	var order []string
+	for d, day := range leaders {
+		if len(day) == 0 {
+			continue
+		}
+		day = inNameOrder(day)
+		ids := make([]string, len(day))
+		for i, p := range day {
+			ids[i] = strconv.FormatInt(p.ID, 10)
+		}
+		keys[d] = strings.Join(ids, ",")
+		if daysLed[keys[d]] == 0 {
+			order = append(order, keys[d])
+			names[keys[d]] = joinNames(t, day)
+			tied[keys[d]] = len(day) > 1
+		}
+		daysLed[keys[d]]++
+	}
+	sort.SliceStable(order, func(i, j int) bool { return daysLed[order[i]] > daysLed[order[j]] })
+	tone := map[string]int{}
+	var legend []leadLegend
+	var others []string
+	otherDays := 0
+	for i, key := range order {
+		tone[key] = min(i+1, 4)
+		days := t.TN("months.days", daysLed[key])
+		if i >= 3 {
+			others = append(others, t.T("months.ledFor", names[key], days))
+			otherDays += daysLed[key]
+			continue
+		}
+		entry := leadLegend{Tone: i + 1, Name: names[key], Days: days}
+		if tied[key] {
+			entry.Why = []string{t.TP("months.sharedLead", daysLed[key], names[key], daysLed[key])}
+		}
+		legend = append(legend, entry)
+	}
+	if len(others) > 0 {
+		legend = append(legend, leadLegend{
+			Tone: 4,
+			Name: t.T("months.otherLeaders"),
+			Days: t.TN("months.days", otherDays),
+			Why:  others,
+		})
+	}
+	tones := make([]int, len(leaders))
+	for d, key := range keys {
+		tones[d] = tone[key]
+	}
+	return tones, legend
+}
+
+// inNameOrder is a copy of players sorted by name, so the same tie reads
+// the same way every day it happens.
+func inNameOrder(players []stats.MonthPlayer) []stats.MonthPlayer {
+	sorted := slices.Clone(players)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		if sorted[i].Name != sorted[j].Name {
+			return sorted[i].Name < sorted[j].Name
+		}
+		return sorted[i].ID < sorted[j].ID
+	})
+	return sorted
 }
 
 // joinNames renders a tie as every name, because a tie is the result.

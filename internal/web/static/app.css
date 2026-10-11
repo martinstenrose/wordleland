@@ -2307,8 +2307,25 @@ svg .player { fill: none; stroke: var(--color-accent); stroke-width: 1.75; strok
 .lead-2 { background: oklch(.72 .13 70); }
 .lead-3 { background: oklch(.6 .08 250); }
 .lead-4 { background: var(--color-muted); }
-.month-lead-legend { display: flex; gap: 14px; margin: 0; padding: 0; list-style: none; font-size: 13px; white-space: nowrap; overflow: hidden; }
-.month-lead-legend li { display: flex; align-items: center; gap: 6px; }
+/* Wraps a whole entry to the next line rather than clipping the last. */
+.month-lead-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.month-lead-legend li, .lead-pop > summary { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
+/* A tie's names are cut short here and said in full in its popup. */
+.month-lead-legend b { max-width: 10rem; overflow: hidden; text-overflow: ellipsis; }
+.lead-pop { position: relative; min-width: 0; }
+.lead-pop > summary { list-style: none; cursor: pointer; }
+.lead-pop > summary::-webkit-details-marker { display: none; }
+.lead-why {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: max-content;
+  max-width: 15rem;
+  padding: 8px 10px;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  white-space: normal;
+}
 .lead-dot { width: 10px; height: 10px; border-radius: 3px; }
 
 .month-daybar { display: none; align-items: center; gap: 10px; }

@@ -44,8 +44,10 @@
   </div>
   {{if .LeadDays}}
     {{/* Who led at the end of each day, a square each, in the colour of the
-         leader; the three who led longest have a colour each and named in the
-         legend, anybody else the muted one. A day still to come is an empty
+         leader or of the players tied for the lead; the three who led longest
+         have a colour each and are named in the legend, anybody else the
+         muted one, summed as "others". A tie or "others" may be cut short
+         in the legend, so it opens a popup naming them in full. A day still to come is an empty
          square. Each names its day and its leader on hover. */}}
     <div class="month-leads">
       <p class="month-leads-head"><span>{{.T.T "months.whoLed"}}</span><span class="month-leads-note">{{.LeadNote}}</span></p>
@@ -53,7 +55,7 @@
         {{range .LeadDays}}<li class="lead-day{{if .Tone}} lead-{{.Tone}}{{end}}" title="{{.Title}}"></li>{{end}}
       </ol>
       <ul class="month-lead-legend">
-        {{range .LeadLegend}}<li><span class="lead-dot lead-{{.Tone}}" aria-hidden="true"></span><b>{{.Name}}</b><span class="muted">{{.Days}}</span></li>{{end}}
+        {{range .LeadLegend}}<li>{{if .Why}}<details class="lead-pop" name="popup"><summary>{{template "lead-entry" .}}</summary><span class="lead-why popup-panel">{{range .Why}}<span>{{.}}</span>{{end}}</span></details>{{else}}{{template "lead-entry" .}}{{end}}</li>{{end}}
       </ul>
     </div>
   {{end}}
@@ -174,3 +176,7 @@
 {{end}}
 </div>
 {{end}}
+
+{{/* One entry of the month's lead legend: its colour, who, and for how
+     many days. */}}
+{{define "lead-entry"}}<span class="lead-dot lead-{{.Tone}}" aria-hidden="true"></span><b>{{.Name}}</b><span class="muted">{{.Days}}</span>{{end}}

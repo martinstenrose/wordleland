@@ -82,6 +82,7 @@ func TestNoCatalogueStringFormatsBadly(t *testing.T) {
 var pluralArgs = map[string]func(n int) []any{
 	"months.seasonLeader":     func(n int) []any { return []any{"Alma", n} },
 	"months.seasonShared":     func(n int) []any { return []any{"Alma and Bo", n} },
+	"months.sharedLead":       func(n int) []any { return []any{"Alma and Bo", n} },
 	"today.standing.daysLeft": func(n int) []any { return []any{"September", n} },
 	"months.award.climbed":    func(n int) []any { return []any{n, "Aug"} },
 	"board.h2h.sub":           func(n int) []any { return []any{n, 2, "Alma", "0.12"} },

@@ -855,7 +855,10 @@ so they switch with no script. A live redraw lands on the results tab.
 much, and the days left; then **who led each day** as a strip of tiles, one
 colour per leader, from a new `stats.DayLeaders` that scores the month day by
 day with the same rule as the table. The strip is not a set of links: a
-tile's title names the day and the leader, and a day is not a page. The
+tile's title names the day and the leader, and a day is not a page. A tie is
+its own leader in the legend, cut short there when the names run wider
+than the card and named in full in a popup, as is "others" — everybody
+past the three colours. The
 table drops the columns the design drops — best run, 3-or-better, the bar
 and the best month — and keeps average, behind, played and misses; the
 season under it is a grid of tiles, a trophy for a month won, a lighter

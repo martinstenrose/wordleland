@@ -1337,3 +1337,47 @@ func TestTodaysTwoListsShareOneRowShape(t *testing.T) {
 		}
 	}
 }
+
+// A tie keeps its own entry in the strip's legend, however DayLeaders lists
+// it, named in full in its popup since the legend may cut it short; and the days of anybody past the
+// three colours are summed as "others", with a popup saying whose they are,
+// rather than left unexplained.
+func TestLeadLegendExplainsTiesAndTheRest(t *testing.T) {
+	t.Parallel()
+
+	tr := testServer(t).translatorIn("en")
+	ids := map[string]int64{}
+	p := func(names ...string) []stats.MonthPlayer {
+		var ps []stats.MonthPlayer
+		for _, n := range names {
+			if ids[n] == 0 {
+				ids[n] = int64(len(ids) + 1)
+			}
+			ps = append(ps, stats.MonthPlayer{Player: store.Player{ID: ids[n], Name: n}})
+		}
+		return ps
+	}
+	// Bob and Alice is the tie Alice and Bob, listed the other way round.
+	leaders := [][]stats.MonthPlayer{
+		p("Alice", "Bob"), p("Alice"), p("Alice"), p("Alice"), p("Bob", "Alice"),
+		p("Bob", "Carol"), p("Carol"), p("Dave"), p("Bob"), p("Bob"), nil,
+	}
+	tones, legend := leadTones(tr, leaders)
+
+	var got []string
+	for _, l := range legend {
+		got = append(got, fmt.Sprintf("%d %s | %s | %s", l.Tone, l.Name, l.Days, strings.Join(l.Why, "; ")))
+	}
+	want := []string{
+		"1 Alice | 3 days | ",
+		"2 Alice and Bob | 2 days | Alice and Bob shared the lead for 2 days.",
+		"3 Bob | 2 days | ",
+		"4 Others | 3 days | Bob and Carol (1 day); Carol (1 day); Dave (1 day)",
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("legend =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	if wantTones := []int{2, 1, 1, 1, 2, 4, 4, 4, 3, 3, 0}; !slices.Equal(tones, wantTones) {
+		t.Errorf("tones = %v, want %v", tones, wantTones)
+	}
+}
