@@ -174,9 +174,6 @@ type liveView struct {
 	// reconnect the extension makes from scratch — is caught up at once
 	// when anything has landed in between.
 	Stream string
-	// Page is this page's own URL, path and query, which is what is fetched
-	// again: the same prefix, the same filter, the reader's own cookies.
-	Page string
 }
 
 // liveViewFor builds the subscription for the page being rendered, or nil
@@ -189,7 +186,6 @@ func (s *Server) liveViewFor(r *http.Request, prefix string) *liveView {
 	}
 	return &liveView{
 		Stream: prefix + "/events?since=" + strconv.FormatInt(mark, 10),
-		Page:   r.URL.RequestURI(),
 	}
 }
 

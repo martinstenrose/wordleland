@@ -268,8 +268,9 @@ func TestCloseEndsEveryStream(t *testing.T) {
 }
 
 // Today and the board carry the subscription, with the mark they were
-// rendered at and their own URL to fetch again; the shared copies point
-// under the share prefix; nothing else subscribes.
+// rendered at; the shared copies point under the share prefix; nothing else
+// subscribes. What they fetch again is left empty — the address the reader
+// is at by then, which the browser suite pins.
 func TestTodayAndTheBoardSubscribe(t *testing.T) {
 	t.Parallel()
 
@@ -280,13 +281,13 @@ func TestTodayAndTheBoardSubscribe(t *testing.T) {
 	mark := strconv.FormatInt(currentMark(t, srv), 10)
 
 	for _, tt := range []struct {
-		path, stream, page string
-		cookie             *http.Cookie
+		path, stream string
+		cookie       *http.Cookie
 	}{
-		{"/today", "/events?since=" + mark, "/today", session},
-		{"/leaderboard?mode=hard", "/events?since=" + mark, "/leaderboard?mode=hard", session},
-		{"/share/" + slug + "/", "/share/" + slug + "/events?since=" + mark, "/share/" + slug + "/", nil},
-		{"/share/" + slug + "/board", "/share/" + slug + "/events?since=" + mark, "/share/" + slug + "/board", nil},
+		{"/today", "/events?since=" + mark, session},
+		{"/leaderboard?mode=hard", "/events?since=" + mark, session},
+		{"/share/" + slug + "/", "/share/" + slug + "/events?since=" + mark, nil},
+		{"/share/" + slug + "/board", "/share/" + slug + "/events?since=" + mark, nil},
 	} {
 		body := fetchAs(t, srv, tt.path, tt.cookie).Body.String()
 		// The tag ends at the last attribute's closing quote; a bare ">"
@@ -299,7 +300,7 @@ func TestTodayAndTheBoardSubscribe(t *testing.T) {
 			`hx-ext="sse"`,
 			`sse-connect="` + tt.stream + `"`,
 			`hx-trigger="sse:result"`,
-			`hx-get="` + tt.page + `"`,
+			`hx-get=""`,
 			`hx-select="#main > *"`,
 			`hx-target="this"`,
 			`hx-push-url="false"`,
