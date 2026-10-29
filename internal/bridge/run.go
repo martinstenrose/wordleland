@@ -93,7 +93,9 @@ func (b *Bridge) Status() Status { return b.health.snapshot() }
 //
 // It returns only when reading has stopped. The caller supervises it: a
 // panic in here must not take the web server with it, and a bridge that
-// exits while still configured is a fault the health probe reports.
+// exits while still configured is a fault the health probe reports. The
+// Supervisor's recover covers this goroutine only; the worker and the
+// answers each recover on their own, in handle and in ask.
 func (b *Bridge) Run(ctx context.Context) error {
 	queue := make(chan Message, queueSize)
 	done := make(chan struct{})

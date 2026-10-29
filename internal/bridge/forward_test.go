@@ -631,6 +631,35 @@ func TestAnnouncerIsCalledAfterALiveResult(t *testing.T) {
 	}
 }
 
+// A panic past the parse — here in the announcement after a live result —
+// is the worker's, which the Supervisor's recover does not reach. It must
+// cost that one message: the worker carries on and the next result lands.
+func TestAPanicFilingAMessageDoesNotStopTheWorker(t *testing.T) {
+	t.Parallel()
+	f, cap := testFiler(t)
+
+	var calls atomic.Int32
+	f.announce = func(context.Context, time.Time) error {
+		if calls.Add(1) == 1 {
+			panic("announce broke")
+		}
+		return nil
+	}
+
+	f.handle(context.Background(), msg("Wordle 1 891 3/6"))
+	f.handle(context.Background(), msg("Wordle 1 890 4/6"))
+
+	if got := len(cap.sent()); got != 2 {
+		t.Fatalf("delivered %d results, want both", got)
+	}
+	if calls.Load() != 2 {
+		t.Errorf("announce ran %d times, want once per live result", calls.Load())
+	}
+	if log := cap.log(); !strings.Contains(log, "filing a message panicked") || !strings.Contains(log, "announce broke") {
+		t.Errorf("the panic was not logged:\n%s", log)
+	}
+}
+
 // A back-dated result is not evidence that time has moved into a new
 // month — someone can post an old puzzle at any point in the current one —
 // so it must not trigger the check.

@@ -3,6 +3,7 @@ package announce
 import (
 	"context"
 	"log/slog"
+	"runtime/debug"
 	"time"
 )
 
@@ -65,6 +66,16 @@ func runSchedule(ctx context.Context, check func(context.Context, time.Time) err
 
 func runOnce(ctx context.Context, check func(context.Context, time.Time) error,
 	logger *slog.Logger, runAt time.Time) {
+
+	// Nothing above this goroutine recovers, and the check on start runs
+	// on every boot: a panic in it would take the server down, and then
+	// take it down again each time it came back.
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Error("a scheduled announcement check panicked",
+				"panic", r, "stack", string(debug.Stack()))
+		}
+	}()
 
 	checkCtx, cancel := context.WithTimeout(ctx, scheduledCheckTimeout)
 	defer cancel()
