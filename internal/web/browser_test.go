@@ -1076,10 +1076,13 @@ func TestBrowserAPhoneShowsWhoLedEachDay(t *testing.T) {
 		t.Errorf("the phone's strip (under the headline, rule, padding, square height, inside the card, no sideways scroll) = %q, want %q", got, want)
 	}
 
-	box := `document.querySelector(".ld-0").getBoundingClientRect()`
+	// The first day someone led, not the 1st: the board is the last 26
+	// puzzles, so late in a month the first days of it have no one to pick.
+	const day = `document.querySelector(".lead-day.led")`
+	box := day + `.getBoundingClientRect()`
 	p.ClickAt(int(p.Number(box+`.left + 2`)), int(p.Number(box+`.top + 13`)))
-	if got := p.String(`getComputedStyle(document.querySelector(".ld-0")).outlineStyle`); got != "solid" {
-		t.Errorf("a tap on the first day did not ring it (outline %q)", got)
+	if got := p.String(`getComputedStyle(` + day + `).outlineStyle`); got != "solid" {
+		t.Errorf("a tap on the first day led did not ring it (outline %q)", got)
 	}
 }
 
