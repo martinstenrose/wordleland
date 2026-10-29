@@ -799,7 +799,7 @@ func TestSettingsSetsAnAuthenticatorUpInPlace(t *testing.T) {
 	secret := strings.ReplaceAll(grouped[1], " ", "")
 	csrf := csrfFieldPattern.FindStringSubmatch(body)[1]
 
-	wrong := postForm(t, srv, "/enroll-totp", url.Values{"csrf_token": {csrf}, "from": {"settings"}, "code": {"000000"}}, cookies)
+	wrong := postForm(t, srv, "/enroll-totp", url.Values{"csrf_token": {csrf}, "from": {"settings"}, "code": {"000000"}, "password": {testPassword}}, cookies)
 	if wrong.Code != http.StatusUnauthorized {
 		t.Fatalf("a wrong code = %d, want 401", wrong.Code)
 	}
@@ -807,7 +807,7 @@ func TestSettingsSetsAnAuthenticatorUpInPlace(t *testing.T) {
 		t.Error("a wrong code did not come back to the same setup on the settings page")
 	}
 
-	right := postForm(t, srv, "/enroll-totp", url.Values{"csrf_token": {csrf}, "from": {"settings"}, "code": {codeFor(t, secret, time.Now())}}, cookies)
+	right := postForm(t, srv, "/enroll-totp", url.Values{"csrf_token": {csrf}, "from": {"settings"}, "code": {codeFor(t, secret, time.Now())}, "password": {testPassword}}, cookies)
 	if right.Code != http.StatusOK {
 		t.Fatalf("the right code = %d, want 200", right.Code)
 	}
