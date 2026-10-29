@@ -317,3 +317,60 @@ func TestLinkTokensAreNotInterchangeable(t *testing.T) {
 		t.Errorf("the reset link stopped working after being refused elsewhere: %v", err)
 	}
 }
+
+// A new password cancels a change of address still waiting on confirmation,
+// by either route: the change was asked for from one of the sessions the new
+// password ends, and confirming it later would hand whoever asked the
+// address the next reset is sent to.
+func TestANewPasswordCancelsAPendingAddress(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name string
+		set  func(ctx context.Context, db *sql.DB, actor Actor, userID int64) error
+	}{
+		{"settings", func(ctx context.Context, db *sql.DB, actor Actor, userID int64) error {
+			return SetUserPassword(ctx, db, actor, userID, "new-hash")
+		}},
+		{"reset link", func(ctx context.Context, db *sql.DB, _ Actor, userID int64) error {
+			token, err := CreatePasswordResetToken(ctx, db, userID)
+			if err != nil {
+				return err
+			}
+			_, err = ConsumePasswordResetToken(ctx, db, token, "new-hash")
+			return err
+		}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			db, user, actor := resetFixture(t)
+			ctx := context.Background()
+
+			if err := SetPendingEmail(ctx, db, actor, user.ID, "elsewhere@example.tld"); err != nil {
+				t.Fatalf("SetPendingEmail() failed: %v", err)
+			}
+			verify, err := CreateEmailVerificationToken(ctx, db, user.ID)
+			if err != nil {
+				t.Fatalf("CreateEmailVerificationToken() failed: %v", err)
+			}
+
+			if err := tt.set(ctx, db, actor, user.ID); err != nil {
+				t.Fatalf("setting the password failed: %v", err)
+			}
+			reloaded, err := UserByID(ctx, db, user.ID)
+			if err != nil {
+				t.Fatalf("UserByID() failed: %v", err)
+			}
+			if reloaded.PendingEmail != nil {
+				t.Errorf("PendingEmail = %q after a new password, want none", *reloaded.PendingEmail)
+			}
+
+			// Whatever the verification link still does, it does not move
+			// the account.
+			_, _ = ConsumeEmailVerificationToken(ctx, db, verify)
+			if reloaded, _ = UserByID(ctx, db, user.ID); reloaded.Email != user.Email {
+				t.Errorf("Email = %q after the old link was followed, want %q", reloaded.Email, user.Email)
+			}
+		})
+	}
+}

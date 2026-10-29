@@ -51,6 +51,7 @@ func enrol(t *testing.T, srv *Server, cookies []*http.Cookie) (string, []*http.C
 	confirm := postForm(t, srv, "/enroll-totp", url.Values{
 		"csrf_token": {csrf[1]},
 		"code":       {codeFor(t, secret, time.Now())},
+		"password":   {testPassword},
 	}, cookies)
 	// Enrolment lands on the recovery codes rather than redirecting: it is
 	// the only moment they can be shown, so it is not skipped past.
@@ -174,6 +175,7 @@ func TestEnrolmentRejectsWrongCode(t *testing.T) {
 	rec := postForm(t, srv, "/enroll-totp", url.Values{
 		"csrf_token": {csrf},
 		"code":       {"000000"},
+		"password":   {testPassword},
 	}, cookies)
 
 	if rec.Code != http.StatusUnauthorized {
@@ -634,6 +636,40 @@ func TestReplacingAnAuthenticatorNeedsThePassword(t *testing.T) {
 		}
 		if liveSecret(t, srv, user.ID) != first {
 			t.Errorf("password %q: the secret was replaced without it", password)
+		}
+	}
+}
+
+// A first authenticator asks for the password as a replacement does: set up
+// from a borrowed screen it is somebody else's second factor on the account,
+// and the owner's next sign-in asks for a code only they can read.
+func TestSettingUpAnAuthenticatorNeedsThePassword(t *testing.T) {
+	t.Parallel()
+
+	srv := testServer(t)
+	user := seedLogin(t, srv, "admin@example.tld", true)
+	_, cookies := login(t, srv, "admin@example.tld", testPassword)
+
+	page, cookies := getWith(t, srv, "/enroll-totp", cookies)
+	body := page.Body.String()
+	csrf := csrfFieldPattern.FindStringSubmatch(body)[1]
+	secret := secretPattern.FindStringSubmatch(body)[1]
+
+	for _, password := range []string{"", "not-the-password"} {
+		rec := postForm(t, srv, "/enroll-totp", url.Values{
+			"csrf_token": {csrf},
+			"code":       {codeFor(t, secret, time.Now())},
+			"password":   {password},
+		}, cookies)
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("password %q: status = %d, want %d", password, rec.Code, http.StatusUnauthorized)
+		}
+		fresh, err := store.UserByID(context.Background(), srv.db, user.ID)
+		if err != nil {
+			t.Fatalf("UserByID: %v", err)
+		}
+		if fresh.HasTOTP {
+			t.Fatalf("password %q: an authenticator was set up without it", password)
 		}
 	}
 }

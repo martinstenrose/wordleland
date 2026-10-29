@@ -123,7 +123,8 @@ func createLinkToken(ctx context.Context, q Querier, userID int64, purpose strin
 }
 
 // ConsumePasswordResetToken validates a token, marks it used, sets the new
-// password, and invalidates every session for that user.
+// password, and invalidates every session for that user, along with any
+// change of address waiting on confirmation, as SetUserPassword does.
 //
 // All of it happens in one transaction. A reset that set the password but left
 // the token usable, or left old sessions alive, would not actually be a reset —
@@ -146,7 +147,7 @@ func ConsumePasswordResetToken(ctx context.Context, db *sql.DB, token, passwordH
 			return fmt.Errorf("mark reset token used: %w", err)
 		}
 		if _, err := tx.ExecContext(ctx,
-			`UPDATE users SET password_hash = ? WHERE id = ?`, passwordHash, userID,
+			`UPDATE users SET password_hash = ?, pending_email = NULL WHERE id = ?`, passwordHash, userID,
 		); err != nil {
 			return fmt.Errorf("set password: %w", err)
 		}

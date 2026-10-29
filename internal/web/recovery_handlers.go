@@ -177,6 +177,10 @@ func (s *Server) renderRecoveryError(w http.ResponseWriter, r *http.Request, sta
 // It replaces rather than reveals: only hashes are stored, so an existing
 // set cannot be shown again. Saying "generate" rather than "view" is the
 // honest label for what the button does.
+//
+// It asks for the password first. A fresh set is a way past the second
+// factor that whoever presses the button walks away with, so on a borrowed
+// screen it would be the second factor, kept for later.
 func (s *Server) handleSettingsRecoveryCodes(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		s.renderError(w, r, http.StatusBadRequest)
@@ -197,5 +201,12 @@ func (s *Server) handleSettingsRecoveryCodes(w http.ResponseWriter, r *http.Requ
 		http.Redirect(w, r, "/settings", http.StatusSeeOther)
 		return
 	}
+	// A wrong password leaves the question open, with the old codes still
+	// the ones that work.
+	if !s.settingsPasswordConfirmed(w, r, user, r.PostFormValue("password"),
+		"recovery codes", settingsForm{}, func(p *settingsPage) { p.Confirm = "codes" }) {
+		return
+	}
+	s.limiter.Reset(settingsPasswordKey(user.ID))
 	s.renderSettingsCodes(w, r, user, false)
 }

@@ -352,6 +352,28 @@ it off — ask for the password on top, for the reason changing the
 password asks for the current one: a borrowed screen has already cleared both
 factors, and the password is the one thing it does not carry.
 
+**The same goes for everything a borrowed screen could take the account
+with, not only what removes a factor.** Changing the address, issuing new
+recovery codes and setting up a first authenticator ask for the password
+too. Before, each of them was a way in without one: new codes kept for
+later, or an authenticator of one's own enrolled on an account that had
+none, then the address moved and a reset sent there; the reset ended the
+owner's sessions and the saved second factor cleared the sign-in after it. A
+first setup asks even straight after sign-in, when the password was typed a
+moment earlier — the server cannot tell that moment from a screen left
+open, and the browser fills the field in. All of them share one limiter key
+with the password form, since it is one password being guessed at from one
+account.
+
+**A change of address is told to the address it replaces, and a new
+password cancels it.** The old address is still the account's until the new
+one is confirmed, so it is where an owner who did not ask would notice.
+Its message links to forgot-password rather than to anything that undoes
+the change, because a new password, by reset or from settings, ends every
+session and clears the pending address — the one thing that owner has to do
+is the whole of the undo, and a link of its own would be a second way to
+reach the same state.
+
 Replacing is the ordinary case and this page used to refuse it. A new phone
 or a lost one is a thing an enrolled account is supposed to survive, the
 settings screen had offered it all along, and the link landed every one of
