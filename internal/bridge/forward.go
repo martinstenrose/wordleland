@@ -255,6 +255,17 @@ func (f *filer) wait() { f.answers.Wait() }
 // handle processes one message. It returns nothing: every outcome is either
 // normal or already logged, and there is no caller who could do better.
 func (f *filer) handle(ctx context.Context, m Message) {
+	// handle runs on the worker goroutine, which the Supervisor's recover
+	// does not reach, and it runs the parse, the write and every
+	// announcement after it: a bug in any of them must cost this message,
+	// not the process — and not the next result either, which would land on
+	// the same bug and take the restarted process down with it.
+	defer func() {
+		if r := recover(); r != nil {
+			f.logger.Error("filing a message panicked",
+				"panic", r, "stack", string(debug.Stack()))
+		}
+	}()
 	// The group id that arrives on a message is the bare base64 form, which
 	// /v1/groups reports as internal_id. The same endpoint also reports a
 	// "group.<base64>" id, and configuring that one matches nothing while

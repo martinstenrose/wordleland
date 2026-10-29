@@ -1,9 +1,11 @@
 package announce
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 )
@@ -61,6 +63,40 @@ func TestTheScheduleRunsJustAfterMidnightWithDeadline(t *testing.T) {
 	runSchedule(ctx, check, logger, func() time.Time { return current }, wait)
 	if len(at) != 2 || !at[0].Equal(evening) || !at[1].Equal(midnight) {
 		t.Errorf("checked at %v, want on start and at %v", at, midnight)
+	}
+}
+
+// A check that panics costs that run, not the scheduler: nothing above it
+// recovers, and the check on start would otherwise take every boot down.
+func TestAPanickingCheckDoesNotStopTheSchedule(t *testing.T) {
+	t.Parallel()
+	evening := time.Date(2026, time.September, 30, 23, 45, 0, 0, time.Local)
+	midnight := time.Date(2026, time.October, 1, 0, 1, 0, 0, time.Local)
+	current := evening
+	waits := 0
+	wait := func(context.Context, time.Duration) bool {
+		waits++
+		current = midnight
+		return waits == 1
+	}
+
+	var calls int
+	check := func(context.Context, time.Time) error {
+		calls++
+		if calls == 1 {
+			panic("check broke")
+		}
+		return nil
+	}
+
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	runSchedule(context.Background(), check, logger, func() time.Time { return current }, wait)
+	if calls != 2 {
+		t.Errorf("checked %d times, want the start check and the midnight one", calls)
+	}
+	if !strings.Contains(logs.String(), "check broke") {
+		t.Errorf("the panic was not logged:\n%s", logs.String())
 	}
 }
 
