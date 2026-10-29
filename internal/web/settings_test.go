@@ -2,10 +2,12 @@ package web
 
 import (
 	"context"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/smtp"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
@@ -201,24 +203,30 @@ func TestSettingsEmailChangeWaitsForConfirmation(t *testing.T) {
 	srv := testServer(t)
 	user, session := settingsUser(t, srv, "old@example.tld", "correct horse battery staple", false)
 
-	var sent []byte
-	var to []string
+	sent := map[string][]byte{}
 	srv.mailer = auth.NewMailer("smtp.example.tld", "587", "", "", "wordle@example.tld")
 	srv.mailer.SetSender(func(_ string, _ smtp.Auth, _ string, rcpt []string, msg []byte) error {
-		to, sent = rcpt, msg
+		for _, to := range rcpt {
+			sent[to] = msg
+		}
 		return nil
 	})
 	srv.cfg.AppURL = "https://wordle.example.tld"
 
-	rec := postSettings(t, srv, "/settings/email", url.Values{"email": {"new@example.tld"}}, session)
+	rec := postSettings(t, srv, "/settings/email", url.Values{"email": {"new@example.tld"}, "password": {testPassword}}, session)
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("change = %d; body:\n%s", rec.Code, rec.Body.String())
 	}
 
 	// The confirmation goes to the new address: a message to the old one
-	// would prove nothing about the new one.
-	if len(to) != 1 || to[0] != "new@example.tld" {
-		t.Errorf("confirmation went to %v, want the new address", to)
+	// would prove nothing about the new one. The old one is told, with no
+	// link that would confirm anything.
+	if len(sent) != 2 || sent["new@example.tld"] == nil || sent["old@example.tld"] == nil {
+		t.Errorf("mail went to %v, want the new address and the old one", slices.Sorted(maps.Keys(sent)))
+	}
+	if notice := string(sent["old@example.tld"]); strings.Contains(notice, "verify-email") ||
+		!strings.Contains(notice, "https://wordle.example.tld/forgot-password") {
+		t.Errorf("the old address's notice carries the wrong link:\n%s", notice)
 	}
 
 	fresh, _ := store.UserByID(context.Background(), srv.db, user.ID)
@@ -230,7 +238,7 @@ func TestSettingsEmailChangeWaitsForConfirmation(t *testing.T) {
 	}
 
 	// Following the link promotes it.
-	link := string(sent)
+	link := string(sent["new@example.tld"])
 	i := strings.Index(link, "https://wordle.example.tld/verify-email?token=")
 	if i < 0 {
 		t.Fatal("no verification link in the message")
@@ -250,6 +258,41 @@ func TestSettingsEmailChangeWaitsForConfirmation(t *testing.T) {
 	}
 }
 
+// The address is where a reset is sent, so moving it is taking the account
+// a step later: a signed-in screen without the password moves nothing and
+// mails nobody.
+func TestChangingTheAddressNeedsThePassword(t *testing.T) {
+	t.Parallel()
+
+	srv := testServer(t)
+	user, session := settingsUser(t, srv, "old@example.tld", testPassword, false)
+
+	var mailed int
+	srv.mailer = auth.NewMailer("smtp.example.tld", "587", "", "", "wordle@example.tld")
+	srv.mailer.SetSender(func(string, smtp.Auth, string, []string, []byte) error {
+		mailed++
+		return nil
+	})
+
+	for _, password := range []string{"", "not-the-password"} {
+		rec := postSettings(t, srv, "/settings/email",
+			url.Values{"email": {"new@example.tld"}, "password": {password}}, session)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Errorf("password %q: status = %d, want %d", password, rec.Code, http.StatusUnprocessableEntity)
+		}
+		if !strings.Contains(rec.Body.String(), `value="new@example.tld"`) {
+			t.Errorf("password %q: the address typed was not kept", password)
+		}
+	}
+	fresh, _ := store.UserByID(context.Background(), srv.db, user.ID)
+	if fresh.PendingEmail != nil {
+		t.Errorf("PendingEmail = %q without the password", *fresh.PendingEmail)
+	}
+	if mailed != 0 {
+		t.Errorf("%d messages sent without the password", mailed)
+	}
+}
+
 // Saying "that address is taken" would tell whoever asks who else is on the
 // board, so a taken address reads the same as an unusable one.
 func TestSettingsEmailDoesNotRevealOtherAccounts(t *testing.T) {
@@ -264,8 +307,8 @@ func TestSettingsEmailDoesNotRevealOtherAccounts(t *testing.T) {
 	srv.mailer = auth.NewMailer("smtp.example.tld", "587", "", "", "wordle@example.tld")
 	srv.mailer.SetSender(func(string, smtp.Auth, string, []string, []byte) error { return nil })
 
-	taken := postSettings(t, srv, "/settings/email", url.Values{"email": {"two@example.tld"}}, session)
-	unusable := postSettings(t, srv, "/settings/email", url.Values{"email": {"not-an-address"}}, session)
+	taken := postSettings(t, srv, "/settings/email", url.Values{"email": {"two@example.tld"}, "password": {testPassword}}, session)
+	unusable := postSettings(t, srv, "/settings/email", url.Values{"email": {"not-an-address"}, "password": {testPassword}}, session)
 
 	if taken.Code != unusable.Code {
 		t.Errorf("statuses differ: taken %d, unusable %d", taken.Code, unusable.Code)
@@ -394,7 +437,7 @@ func TestChangingTheAddressLandsBackOnItsTab(t *testing.T) {
 	srv.mailer.SetSender(func(string, smtp.Auth, string, []string, []byte) error { return nil })
 	srv.cfg.AppURL = "https://wordle.example.tld"
 
-	rec := postSettings(t, srv, "/settings/email", url.Values{"email": {"new@example.tld"}}, session)
+	rec := postSettings(t, srv, "/settings/email", url.Values{"email": {"new@example.tld"}, "password": {testPassword}}, session)
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("status = %d, want 303; body:\n%s", rec.Code, rec.Body.String())
 	}

@@ -76,7 +76,10 @@ type totpPage struct {
 // lost one — is something an account with two-factor on is supposed to be
 // able to do, and the settings screen has offered it all along. What makes it
 // safe is not the session but the password the submit asks for on top of the
-// new code, which is what a borrowed screen does not have.
+// new code, which is what a borrowed screen does not have. A first setup asks
+// for it too: an authenticator enrolled from a borrowed screen is somebody
+// else's second factor on the account, and the owner's next sign-in asks
+// for a code only they can read.
 //
 // There is one secret per account, not one per app: an authenticator app is
 // a holder of it, and any number of them can hold the same one. So this is
@@ -172,22 +175,20 @@ func (s *Server) handleEnrolTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusForbidden)
 		return
 	}
-	user, replacing, ok := s.enrolCandidate(w, r)
+	user, _, ok := s.enrolCandidate(w, r)
 	if !ok {
 		return
 	}
 
-	// Rotating the secret asks for the password as well, for the reason a
-	// password change does: the session is already
-	// authenticated, and a borrowed screen should not be enough to take the
-	// second factor off an account — which, since promotion discards the
-	// recovery codes with the old secret, is the whole of it.
+	// Setting up an authenticator asks for the password as well, first or
+	// replacement, for the reason checkCurrentPassword gives: a borrowed
+	// screen should not be enough to put somebody else's second factor on
+	// the account — and a replacement discards the recovery codes with the
+	// old secret, which makes it the whole of the second factor.
 	//
 	// It is checked before the code so that a wrong password never spends an
-	// attempt at the new secret, and it shares the settings screen's limiter
-	// key because it is the same password being guessed at from the same
-	// account.
-	if replacing && !s.verifyEnrolPassword(w, r, user) {
+	// attempt at the new secret.
+	if !s.verifyEnrolPassword(w, r, user) {
 		return
 	}
 
@@ -238,9 +239,7 @@ func (s *Server) handleEnrolTOTPSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.limiter.Reset("totp:user:" + strconv.FormatInt(user.ID, 10))
-	if replacing {
-		s.limiter.Reset("settings-password:user:" + strconv.FormatInt(user.ID, 10))
-	}
+	s.limiter.Reset(settingsPasswordKey(user.ID))
 
 	// Enrolment completes the second factor, so the session is rotated out of
 	// its pending state rather than requiring an immediate second code.
@@ -443,36 +442,23 @@ func (s *Server) renderEnrolError(w http.ResponseWriter, r *http.Request, status
 	s.render(w, r, status, "enroll_totp.html", page)
 }
 
-// verifyEnrolPassword checks the password a replacement asks for, reporting
-// whether the caller should carry on. It renders the failure itself, back
-// onto the enrolment page with the pending secret intact, so a mistyped
-// password does not cost the reader the QR code they have just scanned.
+// verifyEnrolPassword checks the password setting up an authenticator asks
+// for, reporting whether the caller should carry on. It renders the failure
+// itself, back onto the enrolment page with the pending secret intact, so a
+// mistyped password does not cost the reader the QR code they have just
+// scanned.
 func (s *Server) verifyEnrolPassword(w http.ResponseWriter, r *http.Request, user store.User) bool {
-	// Before the hash rather than after: verifying costs 64 MiB and the CPU
-	// time to go with it, so an unthrottled endpoint is a way to spend the
-	// box's memory as well as a way to find the password.
-	clientIP := auth.ClientIP(r, s.cfg.TrustedProxies)
-	if !s.limiter.Allow("settings-password:user:"+strconv.FormatInt(user.ID, 10),
-		"settings-password:ip:"+clientIP) {
-		s.logger.Warn("two-factor replacement rate limited", "ip", clientIP)
+	switch s.checkCurrentPassword(r, user, r.PostFormValue("password"), "two-factor setup") {
+	case passwordOK:
+		return true
+	case passwordLimited:
 		s.renderEnrolError(w, r, http.StatusTooManyRequests,
 			s.translatorFor(w, r).T("enrol.error.tooMany"))
-		return false
-	}
-
-	var verifyErr error
-	if err := s.limiter.WithHashSlot(r.Context(), func() error {
-		verifyErr = auth.VerifyPassword(user.PasswordHash, r.PostFormValue("password"))
-		return nil
-	}); err != nil {
-		s.logger.Error("verify password", "error", err)
-		s.renderError(w, r, http.StatusInternalServerError)
-		return false
-	}
-	if verifyErr != nil {
+	case passwordWrong:
 		s.renderEnrolError(w, r, http.StatusUnauthorized,
 			s.translatorFor(w, r).T("settings.error.wrongPassword"))
-		return false
+	default:
+		s.renderError(w, r, http.StatusInternalServerError)
 	}
-	return true
+	return false
 }

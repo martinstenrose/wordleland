@@ -255,15 +255,19 @@ func PromotePendingEmail(ctx context.Context, tx *sql.Tx, actor Actor, userID in
 		map[string]any{"email": map[string]any{"from": user.Email, "to": *user.PendingEmail}})
 }
 
-// SetUserPassword replaces a user's password hash and invalidates their
-// sessions.
+// SetUserPassword replaces a user's password hash, invalidates their
+// sessions and cancels any change of address still waiting to be confirmed.
 //
 // Dropping the sessions is the point: a reset that leaves the old ones alive
 // does not actually lock anyone out, which is the reason to reset in the first
-// place.
+// place. The pending address goes for the same reason: whoever asked for it
+// did so from one of those sessions, and confirming it would hand them the
+// address the next reset is sent to. Its verification link, if still live,
+// then only confirms the address the account already has.
 func SetUserPassword(ctx context.Context, db *sql.DB, actor Actor, userID int64, passwordHash string) error {
 	return InTx(ctx, db, func(tx *sql.Tx) error {
-		res, err := tx.ExecContext(ctx, `UPDATE users SET password_hash = ? WHERE id = ?`, passwordHash, userID)
+		res, err := tx.ExecContext(ctx,
+			`UPDATE users SET password_hash = ?, pending_email = NULL WHERE id = ?`, passwordHash, userID)
 		if err != nil {
 			return fmt.Errorf("set password: %w", err)
 		}

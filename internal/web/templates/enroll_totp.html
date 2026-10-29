@@ -26,14 +26,12 @@
     <label for="code">{{.T.T "enrol.confirm"}}</label>
     <input class="code-input" type="text" id="code" name="code" inputmode="numeric"
            autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" required autofocus>
-    {{/* The password, only where there is an authenticator to replace: a
-         session that is already signed in is not on its own enough to take
-         the second factor off an account. */}}
-    {{if .Replacing}}
-      <label for="password">{{.T.T "enrol.replace.password"}}</label>
-      <input type="password" id="password" name="password"
-             autocomplete="current-password" required>
-    {{end}}
+    {{/* The password, first setup or replacement: a session that is
+         already signed in is not on its own enough to put a second factor
+         on an account or take one off it. */}}
+    <label for="password">{{.T.T "enrol.replace.password"}}</label>
+    <input type="password" id="password" name="password"
+           autocomplete="current-password" required>
     {{/* Declining a form is a control, not a link to somewhere else, so a
          replacement gets a Cancel beside the button it declines — and the
          one it declines stops being full width to make room for it. A first

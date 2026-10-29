@@ -39,16 +39,24 @@
   <section class="card settings-card" id="sign-in">
     {{template "settings-card-head" (dict "Icon" "key" "Title" (.T.T "settings.signIn") "Sub" (.T.T "settings.signInSub"))}}
     {{if .PendingEmail}}<p class="note">{{.T.T "settings.pendingEmail" .PendingEmail}}</p>{{end}}
+    {{/* The password as well as the address: the address is where a reset
+         goes, so a signed-in screen alone must not be able to move it. */}}
     <form method="post" action="/settings/email" class="form settings-form">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-      <label class="field">
-        <span class="field-label">{{.T.T "signin.email"}}</span>
-        <span class="field-row">
+      <div class="field-pair">
+        <label class="field">
+          <span class="field-label">{{.T.T "signin.email"}}</span>
           <input type="email" name="email" value="{{.Form.Email}}" required autocomplete="email">
-          <button class="btn secondary" type="submit">{{.T.T "settings.changeEmail"}}</button>
-        </span>
+        </label>
+        <label class="field">
+          <span class="field-label">{{.T.T "settings.currentPassword"}}</span>
+          <input type="password" name="password" required autocomplete="current-password">
+        </label>
+      </div>
+      <div class="actions with-hint">
+        <button class="btn secondary" type="submit">{{.T.T "settings.changeEmail"}}</button>
         <span class="field-hint">{{.T.T "settings.emailHint"}}</span>
-      </label>
+      </div>
     </form>
     <hr class="settings-rule">
     <form method="post" action="/settings/password" class="form settings-form">
@@ -103,12 +111,10 @@
             <input class="code-input" type="text" name="code" inputmode="numeric" autocomplete="one-time-code"
                    pattern="[0-9 ]*" maxlength="7" placeholder="000 000" required autofocus>
           </label>
-          {{if .Replacing}}
-            <label class="field">
-              <span class="field-label">{{$.T.T "enrol.replace.password"}}</span>
-              <input type="password" name="password" autocomplete="current-password" required>
-            </label>
-          {{end}}
+          <label class="field">
+            <span class="field-label">{{$.T.T "enrol.replace.password"}}</span>
+            <input type="password" name="password" autocomplete="current-password" required>
+          </label>
           <div class="actions">
             <button class="btn{{if .Replacing}} danger{{end}}" type="submit">{{$.T.T "settings.totp.confirm"}}</button>
             <a class="btn secondary" href="/settings#two-step">{{$.T.T "admin.cancel"}}</a>
@@ -160,10 +166,13 @@
         </li>
       </ul>
       {{if eq .Confirm "codes"}}
-        <form method="post" action="/settings/recovery-codes" class="danger-box">
+        <form method="post" action="/settings/recovery-codes" class="danger-box column">
           <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-          {{symbol "warning" 19}}
-          <p class="danger-box-text"><b>{{.T.T "settings.recovery.ask"}}</b> {{.T.T "settings.recovery.askBody"}}</p>
+          <p class="danger-box-text">{{symbol "warning" 19}}<span><b>{{.T.T "settings.recovery.ask"}}</b> {{.T.T "settings.recovery.askBody"}}</span></p>
+          <label class="field">
+            <span class="field-label">{{.T.T "enrol.replace.password"}}</span>
+            <input type="password" name="password" autocomplete="current-password" required>
+          </label>
           <span class="danger-box-actions">
             <a class="btn secondary" href="/settings#two-step">{{.T.T "admin.cancel"}}</a>
             <button class="btn danger" type="submit">{{.T.T "settings.recovery.askAction"}}</button>

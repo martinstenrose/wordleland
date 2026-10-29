@@ -40,6 +40,7 @@ func enrolWithCodes(t *testing.T, srv *Server, cookies []*http.Cookie) (string, 
 	confirm := postForm(t, srv, "/enroll-totp", url.Values{
 		"csrf_token": {csrf[1]},
 		"code":       {codeFor(t, secret[1], time.Now())},
+		"password":   {testPassword},
 	}, cookies)
 	if confirm.Code != http.StatusOK {
 		t.Fatalf("enrolment = %d:\n%s", confirm.Code, confirm.Body.String())
@@ -216,5 +217,48 @@ func TestRecoveryCodesAreNotRetrievable(t *testing.T) {
 				t.Fatalf("%s renders a recovery code", path)
 			}
 		}
+	}
+}
+
+// A fresh set is a way past the second factor that whoever presses the
+// button walks away with, so a signed-in screen alone does not get one: the
+// password first, and without it the codes already issued are the ones that
+// still work.
+func TestNewRecoveryCodesNeedThePassword(t *testing.T) {
+	t.Parallel()
+
+	srv := testServer(t)
+	user := seedLogin(t, srv, "admin@example.tld", true)
+	_, cookies := login(t, srv, "admin@example.tld", testPassword)
+	_, codes, cookies := enrolWithCodes(t, srv, cookies)
+
+	page, cookies := getWith(t, srv, "/settings?confirm=codes#two-step", cookies)
+	csrf := csrfFieldPattern.FindStringSubmatch(page.Body.String())[1]
+
+	for _, password := range []string{"", "not-the-password"} {
+		rec := postForm(t, srv, "/settings/recovery-codes", url.Values{
+			"csrf_token": {csrf},
+			"password":   {password},
+		}, cookies)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Errorf("password %q: status = %d, want %d", password, rec.Code, http.StatusUnprocessableEntity)
+		}
+		if shown := recoveryCodePattern.FindAllString(rec.Body.String(), -1); len(shown) > 0 {
+			t.Errorf("password %q: a new set was handed over without it", password)
+		}
+		if !strings.Contains(rec.Body.String(), `action="/settings/recovery-codes"`) {
+			t.Errorf("password %q: the question was closed rather than asked again", password)
+		}
+	}
+	if err := store.ConsumeRecoveryCode(context.Background(), srv.db, user.ID, codes[0]); err != nil {
+		t.Errorf("a code issued before the refused requests no longer works: %v", err)
+	}
+
+	rec := postForm(t, srv, "/settings/recovery-codes", url.Values{
+		"csrf_token": {csrf},
+		"password":   {testPassword},
+	}, cookies)
+	if fresh := recoveryCodePattern.FindAllString(rec.Body.String(), -1); len(fresh) != auth.RecoveryCodeCount {
+		t.Errorf("with the password: %d codes shown, want %d", len(fresh), auth.RecoveryCodeCount)
 	}
 }

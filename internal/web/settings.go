@@ -223,29 +223,8 @@ func (s *Server) handleSettingsTOTPDisable(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Before the hash rather than after, and on the same key the password
-	// form uses: it is the same password being guessed at from the same
-	// account, and verifying costs 64 MiB either way.
-	clientIP := auth.ClientIP(r, s.cfg.TrustedProxies)
-	if !s.limiter.Allow("settings-password:user:"+strconv.FormatInt(user.ID, 10),
-		"settings-password:ip:"+clientIP) {
-		s.logger.Warn("two-factor disable rate limited", "ip", clientIP)
-		s.renderSettingsStatus(w, r, user, "", "settings.error.tooMany",
-			settingsForm{}, http.StatusTooManyRequests)
-		return
-	}
-
-	var verifyErr error
-	if err := s.limiter.WithHashSlot(r.Context(), func() error {
-		verifyErr = auth.VerifyPassword(user.PasswordHash, r.PostFormValue("password"))
-		return nil
-	}); err != nil {
-		s.logger.Error("verify password", "error", err)
-		s.renderSettings(w, r, user, "", "settings.error.failed", settingsForm{})
-		return
-	}
-	if verifyErr != nil {
-		s.renderSettings(w, r, user, "", "settings.error.wrongPassword", settingsForm{})
+	if !s.settingsPasswordConfirmed(w, r, user, r.PostFormValue("password"),
+		"two-factor disable", settingsForm{}) {
 		return
 	}
 
@@ -254,7 +233,7 @@ func (s *Server) handleSettingsTOTPDisable(w http.ResponseWriter, r *http.Reques
 		s.renderSettings(w, r, user, "", "settings.error.failed", settingsForm{})
 		return
 	}
-	s.limiter.Reset("settings-password:user:" + strconv.FormatInt(user.ID, 10))
+	s.limiter.Reset(settingsPasswordKey(user.ID))
 
 	http.Redirect(w, r, "/settings?notice=totp-off#two-step", http.StatusSeeOther)
 }
@@ -389,6 +368,12 @@ func (s *Server) handleSettingsEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	email := strings.TrimSpace(r.PostFormValue("email"))
+	// The address is what a password reset is sent to, so moving it is
+	// taking the account a step later: the password first.
+	if !s.settingsPasswordConfirmed(w, r, user, r.PostFormValue("password"),
+		"email change", settingsForm{Email: email}) {
+		return
+	}
 	err := store.SetPendingEmail(r.Context(), s.db, store.PlayerActor(user.ID), user.ID, email)
 	switch {
 	case errors.Is(err, store.ErrInvalidEmail):
@@ -413,6 +398,15 @@ func (s *Server) handleSettingsEmail(w http.ResponseWriter, r *http.Request) {
 		s.renderSettings(w, r, user, "", "settings.error.failed", settingsForm{Email: email})
 		return
 	}
+	s.limiter.Reset(settingsPasswordKey(user.ID))
+
+	// The address the account still signs in with hears about it too: it is
+	// the one place an owner who did not ask for this would notice, and a
+	// password change from there cancels it. Logged rather than reported,
+	// because the change the reader asked for has been made.
+	if err := s.sendEmailChangeNotice(user, email); err != nil {
+		s.logger.Error("send email change notice", "error", err)
+	}
 	http.Redirect(w, r, "/settings?notice=email#sign-in", http.StatusSeeOther)
 }
 
@@ -426,37 +420,7 @@ func (s *Server) handleSettingsPassword(w http.ResponseWriter, r *http.Request) 
 	current := r.PostFormValue("current")
 	next := r.PostFormValue("password")
 
-	// The current password is required even though the session is already
-	// authenticated: a borrowed screen should not be enough to take the
-	// account.
-	//
-	// Which makes this a second place to guess a password at, so it is
-	// limited like the first one, and before the hash rather than after:
-	// verifying costs 64 MiB and the CPU time to go with it, so an
-	// unthrottled endpoint is a way to spend the box's memory as well as a
-	// way to find the password. Its own key, not login's — throttling the
-	// two together would let a signed-in tab lock its owner out of the
-	// sign-in form.
-	clientIP := auth.ClientIP(r, s.cfg.TrustedProxies)
-	if !s.limiter.Allow("settings-password:user:"+strconv.FormatInt(user.ID, 10),
-		"settings-password:ip:"+clientIP) {
-		s.logger.Warn("settings password change rate limited", "ip", clientIP)
-		s.renderSettingsStatus(w, r, user, "", "settings.error.tooMany",
-			settingsForm{}, http.StatusTooManyRequests)
-		return
-	}
-
-	var verifyErr error
-	if err := s.limiter.WithHashSlot(r.Context(), func() error {
-		verifyErr = auth.VerifyPassword(user.PasswordHash, current)
-		return nil
-	}); err != nil {
-		s.logger.Error("verify password", "error", err)
-		s.renderSettings(w, r, user, "", "settings.error.failed", settingsForm{})
-		return
-	}
-	if verifyErr != nil {
-		s.renderSettings(w, r, user, "", "settings.error.wrongPassword", settingsForm{})
+	if !s.settingsPasswordConfirmed(w, r, user, current, "settings password change", settingsForm{}) {
 		return
 	}
 	if len([]rune(next)) < auth.MinPasswordLength {
@@ -482,13 +446,91 @@ func (s *Server) handleSettingsPassword(w http.ResponseWriter, r *http.Request) 
 	}
 	// Cleared on success, as sign-in does, so earlier typos are not still
 	// being counted against whoever gets this right.
-	s.limiter.Reset("settings-password:user:" + strconv.FormatInt(user.ID, 10))
+	s.limiter.Reset(settingsPasswordKey(user.ID))
 
 	// Changing the password ends every session, this one included, so the
 	// reader lands back at sign-in rather than on a page they can no longer
 	// act on.
 	s.clearSessionCookie(w)
 	http.Redirect(w, r, "/?notice=password", http.StatusSeeOther)
+}
+
+// passwordCheck is what checkCurrentPassword found.
+type passwordCheck int
+
+const (
+	passwordOK passwordCheck = iota
+	passwordLimited
+	passwordWrong
+	passwordFailed
+)
+
+// settingsPasswordKey is the limiter key for the password a signed-in
+// account is asked for again.
+func settingsPasswordKey(userID int64) string {
+	return "settings-password:user:" + strconv.FormatInt(userID, 10)
+}
+
+// checkCurrentPassword asks a signed-in account for its password again,
+// before anything that could take the account from its owner: changing the
+// password or the address, issuing recovery codes, setting up or replacing
+// an authenticator, switching two-factor off. The session is already
+// authenticated, but a borrowed screen should not be enough to take the
+// account, and the password is the one thing a session on one does not
+// carry.
+//
+// Which makes every one of those a place to guess a password at, so they
+// are limited like sign-in, and before the hash rather than after:
+// verifying costs 64 MiB and the CPU time to go with it, so an unthrottled
+// endpoint is a way to spend the box's memory as well as a way to find the
+// password. One key for all of them — it is the same password being
+// guessed at from the same account — and not login's: throttling the two
+// together would let a signed-in tab lock its owner out of the sign-in
+// form. The caller resets it once what it guarded has succeeded, as
+// sign-in does, so earlier typos are not still counted against whoever got
+// it right.
+//
+// action names what was asked for in the log line a throttle writes.
+func (s *Server) checkCurrentPassword(r *http.Request, user store.User, password, action string) passwordCheck {
+	clientIP := auth.ClientIP(r, s.cfg.TrustedProxies)
+	if !s.limiter.Allow(settingsPasswordKey(user.ID), "settings-password:ip:"+clientIP) {
+		s.logger.Warn(action+" rate limited", "ip", clientIP)
+		return passwordLimited
+	}
+
+	var verifyErr error
+	if err := s.limiter.WithHashSlot(r.Context(), func() error {
+		verifyErr = auth.VerifyPassword(user.PasswordHash, password)
+		return nil
+	}); err != nil {
+		s.logger.Error("verify password", "error", err)
+		return passwordFailed
+	}
+	if verifyErr != nil {
+		return passwordWrong
+	}
+	return passwordOK
+}
+
+// settingsPasswordConfirmed is checkCurrentPassword for a form on the
+// settings page, reporting whether the caller should carry on. It renders
+// a failure itself, back onto the page with form and extra applied, so a
+// mistyped password keeps whatever else was typed and whichever question
+// was open.
+func (s *Server) settingsPasswordConfirmed(w http.ResponseWriter, r *http.Request, user store.User,
+	password, action string, form settingsForm, extra ...func(*settingsPage)) bool {
+
+	switch s.checkCurrentPassword(r, user, password, action) {
+	case passwordOK:
+		return true
+	case passwordLimited:
+		s.renderSettingsStatus(w, r, user, "", "settings.error.tooMany", form, http.StatusTooManyRequests, extra...)
+	case passwordWrong:
+		s.renderSettingsStatus(w, r, user, "", "settings.error.wrongPassword", form, 0, extra...)
+	default:
+		s.renderSettingsStatus(w, r, user, "", "settings.error.failed", form, 0, extra...)
+	}
+	return false
 }
 
 // settingsSubmit does the checks every settings write shares.

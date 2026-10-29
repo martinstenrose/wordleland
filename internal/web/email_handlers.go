@@ -301,6 +301,36 @@ func (s *Server) renderReset(w http.ResponseWriter, r *http.Request, status int,
 	s.render(w, r, status, "reset_password.html", page)
 }
 
+// sendEmailChangeNotice tells the address an account still signs in with
+// that a move to another one has been asked for.
+//
+// Its button is forgot-password, not a link that undoes the change: a
+// reset goes to this address while it is still the account's, it ends every
+// session, and setting a password cancels the pending address — so the one
+// thing an owner who did not ask for this has to do is also the whole of
+// what it takes to undo it.
+func (s *Server) sendEmailChangeNotice(user store.User, to string) error {
+	t := s.translatorIn(user.Locale)
+	return s.sendEmail(user.Email, emailPage{
+		Lang:    t.locale,
+		AppName: t.T("app.name"),
+		Subject: t.T("email.changed.subject"),
+		Preview: t.T("email.changed.preview"),
+		Heading: t.T("email.changed.heading"),
+		Intro:   t.T("email.changed.intro", to),
+
+		ActionURL:   s.cfg.AppURL + "/forgot-password",
+		ActionLabel: t.T("email.changed.action"),
+		ActionNote:  t.T("email.changed.note"),
+
+		Aside: &emailAside{
+			Title: t.T("email.changed.aside.title"),
+			Body:  t.T("email.changed.aside.body", user.Email),
+		},
+		Footer: t.T("email.footer.security", t.T("app.name")),
+	})
+}
+
 // sendVerifyEmail asks a new address to confirm itself.
 //
 // It goes to the new address, never the old one: the point is to prove the
