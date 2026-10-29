@@ -1760,6 +1760,43 @@ func TestBrowserAResultAppearsWithoutAReload(t *testing.T) {
 	}
 }
 
+// A result landing redraws the board at the address it is showing now. The
+// board's controls swap it in place and push their own address, so a live
+// fetch of the address the page was first loaded at would put the range and
+// sort back while the bar still named the ones the reader chose.
+func TestBrowserALiveUpdateKeepsTheBoardsControls(t *testing.T) {
+	site := newSite(t)
+	site.srv.live.interval = 100 * time.Millisecond
+	current := wordle.PuzzleForDate(time.Now())
+	p := site.open(newBrowser(t), desktopWidth)
+	p.Navigate(site.base + "/leaderboard")
+
+	p.Eval(`document.querySelector("#board-view").__stale = true; true`)
+	p.Click("#board-ranges a:not(.on)")
+	p.WaitFor(`!(document.querySelector("#board-view") || {}).__stale`)
+	chosen := p.String(`location.search`)
+	if !strings.Contains(p.String(`document.querySelector("#board-eyebrow").textContent`), "90") {
+		t.Fatal("the range control did not switch the board to 90 days")
+	}
+
+	p.Eval(`window.__alive = 1; document.querySelector("main .board-card").__stale = true; true`)
+	file(t, site.srv, "lapsed", current, 4)
+	p.WaitFor(`!(document.querySelector("main .board-card") || {}).__stale`)
+
+	if got := p.String(`document.querySelector("#board-eyebrow").textContent`); !strings.Contains(got, "90") {
+		t.Errorf("after a result landed the eyebrow says %q, not the 90 days chosen", got)
+	}
+	if got := p.String(`location.search`); got != chosen {
+		t.Errorf("the address is %q after a result landed, want %q", got, chosen)
+	}
+	if alive := p.Number(`window.__alive || 0`); alive != 1 {
+		t.Error("the board redrew by reloading the document")
+	}
+	if errs := p.Errors(); len(errs) > 0 {
+		t.Errorf("console: %s", strings.Join(errs, "; "))
+	}
+}
+
 // Visiting Today again and again leaves one stream open, not one per visit.
 //
 // The browser keeps a page navigated away from in its back-forward cache,

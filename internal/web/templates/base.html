@@ -66,6 +66,12 @@
          listener outlives what it replaces. Without script the page is
          correct on load and stays as it was, like any other page.
 
+         hx-get is empty, which htmx fetches as the address the reader is
+         at now — not the one the page was first rendered for. The board's
+         own controls redraw it in place and push their address without
+         touching this element, so a URL written in here would put the
+         range and sort back the next time a result lands.
+
          hx-disinherit, because htmx passes these attributes down to every
          boosted link inside the region: without it a player's link would
          have swapped the player's page into this region, at this address,
@@ -75,7 +81,7 @@
          transition:false: a result landing is not a navigation. The
          reader did not press anything, and a cross-fade that pauses the
          page for it would be motion for an event they did not cause. */}}
-    <main id="main"{{with .Live}} hx-ext="sse" sse-connect="{{.Stream}}" hx-trigger="sse:result" hx-get="{{.Page}}" hx-select="#main > *" hx-target="this" hx-swap="innerHTML transition:false" hx-push-url="false" hx-disinherit="hx-select hx-target hx-swap hx-push-url hx-indicator" hx-indicator="this"{{end}}>{{block "content" .}}{{end}}</main>
+    <main id="main"{{with .Live}} hx-ext="sse" sse-connect="{{.Stream}}" hx-trigger="sse:result" hx-get="" hx-select="#main > *" hx-target="this" hx-swap="innerHTML transition:false" hx-push-url="false" hx-disinherit="hx-select hx-target hx-swap hx-push-url hx-indicator" hx-indicator="this"{{end}}>{{block "content" .}}{{end}}</main>
     {{template "site-footer" .}}
   </div>
 {{else if eq .Frame "auth"}}
