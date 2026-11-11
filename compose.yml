@@ -42,6 +42,13 @@ services:
     restart: unless-stopped
     environment:
       MODE: json-rpc
+      # signal-cli's default, on-first-use, refuses a member's changed key
+      # until it is trusted by hand — and a new phone is a changed key. Their
+      # sender key for the group arrives one-to-one under that key, so it is
+      # refused too, and every result they post is undecryptable and lost.
+      # The bot only reads a Wordle group; noticing a key change is worth
+      # less to it than every member staying readable.
+      JSON_RPC_TRUST_NEW_IDENTITIES: always
     volumes:
       - signal-cli-config:/home/.local/share/signal-cli
 
