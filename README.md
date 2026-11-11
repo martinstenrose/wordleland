@@ -821,6 +821,33 @@ believe you deployed. A published image reports its release or the rolling
 since the build context excludes `.git` and has nothing to read a commit
 from. `wordleland version` prints the same string without opening a browser.
 
+### A player's results stop arriving
+
+When someone's posts are neither filed nor held as pending, they are not
+reaching the app at all. The usual cause is a new phone: the bridge's account
+never got that member's sender key for the group, so signal-cli cannot
+decrypt anything they post there. The app logs a warning for each one:
+
+```
+signal could not decrypt a message; ... sender=<uuid> type=ProtocolNoSessionException
+```
+
+`docker compose logs signal-cli-rest-api` shows the same failure as
+`missing sender key state`. Things to try, quickest first:
+
+1. Trust the member's new identity key:
+   ```sh
+   sig -X PUT -H 'Content-Type: application/json' \
+     -d '{"trust_all_known_keys": true}' \
+     http://signal-cli-rest-api:8080/v1/identities/<bot number>/trust/<uuid>
+   ```
+2. Have them send the bot a direct message, then post in the group again.
+3. Remove the bot from the group and add it back. A membership change makes
+   every member's phone hand out fresh sender keys.
+
+Nothing redelivers what could not be decrypted. Enter the missed days with
+`wordleland results set`.
+
 ## Development
 
 ```sh

@@ -289,3 +289,36 @@ func TestEnvelopePostingTime(t *testing.T) {
 		t.Errorf("PostedAt = %v for a frame with no clock, want zero", msg.PostedAt)
 	}
 }
+
+// A frame signal-cli could not decrypt carries a sender and nothing else.
+// Dropped at debug among the receipts, a member whose sender key never
+// arrived simply stops scoring with no trace; it must reach the log at warn.
+// The shape is signal-cli's: the exception beside the envelope, not in it.
+func TestUndecryptableFrameWarns(t *testing.T) {
+	t.Parallel()
+	raw := fmt.Sprintf(`{
+	  "account": %q,
+	  "exception": {
+	    "message": "org.signal.libsignal.protocol.NoSessionException: missing sender key state for distribution ID 00000000-0000-4000-8000-000000000000",
+	    "type": "ProtocolNoSessionException"
+	  },
+	  "envelope": {
+	    "sourceUuid": %q,
+	    "sourceName": %q,
+	    "timestamp": 1787490859545
+	  }
+	}`, testAccount, testUUID, testName)
+
+	_, ok, log := decodeEnvelopeLogged(t, raw)
+	if ok {
+		t.Fatal("an undecryptable frame was treated as a message")
+	}
+	if !strings.Contains(log, "level=WARN") {
+		t.Errorf("not logged at warn:\n%s", log)
+	}
+	for _, want := range []string{testUUID, "ProtocolNoSessionException"} {
+		if !strings.Contains(log, want) {
+			t.Errorf("log does not name %q:\n%s", want, log)
+		}
+	}
+}

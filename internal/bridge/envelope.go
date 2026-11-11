@@ -39,6 +39,17 @@ type envelope struct {
 	// per-account — so it is read only for logging that it disagreed.
 	Account string `json:"account"`
 
+	// Exception is signal-cli saying it could not decrypt the frame. It sits
+	// beside the envelope, not in it, and an envelope that carries one has
+	// no message: the commonest cause is a member's new phone whose sender
+	// key for the group never reached this account. Every post of theirs
+	// then arrives as a sender and nothing else — not filed, not held as
+	// pending — so it is surfaced rather than lost among the receipts.
+	Exception *struct {
+		Message string `json:"message"`
+		Type    string `json:"type"`
+	} `json:"exception"`
+
 	Envelope struct {
 		SourceUUID string `json:"sourceUuid"`
 		SourceName string `json:"sourceName"`
@@ -167,6 +178,19 @@ type Message struct {
 // a message simply have neither field set, which is the common case on a
 // busy account.
 func (e envelope) message(account string, logger *slog.Logger) (Message, bool) {
+	if x := e.Exception; x != nil {
+		// Warn, not debug: the sender is posting and none of it can be read,
+		// which nothing else in the log would show. The group cannot be
+		// checked — it is inside what failed to decrypt — so this can also
+		// be a DM; at the traffic this bot sees that costs nothing.
+		// signal-cli's text is sanitised like every other remote string.
+		logger.Warn("signal could not decrypt a message; if this repeats for one sender, "+
+			"their results are being lost — see README, \"A player's results stop arriving\"",
+			"sender", e.Envelope.SourceUUID, "type", sanitizeRemote(x.Type),
+			"error", sanitizeRemote(x.Message))
+		return Message{}, false
+	}
+
 	body := e.Envelope.DataMessage
 	mentionsBot := false
 	var quoteID int64
