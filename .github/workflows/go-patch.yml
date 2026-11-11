@@ -1,0 +1,76 @@
+name: Go patch release
+
+# Opens a pull request raising the go directive in go.mod to the newest
+# patch release of the same minor. Dependabot does not raise that line, and
+# it is what CI installs, so without this it goes stale silently and takes
+# the standard library's security fixes with it — govulncheck only notices
+# once an advisory is published against the version already pinned.
+#
+# Patch releases only: a new minor is a deliberate upgrade, not a chore.
+on:
+  schedule:
+    - cron: "41 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # A pull request opened with the default GITHUB_TOKEN does not
+          # trigger other workflows, so CI would never run on it. A token
+          # from a GitHub App or a fine-grained PAT does; without one, the
+          # pull request still opens and CI has to be started by hand.
+          token: ${{ secrets.GO_PATCH_TOKEN || github.token }}
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Find the newest patch release
+        id: version
+        run: |
+          current=$(go mod edit -json | jq -r .Go)
+          minor=${current%.*}
+          # Read from the module proxy rather than go.dev: every Go release
+          # is published there as a golang.org/toolchain version, and the
+          # proxy is what the build already depends on.
+          latest=$(go list -m -versions golang.org/toolchain | tr ' ' '\n' \
+            | sed -nE "s/^v0\.0\.1-go(${minor//./\\.}\.[0-9]+)\.linux-amd64$/\1/p" \
+            | sort -V | tail -1)
+          echo "current=$current latest=$latest"
+          if [ -z "$latest" ] || [ "$latest" = "$current" ] \
+            || [ "$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -1)" != "$latest" ]; then
+            exit 0
+          fi
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Open a pull request
+        if: steps.version.outputs.latest != ''
+        env:
+          GH_TOKEN: ${{ secrets.GO_PATCH_TOKEN || github.token }}
+          CURRENT: ${{ steps.version.outputs.current }}
+          LATEST: ${{ steps.version.outputs.latest }}
+        run: |
+          branch="chore/go-$LATEST"
+          # Already proposed: the branch exists until its pull request is
+          # merged or closed, and a second one would only duplicate it.
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "$branch already exists"
+            exit 0
+          fi
+          git switch -c "$branch"
+          go mod edit -go="$LATEST"
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -am "chore(deps): bump go from $CURRENT to $LATEST"
+          git push origin "$branch"
+          gh pr create --head "$branch" \
+            --title "chore(deps): bump go from $CURRENT to $LATEST" \
+            --body "Raises the go directive to the newest go${LATEST%.*} patch release. Release notes: https://go.dev/doc/devel/release#go${LATEST%.*}.minor"

@@ -216,6 +216,7 @@ variable. Code that hashes goes through one of those, never
 `auth.HashPassword` directly, so the tests can swap it.
 
 The `go` directive in `go.mod` is a **floor**, and CI installs exactly it.
-Dependabot does not raise the patch version, so it goes stale silently and
-takes the whole standard library's advisories with it; `govulncheck` is what
-notices.
+Dependabot does not raise the patch version, so it would go stale silently
+and take the whole standard library's advisories with it.
+`.github/workflows/go-patch.yml` opens a pull request for each new patch
+release of the same minor instead; `govulncheck` catches what slips past it.
