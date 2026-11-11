@@ -826,7 +826,11 @@ from. `wordleland version` prints the same string without opening a browser.
 When someone's posts are neither filed nor held as pending, they are not
 reaching the app at all. The usual cause is a new phone: the bridge's account
 never got that member's sender key for the group, so signal-cli cannot
-decrypt anything they post there. The app logs a warning for each one:
+decrypt anything they post there. `compose.yml` sets
+`JSON_RPC_TRUST_NEW_IDENTITIES: always` so that a new phone's changed key is
+accepted rather than refused, which is what usually loses the sender key;
+without it, signal-cli waits for every changed key to be trusted by hand. The
+app logs a warning for each message that still cannot be decrypted:
 
 ```
 signal could not decrypt a message; ... sender=<uuid> type=ProtocolNoSessionException
@@ -835,7 +839,8 @@ signal could not decrypt a message; ... sender=<uuid> type=ProtocolNoSessionExce
 `docker compose logs signal-cli-rest-api` shows the same failure as
 `missing sender key state`. Things to try, quickest first:
 
-1. Trust the member's new identity key:
+1. Trust the member's new identity key (only needed without the setting
+   above):
    ```sh
    sig -X PUT -H 'Content-Type: application/json' \
      -d '{"trust_all_known_keys": true}' \
