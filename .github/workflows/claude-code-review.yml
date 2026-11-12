@@ -44,7 +44,9 @@ jobs:
           # on a draft, on every push after its first comment, and posts no
           # summary when it finds something. This one always leaves exactly
           # one summary comment and edits it on each push, and does not
-          # repeat an inline comment a previous push already made.
+          # repeat an inline comment a previous push already made. The
+          # summary also says what the PR does, what it changes on a running
+          # deployment, and what an operator has to do to apply it.
           prompt: |
             Review pull request ${{ github.repository }}#${{ github.event.pull_request.number }}.
             Its head commit is ${{ github.event.pull_request.head.sha }}.
@@ -66,24 +68,58 @@ jobs:
                Only high-signal issues. Do not flag style, nitpicks, pre-existing
                issues, things a linter catches, or anything you are not sure of.
             3. Check each issue again against the code before keeping it.
-            4. Read the inline comments already on the PR with
+            4. Work out what the change means once it is deployed:
+               - what it reaches: the `app` image (cmd/, internal/, the
+                 Dockerfile, go.mod), the compose.yml or .env.example an
+                 operator copies, CI only, or documentation only;
+               - what changes on a running deployment: a schema migration
+                 run at startup (a new file in internal/store/migrations, and
+                 whether it rewrites existing rows), a new or changed `.env`
+                 variable and its default, a page or route players see
+                 differently, something the Signal bridge or bot posts to the
+                 group, a changed admin CLI verb, a new compose service or
+                 volume;
+               - for a version bump, any breaking change, deprecation or
+                 upgrade step in the release notes in the PR description,
+                 whether the bump crosses a major version, and whether the
+                 code this repository uses is what changed;
+               - what an operator has to do to apply it, beyond pulling the
+                 next release: a variable to add to `.env`, a change to copy
+                 into their own compose.yml, a manual step.
+               This is context, not a list of defects: a risk you cannot tie to
+               a concrete problem in the code goes here, not in the issues.
+               If you could not check something (no release notes in the PR
+               description, code the change depends on that you did not
+               read), say so rather than guess.
+            5. Read the inline comments already on the PR with
                `gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments`.
                For each issue kept that none of them already raises, post one inline comment with
                `mcp__github_inline_comment__create_inline_comment` (confirmed: true):
                what is wrong, why, and a committable suggestion only if it fixes
                the issue on its own.
-            5. Always post the summary, whether or not issues were found, with
+            6. Always post the summary, whether or not issues were found, with
                `gh pr comment ${{ github.event.pull_request.number }} --edit-last --create-if-none --body "<body>"`,
                so a later push edits the same comment instead of adding one.
-               The body:
+               The body, in plain words and short enough to read at a glance:
 
                ## Code review
 
                Reviewed at <short head sha>.
 
-               Then either "No issues found. Checked for bugs and compliance with documentation and agent instructions."
+               **What it does:** one to three sentences on what the PR changes
+               and why, and which parts of the app it touches. Describe the
+               effect, not the diff line by line.
+
+               **Impact:** a few bullets from step 4, only the ones that apply,
+               ending with what an operator has to do to apply it. For a change
+               with nothing to deploy, say so in one line.
+
+               **Issues:** either "None found. Checked for bugs and compliance with documentation and agent instructions."
                or a numbered list of the issues, one line each, linking to the
                code as https://github.com/${{ github.repository }}/blob/<full head sha>/<path>#L<start>-L<end>.
+
+               **Verdict:** one line: safe to merge, merge with care (and why),
+               or fix the issues first.
 
             Post nothing else.
           claude_args: >-
